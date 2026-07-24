@@ -523,6 +523,11 @@ class LuxApp {
   }
 
   addFeaturedProduct(button) {
+    const unavailableProducts = new Set(['nfc-keytag', 'qr-tag', 'lost-found-tag']);
+    if (unavailableProducts.has(button.dataset.productId)) {
+      this.showToast('This product is currently out of stock.', 'info');
+      return;
+    }
     const product = {
       id: button.dataset.productId,
       title: button.dataset.productName,
@@ -575,6 +580,14 @@ class LuxApp {
   }
 
   openCheckout() {
+    const unavailableProducts = new Set(['nfc-keytag', 'qr-tag', 'lost-found-tag']);
+    const availableCart = this.state.cart.filter(item => !unavailableProducts.has(String(item.id)));
+    if (availableCart.length !== this.state.cart.length) {
+      this.state.cart = availableCart;
+      this.updateCounters();
+      this.renderCartDrawer();
+      this.showToast('Out-of-stock products were removed from your cart.', 'info');
+    }
     if (!this.state.cart.length) {
       this.showToast('Add a product to your cart before continuing to payment.', 'info');
       return;
@@ -1206,6 +1219,11 @@ class LuxApp {
     document.getElementById('cart-trigger')?.addEventListener('click', () => openDrawer(cartDrawer));
     document.getElementById('wishlist-trigger')?.addEventListener('click', () => openDrawer(wishlistDrawer));
     document.querySelectorAll('.buy-featured-product').forEach(button => {
+      if (['nfc-keytag', 'qr-tag', 'lost-found-tag'].includes(button.dataset.productId)) {
+        button.disabled = true;
+        button.setAttribute('aria-disabled', 'true');
+        button.textContent = 'Out of Stock';
+      }
       button.addEventListener('click', () => this.addFeaturedProduct(button));
     });
     
