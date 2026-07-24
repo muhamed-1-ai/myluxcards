@@ -20,8 +20,6 @@ const guidedConfigurator = `<section class="section-padding guided-configurator"
           </div>
         </div>
         <div class="preview-quick-info"><label>Name <input id="quick-card-name" maxlength="32" placeholder="Enter your name"></label><label>Designation <input id="quick-card-title" maxlength="38" placeholder="Enter your designation"></label><label>Company <input id="quick-card-company" maxlength="38" placeholder="Enter your company"></label></div>
-        <div class="quick-colours"><span>Card colour</span><div class="quick-colour-swatches"><button data-quick-bg="#090909" style="--swatch:#090909" aria-label="Black"></button><button data-quick-bg="#ffffff" style="--swatch:#ffffff" aria-label="White"></button><button data-quick-bg="#f4ead5" style="--swatch:#f4ead5" aria-label="Ivory"></button><button data-quick-bg="#16213e" style="--swatch:#16213e" aria-label="Navy"></button><button data-quick-bg="#0d4f3c" style="--swatch:#0d4f3c" aria-label="Green"></button><button data-quick-bg="#6c1026" style="--swatch:#6c1026" aria-label="Burgundy"></button><button data-quick-bg="#5b2c83" style="--swatch:#5b2c83" aria-label="Purple"></button><button data-quick-bg="#145da0" style="--swatch:#145da0" aria-label="Blue"></button><button data-quick-bg="#b33a3a" style="--swatch:#b33a3a" aria-label="Red"></button><button data-quick-bg="#d76f30" style="--swatch:#d76f30" aria-label="Orange"></button><button data-quick-bg="#d9b526" style="--swatch:#d9b526" aria-label="Yellow"></button><button data-quick-bg="#d889a8" style="--swatch:#d889a8" aria-label="Pink"></button></div><div class="quick-custom-colours"><label>Any card colour <input id="quick-card-bg" type="color" value="#090909"></label><label>All text <input id="quick-card-text" type="color" value="#d4af37"></label><label>Name text <input id="quick-name-text" type="color" value="#d4af37"></label><label>Designation <input id="quick-title-text" type="color" value="#d4af37"></label><label>Company <input id="quick-company-text" type="color" value="#d4af37"></label></div><p class="move-tip">Drag the logo on the front and the QR code on the back to position them.</p></div>
-        <p class="preview-hint">Your details update instantly. Move your pointer over the card for a subtle 3D preview.</p>
         <div class="design-warning" id="design-warning" hidden></div>
       </aside>
       <div class="designer-controls">
@@ -79,7 +77,6 @@ const improvedMarkup = markup
     '<div class="hero-stat-bar benefit-strip"><span>One Smart Card</span><span>Unlimited Updates</span><span>No App Required</span><span>QR Backup Included</span></div>',
   )
   .replace('<div class="config-logo" id="config-logo"><img src="/assets/logo-premium.png" alt="MyLuxCards logo"></div>', '<div class="config-logo" id="config-logo"><span class="brand-mask" role="img" aria-label="MyLuxCards logo"></span></div>')
-  .replace('<label>Company <input id="quick-company-text" type="color" value="#d4af37"></label></div><p class="move-tip">', '<label>Company <input id="quick-company-text" type="color" value="#d4af37"></label><label>Logo colour <input id="quick-logo-colour" type="color" value="#d4af37"></label></div><p class="move-tip">')
   .replace(/<li><a href="\/(?:find|corporate)">[\s\S]*?<\/a><\/li>/g, "");
 
 export default function Page() {
