@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Technical Support | myluxcards</title>
+  
+  <meta name="description" content="Technical support and assistance for myluxcards premium NFC business cards.">
+  <meta name="keywords" content="support, help, myluxcards, technical support, NFC cards">
+  <meta name="author" content="Antigravity Team">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:wght@400;600;700&family=Pacifico&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+  <div id="custom-cursor-ring" class="custom-cursor-ring"></div>
+  <!-- --- Page Loader --- -->
+  <div class="page-loader" id="page-loader">
+    <div class="loader-spinner"></div>
+    <div class="loader-logo"><img src="assets/logo.png" alt="MYmyluxcards logo" class="loader-logo-img" onerror="this.onerror=null; this.src='assets/logo.svg';"></div>
+  </div>
+
+  <!-- --- Sticky Navigation --- -->
+  <nav class="navbar">
+    <div class="container navbar-container">
+      <a href="index.html" class="logo logo-img-link" aria-label="MYmyluxcards logo">
+        <img src="assets/logo.png" alt="MYmyluxcards logo" class="brand-logo" onerror="this.onerror=null; this.src='assets/logo.svg';">
+      </a>
+      
+      <ul class="nav-menu" id="nav-menu">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="index.html#featured-categories-section" class="nav-link">Collections</a></li>
+        <li><a href="index.html#featured-categories-section" class="nav-link">Cards</a></li>
+        <li><a href="index.html#why-choose-us" class="nav-link">About</a></li>
+        <li><a href="index.html#faq-section" class="nav-link">Contact</a></li>
+      </ul>
+      
+      <div class="nav-actions">
+        <!-- Search Container -->
+        <div class="search-container">
+          <div class="search-input-wrapper">
+            <i data-lucide="search" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
+            <input type="text" id="search-input" placeholder="Search templates..." autocomplete="off">
+          </div>
+          <div class="search-suggestions glass-solid" id="search-suggestions">
+            <!-- Populated via Javascript -->
+          </div>
+        </div>
+        
+        <!-- Dark Mode Toggle -->
+        <button class="btn btn-glass btn-icon" id="theme-toggle" title="Toggle Theme">
+          <i data-lucide="moon"></i>
+        </button>
+        
+        <!-- Wishlist Toggle Trigger -->
+        <button class="btn btn-glass btn-icon" id="wishlist-trigger" title="Wishlist">
+          <i data-lucide="heart"></i>
+          <span class="badge-count wishlist-count-badge">0</span>
+        </button>
+        
+        <!-- Cart Toggle Trigger -->
+        <button class="btn btn-primary btn-icon" id="cart-trigger" title="Shopping Cart">
+          <i data-lucide="shopping-cart"></i>
+          <span class="badge-count cart-count-badge">0</span>
+        </button>
+        
+        <!-- Login Button -->
+        <button class="btn btn-glass" id="login-trigger">Login</button>
+        
+        <!-- Hamburger (Mobile Nav) -->
+        <div class="hamburger" id="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- --- Page Header --- -->
+  <header class="page-header" style="padding: 140px 0 60px; text-align: center; position: relative; overflow: hidden;">
+    <div class="container reveal">
+      <h1 class="hero-title" style="margin-bottom: 20px;">Technical <span style="color: var(--primary);">Support</span></h1>
+      <p class="hero-subtitle" style="max-width: 600px; margin: 0 auto; color: var(--text-muted);">Submit your request and our priority team will get back to you within 24 hours.</p>
+    </div>
+  </header>
+
+  <!-- --- Support Content Section --- -->
+  <section class="section-padding" style="padding-top: 0;">
+    <div class="container support-page-container reveal">
+      <div class="support-grid">
+        <div class="support-panel">
+          <div class="support-panel-item" data-topic="account">
+            <h4>Account & Login</h4>
+            <p>Need help signing in or updating your account? We’ll walk you through it step by step.</p>
+            <button type="button" class="btn btn-glass support-panel-action" data-topic="account">Select topic</button>
+          </div>
+          <div class="support-panel-item" data-topic="download">
+            <h4>Download & Delivery</h4>
+            <p>Problems downloading your digital card or accessing premium files? Let us fix it quickly.</p>
+            <button type="button" class="btn btn-glass support-panel-action" data-topic="download">Select topic</button>
+          </div>
+          <div class="support-panel-item" data-topic="design">
+            <h4>Design & Customisation</h4>
+            <p>Want help customizing your NFC card design, colors, or layout? We can assist you fast.</p>
+            <button type="button" class="btn btn-glass support-panel-action" data-topic="design">Select topic</button>
+          </div>
+          <div class="support-panel-item" data-topic="billing">
+            <h4>Billing & Refunds</h4>
+            <p>Questions about pricing, payment, or order refunds? We make support easy and transparent.</p>
+            <button type="button" class="btn btn-glass support-panel-action" data-topic="billing">Select topic</button>
+          </div>
+        </div>
+        <div class="support-form-panel">
+          <form id="support-form">
+            <div class="form-row support-form-toprow">
+              <div class="form-group">
+                <label for="support-name">Full Name</label>
+                <input type="text" id="support-name" required placeholder="Jane Doe">
+              </div>
+              <div class="form-group">
+                <label for="support-email">Email Address</label>
+                <input type="email" id="support-email" required placeholder="name@domain.com">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="support-topic">Topic</label>
+              <select id="support-topic" required>
+                <option value="">Select a topic</option>
+                <option value="account">Account & Login</option>
+                <option value="design">Design & Editing</option>
+                <option value="download">Download Issues</option>
+                <option value="billing">Billing & Payments</option>
+                <option value="general">General Question</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="support-contact">Best contact time</label>
+              <input type="text" id="support-contact" placeholder="e.g. Today 2-4pm or email only">
+            </div>
+            <div class="form-group">
+              <label for="support-message">Describe the issue</label>
+              <textarea id="support-message" required placeholder="Share the details of the problem you're facing..." rows="5"></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Submit Support Ticket</button>
+          </form>
+          <div class="support-ticket-list" id="support-ticket-list">
+            <h4>Recent requests</h4>
+            <div class="ticket-empty">No support tickets yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- --- Footer --- -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo"><img src="assets/logo.svg" alt="MYmyluxcards logo" class="footer-logo-img"></div>
+          <p>Tap the future</p>
+          <div class="social-links">
+            <a href="#" class="btn btn-glass btn-icon"><i data-lucide="x"></i></a>
+            <a href="#" class="btn btn-glass btn-icon"><i data-lucide="facebook"></i></a>
+            <a href="#" class="btn btn-glass btn-icon"><i data-lucide="pinterest"></i></a>
+            <a href="#" class="btn btn-glass btn-icon"><i data-lucide="instagram"></i></a>
+            <a href="#" class="btn btn-glass btn-icon"><i data-lucide="youtube"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-grid">
+        <div class="footer-column">
+          <h3>Account</h3>
+          <ul class="footer-links">
+            <li><a href="#">My Profile</a></li>
+            <li><a href="#">Track an order</a></li>
+            <li><a href="#">My Orders</a></li>
+            <li><a href="#">Delivery and Returns</a></li>
+            <li><a href="#">Search</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h3>Company</h3>
+          <ul class="footer-links">
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Contact</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">FAQs</a></li>
+            <li><a href="#">Shipping Policy</a></li>
+            <li><a href="#">Returns & Refunds</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h3>Shop All</h3>
+          <ul class="footer-links">
+            <li><a href="#">Business Cards</a></li>
+            <li><a href="#">Google Review Cards</a></li>
+            <li><a href="#">WiFi Stickers</a></li>
+            <li><a href="#">Smart Gifting</a></li>
+            <li><a href="#">Birthday Cards</a></li>
+            <li><a href="#">Photo Frames</a></li>
+            <li><a href="#">All Collections</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-column footer-newsletter footer-callout">
+          <h3>Get 10% Off Your First Order</h3>
+          <p>Subscribe for exclusive deals and new product launches.</p>
+          <form class="newsletter-form" onsubmit="event.preventDefault(); window.app.showToast('Subscribed to Newsletter successfully!', 'success'); this.reset();">
+            <input type="email" placeholder="Your email" required>
+            <button class="btn btn-primary" type="submit">Subscribe</button>
+          </form>
+          <label class="newsletter-terms"><input type="checkbox" required> I accept the terms of <a href="#">Privacy policy</a></label>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 MYmyluxcards. Crafted with absolute elegance. All Rights Reserved.</p>
+        <div class="footer-bottom-links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="support.html">Technical Support</a>
+          <a href="#">Refund Policy</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Drawers (Wishlist/Cart/Login) -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+
+  <!-- Wishlist Drawer -->
+  <div class="drawer glass-solid" id="wishlist-drawer">
+    <div class="drawer-header">
+      <h3>My Wishlist (<span class="wishlist-count-badge">0</span>)</h3>
+      <button class="drawer-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="drawer-body" id="wishlist-items">
+    </div>
+    <div class="drawer-footer">
+      <a href="index.html#featured-categories-section" class="btn btn-primary" onclick="document.querySelector('.drawer-close')?.click();" style="width: 100%; text-align: center; display: block;">Explore More Cards</a>
+    </div>
+  </div>
+
+  <!-- Cart Drawer -->
+  <div class="drawer glass-solid" id="cart-drawer">
+    <div class="drawer-header">
+      <h3>My Cart (<span class="cart-count-badge">0</span>)</h3>
+      <button class="drawer-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="drawer-body" id="cart-items">
+    </div>
+    <div class="drawer-footer">
+      <div class="drawer-total">
+        <span>Total:</span>
+        <span id="cart-total-price">$0.00</span>
+      </div>
+      <button class="btn btn-primary" onclick="window.app.showToast('Checking out payment securely...', 'success'); window.app.state.cart = []; window.app.updateCounters(); window.app.renderCartDrawer();" style="width: 100%;">Checkout Security Direct</button>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="login-modal">
+    <div class="modal-card glass-solid">
+      <button class="modal-close" onclick="window.app.closeModal('login-modal')"><i data-lucide="x"></i></button>
+      <div class="modal-header">
+        <h3>Welcome Back</h3>
+        <p>Login to sync your custom card designs and wishlist</p>
+      </div>
+      <form onsubmit="event.preventDefault(); window.app.showToast('Login successful!', 'success'); window.app.closeModal('login-modal');">
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" required placeholder="name@domain.com">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button>
+      </form>
+      <div class="modal-footer">
+        <p>Don't have an account? <a href="#" onclick="event.preventDefault(); window.app.showToast('Registration panel is under corporate setup!', 'info');">Sign up</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Alerts Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Back to top floating button -->
+  <button class="back-to-top" id="back-to-top" title="Back to Top">
+    <i data-lucide="chevron-up"></i>
+  </button>
+
+  <!-- Scripts imports -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/data.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

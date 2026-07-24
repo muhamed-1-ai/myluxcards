@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="170 35 350 285">
+  <g fill="#fff" stroke="#fff">
+    <path d="M256 110c-42 0-74 32-74 72v82h24v-78c0-28 20-48 50-48 28 0 46 20 46 48v78h24v-78c0-22-14-42-38-48l20-38h-16l-18 36-18-36h-14l20 38Z"/>
+    <path d="M314 182h-24v-18h-6v18h-24v16h24v58h26v-58h24v-16Zm28-18h-18v80h18v-80Z"/>
+    <path d="M364 128h60a16 16 0 0 1 16 16v104a16 16 0 0 1-16 16h-60a16 16 0 0 1-16-16V144a16 16 0 0 1 16-16Zm0 16v104h60V144h-60Z"/>
+    <path d="M360 70c0-14 12-26 26-26s26 12 26 26c0 8-3 15-8 20l-18 14-18-14c-5-5-8-12-8-20Z"/>
+    <path d="M344 86h88l-24-36h-40l-24 36Z"/>
+    <path d="M348 76h80l-16-24h-48l-16 24Z"/>
+    <path d="M274 234h224" fill="none" stroke-width="4" stroke-linecap="round"/>
+    <text x="390" y="282" text-anchor="middle" font-family="serif" font-size="44" font-weight="800" letter-spacing=".12em" stroke="none">MYLUXCARDS</text>
+    <text x="390" y="310" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" letter-spacing=".18em" stroke="none">PREMIUM. QUALITY.</text>
+  </g>
+</svg>
