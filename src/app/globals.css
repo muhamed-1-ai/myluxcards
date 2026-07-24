@@ -3737,12 +3737,17 @@ iframe {
   }
 
   .reveal,
-  .nfc-card,
   .hero-actions .btn,
   .designer-step.active,
   .designer-progress b {
     animation-duration: .18s !important;
     transition-duration: .18s !important;
+  }
+
+  .nfc-card {
+    animation-duration: 10s !important;
+    animation-timing-function: ease-in-out !important;
+    transition-duration: .6s !important;
   }
 
   .nfc-card:hover,
