@@ -1442,8 +1442,24 @@ class LuxApp {
       localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
       this.updateAccountButton(user);
       e.currentTarget.reset();
+      document.getElementById('login-password').type = 'password';
+      const passwordToggle = document.getElementById('login-password-toggle');
+      if (passwordToggle) {
+        passwordToggle.textContent = 'Show';
+        passwordToggle.setAttribute('aria-pressed', 'false');
+      }
       this.closeModal('login-modal');
       this.showToast(`Welcome back, ${account.name}!`, 'success');
+    });
+
+    document.getElementById('login-password-toggle')?.addEventListener('click', (e) => {
+      const password = document.getElementById('login-password');
+      if (!password) return;
+      const showing = password.type === 'text';
+      password.type = showing ? 'password' : 'text';
+      e.currentTarget.textContent = showing ? 'Show' : 'Hide';
+      e.currentTarget.setAttribute('aria-pressed', String(!showing));
+      password.focus({ preventScroll: true });
     });
 
     const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');

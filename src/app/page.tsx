@@ -78,6 +78,10 @@ const improvedMarkup = markup
     '<section class="trust-bar-section" id="how-it-works">',
   )
   .replace(
+    '<input type="password" id="login-password" required placeholder="••••••••">',
+    '<div class="password-field"><input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••"><button type="button" class="password-toggle" id="login-password-toggle" aria-controls="login-password" aria-pressed="false">Show</button></div>',
+  )
+  .replace(
     /<div class="hero-stat-bar">[\s\S]*?<\/div>/,
     '<div class="hero-stat-bar benefit-strip"><span>One Smart Card</span><span>Unlimited Updates</span><span>No App Required</span><span>QR Backup Included</span></div>',
   )

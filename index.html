@@ -973,7 +973,10 @@
         </div>
         <div class="form-group">
           <label for="login-password">Password</label>
-          <input type="password" id="login-password" required placeholder="••••••••">
+          <div class="password-field">
+            <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••">
+            <button type="button" class="password-toggle" id="login-password-toggle" aria-controls="login-password" aria-pressed="false">Show</button>
+          </div>
         </div>
         <button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button>
       </form>
