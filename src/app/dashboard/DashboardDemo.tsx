@@ -1,8 +1,6 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import countries from "world-countries";
-import { City, State } from "country-state-city";
 
 type Tab = "dashboard" | "contact" | "social" | "company" | "appearance" | "cards";
 type Card = {
@@ -17,15 +15,13 @@ type CurrentUser = { name: string; email: string };
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
 const socialFields = ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "Google Business"];
-const dialCodes = countries
-  .filter((country) => country.idd.root)
-  .map((country) => ({
-    flag: country.flag,
-    code: `${country.idd.root}${country.idd.suffixes?.[0] || ""}`,
-    name: country.name.common,
-    iso: country.cca2,
-  }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+type DialCode = { flag: string; code: string; name: string; iso: string };
+type LocationState = { name: string; isoCode: string };
+type LocationCity = { name: string; latitude?: string | null; longitude?: string | null };
+type LocationApi = {
+  getStatesOfCountry: (countryIso: string) => LocationState[];
+  getCitiesOfState: (countryIso: string, stateCode: string) => LocationCity[];
+};
 const blankSocial = Object.fromEntries(socialFields.map((x) => [x, ""]));
 const storageKey = (email: string) => `${STORE_PREFIX}${email.trim().toLowerCase()}`;
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "my-card";
@@ -245,16 +241,39 @@ export default function DashboardDemo() {
 }
 
 function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) {
+  const [dialCodes, setDialCodes] = useState<DialCode[]>([]);
+  const [locationApi, setLocationApi] = useState<LocationApi | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([import("world-countries"), import("country-state-city")]).then(([countryModule, locationModule]) => {
+      if (cancelled) return;
+      const countries = countryModule.default;
+      setDialCodes(countries
+        .filter((country) => country.idd.root)
+        .map((country) => ({
+          flag: country.flag,
+          code: `${country.idd.root}${country.idd.suffixes?.[0] || ""}`,
+          name: country.name.common,
+          iso: country.cca2,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)));
+      setLocationApi({
+        getStatesOfCountry: locationModule.State.getStatesOfCountry,
+        getCitiesOfState: locationModule.City.getCitiesOfState,
+      });
+    });
+    return () => { cancelled = true; };
+  }, []);
   const selectedCountryIso = draft.countryIso || dialCodes.find((country) => country.code === draft.countryCode)?.iso || "";
   const selectedCountry = dialCodes.find((country) => country.iso === selectedCountryIso);
-  const countryLabel = (country: typeof dialCodes[number]) => `${country.flag} ${country.name} (${country.code})`;
+  const countryLabel = (country: DialCode) => `${country.flag} ${country.name} (${country.code})`;
   const [countryQuery, setCountryQuery] = useState(selectedCountry ? countryLabel(selectedCountry) : "");
   useEffect(() => {
     setCountryQuery(selectedCountry ? countryLabel(selectedCountry) : "");
-  }, [selectedCountryIso]);
-  const availableStates = selectedCountryIso ? State.getStatesOfCountry(selectedCountryIso) : [];
+  }, [selectedCountryIso, selectedCountry?.name]);
+  const availableStates = selectedCountryIso && locationApi ? locationApi.getStatesOfCountry(selectedCountryIso) : [];
   const selectedStateCode = draft.stateCode || availableStates.find((state) => state.name === draft.state)?.isoCode || "";
-  const availableCities = selectedCountryIso && selectedStateCode ? City.getCitiesOfState(selectedCountryIso, selectedStateCode) : [];
+  const availableCities = selectedCountryIso && selectedStateCode && locationApi ? locationApi.getCitiesOfState(selectedCountryIso, selectedStateCode) : [];
   const selectedState = availableStates.find((state) => state.isoCode === selectedStateCode);
   const [stateQuery, setStateQuery] = useState(selectedState?.name || "");
   const [cityQuery, setCityQuery] = useState(draft.city || "");
