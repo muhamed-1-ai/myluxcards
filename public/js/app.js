@@ -216,7 +216,10 @@ class LuxApp {
       company: $('card-company-input')?.value.trim() || 'Your Company',
       font: $('card-font')?.value || 'classic', logoPlacement: $('logo-placement')?.value || 'Top left',
       qrPlacement: $('qr-placement')?.value || 'Back centre', nfcSymbol: $('nfc-symbol-toggle')?.checked !== false,
-      color: bg?.value || '#090909', accent: ink?.value || '#d4af37',
+      color: bg?.value || '#090909',
+      accent: ink?.value || '#d4af37',
+      borderColor: document.querySelector('.colour-preset.active')?.dataset.border || ink?.value || '#d4af37',
+      secondaryColor: document.querySelector('.colour-preset.active')?.dataset.accent || ink?.value || '#d4af37',
       nameColor: $('quick-name-text')?.value || ink?.value, titleColor: $('quick-title-text')?.value || ink?.value,
       companyColor: $('quick-company-text')?.value || ink?.value,
       logoColor: $('quick-logo-colour')?.value || ink?.value,
@@ -225,8 +228,15 @@ class LuxApp {
       colorName: document.querySelector('.colour-preset.active')?.textContent.trim() || 'Custom Colours', logoData
     });
     const updateCard = () => {
+      const preset = document.querySelector('.colour-preset.active');
+      const border = preset?.dataset.border || ink.value;
+      const accent = preset?.dataset.accent || ink.value;
       card.style.background = `linear-gradient(135deg,${bg.value},color-mix(in srgb,${bg.value} 70%,#000))`;
-      card.style.color = ink.value; card.style.borderColor = ink.value; card.style.setProperty('--card-ink', ink.value);
+      card.style.color = ink.value;
+      card.style.borderColor = border;
+      card.style.setProperty('--card-ink', ink.value);
+      card.style.setProperty('--border-ink', border);
+      card.style.setProperty('--accent-ink', accent);
     };
     const updatePrice = () => {
       const expert = $('expert-design')?.checked;
@@ -259,15 +269,13 @@ class LuxApp {
     [bg, ink].forEach(input => input?.addEventListener('input', () => { document.querySelectorAll('.colour-preset').forEach(item => item.classList.remove('active')); updateCard(); }));
     const quickBg = $('quick-card-bg'); const quickInk = $('quick-card-text');
     const syncColours = (background, text) => {
-      if (background) { bg.value = background; quickBg.value = background; }
-      if (text) { ink.value = text; quickInk.value = text; }
+      if (background) bg.value = background;
+      if (text) ink.value = text;
       document.querySelectorAll('.colour-preset').forEach(item => item.classList.remove('active')); updateCard(); updatePrice();
     };
     document.querySelectorAll('[data-quick-bg]').forEach(button => button.addEventListener('click', () => syncColours(button.dataset.quickBg)));
     quickBg?.addEventListener('input', event => syncColours(event.target.value));
     quickInk?.addEventListener('input', event => syncColours(null, event.target.value));
-    bg?.addEventListener('input', () => { quickBg.value = bg.value; });
-    ink?.addEventListener('input', () => { quickInk.value = ink.value; });
     const textColourControls = [
       ['quick-name-text', '--name-ink'], ['quick-title-text', '--title-ink'], ['quick-company-text', '--company-ink']
     ];
@@ -342,15 +350,17 @@ class LuxApp {
       : '';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="350" viewBox="0 0 560 350">
       <defs><linearGradient id="card" x2="1" y2="1"><stop stop-color="${xml(design.color)}"/><stop offset="1"/></linearGradient></defs>
-      <rect width="560" height="350" rx="28" fill="url(#card)" stroke="${xml(design.accent)}" stroke-width="4"/>
+      <rect width="560" height="350" rx="28" fill="url(#card)" stroke="${xml(design.borderColor || design.accent)}" stroke-width="4"/>
       ${glossy}
       <g fill="${xml(design.accent)}">
         <text x="38" y="68" font-family="Arial,sans-serif" font-size="27" font-weight="700">MYLUXCARDS</text>
-        <text x="38" y="96" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">PREMIUM EDITION</text>
         <text x="38" y="268" font-family="Georgia,serif" font-size="30" font-weight="700">${xml(design.name)}</text>
+      </g>
+      <g fill="${xml(design.secondaryColor || design.accent)}">
+        <text x="38" y="96" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">PREMIUM EDITION</text>
         <text x="38" y="300" font-family="Arial,sans-serif" font-size="17">${xml(design.designation)}</text>
-        <rect x="455" y="260" width="58" height="43" rx="8" fill="none" stroke="${xml(design.accent)}" stroke-width="4"/>
-        <path d="M474 22q30 18 0 36m10-29q17 10 0 21m10-14q7 4 0 8" fill="none" stroke="${xml(design.accent)}" stroke-width="4" stroke-linecap="round"/>
+        <rect x="455" y="260" width="58" height="43" rx="8" fill="none" stroke="${xml(design.borderColor || design.accent)}" stroke-width="4"/>
+        <path d="M474 22q30 18 0 36m10-29q17 10 0 21m10-14q7 4 0 8" fill="none" stroke="${xml(design.borderColor || design.accent)}" stroke-width="4" stroke-linecap="round"/>
       </g>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
