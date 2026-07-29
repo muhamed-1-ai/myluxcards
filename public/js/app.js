@@ -1439,42 +1439,60 @@ class LuxApp {
       const form = e.currentTarget;
       const email = document.getElementById('login-email')?.value.trim().toLowerCase();
       const password = document.getElementById('login-password')?.value || '';
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await response.json();
-      if (!response.ok || !data.user) {
-        this.showToast(data.message === 'Authentication is not configured yet.'
-          ? data.message
-          : 'Email or password is incorrect.', 'error');
-        return;
+      const error = document.getElementById('login-error');
+      const button = form.querySelector('button[type="submit"]');
+      if (error) error.textContent = '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Signing in…';
       }
-      const user = {
-        name: data.user.user_metadata?.name || email.split('@')[0],
-        email: data.user.email || email,
-        role: data.role || 'CUSTOMER'
-      };
-      localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-      this.updateAccountButton(user);
-      form.reset();
-      document.getElementById('login-password').type = 'password';
-      const passwordToggle = document.getElementById('login-password-toggle');
-      if (passwordToggle) {
-        passwordToggle.textContent = 'Show';
-        passwordToggle.setAttribute('aria-pressed', 'false');
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.user) {
+          const message = data.message || 'Login could not be completed. Please try again.';
+          if (error) error.textContent = message;
+          this.showToast(message, 'error');
+          return;
+        }
+        const user = {
+          name: data.user.user_metadata?.name || email.split('@')[0],
+          email: data.user.email || email,
+          role: data.role || 'CUSTOMER'
+        };
+        localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
+        this.updateAccountButton(user);
+        form.reset();
+        document.getElementById('login-password').type = 'password';
+        const passwordToggle = document.getElementById('login-password-toggle');
+        if (passwordToggle) {
+          passwordToggle.textContent = 'Show';
+          passwordToggle.setAttribute('aria-pressed', 'false');
+        }
+        if (data.mustChangePassword) {
+          window.location.href = '/reset-password?required=1';
+          return;
+        }
+        if (data.role === 'ADMIN' || data.role === 'SUPER_ADMIN') {
+          window.location.href = '/admin';
+          return;
+        }
+        this.closeModal('login-modal');
+        this.showToast(`Welcome back, ${user.name}!`, 'success');
+      } catch {
+        const message = 'The login service could not be reached. Please try again.';
+        if (error) error.textContent = message;
+        this.showToast(message, 'error');
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Login securely';
+        }
       }
-      if (data.mustChangePassword) {
-        window.location.href = '/reset-password?required=1';
-        return;
-      }
-      if (data.role === 'ADMIN' || data.role === 'SUPER_ADMIN') {
-        window.location.href = '/admin';
-        return;
-      }
-      this.closeModal('login-modal');
-      this.showToast(`Welcome back, ${user.name}!`, 'success');
     });
 
     document.getElementById('forgot-password-trigger')?.addEventListener('click', (e) => {

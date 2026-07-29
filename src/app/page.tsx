@@ -83,7 +83,7 @@ const improvedMarkup = markup
   )
   .replace(
     '<button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button>\n      </form>',
-    '<button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button></form><p class="forgot-password-row"><a href="#" id="forgot-password-trigger">Forgot password?</a></p>',
+    '<small class="form-error" id="login-error" role="alert"></small><button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button></form><p class="forgot-password-row"><a href="#" id="forgot-password-trigger">Forgot password?</a></p>',
   )
   .replace(
     '<!-- Sign Up Modal -->',
