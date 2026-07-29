@@ -1720,6 +1720,11 @@ class LuxApp {
 
 // Instantiate App on DOM complete
 const initLuxApp = () => {
+  const recoveryHash = new URLSearchParams(window.location.hash.slice(1));
+  if (recoveryHash.get('type') === 'recovery' && window.location.pathname !== '/reset-password') {
+    window.location.replace(`/reset-password${window.location.hash}`);
+    return;
+  }
   if (!window.app) window.app = new LuxApp();
 };
 

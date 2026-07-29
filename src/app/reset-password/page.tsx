@@ -23,7 +23,10 @@ export default function ResetPasswordPage() {
     const password = String(form.get("password") || "");
     const confirmation = String(form.get("confirmation") || "");
 
-    if (password.length < (required ? 12 : 8)) return setMessage(required ? "Use 12+ characters with upper, lower, number, and symbol." : "Use at least 8 characters.");
+    if (password.length < 12 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) ||
+        !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      return setMessage("Use 12+ characters with upper, lower, number, and symbol.");
+    }
     if (password !== confirmation) return setMessage("Passwords do not match.");
     if (!required && !token) return setMessage("This reset link is invalid or has expired.");
 
@@ -59,8 +62,8 @@ export default function ResetPasswordPage() {
             <h1>Choose a new password</h1>
             <p>Enter a new password for your MyLuxCards account.</p>
             <form onSubmit={submit}>
-              <label>New password<input name="password" type="password" minLength={required ? 12 : 8} autoComplete="new-password" required /></label>
-              <label>Confirm password<input name="confirmation" type="password" minLength={required ? 12 : 8} autoComplete="new-password" required /></label>
+              <label>New password<input name="password" type="password" minLength={12} autoComplete="new-password" required /></label>
+              <label>Confirm password<input name="confirmation" type="password" minLength={12} autoComplete="new-password" required /></label>
               <div className="reset-error" role="alert">{message}</div>
               <button className="reset-button" type="submit">Change password</button>
             </form>
