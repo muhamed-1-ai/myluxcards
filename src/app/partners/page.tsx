@@ -24,6 +24,7 @@ export default function PartnersPage() {
       <div className="partner-hero-actions">
         <a className="partner-primary" href="/partners/apply">Become a partner <span>↗</span></a>
         <a className="partner-secondary" href="/partners/dashboard">Partner login</a>
+        <a className="partner-secondary" href="/partners/demo">View dashboard demo</a>
       </div>
       <div className="partner-trust">
         <span>One secure dashboard</span><i/>
