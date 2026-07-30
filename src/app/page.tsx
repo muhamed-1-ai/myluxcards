@@ -78,26 +78,6 @@ const clearPurchaseJourney = `<section class="home-journey" id="how-it-works" ar
   </div>
 </section>`;
 
-const productComparison = `<section class="section-padding product-comparison" id="compare-cards" aria-labelledby="compare-title">
-  <div class="container">
-    <div class="comparison-heading"><div><span>CHOOSE WITH CONFIDENCE</span><h2 id="compare-title">Find your card material.</h2></div><p>Compare the materials currently available in the design tool. Your live total updates as you customise.</p></div>
-    <div class="comparison-table-wrap" role="region" aria-label="Card material comparison" tabindex="0">
-      <table>
-        <thead><tr><th scope="col">Material</th><th scope="col">Finish and feel</th><th scope="col">Best suited for</th><th scope="col">Starting price</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">White PVC</th><td>Clean, lightweight, durable</td><td>Everyday professional use</td><td>₹799</td></tr>
-          <tr><th scope="row">Matte Black PVC</th><td>Soft-touch premium finish</td><td>Personal brands and portfolios</td><td>₹899</td></tr>
-          <tr><th scope="row">Transparent Acrylic</th><td>Modern translucent look</td><td>Creative and design-led work</td><td>₹1,199</td></tr>
-          <tr><th scope="row">Bamboo</th><td>Natural grain; each piece varies</td><td>Warm, distinctive branding</td><td>₹1,299</td></tr>
-          <tr><th scope="row">Aluminium</th><td>Slim executive metal finish</td><td>Leadership and client meetings</td><td>₹1,599</td></tr>
-          <tr><th scope="row">Stainless Steel</th><td>Heavier, substantial metal feel</td><td>Premium statement cards</td><td>₹1,999</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="comparison-footer"><p>Prices are based on the current configurator and may change with selected options.</p><a href="#card-configurator">Customise your card →</a></div>
-  </div>
-</section>`;
-
 const improvedMarkup = markup
   .replace(
     /<!-- --- Testimonials Section --- -->[\s\S]*?<\/section>/,
@@ -131,10 +111,6 @@ const improvedMarkup = markup
   .replace(
     /<section class="trust-bar-section" id="how-it-works">[\s\S]*?<\/section>/,
     clearPurchaseJourney,
-  )
-  .replace(
-    '<section class="section-padding guided-configurator"',
-    `${productComparison}<section class="section-padding guided-configurator"`,
   )
   .replace(
     '<input type="password" id="login-password" required placeholder="••••••••">',
