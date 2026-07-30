@@ -3538,6 +3538,18 @@ h1,h2,.hero-title,.section-header h2{font-family:"Instrument Serif",Georgia,seri
 @media(max-width:980px){.designer-layout{grid-template-columns:1fr}.designer-preview{position:relative;top:auto;order:-1}.designer-step{min-height:0}.guided-configurator .configurator-preview{min-height:300px}}
 @media(max-width:600px){.designer-controls,.designer-preview{padding:16px}.material-grid,.preset-grid,.advanced-colours,.config-fields,.package-summary ul{grid-template-columns:1fr}.material-option{grid-template-columns:45px 1fr auto}.guided-configurator .config-card{width:100%}.preview-toolbar button{flex:1}.designer-actions #designer-next,.designer-actions #save-card-design{width:100%;margin-left:0}.designer-step h3{font-size:28px}}
 
+.material-option:disabled,
+.material-option-sold-out {
+  cursor: not-allowed;
+  opacity: .55;
+  filter: grayscale(.45);
+}
+
+.material-option-sold-out b {
+  color: #e8c968;
+  white-space: nowrap;
+}
+
 .guided-configurator .config-card {
   border-color: var(--border-ink, var(--card-ink, #d4af37));
 }

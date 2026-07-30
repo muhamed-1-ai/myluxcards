@@ -27,7 +27,7 @@ const guidedConfigurator = `<section class="section-padding guided-configurator"
         <div class="designer-step active" data-step="1"><span class="step-kicker">Step 1</span><h3>Choose Your Material</h3><div class="material-grid">
           <button class="material-option active" data-material="White PVC" data-price="799"><i class="material-sample white"></i><strong>White PVC</strong><small>Clean and durable</small><b>₹799</b></button>
           <button class="material-option" data-material="Matte Black PVC" data-price="899"><i class="material-sample black"></i><strong>Matte Black PVC</strong><small>Soft-touch premium finish</small><b>+₹100</b></button>
-          <button class="material-option" data-material="Stainless Steel" data-price="1999"><i class="material-sample steel"></i><strong>Stainless Steel</strong><small>Maximum weight and presence</small><b>+₹1,200</b></button>
+          <button class="material-option material-option-sold-out" data-material="Stainless Steel" data-price="1999" type="button" disabled aria-disabled="true"><i class="material-sample steel"></i><strong>Stainless Steel</strong><small>Maximum weight and presence</small><b>Out of stock</b></button>
         </div></div>
         <div class="designer-step" data-step="2"><span class="step-kicker">Step 2</span><h3>Colour and Finish</h3><div class="preset-grid">
           <button class="colour-preset active" data-bg="#050505" data-text="#D4AF37" data-border="#C9A24D" data-accent="#F4E3A1"><i style="--a:#050505;--b:#D4AF37"></i>Black &amp; Gold</button>
