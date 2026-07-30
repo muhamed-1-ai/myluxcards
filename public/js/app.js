@@ -251,7 +251,7 @@ class LuxApp {
       $('config-total').textContent = `₹${total.toLocaleString('en-IN')}`;
       $('expert-price-row').hidden = !expert;
       $('save-card-design').textContent = `Add to Cart · ₹${total.toLocaleString('en-IN')}`;
-      $('package-list').innerHTML = `<li>${material.name}</li><li>${getDesign().colorName}</li><li>Double-sided printing</li><li>${logoData ? 'Custom logo' : 'Logo ready'}</li><li>QR backup</li><li>NFC profile activation</li><li>One-year premium profile</li>`;
+      $('package-list').innerHTML = `<li>${material.name}</li><li>${getDesign().colorName}</li><li>Double-sided printing</li><li>${logoData ? 'Custom image' : 'No image selected'}</li><li>QR backup</li><li>NFC profile activation</li><li>One-year premium profile</li>`;
       return total;
     };
     const showStep = value => {
@@ -326,11 +326,11 @@ class LuxApp {
     makeMovable($('config-logo')); makeMovable($('config-qr'));
     $('card-logo-upload')?.addEventListener('change', event => {
       const file = event.target.files?.[0]; if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { warning.hidden = false; warning.textContent = 'Logo is larger than 5MB. Choose a smaller file.'; return; }
+      if (file.size > 5 * 1024 * 1024) { warning.hidden = false; warning.textContent = 'Image is larger than 5MB. Choose a smaller file.'; return; }
       const reader = new FileReader(); reader.onload = () => { logoData = String(reader.result); $('config-logo').innerHTML = `<img src="${logoData}" alt="Uploaded logo">`; updatePrice(); }; reader.readAsDataURL(file);
-      if (file.type !== 'image/svg+xml') { const image = new Image(); image.onload = () => { if (image.width < 600 || image.height < 600) { warning.hidden = false; warning.textContent = 'Your logo may appear blurred. Upload an image of at least 600 × 600px.'; } }; image.src = URL.createObjectURL(file); }
+      if (file.type !== 'image/svg+xml') { const image = new Image(); image.onload = () => { if (image.width < 600 || image.height < 600) { warning.hidden = false; warning.textContent = 'Your image may appear blurred. Upload an image of at least 600 × 600px.'; } }; image.src = URL.createObjectURL(file); }
     });
-    $('remove-card-logo')?.addEventListener('click', () => { logoData = ''; $('config-logo').innerHTML = '<span class="brand-mask" role="img" aria-label="MyLuxCards logo"></span>'; $('card-logo-upload').value = ''; updatePrice(); });
+    $('remove-card-logo')?.addEventListener('click', () => { logoData = ''; $('config-logo').innerHTML = ''; $('card-logo-upload').value = ''; updatePrice(); });
     $('expert-design')?.addEventListener('change', updatePrice);
     $('designer-next')?.addEventListener('click', () => showStep(step + 1)); $('designer-prev')?.addEventListener('click', () => showStep(step - 1));
     $('save-design-draft')?.addEventListener('click', () => { localStorage.setItem('myluxcards_saved_card_design', JSON.stringify(getDesign())); this.showToast('Design draft saved.', 'success'); });
