@@ -632,6 +632,7 @@
 .copy-row input {
   flex: 1;
 }
+.partner-readiness{display:flex;gap:16px;align-items:center;margin:0 0 22px;padding:15px 18px;border:1px solid #d7b85b55;border-radius:10px;background:#d7b85b0c}.partner-readiness strong{color:var(--aff-gold);white-space:nowrap}.partner-readiness span{color:#b8b1a3;font-size:12px;line-height:1.5}.partner-command{display:grid;grid-template-columns:.8fr 1.2fr;gap:42px;align-items:center;margin-bottom:18px;padding:30px;border:1px solid var(--aff-border);border-radius:16px;background:linear-gradient(135deg,#15130f,#0b0a08)}.partner-command h2,.partner-onboarding h2,.partner-report-head h2,.partner-link-guide h1{margin:6px 0 8px;font-family:"Playfair Display",Georgia,serif}.partner-command p,.partner-link-guide p{color:var(--aff-muted);line-height:1.6}.partner-link-box{padding:18px;border:1px solid #d7b85b38;border-radius:12px;background:#070707}.partner-share-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.partner-share-actions button,.partner-share-actions a,.partner-link-guide button{padding:9px 12px;border:1px solid #d7b85b55;border-radius:7px;background:transparent;color:#e9d78f;text-decoration:none;font:700 11px inherit;cursor:pointer}.partner-onboarding{display:grid;grid-template-columns:.7fr 1.3fr;gap:30px;margin-bottom:36px;padding:24px;border:1px solid var(--aff-border);border-radius:14px;background:#111}.partner-onboarding>div>span,.partner-link-guide>span{color:var(--aff-gold);font-size:10px;font-weight:800;letter-spacing:.16em}.partner-progress{height:7px;overflow:hidden;border-radius:999px;background:#2a2925}.partner-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#a8862e,#e4c96e)}.partner-onboarding ol{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0;padding:0}.partner-onboarding li{display:flex;gap:10px;align-items:center;padding:11px;list-style:none;border:1px solid #ffffff10;border-radius:8px;color:#aaa}.partner-onboarding li b{display:grid;width:24px;height:24px;place-items:center;border:1px solid #ffffff22;border-radius:50%;font-size:10px}.partner-onboarding li.done{color:#f5efd9}.partner-onboarding li.done b{border-color:#d7b85b;background:#d7b85b;color:#070707}.partner-report-head{display:flex;align-items:flex-end;justify-content:space-between;margin:30px 0 15px}.partner-report-head h2{margin-bottom:0}.partner-report-head label{display:grid;gap:5px;color:#aaa;font-size:11px}.partner-report-head select{padding:10px;border:1px solid #3a3a3a;border-radius:7px;background:#070707;color:#fff}.partner-funnel{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin-top:18px;padding:22px;border:1px solid var(--aff-border);border-radius:13px;background:#111}.partner-funnel article{text-align:center}.partner-funnel b,.partner-funnel span{display:block}.partner-funnel b{color:#f7e6ad;font-size:27px}.partner-funnel span{margin-top:4px;color:#aaa;font-size:11px}.partner-funnel>i{color:#76693f}.payout-forecast .partner-progress{margin:20px 0 8px}.payout-forecast small{display:block;color:#aaa}.payout-forecast a{display:inline-block;margin-top:18px}.partner-link-guide{margin-bottom:18px;padding:26px;border:1px solid var(--aff-border);border-radius:14px;background:#111}.partner-link-guide>div{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}
 .terms-content {
   white-space: pre-wrap;
 }
@@ -643,6 +644,7 @@
   .affiliate-two {
     grid-template-columns: 1fr;
   }
+  .partner-command,.partner-onboarding{grid-template-columns:1fr}.partner-onboarding ol{grid-template-columns:1fr}
   .affiliate-nav nav a:not(.affiliate-button) {
     display: none;
   }
@@ -663,6 +665,7 @@
     align-items: flex-start;
     flex-direction: column;
   }
+  .partner-readiness{align-items:flex-start;flex-direction:column}.partner-funnel{grid-template-columns:1fr}.partner-funnel>i{transform:rotate(90deg)}.partner-report-head{align-items:flex-start;flex-direction:column;gap:12px}.partner-command{padding:20px}
 }
 
 /* MyLux Partner Program landing page */

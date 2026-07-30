@@ -45,6 +45,7 @@ export async function GET() {
       })), payouts: payouts.data || [], settings: settings.data?.[0] || {},
       products: products.data || [], materials: materials.data || [], credits: credits.data || [], rewards: rewards.data || [], currency,
       appUrl: process.env.APP_URL?.replace(/\/$/, "") || null,
+      commerceReady: process.env.AFFILIATE_COMMERCE_LIVE === "true",
     });
   } catch (error) {
     return safeError(error);
