@@ -30,7 +30,7 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   return <div className="admin-shell">
     <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)}>☰</button><a href="/" className="admin-logo">MYLUX<span>CARDS</span></a><div><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
     {mobile&&<button className="admin-scrim" onClick={()=>setMobile(false)} aria-label="Close menu"/>}
-    <aside className={mobile?"open":""}><p>CONTROL CENTRE</p><nav>{allowed.map(item=><button key={item} className={section===item?"active":""} onClick={()=>navigate(item)}>{labels[item]}</button>)}</nav><button className="admin-logout" onClick={logout}>Log out</button></aside>
+    <aside className={mobile?"open":""}><p>CONTROL CENTRE</p><nav>{allowed.map(item=><button key={item} className={section===item?"active":""} onClick={()=>navigate(item)}>{labels[item]}</button>)}<a href="/admin/affiliates">Affiliate program</a></nav><button className="admin-logout" onClick={logout}>Log out</button></aside>
     <main><div className="admin-heading"><div><p>MYLUX ADMINISTRATION</p><h1>{labels[section]}</h1><span>Secure, real-time business operations.</span></div>{["orders","customers"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
       {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate}/>}
     </main>

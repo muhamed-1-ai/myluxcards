@@ -11,8 +11,10 @@
     "create:super-admin": "tsx scripts/create-super-admin.ts"
   },
   "dependencies": {
+    "@types/qrcode": "^1.5.6",
     "country-state-city": "^3.2.1",
     "next": "^15.3.3",
+    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "world-countries": "^5.1.0"

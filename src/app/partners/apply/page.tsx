@@ -1,0 +1,3 @@
+import { currentIdentity } from "@/lib/adminAuth";import AffiliateApplicationForm from "@/app/affiliate/apply/AffiliateApplicationForm";
+export const metadata={title:"Apply | MyLux Partner Program"};export const dynamic="force-dynamic";
+export default async function Page(){const identity=await currentIdentity();return <main className="affiliate-section">{identity?<AffiliateApplicationForm name={identity.name} email={identity.email}/>:<section className="affiliate-panel"><h1>Sign in to apply</h1><p>Your partner profile is connected to your existing MyLuxCards customer account.</p><a className="affiliate-button" href="/?login=1&next=%2Fpartners%2Fapply">Sign in or create an account</a></section>}</main>}

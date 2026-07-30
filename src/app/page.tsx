@@ -54,7 +54,55 @@ const guidedConfigurator = `<section class="section-padding guided-configurator"
   </div>
 </section>`;
 
+const clearPurchaseJourney = `<section class="home-journey" id="how-it-works" aria-labelledby="journey-title">
+  <div class="container">
+    <div class="journey-heading">
+      <div><span class="journey-kicker">FROM FIRST TAP TO FIRST IMPRESSION</span><h2 id="journey-title">One card. A simpler way to connect.</h2></div>
+      <p>Your recipient taps the card or scans its QR code. Your profile opens in their browser, ready to view, save, or share—without installing an app.</p>
+    </div>
+    <ol class="journey-steps">
+      <li><span>01</span><div><h3>Choose and customise</h3><p>Select a material, colours, logo, and the details you want printed on your card.</p></div></li>
+      <li><span>02</span><div><h3>Preview before ordering</h3><p>Review both sides, see the live price, and confirm your design before it enters your cart.</p></div></li>
+      <li><span>03</span><div><h3>Tap, share, update</h3><p>Share your profile through NFC or QR, then update your digital information whenever it changes.</p></div></li>
+    </ol>
+    <div class="journey-actions">
+      <a class="btn btn-primary" href="#card-configurator">Start designing</a>
+      <button class="btn btn-glass" id="journey-demo-trigger" type="button" onclick="document.getElementById('tap-card')?.click()">Try the tap demo</button>
+    </div>
+    <div class="home-trust-panel" aria-label="Product assurances">
+      <article><strong>No app required</strong><span>Profiles open in a compatible phone browser.</span></article>
+      <article><strong>QR backup included</strong><span>A second way to open the same profile.</span></article>
+      <article><strong>Editable profile</strong><span>Change digital details without reprinting.</span></article>
+      <article><strong>You control your profile</strong><span>Choose which information visitors can see.</span></article>
+    </div>
+  </div>
+</section>`;
+
+const productComparison = `<section class="section-padding product-comparison" id="compare-cards" aria-labelledby="compare-title">
+  <div class="container">
+    <div class="comparison-heading"><div><span>CHOOSE WITH CONFIDENCE</span><h2 id="compare-title">Find your card material.</h2></div><p>Compare the materials currently available in the design tool. Your live total updates as you customise.</p></div>
+    <div class="comparison-table-wrap" role="region" aria-label="Card material comparison" tabindex="0">
+      <table>
+        <thead><tr><th scope="col">Material</th><th scope="col">Finish and feel</th><th scope="col">Best suited for</th><th scope="col">Starting price</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">White PVC</th><td>Clean, lightweight, durable</td><td>Everyday professional use</td><td>₹799</td></tr>
+          <tr><th scope="row">Matte Black PVC</th><td>Soft-touch premium finish</td><td>Personal brands and portfolios</td><td>₹899</td></tr>
+          <tr><th scope="row">Transparent Acrylic</th><td>Modern translucent look</td><td>Creative and design-led work</td><td>₹1,199</td></tr>
+          <tr><th scope="row">Bamboo</th><td>Natural grain; each piece varies</td><td>Warm, distinctive branding</td><td>₹1,299</td></tr>
+          <tr><th scope="row">Aluminium</th><td>Slim executive metal finish</td><td>Leadership and client meetings</td><td>₹1,599</td></tr>
+          <tr><th scope="row">Stainless Steel</th><td>Heavier, substantial metal feel</td><td>Premium statement cards</td><td>₹1,999</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="comparison-footer"><p>Prices are based on the current configurator and may change with selected options.</p><a href="#card-configurator">Customise your card →</a></div>
+  </div>
+</section>`;
+
 const improvedMarkup = markup
+  .replace(
+    /<!-- --- Testimonials Section --- -->[\s\S]*?<\/section>/,
+    "",
+  )
   .replace('<a href="#" class="logo logo-img-link"', '<a href="/" class="logo logo-img-link"')
   .replace('<li><a href="#" class="nav-link active">Home</a></li>', '<li><a href="/" class="nav-link active">Home</a></li>')
   .replace(/<section[^>]*id="card-configurator"[\s\S]*?<\/section>/, guidedConfigurator)
@@ -81,8 +129,24 @@ const improvedMarkup = markup
     '<section class="trust-bar-section" id="how-it-works">',
   )
   .replace(
+    /<section class="trust-bar-section" id="how-it-works">[\s\S]*?<\/section>/,
+    clearPurchaseJourney,
+  )
+  .replace(
+    '<section class="section-padding guided-configurator"',
+    `${productComparison}<section class="section-padding guided-configurator"`,
+  )
+  .replace(
     '<input type="password" id="login-password" required placeholder="••••••••">',
-    '<div class="password-field"><input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••"><button type="button" class="password-toggle" id="login-password-toggle" aria-controls="login-password" aria-pressed="false">Show</button></div>',
+    '<div class="password-field"><input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••"><button type="button" class="password-toggle" id="login-password-toggle" aria-controls="login-password" aria-pressed="false">Show</button></div><small class="caps-warning" data-caps-for="login-password" hidden>Caps Lock is on</small>',
+  )
+  .replace(
+    '<input type="password" id="signup-password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters">',
+    '<div class="password-field"><input type="password" id="signup-password" required minlength="12" autocomplete="new-password" aria-describedby="signup-password-help" placeholder="12+ characters"><button type="button" class="password-toggle" data-password-toggle="signup-password" aria-controls="signup-password" aria-pressed="false">Show</button></div><div class="password-requirements" id="signup-password-help" aria-live="polite"><span data-rule="length">12+ characters</span><span data-rule="upper">Uppercase</span><span data-rule="lower">Lowercase</span><span data-rule="number">Number</span><span data-rule="symbol">Symbol</span></div><small class="caps-warning" data-caps-for="signup-password" hidden>Caps Lock is on</small>',
+  )
+  .replace(
+    '<input type="password" id="signup-confirm-password" required minlength="8" autocomplete="new-password" placeholder="Enter your password again">',
+    '<div class="password-field"><input type="password" id="signup-confirm-password" required minlength="12" autocomplete="new-password" placeholder="Enter your password again"><button type="button" class="password-toggle" data-password-toggle="signup-confirm-password" aria-controls="signup-confirm-password" aria-pressed="false">Show</button></div><small class="caps-warning" data-caps-for="signup-confirm-password" hidden>Caps Lock is on</small>',
   )
   .replace(
     '<button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button>\n      </form>',
@@ -108,9 +172,52 @@ const improvedMarkup = markup
     /<div class="hero-stat-bar">[\s\S]*?<\/div>/,
     '<div class="hero-stat-bar benefit-strip"><span>One Smart Card</span><span>Unlimited Updates</span><span>No App Required</span><span>QR Backup Included</span></div>',
   )
+  .replace(
+    '<h3>Get 10% Off Your First Order</h3>',
+    '<h3>Keep up with MyLuxCards</h3>',
+  )
+  .replace(
+    '<p>Subscribe for exclusive deals and new product launches.</p>',
+    '<p>Receive product updates and launch announcements. Unsubscribe whenever you like.</p>',
+  )
+  .replace(
+    '<li><a href="#card-configurator" class="nav-link">NFC Cards</a></li></ul>',
+    '<li><a href="#card-configurator" class="nav-link">NFC Cards</a></li><li><a href="/partners" class="nav-link">Partners</a></li></ul>',
+  )
+  .replace(
+    '<button class="btn btn-glass btn-icon" id="wishlist-trigger" title="Wishlist">',
+    '<button class="btn btn-glass btn-icon" id="wishlist-trigger" type="button" title="Wishlist" aria-label="Open wishlist">',
+  )
+  .replace(
+    '<button class="btn btn-primary btn-icon" id="cart-trigger" title="Shopping Cart">',
+    '<button class="btn btn-primary btn-icon" id="cart-trigger" type="button" title="Shopping Cart" aria-label="Open shopping cart">',
+  )
+  .replace(
+    '<div class="hamburger" id="hamburger">',
+    '<button class="hamburger" id="hamburger" type="button" aria-label="Open navigation" aria-controls="nav-menu" aria-expanded="false">',
+  )
+  .replace(
+    '</span>\n      </div>\n    </div>\n  </nav>',
+    '</span>\n      </button>\n    </div>\n  </nav>',
+  )
+  .replace(/<button class="drawer-close">/g, '<button class="drawer-close" type="button" aria-label="Close panel">')
+  .replace(
+    '<button class="modal-close modal-close-btn" onclick=',
+    '<button class="modal-close modal-close-btn" type="button" aria-label="Close card preview" onclick=',
+  )
+  .replace(
+    '<button class="modal-close" onclick="window.app.closeModal(\'login-modal\')">',
+    '<button class="modal-close" type="button" aria-label="Close login" onclick="window.app.closeModal(\'login-modal\')">',
+  )
+  .replace(/<div class="social-links">[\s\S]*?<\/div>/, "")
+  .replace('href="#privacy">Privacy Controls', 'href="/privacy">Privacy Controls')
+  .replace(
+    '<p>Unlock an exclusive premium NFC card offer and browse our best sellers.</p>',
+    '<p>Explore card materials and build a design that fits your work.</p>',
+  )
   .replace('<div class="config-logo" id="config-logo"><img src="/assets/logo-premium.png" alt="MyLuxCards logo"></div>', '<div class="config-logo" id="config-logo"><span class="brand-mask" role="img" aria-label="MyLuxCards logo"></span></div>')
   .replace(/<li><a href="\/(?:find|corporate)">[\s\S]*?<\/a><\/li>/g, "");
 
 export default function Page() {
-  return <><RecoveryRedirect /><LegacyPage markup={improvedMarkup} inlineScript="/js/inline/index.js" /></>;
+  return <><RecoveryRedirect /><LegacyPage markup={improvedMarkup} inlineScript="/js/inline/index.js" /><a className="mobile-design-cta" href="#card-configurator">Design your card</a></>;
 }

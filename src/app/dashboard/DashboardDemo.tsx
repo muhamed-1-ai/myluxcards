@@ -149,6 +149,9 @@ export default function DashboardDemo() {
   };
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + card.views, 0);
+  const activeCards = cards.filter((card) => card.active).length;
+  const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
+  const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
   const filtered = useMemo(() => cards.filter((card) =>
     `${card.name} ${card.slug}`.toLowerCase().includes(search.toLowerCase())), [cards, search]);
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -188,19 +191,21 @@ export default function DashboardDemo() {
             <small>Expiry: {selected.expiry.split("-").reverse().join("-")} ({selected.id.replace("card-", "#")})</small>
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
+          <a className="side-link" href="/account/referrals"><I>↗</I> Referrals</a>
         </nav>
-        <div className="demo-note"><span>Your account</span><p>{currentUser.email}</p></div>
+        <div className="demo-note"><span>Browser-saved workspace</span><p>Your card draft and view counter are stored only in this browser until cloud card storage is connected.</p></div>
       </aside>
       <main className="dash-main">
         {tab === "dashboard" && <section>
-          <div className="page-heading"><div><p>OVERVIEW</p><h1>Welcome, {currentUser.name.split(" ")[0]}</h1><span>Here’s how your digital presence is performing.</span></div><button className="primary" onClick={() => selectTab("cards")}>Manage cards</button></div>
+          <div className="page-heading"><div><p>OVERVIEW</p><h1>Welcome, {currentUser.name.split(" ")[0]}</h1><span>Manage your card and review the activity available in this browser.</span></div><button className="primary" onClick={() => selectTab("cards")}>Manage cards</button></div>
           <div className="stats">
             <article className="blue"><div><strong>{cards.length}</strong><span>My Cards</span></div><i>▣</i></article>
-            <article className="orange"><div><strong>{totalViews.toLocaleString()}</strong><span>Total Views</span></div><i>↗</i></article>
-            <article className="green"><div><strong>12</strong><span>Messages</span></div><i>✉</i></article>
+            <article className="orange"><div><strong>{totalViews.toLocaleString()}</strong><span>Browser-recorded views</span></div><i>↗</i></article>
+            <article className="green"><div><strong>{activeCards}</strong><span>Active cards</span></div><i>✓</i></article>
           </div>
+          <div className="analytics-disclosure"><strong>Analytics status</strong><p>These figures are not server analytics. Reliable NFC taps, QR scans, contact saves, and link clicks require persistent card ownership and privacy-conscious event collection.</p></div>
           <div className="welcome-panel">
-            <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Keep your profile current, share your card, and see your reach grow—all from one place.</p><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
+            <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Complete your profile so visitors have the details they need to connect with you.</p><div className="completion"><span><b>Profile completion</b><strong>{profileCompletion}%</strong></span><i><b style={{width:`${profileCompletion}%`}} /></i></div><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
             <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{selected.views} views</b></div>
           </div>
         </section>}
