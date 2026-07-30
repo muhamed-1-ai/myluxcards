@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LegacyPage from '@/components/layout/LegacyPage';
+import RecoveryRedirect from './RecoveryRedirect';
 
 export const metadata: Metadata = { title: "MyLuxCards | One Tap. Your Entire Professional World.", description: "Premium NFC business cards, digital profiles and private QR lost-and-found by MyLux." };
 
@@ -82,6 +83,26 @@ const improvedMarkup = markup
     '<div class="password-field"><input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••"><button type="button" class="password-toggle" id="login-password-toggle" aria-controls="login-password" aria-pressed="false">Show</button></div>',
   )
   .replace(
+    '<button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button>\n      </form>',
+    '<small class="form-error" id="login-error" role="alert"></small><button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 10px;">Login securely</button></form><p class="forgot-password-row"><a href="#" id="forgot-password-trigger">Forgot password?</a></p>',
+  )
+  .replace(
+    '<!-- Sign Up Modal -->',
+    `<div class="modal-overlay" id="forgot-password-modal" aria-hidden="true">
+      <div class="modal-card glass-solid" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
+        <button class="modal-close" type="button" aria-label="Close forgot password"><i data-lucide="x"></i></button>
+        <div class="modal-header"><h3 id="forgot-password-title">Reset your password</h3><p>We'll email you a secure link to choose a new password.</p></div>
+        <form id="forgot-password-form">
+          <div class="form-group"><label for="forgot-password-email">Email Address</label><input type="email" id="forgot-password-email" required autocomplete="email" placeholder="name@domain.com"></div>
+          <small class="form-error" id="forgot-password-error" role="alert"></small>
+          <button class="btn btn-primary" type="submit" style="width:100%">Send reset link</button>
+        </form>
+        <div class="modal-footer"><p><a href="#" id="forgot-back-to-login">Back to login</a></p></div>
+      </div>
+    </div>
+    <!-- Sign Up Modal -->`,
+  )
+  .replace(
     /<div class="hero-stat-bar">[\s\S]*?<\/div>/,
     '<div class="hero-stat-bar benefit-strip"><span>One Smart Card</span><span>Unlimited Updates</span><span>No App Required</span><span>QR Backup Included</span></div>',
   )
@@ -89,5 +110,5 @@ const improvedMarkup = markup
   .replace(/<li><a href="\/(?:find|corporate)">[\s\S]*?<\/a><\/li>/g, "");
 
 export default function Page() {
-  return <LegacyPage markup={improvedMarkup} inlineScript="/js/inline/index.js" />;
+  return <><RecoveryRedirect /><LegacyPage markup={improvedMarkup} inlineScript="/js/inline/index.js" /></>;
 }

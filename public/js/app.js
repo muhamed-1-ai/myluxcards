@@ -1399,6 +1399,7 @@ class LuxApp {
 
     document.getElementById('signup-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const form = e.currentTarget;
       const name = document.getElementById('signup-name')?.value.trim();
       const email = document.getElementById('signup-email')?.value.trim().toLowerCase();
       const password = document.getElementById('signup-password')?.value || '';
@@ -1412,44 +1413,125 @@ class LuxApp {
         return;
       }
 
-      const accounts = JSON.parse(localStorage.getItem('myluxcards_accounts') || '[]');
-      if (accounts.some((account) => account.email === email)) {
-        if (error) error.textContent = 'An account with this email already exists.';
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (error) error.textContent = data.message || data.msg || 'Unable to create your account.';
         return;
       }
-
-      const passwordHash = await this.hashPassword(password);
-      accounts.push({ name, email, passwordHash, createdAt: new Date().toISOString() });
-      localStorage.setItem('myluxcards_accounts', JSON.stringify(accounts));
-      localStorage.setItem('myluxcards_current_user', JSON.stringify({ name, email }));
-      this.updateAccountButton({ name, email });
-      e.currentTarget.reset();
+      form.reset();
       this.closeModal('signup-modal');
-      this.showToast(`Welcome to MyLuxCards, ${name}!`, 'success');
+      if (data.access_token) {
+        localStorage.setItem('myluxcards_current_user', JSON.stringify({ name, email }));
+        this.updateAccountButton({ name, email });
+        this.showToast(`Welcome to MyLuxCards, ${name}!`, 'success');
+      } else {
+        this.showToast('Check your email to confirm your account.', 'success');
+      }
     });
 
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const form = e.currentTarget;
       const email = document.getElementById('login-email')?.value.trim().toLowerCase();
       const password = document.getElementById('login-password')?.value || '';
-      const accounts = JSON.parse(localStorage.getItem('myluxcards_accounts') || '[]');
-      const account = accounts.find((item) => item.email === email);
-      if (!account || account.passwordHash !== await this.hashPassword(password)) {
-        this.showToast('Email or password is incorrect.', 'error');
-        return;
+      const error = document.getElementById('login-error');
+      const button = form.querySelector('button[type="submit"]');
+      if (error) error.textContent = '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Signing in…';
       }
-      const user = { name: account.name, email: account.email };
-      localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-      this.updateAccountButton(user);
-      e.currentTarget.reset();
-      document.getElementById('login-password').type = 'password';
-      const passwordToggle = document.getElementById('login-password-toggle');
-      if (passwordToggle) {
-        passwordToggle.textContent = 'Show';
-        passwordToggle.setAttribute('aria-pressed', 'false');
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.user) {
+          const message = data.message || 'Login could not be completed. Please try again.';
+          if (error) error.textContent = message;
+          this.showToast(message, 'error');
+          return;
+        }
+        const user = {
+          name: data.user.user_metadata?.name || email.split('@')[0],
+          email: data.user.email || email,
+          role: data.role || 'CUSTOMER'
+        };
+        localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
+        this.updateAccountButton(user);
+        form.reset();
+        document.getElementById('login-password').type = 'password';
+        const passwordToggle = document.getElementById('login-password-toggle');
+        if (passwordToggle) {
+          passwordToggle.textContent = 'Show';
+          passwordToggle.setAttribute('aria-pressed', 'false');
+        }
+        if (data.mustChangePassword) {
+          window.location.href = '/reset-password?required=1';
+          return;
+        }
+        if (data.role === 'ADMIN' || data.role === 'SUPER_ADMIN') {
+          window.location.href = '/admin';
+          return;
+        }
+        this.closeModal('login-modal');
+        this.showToast(`Welcome back, ${user.name}!`, 'success');
+      } catch {
+        const message = 'The login service could not be reached. Please try again.';
+        if (error) error.textContent = message;
+        this.showToast(message, 'error');
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Login securely';
+        }
       }
-      this.closeModal('login-modal');
-      this.showToast(`Welcome back, ${account.name}!`, 'success');
+    });
+
+    document.getElementById('forgot-password-trigger')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const resetEmail = document.getElementById('forgot-password-email');
+      if (resetEmail) resetEmail.value = document.getElementById('login-email')?.value || '';
+      switchAuthModal('login-modal', 'forgot-password-modal');
+    });
+
+    document.getElementById('forgot-back-to-login')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchAuthModal('forgot-password-modal', 'login-modal');
+    });
+
+    document.getElementById('forgot-password-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const email = document.getElementById('forgot-password-email')?.value.trim().toLowerCase();
+      const error = document.getElementById('forgot-password-error');
+      if (error) error.textContent = '';
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          if (error) error.textContent = data.message || 'Unable to send the reset email.';
+          return;
+        }
+        form.reset();
+        this.closeModal('forgot-password-modal');
+        this.showToast(data.message, 'success');
+      } finally {
+        if (button) button.disabled = false;
+      }
     });
 
     document.getElementById('login-password-toggle')?.addEventListener('click', (e) => {
@@ -1638,6 +1720,11 @@ class LuxApp {
 
 // Instantiate App on DOM complete
 const initLuxApp = () => {
+  const recoveryHash = new URLSearchParams(window.location.hash.slice(1));
+  if (recoveryHash.get('type') === 'recovery' && window.location.pathname !== '/reset-password') {
+    window.location.replace(`/reset-password${window.location.hash}`);
+    return;
+  }
   if (!window.app) window.app = new LuxApp();
 };
 
