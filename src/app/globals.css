@@ -4028,9 +4028,7 @@ iframe {
   padding: 112px 0;
   overflow: hidden;
   border-block: 1px solid rgba(212, 175, 55, .14);
-  background:
-    radial-gradient(circle at 10% 15%, rgba(212, 175, 55, .1), transparent 30%),
-    linear-gradient(180deg, rgba(9, 9, 13, .98), rgba(17, 16, 20, .98));
+  background: #020202;
 }
 
 .journey-heading {
@@ -4075,7 +4073,7 @@ iframe {
   padding: 0;
   border: 1px solid var(--border-glass);
   border-radius: 18px;
-  background: rgba(255, 255, 255, .025);
+  background: #080807;
 }
 
 .journey-steps li {
@@ -4128,7 +4126,7 @@ iframe {
 .home-trust-panel article {
   min-height: 126px;
   padding: 24px;
-  background: #111015;
+  background: #080807;
 }
 
 .home-trust-panel strong,
