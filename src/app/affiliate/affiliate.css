@@ -100,6 +100,19 @@
 .affiliate-brand span {
   color: var(--aff-gold);
 }
+.affiliate-brand-image {
+  display: flex;
+  width: 150px;
+  height: 58px;
+  align-items: center;
+  overflow: hidden;
+}
+.affiliate-brand-image img {
+  display: block;
+  width: 150px;
+  height: 65px;
+  object-fit: contain;
+}
 .affiliate-nav nav {
   display: flex;
   gap: 18px;
