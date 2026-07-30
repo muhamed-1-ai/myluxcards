@@ -71,6 +71,271 @@
   border-color: #db7373;
   color: #ff9d9d;
 }
+
+/* Partner pages share the main MyLuxCards visual system. */
+.partner-site {
+  --aff-bg: #070706;
+  --aff-panel: #15130f;
+  --aff-gold: #c9a24d;
+  --aff-muted: #b8b1a3;
+  --aff-border: rgba(201, 162, 77, 0.22);
+  background: #070706;
+  color: #f6f2e8;
+  font-family: "Poppins", Arial, sans-serif;
+}
+
+.partner-main-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 270px 1fr auto;
+  gap: 24px;
+  align-items: center;
+  height: 96px;
+  padding: 0 max(24px, calc((100vw - 1480px) / 2));
+  border-bottom: 1px solid rgba(201, 162, 77, 0.22);
+  background: rgba(7, 7, 6, 0.96);
+  backdrop-filter: blur(18px);
+}
+
+.partner-main-logo {
+  display: flex;
+  width: 250px;
+  height: 84px;
+  align-items: center;
+}
+
+.partner-main-logo img {
+  display: block;
+  width: 250px;
+  height: 84px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.partner-main-nav nav,
+.partner-main-actions {
+  display: flex;
+  align-items: center;
+}
+
+.partner-main-nav nav {
+  gap: 28px;
+}
+
+.partner-main-nav a {
+  color: #b8b1a3;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.partner-main-nav nav a {
+  position: relative;
+  padding: 14px 0;
+}
+
+.partner-main-nav nav a::after {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  height: 2px;
+  background: #c9a24d;
+  content: "";
+  opacity: 0;
+  transform: scaleX(0);
+  transition: 0.2s ease;
+}
+
+.partner-main-nav nav a:hover,
+.partner-main-nav nav a.active {
+  color: #f6f2e8;
+}
+
+.partner-main-nav nav a:hover::after,
+.partner-main-nav nav a.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.partner-main-actions {
+  gap: 18px;
+}
+
+.partner-main-button {
+  padding: 14px 20px;
+  border: 1px solid #e3cc87;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #e3cc87, #c9a24d);
+  color: #0b0a08 !important;
+  box-shadow: 0 8px 28px rgba(201, 162, 77, 0.14);
+}
+
+.partner-site .partner-landing {
+  background: #070706;
+  color: #f6f2e8;
+}
+
+.partner-site .partner-hero {
+  min-height: 690px;
+  align-items: flex-start;
+  padding: 110px max(24px, calc((100vw - 1240px) / 2)) 72px;
+  border-bottom-color: rgba(201, 162, 77, 0.18);
+  background:
+    radial-gradient(circle at 29% 42%, rgba(201, 162, 77, 0.16), transparent 31%),
+    linear-gradient(135deg, #070706 0%, #0d0c0a 100%);
+  text-align: left;
+}
+
+.partner-site .partner-hero-glow {
+  left: max(24px, calc((100vw - 1110px) / 2));
+  border-color: rgba(201, 162, 77, 0.1);
+}
+
+.partner-site .partner-hero h1,
+.partner-site .partner-section h2,
+.partner-site .partner-process h2,
+.partner-site .partner-rules h2,
+.partner-site .partner-cta h2,
+.partner-site .partner-type-card h3 {
+  font-family: "Playfair Display", Georgia, serif;
+}
+
+.partner-site .partner-hero h1 {
+  max-width: 920px;
+  font-size: clamp(58px, 6.6vw, 92px);
+  line-height: 0.99;
+}
+
+.partner-site .partner-hero h1 em,
+.partner-site .partner-eyebrow,
+.partner-site .partner-landing small,
+.partner-site .partner-card-top > span,
+.partner-site .partner-benefit,
+.partner-site .partner-rules > a,
+.partner-site .partner-faq summary span {
+  color: #c9a24d;
+}
+
+.partner-site .partner-hero > p {
+  color: #b8b1a3;
+}
+
+.partner-site .partner-primary,
+.partner-site .affiliate-button,
+.partner-site button {
+  border: 1px solid #e3cc87;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #e3cc87, #c9a24d);
+  color: #0b0a08;
+}
+
+.partner-site .partner-secondary {
+  border: 1px solid #c9a24d;
+  border-radius: 9px;
+  background: transparent;
+  color: #c9a24d;
+}
+
+.partner-site .partner-trust {
+  color: #a9a18f;
+}
+
+.partner-site .partner-type-card,
+.partner-site .affiliate-card,
+.partner-site .affiliate-panel,
+.partner-site .affiliate-form {
+  border-color: rgba(201, 162, 77, 0.22);
+  background: #15130f;
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.32);
+}
+
+.partner-site .partner-type-card:hover {
+  border-color: rgba(227, 204, 135, 0.55);
+  background: #19160f;
+  box-shadow: 0 18px 45px rgba(201, 162, 77, 0.12);
+}
+
+.partner-site .partner-process {
+  border-block-color: rgba(201, 162, 77, 0.16);
+  background: #0d0c0a;
+}
+
+.partner-site .partner-rules {
+  border-color: rgba(201, 162, 77, 0.32);
+  background: linear-gradient(130deg, #1b170d, #0d0c0a);
+}
+
+.partner-site .partner-cta {
+  border-top-color: rgba(201, 162, 77, 0.16);
+  background:
+    radial-gradient(circle at center, rgba(201, 162, 77, 0.18), transparent 44%),
+    #0d0c0a;
+}
+
+.partner-site .affiliate-pill,
+.partner-site .affiliate-kicker {
+  color: #c9a24d;
+}
+
+.partner-site .affiliate-pill {
+  border: 1px solid rgba(201, 162, 77, 0.34);
+  background: rgba(201, 162, 77, 0.1);
+}
+
+@media (max-width: 950px) {
+  .partner-main-nav {
+    grid-template-columns: 190px 1fr;
+    height: 78px;
+  }
+
+  .partner-main-logo,
+  .partner-main-logo img {
+    width: 190px;
+    height: 70px;
+  }
+
+  .partner-main-nav nav {
+    display: none;
+  }
+
+  .partner-main-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 600px) {
+  .partner-main-nav {
+    grid-template-columns: 140px 1fr;
+    padding-inline: 14px;
+  }
+
+  .partner-main-logo,
+  .partner-main-logo img {
+    width: 140px;
+    height: 60px;
+  }
+
+  .partner-login-link {
+    display: none;
+  }
+
+  .partner-main-button {
+    padding: 11px 13px;
+    font-size: 11px !important;
+  }
+
+  .partner-site .partner-hero {
+    min-height: 620px;
+    padding-top: 88px;
+  }
+
+  .partner-site .partner-hero h1 {
+    font-size: clamp(46px, 14vw, 64px);
+  }
+}
 .affiliate-page {
   min-height: 100vh;
   background: linear-gradient(145deg, #050505, #15130c);
