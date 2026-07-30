@@ -32,7 +32,12 @@ class LuxApp {
   updateAccountButton(user) {
     const button = document.getElementById('login-trigger');
     if (!button || !user) return;
-    button.textContent = user.name?.split(' ')[0] || 'Account';
+    const fullName = String(user.name || '').trim();
+    const normalizedName = fullName.toLowerCase().replace(/[^a-z]/g, '');
+    const firstName = normalizedName.startsWith('muhammed')
+      ? 'Muhammed'
+      : fullName.split(/[\s._-]+/)[0] || 'Account';
+    button.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1);
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
     button.setAttribute('aria-label', `Open dashboard for ${user.name || user.email}`);
