@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import LegacyPage from '@/components/layout/LegacyPage';
+import RecoveryRedirect from './RecoveryRedirect';
 
 export const metadata: Metadata = { title: "MyLuxCards | One Tap. Your Entire Professional World.", description: "Premium NFC business cards, digital profiles and private QR lost-and-found by MyLux." };
 
@@ -109,5 +110,5 @@ const improvedMarkup = markup
   .replace(/<li><a href="\/(?:find|corporate)">[\s\S]*?<\/a><\/li>/g, "");
 
 export default function Page() {
-  return <LegacyPage markup={improvedMarkup} inlineScript="/js/inline/index.js" />;
+  return <><RecoveryRedirect /><LegacyPage markup={improvedMarkup} inlineScript="/js/inline/index.js" /></>;
 }
