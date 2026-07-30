@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import { createIcons, icons } from 'lucide';
 
 type LegacyPageProps = { markup: string; inlineScript?: string };
+type LucideWindow = Window & { lucide?: { createIcons: () => void } };
 
 function loadScript(source: string) {
   return new Promise<void>((resolve, reject) => {
@@ -26,15 +28,16 @@ export default function LegacyPage({ markup, inlineScript }: LegacyPageProps) {
       image.src = '/assets/logo-navbar.png';
       image.removeAttribute('onerror');
     });
+    const renderIcons = () => createIcons({ icons });
+    (window as LucideWindow).lucide = { createIcons: renderIcons };
     (async () => {
       try {
-        await loadScript('https://unpkg.com/lucide@latest');
-        if (cancelled) return;
         await loadScript('/js/data.js');
         if (cancelled) return;
         await loadScript('/js/app.js');
         if (cancelled) return;
         if (inlineScript) await loadScript(inlineScript);
+        if (!cancelled) renderIcons();
       } catch (error) {
         console.error(error);
       }
