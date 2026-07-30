@@ -1,5 +1,6 @@
 import { audit, requireAdmin, safeError, validMutationOrigin } from "@/lib/adminAuth";
 import { supabaseJson } from "@/lib/supabaseAuth";
+import { syncCommissionForTrustedOrder } from "@/lib/affiliate";
 
 export const runtime = "nodejs";
 const statuses = new Set(["PENDING","CONFIRMED","PROCESSING","SHIPPED","DELIVERED","CANCELLED","REFUNDED"]);
@@ -51,6 +52,7 @@ export async function PATCH(request: Request) {
     const before = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}&select=id,status,courier,tracking_number&limit=1`, {}, true);
     if (!before.data?.[0]) return Response.json({ message: "Order not found." }, { status: 404 });
     const { data } = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}`, { method: "PATCH", body: JSON.stringify(changes) }, true);
+    await syncCommissionForTrustedOrder(body.id);
     await audit(actor, "ORDER_UPDATED", "order", body.id, before.data[0], changes);
     return Response.json({ data: data?.[0] });
   } catch (error) { return safeError(error); }

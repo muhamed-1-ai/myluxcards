@@ -1397,6 +1397,44 @@ class LuxApp {
       switchAuthModal('signup-modal', 'login-modal');
     });
 
+    const signupPassword = document.getElementById('signup-password');
+    const passwordRules = {
+      length: value => value.length >= 12,
+      upper: value => /[A-Z]/.test(value),
+      lower: value => /[a-z]/.test(value),
+      number: value => /\d/.test(value),
+      symbol: value => /[^A-Za-z0-9]/.test(value)
+    };
+    const updatePasswordRequirements = () => {
+      const value = signupPassword?.value || '';
+      Object.entries(passwordRules).forEach(([rule, valid]) => {
+        document.querySelector(`[data-rule="${rule}"]`)?.classList.toggle('met', valid(value));
+      });
+    };
+    signupPassword?.addEventListener('input', updatePasswordRequirements);
+
+    document.querySelectorAll('[data-password-toggle]').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const input = document.getElementById(toggle.dataset.passwordToggle);
+        if (!input) return;
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        toggle.textContent = showing ? 'Show' : 'Hide';
+        toggle.setAttribute('aria-pressed', String(!showing));
+        input.focus({ preventScroll: true });
+      });
+    });
+
+    document.querySelectorAll('input[type="password"]').forEach(input => {
+      const warning = document.querySelector(`[data-caps-for="${input.id}"]`);
+      const updateCapsWarning = event => {
+        if (warning) warning.hidden = !event.getModifierState?.('CapsLock');
+      };
+      input.addEventListener('keyup', updateCapsWarning);
+      input.addEventListener('keydown', updateCapsWarning);
+      input.addEventListener('blur', () => { if (warning) warning.hidden = true; });
+    });
+
     document.getElementById('signup-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.currentTarget;
@@ -1406,6 +1444,12 @@ class LuxApp {
       const confirmation = document.getElementById('signup-confirm-password')?.value || '';
       const error = document.getElementById('signup-error');
       if (error) error.textContent = '';
+
+      if (!Object.values(passwordRules).every(rule => rule(password))) {
+        if (error) error.textContent = 'Use 12+ characters with upper, lower, number, and symbol.';
+        document.getElementById('signup-password')?.focus();
+        return;
+      }
 
       if (password !== confirmation) {
         if (error) error.textContent = 'Passwords do not match.';
