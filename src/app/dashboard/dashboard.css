@@ -2086,6 +2086,7 @@ th {
   background: var(--profile-accent, #d4af37) !important;
   color: var(--profile-bg, #020202) !important;
 }
+.image-controls{display:grid;gap:12px;margin:16px 0;padding:18px;border:1px solid #d4af3740;border-radius:10px;background:#080807}.image-controls label{display:grid;grid-template-columns:145px 1fr 46px;gap:10px;align-items:center;color:#c8bfad;font-size:12px}.image-controls input{accent-color:#d4af37}.image-controls output{color:#d4af37;text-align:right}.image-controls button,.activation-box button{padding:10px 14px;border:0;border-radius:7px;background:#d4af37;color:#050505;font-weight:800}.logo-upload-preview,.profile-logo{overflow:hidden}.logo-upload-preview img,.profile-logo img{width:100%;height:100%;object-fit:contain}.activation-box{display:flex;align-items:center;gap:12px;padding:18px;border-top:1px solid #d4af3738;background:#080807}.activation-box>div{display:grid;margin-right:auto}.activation-box span{color:#aaa;font-size:11px}.activation-box input{padding:11px;border:1px solid #d4af3755;border-radius:7px;background:#020202;color:#fff}.needs-activation{color:#e8c968;font-weight:700}
 @media (max-width: 720px) {
   .profile-colours {
     grid-template-columns: 1fr;

@@ -2,15 +2,18 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
-type Tab = "dashboard" | "contact" | "social" | "company" | "appearance" | "cards";
+type Tab = "dashboard" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
 type Card = {
   id: string; ownerId: string; name: string; slug: string; title: string; business: string;
   countryCode: string; countryIso: string; mobile: string; whatsapp: string; email: string; website: string;
   state: string; stateCode: string; city: string; address: string; brochure: string; brochureData?: string;
   social: Record<string, string>; about: string; services: string[];
   logo: string; cover: string; profileBackground: string; profileAccent: string; profileText: string;
-  start: string; expiry: string; views: number; active: boolean;
+  logoScale: number; logoRotation: number; logoX: number; logoY: number;
+  start: string; expiry: string; views: number; active: boolean; activatedAt?: string | null;
+  analytics?: Record<string, number>;
 };
+type Lead = { id:string; card_id:string; name:string; email?:string; phone?:string; company?:string; message?:string; status:string; created_at:string };
 type CurrentUser = { name: string; email: string };
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
@@ -40,6 +43,7 @@ const createBlankCard = (user: CurrentUser): Card => {
     title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: "", website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
     logo: "", cover: "", profileBackground: "#020202", profileAccent: "#d4af37", profileText: "#ffffff",
+    logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
     views: 0, active: true,
   };
@@ -66,6 +70,9 @@ export default function DashboardDemo() {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [accountMenu, setAccountMenu] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [activationCode, setActivationCode] = useState("");
+  const [cloudReady, setCloudReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -87,6 +94,18 @@ export default function DashboardDemo() {
       setSelectedId(firstCard.id);
       setDraft(firstCard);
       setAuthReady(true);
+      fetch("/api/cards", { cache: "no-store" }).then(async (response) => {
+        if (!response.ok) return;
+        const payload = await response.json();
+        const cloudCards = Array.isArray(payload.cards) ? payload.cards : [];
+        setLeads(Array.isArray(payload.leads) ? payload.leads : []);
+        setCloudReady(true);
+        if (cloudCards.length) {
+          setCards(cloudCards);
+          setSelectedId(cloudCards[0].id);
+          setDraft(cloudCards[0]);
+        }
+      }).catch(() => {});
     } catch {
       localStorage.removeItem("myluxcards_current_user");
       window.location.replace("/?login=1");
@@ -119,12 +138,21 @@ export default function DashboardDemo() {
     });
     setErrors(next); return Object.keys(next).length === 0;
   };
-  const save = (section: Tab, next?: Tab) => {
+  const save = async (section: Tab, next?: Tab) => {
     if (!validate(section)) { notify("Please fix the highlighted fields."); return; }
     const saved = cards.map((card) => card.id === draft.id ? draft : card);
     setCards(saved);
     if (currentUser) localStorage.setItem(storageKey(currentUser.email), JSON.stringify(saved));
-    notify("Card updated successfully.");
+    try {
+      const response = await fetch("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(draft) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || "Cloud save failed.");
+      const cloudCard = payload.card as Card;
+      const cloudSaved = saved.map(card => card.id === draft.id ? { ...draft, ...cloudCard } : card);
+      setCards(cloudSaved); setDraft({ ...draft, ...cloudCard }); setSelectedId(cloudCard.id);
+      setCloudReady(true);
+      notify("Card saved securely.");
+    } catch { notify("Saved in this browser. Cloud storage is not ready yet."); }
     if (next) selectTab(next);
   };
   const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
@@ -148,7 +176,7 @@ export default function DashboardDemo() {
     const reader = new FileReader(); reader.onload = () => update(kind, String(reader.result)); reader.readAsDataURL(file);
   };
   const selected = cards.find((card) => card.id === selectedId) || draft;
-  const totalViews = cards.reduce((sum, card) => sum + card.views, 0);
+  const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
   const activeCards = cards.filter((card) => card.active).length;
   const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
   const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
@@ -191,9 +219,10 @@ export default function DashboardDemo() {
             <small>Expiry: {selected.expiry.split("-").reverse().join("-")} ({selected.id.replace("card-", "#")})</small>
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
+          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>◎</I> Leads <b>{leads.length}</b></button>
           <a className="side-link" href="/account/referrals"><I>↗</I> Referrals</a>
         </nav>
-        <div className="demo-note"><span>Browser-saved workspace</span><p>Your card draft and view counter are stored only in this browser until cloud card storage is connected.</p></div>
+        <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards, leads, and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
       </aside>
       <main className="dash-main">
         {tab === "dashboard" && <section>
@@ -203,7 +232,7 @@ export default function DashboardDemo() {
             <article className="orange"><div><strong>{totalViews.toLocaleString()}</strong><span>Browser-recorded views</span></div><i>↗</i></article>
             <article className="green"><div><strong>{activeCards}</strong><span>Active cards</span></div><i>✓</i></article>
           </div>
-          <div className="analytics-disclosure"><strong>Analytics status</strong><p>These figures are not server analytics. Reliable NFC taps, QR scans, contact saves, and link clicks require persistent card ownership and privacy-conscious event collection.</p></div>
+          <div className="analytics-disclosure"><strong>Connection analytics</strong><p>{cloudReady ? `${cards.reduce((n,c)=>n+(c.analytics?.CONTACT_SAVE||0),0)} contact saves · ${cards.reduce((n,c)=>n+(c.analytics?.LINK_CLICK||0),0)} link clicks · ${leads.length} exchanged contacts.` : "Connect cloud storage to collect privacy-conscious NFC, QR, save, and link activity."}</p></div>
           <div className="welcome-panel">
             <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Complete your profile so visitors have the details they need to connect with you.</p><div className="completion"><span><b>Profile completion</b><strong>{profileCompletion}%</strong></span><i><b style={{width:`${profileCompletion}%`}} /></i></div><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
             <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{selected.views} views</b></div>
@@ -232,15 +261,17 @@ export default function DashboardDemo() {
           <div className="page-heading"><div><p>CARD LIBRARY</p><h1>My Cards</h1><span>Search, publish, and manage your digital cards.</span></div><button className="primary" onClick={() => selectTab("contact")}>Edit my card</button></div>
           <div className="table-card">
             <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
-            <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Start date</th><th>Expiry date</th><th>Page View</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
-              <tbody>{visible.map((card, index) => <tr key={card.id}><td>{start + index}</td><td><strong>{card.name}</strong><small>/{card.slug}</small></td><td>{card.start.split("-").reverse().join("-")}</td><td>{card.expiry.split("-").reverse().join("-")}</td><td><span className="view-badge">{card.views}</span></td><td><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={() => { const next = cards.map((x) => x.id === card.id ? { ...x, active: !x.active } : x); setCards(next); localStorage.setItem(storageKey(currentUser.email), JSON.stringify(next)); }}><span /></button></td><td><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
+            <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Activation</th><th>Expiry date</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
+              <tbody>{visible.map((card, index) => <tr key={card.id}><td>{start + index}</td><td><strong>{card.name}</strong><small>/{card.slug}</small></td><td>{card.activatedAt ? "Activated" : <span className="needs-activation">Code required</span>}</td><td>{card.expiry?.split("-").reverse().join("-") || "—"}</td><td><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td><button className={`switch ${card.active ? "on" : ""}`} disabled={!card.activatedAt} aria-label={`Toggle ${card.name}`} onClick={async () => { const changed={...card,active:!card.active}; const next=cards.map(x=>x.id===card.id?changed:x); setCards(next); await fetch("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(changed)}); }}><span /></button></td><td><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
+            {visible.some(card => !card.activatedAt && /^[0-9a-f-]{36}$/i.test(card.id)) && <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Enter the one-time code included with your physical card.</span></div><input value={activationCode} onChange={event=>setActivationCode(event.target.value.toUpperCase())} placeholder="Activation code"/><button onClick={async()=>{const card=visible.find(x=>!x.activatedAt&&/^[0-9a-f-]{36}$/i.test(x.id));if(!card)return;const response=await fetch("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cardId:card.id,code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Activation failed.");return;}setCards(cards.map(x=>x.id===card.id?{...x,active:true,activatedAt:new Date().toISOString(),expiry:payload.expiry.slice(0,10)}:x));setActivationCode("");notify("Your card is activated.");}}>Activate</button></div>}
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
+        {tab === "leads" && <section><div className="page-heading"><div><p>CONTACT EXCHANGE</p><h1>Leads</h1><span>People who explicitly shared their details through your card.</span></div></div><div className="table-card"><div className="table-scroll"><table><thead><tr><th>Date</th><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Message</th></tr></thead><tbody>{leads.length?leads.map(lead=><tr key={lead.id}><td>{new Date(lead.created_at).toLocaleDateString()}</td><td><strong>{lead.name}</strong></td><td>{lead.company||"—"}</td><td>{lead.email||"—"}</td><td>{lead.phone||"—"}</td><td>{lead.message||"—"}</td></tr>):<tr><td colSpan={6}>No contacts have been shared yet.</td></tr>}</tbody></table></div></div></section>}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
-      {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Clear this card?</h2><p>This removes your saved card information. Your account name will remain.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={() => { const blank = createBlankCard(currentUser); setCards([blank]); setDraft(blank); setSelectedId(blank.id); localStorage.removeItem(storageKey(currentUser.email)); setDeleteId(null); notify("Saved card information cleared."); }}>Clear card</button></div></div></div>}
+      {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Clear this card?</h2><p>This removes your saved card information. Your account name will remain.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={async () => { if(/^[0-9a-f-]{36}$/i.test(deleteId)) await fetch("/api/cards",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:deleteId})}); const blank = createBlankCard(currentUser); setCards([blank]); setDraft(blank); setSelectedId(blank.id); localStorage.removeItem(storageKey(currentUser.email)); setDeleteId(null); notify("Saved card information cleared."); }}>Clear card</button></div></div></div>}
     </div>
   );
 }
@@ -355,7 +386,8 @@ function AppearanceForm({ draft, update, handleFile }: any) {
         )}
       </div>
     </div>
-    <div className="upload-section"><div><span className="step">01</span><h3>Company logo</h3><p>Square PNG or JPG recommended.</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "logo")} />Select logo</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Logo preview" /> : <span>YOUR<br />LOGO</span>}</div></div>
+    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>Upload an image, then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "logo")} />Select image</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{transform:`scale(${(draft.logoScale||100)/100}) rotate(${draft.logoRotation||0}deg)`,objectPosition:`${draft.logoX||50}% ${draft.logoY||50}%`}} /> : <span>YOUR<br />IMAGE</span>}</div></div>
+    {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale||100} onChange={event=>update("logoScale",Number(event.target.value))}/><output>{draft.logoScale||100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation||0} onChange={event=>update("logoRotation",Number(event.target.value))}/><output>{draft.logoRotation||0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX||50} onChange={event=>update("logoX",Number(event.target.value))}/></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY||50} onChange={event=>update("logoY",Number(event.target.value))}/></label><button type="button" onClick={()=>{update("logoScale",100);update("logoRotation",0);update("logoX",50);update("logoY",50);}}>Reset image</button></div>}
     <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600).</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "cover")} />Select background image</label></div><div className="cover-upload-preview" style={draft.cover ? { backgroundImage: `url(${draft.cover})` } : undefined}>{!draft.cover && <span>Cover image preview</span>}</div></div>
   </>;
 }
@@ -390,7 +422,7 @@ function PreviewPanel({ card }: { card: Card }) {
     <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#d4af37", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
       <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
       <div className="cover" style={card.cover ? { backgroundImage: `url(${card.cover})` } : undefined}><span>MYLUX</span></div>
-      <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
+      <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" style={{transform:`scale(${(card.logoScale||100)/100}) rotate(${card.logoRotation||0}deg)`,objectPosition:`${card.logoX||50}% ${card.logoY||50}%`}} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
       <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
       <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>
       <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>

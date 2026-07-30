@@ -76,6 +76,28 @@ const clearPurchaseJourney = `<section class="home-journey" id="how-it-works" ar
   </div>
 </section>`;
 
+const purchaseConfidence = `<section class="purchase-confidence" aria-labelledby="purchase-confidence-title">
+  <div class="container">
+    <div class="purchase-confidence-head"><span>BEFORE YOU ORDER</span><h2 id="purchase-confidence-title">Everything you need to know.</h2><p>A clear look at the product, delivery, compatibility, activation, and support before you customise.</p></div>
+    <div class="product-showcase">
+      <div class="showcase-card-scene" aria-label="Front and back NFC card preview">
+        <div class="showcase-card showcase-front"><small>YOUR BRAND</small><strong>Your Name</strong><span>Your role · Company</span><i>)))</i></div>
+        <div class="showcase-card showcase-back"><strong>SCAN TO CONNECT</strong><div class="showcase-qr">QR</div><span>NFC + QR backup</span></div>
+      </div>
+      <div class="showcase-copy"><span class="journey-kicker">LIVE PRODUCT EXPERIENCE</span><h3>See what happens after the tap.</h3><p>The recipient opens a mobile profile in their browser, saves your contact, visits your links, or securely exchanges their details. No app is required.</p><button class="btn btn-primary" type="button" onclick="document.getElementById('tap-card')?.click()">Try the live tap demo</button></div>
+    </div>
+    <div class="purchase-facts">
+      <article><i data-lucide="smartphone"></i><h3>Phone compatibility</h3><p>Works with modern NFC-enabled iPhone and Android devices. The printed QR code provides a fallback.</p></article>
+      <article><i data-lucide="package-check"></i><h3>What is included</h3><p>Custom double-sided card, programmed NFC chip, QR backup, digital profile activation, and pre-dispatch testing.</p></article>
+      <article><i data-lucide="truck"></i><h3>Production and delivery</h3><p>Your design is reviewed before printing. Final delivery timing is confirmed at checkout based on destination and stock.</p></article>
+      <article><i data-lucide="refresh-cw"></i><h3>Editable after printing</h3><p>Update the digital profile, links, contact information, and visibility without replacing the physical card.</p></article>
+      <article><i data-lucide="badge-indian-rupee"></i><h3>Clear pricing</h3><p>The configurator shows the live total before cart. Any premium profile term or design service is itemised separately.</p></article>
+      <article><i data-lucide="shield-check"></i><h3>Support and replacement</h3><p>Cards are NFC-tested before dispatch. Contact support for activation, delivery, damage, or replacement assistance.</p></article>
+    </div>
+    <div class="purchase-note"><strong>Returns and custom products</strong><span>Personalised cards cannot usually be resold. Approval, cancellation, defect, and replacement terms are shown before payment and should be reviewed before ordering.</span><a href="/support">Ask support</a></div>
+  </div>
+</section>`;
+
 const improvedMarkup = markup
   .replace(
     /<!-- --- Testimonials Section --- -->[\s\S]*?<\/section>/,
@@ -108,7 +130,7 @@ const improvedMarkup = markup
   )
   .replace(
     /<section class="trust-bar-section" id="how-it-works">[\s\S]*?<\/section>/,
-    clearPurchaseJourney,
+    `${clearPurchaseJourney}${purchaseConfidence}`,
   )
   .replace(
     '<input type="password" id="login-password" required placeholder="••••••••">',
