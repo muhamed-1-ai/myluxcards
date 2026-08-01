@@ -2218,6 +2218,7 @@ th {
 }
 
 /* Final mobile dashboard experience */
+.mobile-tabbar { display:none; }
 @media (max-width: 620px) {
   .dash-shell { overflow-x: hidden; }
   .dash-top {
@@ -2252,7 +2253,9 @@ th {
   .side-scrim { inset: calc(64px + env(safe-area-inset-top)) 0 0; backdrop-filter: blur(3px); }
   .dash-side nav > button,.dash-side .side-link,.card-owner { min-height: 52px; height: auto; }
   .subnav button { min-height: 44px; height: auto; }
-  .dash-main { padding: calc(86px + env(safe-area-inset-top)) 12px calc(32px + env(safe-area-inset-bottom)); }
+  .mobile-tabbar { position:fixed;z-index:23;top:calc(64px + env(safe-area-inset-top));left:0;right:0;height:50px;display:flex;gap:6px;padding:7px 10px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;background:#050505f5;border-bottom:1px solid #d4af3738;backdrop-filter:blur(12px) }
+  .mobile-tabbar::-webkit-scrollbar{display:none}.mobile-tabbar button{flex:0 0 auto;min-height:35px;padding:0 14px;border:1px solid #d4af3738;border-radius:18px;background:#0b0a08;color:#bdb29b;font-size:12px;font-weight:700;white-space:nowrap}.mobile-tabbar button.active{background:#d4af37;color:#050505;border-color:#d4af37}
+  .dash-main { padding: calc(136px + env(safe-area-inset-top)) 12px calc(32px + env(safe-area-inset-bottom)); }
   .page-heading { display: grid; gap: 14px; margin-bottom: 20px; }
   .page-heading h1 { font-size: clamp(25px, 8vw, 31px); line-height: 1.08; }
   .page-heading span { line-height: 1.55; }

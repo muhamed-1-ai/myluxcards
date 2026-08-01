@@ -268,6 +268,9 @@ export default function DashboardDemo() {
           </div>}
         </div>
       </header>
+      <nav className="mobile-tabbar" aria-label="Dashboard sections">
+        {(["dashboard","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
+      </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <nav>
