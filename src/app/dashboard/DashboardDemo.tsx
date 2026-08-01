@@ -33,6 +33,14 @@ const profileThemes = [
   { name: "Midnight Blue", background: "#071523", accent: "#5ca9e6", text: "#f5f9ff" },
   { name: "Burgundy", background: "#18070d", accent: "#a83d5b", text: "#fff4f6" },
   { name: "Executive Silver", background: "#101214", accent: "#aeb6bf", text: "#f4f6f8" },
+  { name: "Royal Purple", background: "#12091f", accent: "#9b6cff", text: "#faf7ff" },
+  { name: "Emerald", background: "#061712", accent: "#35c98a", text: "#effff8" },
+  { name: "Ocean Teal", background: "#04191d", accent: "#22b8c7", text: "#edfdff" },
+  { name: "Rose Gold", background: "#1d1114", accent: "#d79a9f", text: "#fff7f7" },
+  { name: "Copper", background: "#1a100a", accent: "#c9783d", text: "#fff6ed" },
+  { name: "Electric Lime", background: "#090d08", accent: "#a8e83a", text: "#f8ffed" },
+  { name: "Coffee Cream", background: "#211811", accent: "#d4b483", text: "#fff9ef" },
+  { name: "Sapphire Gold", background: "#061329", accent: "#e2b84b", text: "#f5f8ff" },
 ];
 const storageKey = (email: string) => `${STORE_PREFIX}${email.trim().toLowerCase()}`;
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "my-card";
