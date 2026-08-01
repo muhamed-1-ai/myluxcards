@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const code = String(body.code || "").trim();
-    if (!/^MLC-[0-9A-F]{8}$/i.test(code)) return Response.json({ message: "Enter the complete activation code, for example MLC-12AB34CD." }, { status: 400 });
+    if (!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(code)) return Response.json({ message: "Enter the complete new activation code, for example MLC-12AB-34CD-56EF-7890." }, { status: 400 });
     // Match the one-time code within the signed-in customer's cards. This avoids
     // rejecting a valid code when the customer owns more than one unactivated card.
     const found = await supabaseJson(`/rest/v1/digital_cards?owner_id=eq.${identity.id}&select=id,slug,activation_code_hash`, {}, true);

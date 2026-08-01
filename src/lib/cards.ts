@@ -36,7 +36,10 @@ function cleanUrl(value: unknown) {
 }
 
 export function hashActivationCode(code: string) {
-  return createHash("sha256").update(`${process.env.CARD_ACTIVATION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "development"}:${code.trim().toUpperCase()}`).digest("hex");
+  // Activation hashes must remain identical across deployments. The code itself
+  // carries sufficient random entropy; only its one-way hash is stored.
+  const normalized = code.trim().toUpperCase().replace(/\s+/g, "");
+  return createHash("sha256").update(`myluxcards-activation-v2:${normalized}`).digest("hex");
 }
 
 export function safePublicCard(row: any) {
