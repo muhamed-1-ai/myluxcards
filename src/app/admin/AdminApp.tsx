@@ -2,9 +2,9 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
-type Section = "overview"|"orders"|"customers"|"products"|"payments"|"notifications"|"admins"|"audit"|"settings";
+type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
-const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",products:"Products",payments:"Payments",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
+const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",activations:"Card activation",products:"Products",payments:"Payments",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
 const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
 
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
@@ -12,7 +12,7 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   const [data,setData]=useState<any>(null), [loading,setLoading]=useState(true), [error,setError]=useState(""), [search,setSearch]=useState("");
   const load=useCallback(async()=>{
     setLoading(true);setError("");
-    const path=section==="overview"?"dashboard":section;
+    const path=section==="overview"?"dashboard":section==="activations"?"cards/activation":section;
     try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
@@ -42,6 +42,7 @@ function Content({section,payload,identity,mutate}:{section:Section,payload:any,
   const rows:Row[]=payload?.data||[];
   if(section==="orders") return <Orders rows={rows} mutate={mutate}/>;
   if(section==="customers") return <Customers rows={rows} identity={identity} mutate={mutate}/>;
+  if(section==="activations") return <Activations rows={rows}/>;
   if(section==="products") return <Products rows={rows} mutate={mutate}/>;
   if(section==="payments") return rows.length?<Table heads={["Provider","Transaction","Amount","Status","Refunded","Date"]} rows={rows.map(r=>[r.provider,r.provider_transaction_id,money(r.amount_minor,r.currency),r.status,money(r.refunded_minor,r.currency),new Date(r.provider_created_at||r.created_at).toLocaleString()])}/>:<Empty title="Payment provider not connected" text="Payment rows will appear after a trusted server webhook writes verified transactions. Refund controls remain disabled until a provider is configured."/>;
   if(section==="notifications") return rows.length?<Table heads={["When","Notification","Email","Action"]} rows={rows.map(r=>[new Date(r.created_at).toLocaleString(),<><b>{r.title}</b><small>{r.message}</small></>,r.emailed_at?"Sent":"Not sent",<button className="small" disabled={Boolean(r.read_at)} onClick={()=>mutate("notifications","PATCH",{id:r.id,read:true})}>{r.read_at?"Read":"Mark read"}</button>])}/>:<Empty title="No notifications" text="Idempotent order notifications will appear here when a trusted checkout or payment webhook creates them." />;
@@ -61,6 +62,27 @@ function Orders({rows,mutate}:{rows:Row[],mutate:any}) {
 function Customers({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate:any}) {
   if(!rows.length)return <Empty title="No customers found" text="Customer profiles are created from Supabase Auth registrations."/>;
   return <Table heads={["Customer","Phone","Registered","Status","Action"]} rows={rows.map(r=>[<><b>{r.name||"Unnamed"}</b><small>{r.email}</small></>,r.phone||"—",new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",<div className="row-actions"><button className={r.disabled?"small gold":"small danger"} onClick={()=>confirm(`${r.disabled?"Reactivate":"Disable"} ${r.email}?`)&&mutate("customers","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button>{identity.role==="SUPER_ADMIN"&&<button className="small" onClick={()=>confirm(`Promote ${r.email} to ADMIN?`)&&mutate("admins","PATCH",{id:r.id,role:"ADMIN"})}>Make admin</button>}</div>])}/>;
+}
+function Activations({rows}:{rows:Row[]}) {
+  const [code,setCode]=useState<{value:string;slug:string;owner:string}|null>(null);
+  const [busy,setBusy]=useState("");
+  const [issued,setIssued]=useState<string[]>([]);
+  const generate=async(card:Row)=>{
+    const replacing=card.hasActivationCode||card.activated_at;
+    if(replacing&&!confirm(`Replace the activation code for ${card.owner?.email||card.slug}? The card will be inactive until the new code is entered.`))return;
+    setBusy(card.id);setCode(null);
+    try{
+      const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cardId:card.id})});
+      const result=await response.json();if(!response.ok)throw new Error(result.message||"Could not generate code.");
+      setCode({value:result.activationCode,slug:result.slug,owner:card.owner?.name||card.owner?.email||"Customer"});
+      setIssued(current=>current.includes(card.id)?current:[...current,card.id]);
+    }catch(error){alert(error instanceof Error?error.message:"Could not generate code.")}finally{setBusy("")}
+  };
+  if(!rows.length)return <Empty title="No customer cards yet" text="A customer card will appear here after the customer creates it in their dashboard."/>;
+  return <>
+    <section className="activation-guide"><div><span>HOW IT WORKS</span><h2>Generate a code for each customer card</h2><p>Select the correct customer below, generate their one-time code, and send it only to that customer. They enter it under My Cards in their dashboard.</p></div>{code&&<div className="activation-result" role="status"><small>NEW CODE FOR {code.owner.toUpperCase()}</small><strong>{code.value}</strong><span>Card: /card/{code.slug}</span><button onClick={async()=>{await navigator.clipboard.writeText(code.value);alert("Activation code copied.")}}>Copy code</button><p>Copy it now. For security, the full code cannot be viewed again.</p></div>}</section>
+    <div className="table-wrap"><table><thead><tr><th>Customer</th><th>Card</th><th>Status</th><th>Code</th><th>Action</th></tr></thead><tbody>{rows.map(card=>{const hasCode=card.hasActivationCode||issued.includes(card.id);return <tr key={card.id}><td><b>{card.owner?.name||"Unnamed customer"}</b><small>{card.owner?.email||card.owner_id}</small></td><td><b>{card.slug}</b><small>/card/{card.slug}</small></td><td><span className="pill">{issued.includes(card.id)?"Awaiting activation":card.active&&card.activated_at?"Active":card.activated_at?"Inactive":"Not activated"}</span></td><td>{hasCode?"Code issued":"Not generated"}</td><td><button className="small gold" disabled={Boolean(busy)} onClick={()=>generate({...card,hasActivationCode:hasCode})}>{busy===card.id?"Generating…":hasCode?"Replace code":"Generate code"}</button></td></tr>})}</tbody></table></div>
+  </>;
 }
 function Products({rows,mutate}:{rows:Row[],mutate:any}) {
   const create=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);await mutate("products","POST",{name:f.get("name"),productType:f.get("type"),priceMinor:Math.round(Number(f.get("price"))*100),stock:Number(f.get("stock"))});e.currentTarget.reset()};
