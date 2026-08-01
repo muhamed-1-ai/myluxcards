@@ -43,6 +43,23 @@ const profileThemes = [
   { name: "Sapphire Gold", background: "#061329", accent: "#e2b84b", text: "#f5f8ff" },
 ];
 const storageKey = (email: string) => `${STORE_PREFIX}${email.trim().toLowerCase()}`;
+const cacheCards = (email: string, cards: Card[]) => {
+  try {
+    localStorage.setItem(storageKey(email), JSON.stringify(cards));
+  } catch {
+    // Large uploaded images can exceed the browser quota. Keep the cloud save
+    // working and retain a lightweight local fallback instead.
+    try {
+      const lightweight = cards.map((card) => ({
+        ...card,
+        logo: card.logo.startsWith("data:") ? "" : card.logo,
+        cover: card.cover.startsWith("data:") ? "" : card.cover,
+        brochureData: card.brochureData?.startsWith("data:") ? "" : card.brochureData,
+      }));
+      localStorage.setItem(storageKey(email), JSON.stringify(lightweight));
+    } catch { /* Cloud storage remains the source of truth. */ }
+  }
+};
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "my-card";
 const accountSuffix = (email: string) => {
   let hash = 0;
@@ -137,7 +154,10 @@ export default function DashboardDemo() {
       let accountCards: Card[] = [];
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) accountCards = parsed.filter((card) => card.ownerId === user.email.toLowerCase());
+        // This cache key is already scoped to the signed-in email. Cloud cards
+        // intentionally use the account UUID as ownerId, so filtering ownerId
+        // against the email incorrectly discarded valid cards after relogin.
+        if (Array.isArray(parsed)) accountCards = parsed;
       }
       const firstCard = accountCards[0] || createBlankCard(user);
       setCards(accountCards.length ? accountCards : [firstCard]);
@@ -154,6 +174,7 @@ export default function DashboardDemo() {
           setCards(cloudCards);
           setSelectedId(cloudCards[0].id);
           setDraft(cloudCards[0]);
+          cacheCards(user.email, cloudCards);
         }
       }).catch(() => {});
     } catch {
@@ -200,7 +221,7 @@ export default function DashboardDemo() {
     };
     const saved = cards.map((card) => card.id === optimizedDraft.id ? optimizedDraft : card);
     setCards(saved);
-    if (currentUser) localStorage.setItem(storageKey(currentUser.email), JSON.stringify(saved));
+    if (currentUser) cacheCards(currentUser.email, saved);
     try {
       const response = await fetchWithSessionRefresh("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(optimizedDraft) });
       const payload = await response.json().catch(() => ({}));
@@ -211,6 +232,7 @@ export default function DashboardDemo() {
       const cloudCard = payload.card as Card;
       const cloudSaved = saved.map(card => card.id === optimizedDraft.id ? { ...optimizedDraft, ...cloudCard } : card);
       setCards(cloudSaved); setDraft({ ...optimizedDraft, ...cloudCard }); setSelectedId(cloudCard.id);
+      if (currentUser) cacheCards(currentUser.email, cloudSaved);
       setCloudReady(true);
       notify("Card saved securely.");
     } catch { notify("Saved in this browser. Cloud storage is not ready yet."); }
@@ -330,7 +352,7 @@ export default function DashboardDemo() {
             <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Activation</th><th>Expiry date</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
               <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><strong>{card.name}</strong><small>/{card.slug}</small></td><td data-label="Activation">{card.activatedAt ? "Activated" : <span className="needs-activation">Code required</span>}</td><td data-label="Expiry">{card.expiry?.split("-").reverse().join("-") || "—"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} disabled={!card.activatedAt} aria-label={`Toggle ${card.name}`} onClick={async () => { const changed={...card,active:!card.active}; const next=cards.map(x=>x.id===card.id?changed:x); setCards(next); await fetch("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(changed)}); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
-            <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Enter its unused one-time code. The card will be securely added to this account.</span></div><input value={activationCode} onChange={event=>setActivationCode(event.target.value.toUpperCase().replace(/\s/g,""))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(refreshed.ok&&cloud.cards?.length){setCards(cloud.cards);const claimed=cloud.cards.find((x:Card)=>x.id===payload.cardId)||cloud.cards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)localStorage.setItem(storageKey(currentUser.email),JSON.stringify(cloud.cards));}setActivationCode("");notify(`/${payload.slug} is activated and added to your account.`);}}>Activate</button></div>
+        <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Enter its unused one-time code. The card will be securely added to this account.</span></div><input value={activationCode} onChange={event=>setActivationCode(event.target.value.toUpperCase().replace(/\s/g,""))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(refreshed.ok&&cloud.cards?.length){setCards(cloud.cards);const claimed=cloud.cards.find((x:Card)=>x.id===payload.cardId)||cloud.cards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.email,cloud.cards);}setActivationCode("");notify(`/${payload.slug} is activated and added to your account.`);}}>Activate</button></div>
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
