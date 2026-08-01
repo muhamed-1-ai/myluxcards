@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Card = {
   id?: string;
@@ -19,8 +19,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [showStatusBubble, setShowStatusBubble] = useState(false);
-  const [leadStatus, setLeadStatus] = useState("");
-  const formRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,19 +120,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     URL.revokeObjectURL(link.href);
     track("CONTACT_SAVE");
   };
-  const submitLead = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLeadStatus("Sending…");
-    const form = new FormData(event.currentTarget);
-    const response = await fetch(`/api/cards/public/${encodeURIComponent(slug)}/lead`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.get("name"), email: form.get("email"), phone: form.get("phone"), company: form.get("company"), message: form.get("message"), consent: form.get("consent") === "on" }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) { setLeadStatus(payload.message || "Please check your details."); return; }
-    setLeadStatus("Your details were shared securely. ✓");
-    (event.target as HTMLFormElement).reset();
-  };
 
   /* Social platform metadata */
   const SOCIAL: Record<string, { subtitle: string; icon: React.ReactNode; iconBg: string }> = {
@@ -218,10 +203,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             onClick={(e) => { if (!card.brochureData) e.preventDefault(); }}
           >Brochure</a>
         )}
-        <button
-          className="pc-action-btn"
-          onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth" })}
-        >Exchange Details</button>
       </div>
 
       {/* ── About ── */}
@@ -340,31 +321,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           )}
         </div>
       )}
-
-      {/* ── Lead Capture Form ── */}
-      <section className="pc-card pc-lead-card" ref={formRef}>
-        {card.logo && (
-          <div className="pc-lead-logo-wrap">
-            <img src={card.logo} className="pc-lead-logo" alt={card.business || card.name} />
-          </div>
-        )}
-        <h2 className="pc-lead-title">Hi, great to connect with you!</h2>
-        <p className="pc-lead-subtitle">Please provide me your contact details</p>
-        <hr className="pc-dashed-rule" />
-        <form className="pc-lead-form" onSubmit={submitLead}>
-          <input name="name"    placeholder="Your Name *"    required maxLength={120} autoComplete="name" />
-          <input name="phone"   placeholder="Your Phone *"   required maxLength={30}  autoComplete="tel" type="tel" />
-          <input name="email"   placeholder="Your Email"              maxLength={320} autoComplete="email" type="email" />
-          <input name="company" placeholder="Your Company"            maxLength={160} autoComplete="organization" />
-          <textarea name="message" placeholder="Message (optional)" maxLength={1000} rows={3} />
-          <label className="pc-lead-consent">
-            <input type="checkbox" name="consent" required />
-            I agree to Terms and Privacy Policy
-          </label>
-          <button type="submit" className="pc-lead-submit">Submit</button>
-          {leadStatus && <output className="pc-lead-output">{leadStatus}</output>}
-        </form>
-      </section>
 
       {/* ── Footer ── */}
       <footer className="pc-footer">
