@@ -384,6 +384,15 @@ function AppearanceForm({ draft, update, handleFile }: any) {
         {[["Background", "profileBackground", "#020202"], ["Accent", "profileAccent", "#d4af37"], ["Text", "profileText", "#ffffff"]].map(([label, key, fallback]) =>
           <label key={key}><span>{label}</span><div><input type="color" value={draft[key] || fallback} onChange={(event) => update(key, event.target.value)} /><input className="colour-code" value={draft[key] || fallback} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && update(key, event.target.value)} aria-label={`${label} hex colour`} /></div></label>
         )}
+        <button
+          type="button"
+          className="reset-profile-colours"
+          onClick={() => {
+            update("profileBackground", "#020202");
+            update("profileAccent", "#d4af37");
+            update("profileText", "#ffffff");
+          }}
+        >Reset to gold &amp; black</button>
       </div>
     </div>
     <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>Upload an image, then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "logo")} />Select image</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{transform:`scale(${(draft.logoScale||100)/100}) rotate(${draft.logoRotation||0}deg)`,objectPosition:`${draft.logoX||50}% ${draft.logoY||50}%`}} /> : <span>YOUR<br />IMAGE</span>}</div></div>
