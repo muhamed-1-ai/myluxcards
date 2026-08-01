@@ -8,13 +8,15 @@ export async function POST(request: Request) {
   if (!identity) return Response.json({ message: "Sign in required." }, { status: 401 });
   try {
     const body = await request.json().catch(() => ({}));
-    const id = String(body.cardId || "");
     const code = String(body.code || "").trim();
-    if (!/^[0-9a-f-]{36}$/i.test(id) || code.length < 6) return Response.json({ message: "Enter the activation code supplied with your card." }, { status: 400 });
-    const found = await supabaseJson(`/rest/v1/digital_cards?id=eq.${id}&owner_id=eq.${identity.id}&activation_code_hash=eq.${hashActivationCode(code)}&select=id&limit=1`, {}, true);
+    if (!/^MLC-[0-9A-F]{8}$/i.test(code)) return Response.json({ message: "Enter the complete activation code, for example MLC-12AB34CD." }, { status: 400 });
+    // Match the one-time code within the signed-in customer's cards. This avoids
+    // rejecting a valid code when the customer owns more than one unactivated card.
+    const found = await supabaseJson(`/rest/v1/digital_cards?owner_id=eq.${identity.id}&activation_code_hash=eq.${hashActivationCode(code)}&select=id,slug&limit=1`, {}, true);
     if (!found.data?.[0]) return Response.json({ message: "The activation code is invalid or belongs to another card." }, { status: 400 });
+    const card = found.data[0];
     const expiry = new Date(); expiry.setFullYear(expiry.getFullYear() + 1);
-    await supabaseJson(`/rest/v1/digital_cards?id=eq.${id}&owner_id=eq.${identity.id}`, { method: "PATCH", body: JSON.stringify({ activated_at: new Date().toISOString(), expires_at: expiry.toISOString(), active: true }) }, true);
-    return Response.json({ ok: true, expiry: expiry.toISOString() });
+    await supabaseJson(`/rest/v1/digital_cards?id=eq.${card.id}&owner_id=eq.${identity.id}`, { method: "PATCH", body: JSON.stringify({ activated_at: new Date().toISOString(), expires_at: expiry.toISOString(), active: true, activation_code_hash:null, updated_at:new Date().toISOString() }) }, true);
+    return Response.json({ ok: true, cardId:card.id, slug:card.slug, expiry: expiry.toISOString() });
   } catch (error) { return safeError(error); }
 }
