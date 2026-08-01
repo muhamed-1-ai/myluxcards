@@ -64,7 +64,7 @@ function Customers({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mut
   return <Table heads={["Customer","Phone","Registered","Status","Action"]} rows={rows.map(r=>[<><b>{r.name||"Unnamed"}</b><small>{r.email}</small></>,r.phone||"—",new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",<div className="row-actions"><button className={r.disabled?"small gold":"small danger"} onClick={()=>confirm(`${r.disabled?"Reactivate":"Disable"} ${r.email}?`)&&mutate("customers","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button>{identity.role==="SUPER_ADMIN"&&<button className="small" onClick={()=>confirm(`Promote ${r.email} to ADMIN?`)&&mutate("admins","PATCH",{id:r.id,role:"ADMIN"})}>Make admin</button>}</div>])}/>;
 }
 function Activations({rows}:{rows:Row[]}) {
-  const [code,setCode]=useState<{value:string;slug:string;owner:string}|null>(null);
+  const [code,setCode]=useState<{value:string;slug:string;owner:string;email:string}|null>(null);
   const [busy,setBusy]=useState("");
   const [issued,setIssued]=useState<string[]>([]);
   const generate=async(card:Row)=>{
@@ -74,13 +74,13 @@ function Activations({rows}:{rows:Row[]}) {
     try{
       const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cardId:card.id})});
       const result=await response.json();if(!response.ok)throw new Error(result.message||"Could not generate code.");
-      setCode({value:result.activationCode,slug:result.slug,owner:card.owner?.name||card.owner?.email||"Customer"});
+      setCode({value:result.activationCode,slug:result.slug,owner:card.owner?.name||card.owner?.email||"Customer",email:card.owner?.email||"Unknown account"});
       setIssued(current=>current.includes(card.id)?current:[...current,card.id]);
     }catch(error){alert(error instanceof Error?error.message:"Could not generate code.")}finally{setBusy("")}
   };
   if(!rows.length)return <Empty title="No customer cards yet" text="A customer card will appear here after the customer creates it in their dashboard."/>;
   return <>
-    <section className="activation-guide"><div><span>HOW IT WORKS</span><h2>Generate or reset a customer’s code</h2><p>You can reset a card’s activation code whenever needed. Resetting immediately disables the old code and deactivates the public card until the customer enters the new code.</p></div>{code&&<div className="activation-result" role="status"><small>NEW CODE FOR {code.owner.toUpperCase()}</small><strong>{code.value}</strong><span>Card: /card/{code.slug}</span><button onClick={async()=>{await navigator.clipboard.writeText(code.value);alert("Activation code copied.")}}>Copy code</button><p>Copy it now. For security, the full code cannot be viewed again.</p></div>}</section>
+    <section className="activation-guide"><div><span>HOW IT WORKS</span><h2>Generate or reset a customer’s code</h2><p>You can reset a card’s activation code whenever needed. Codes are tied to the customer account and exact card shown in the same row—they cannot be activated while signed in to a different account.</p></div>{code&&<div className="activation-result" role="status"><small>NEW CODE FOR {code.owner.toUpperCase()}</small><strong>{code.value}</strong><span>Customer login: {code.email}</span><span>Card: /card/{code.slug}</span><button onClick={async()=>{await navigator.clipboard.writeText(code.value);alert("Activation code copied.")}}>Copy code</button><p>Send this code to the customer shown above. For security, the full code cannot be viewed again.</p></div>}</section>
     <div className="table-wrap"><table><thead><tr><th>Customer</th><th>Card</th><th>Status</th><th>Code</th><th>Action</th></tr></thead><tbody>{rows.map(card=>{const hasCode=card.hasActivationCode||issued.includes(card.id);const wasActivated=Boolean(card.activated_at);const canReset=hasCode||wasActivated;return <tr key={card.id}><td><b>{card.owner?.name||"Unnamed customer"}</b><small>{card.owner?.email||card.owner_id}</small></td><td><b>{card.slug}</b><small>/card/{card.slug}</small></td><td><span className="pill">{issued.includes(card.id)?"Awaiting activation":card.active&&wasActivated?"Active":wasActivated?"Inactive":"Not activated"}</span></td><td>{hasCode?"Code issued":wasActivated?"Code used":"Not generated"}</td><td><button className="small gold" disabled={Boolean(busy)} onClick={()=>generate({...card,hasActivationCode:canReset})}>{busy===card.id?"Generating…":canReset?"Reset code":"Generate code"}</button></td></tr>})}</tbody></table></div>
   </>;
 }
