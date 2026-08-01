@@ -494,18 +494,8 @@ function PreviewPanel({ card }: { card: Card }) {
     ["Google Business", "google"],
     ["Google Maps", "maps"],
   ].map(([name, brand]) => ({ name, brand, url: card.social[name] })).filter((item) => item.url);
-  const viewCard = () => {
-    const key = storageKey(card.ownerId);
-    let saved: Card[] = [];
-    try { saved = JSON.parse(localStorage.getItem(key) || "[]"); } catch { saved = []; }
-    const next = saved.some((item) => item.id === card.id)
-      ? saved.map((item) => item.id === card.id ? card : item)
-      : [...saved, card];
-    localStorage.setItem(key, JSON.stringify(next));
-    window.location.assign(`/card/${card.slug}?preview=1`);
-  };
   return <aside className="preview-panel">
-    <div className="url-card"><div><span>Your Card URL</span><a href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">myluxcards.com/{card.slug}</a></div><button onClick={viewCard}>View Card ↗</button></div>
+    <div className="url-card"><div><span>Your Card URL</span><a href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">myluxcards.com/{card.slug}</a></div><a className="view-card-link" href={`/card/${card.slug}?preview=1`}>View Card ↗</a></div>
     <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#d4af37", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
       <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
       <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{transform:`scale(${(card.coverScale ?? 100)/100}) rotate(${card.coverRotation ?? 0}deg)`,objectPosition:`${card.coverX ?? 50}% ${card.coverY ?? 50}%`}} /> : <span>MYLUX</span>}</div>
