@@ -4,7 +4,7 @@ import { supabaseJson } from "@/lib/supabaseAuth";
 export const runtime = "nodejs";
 export async function GET() {
   const actor=await requireAdmin();if(!actor)return Response.json({message:"Forbidden"},{status:403});
-  try{const [settings,tiers]=await Promise.all([supabaseJson("/rest/v1/affiliate_settings?id=eq.true&select=*",{},true),supabaseJson("/rest/v1/affiliate_tiers?select=*&order=min_completed_orders.asc",{},true)]);return Response.json({data:settings.data?.[0],tiers:tiers.data||[]})}catch(error){return safeError(error)}
+  try{const settings=await supabaseJson("/rest/v1/affiliate_settings?id=eq.true&select=*&limit=1",{},true);const data=settings.data?.[0];if(!data)return Response.json({message:"Affiliate settings have not been initialized."},{status:503});return Response.json({data})}catch(error){return safeError(error)}
 }
 export async function PATCH(request:Request){
   if(!validMutationOrigin(request))return Response.json({message:"Invalid request origin."},{status:403});
