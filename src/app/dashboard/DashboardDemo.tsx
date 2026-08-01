@@ -62,6 +62,14 @@ const emptyCard = createBlankCard({ name: "", email: "" });
 const I = ({ children }: { children: string }) => <span className="nav-icon" aria-hidden>{children}</span>;
 const fieldValue = (value: string) => value.trim();
 const validUrl = (value: string) => !value || /^https?:\/\/.+\..+/i.test(value);
+const fetchWithSessionRefresh = async (input: RequestInfo | URL, init?: RequestInit) => {
+  let response = await fetch(input, init);
+  if (response.status !== 401) return response;
+  const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+  if (!refreshed.ok) return response;
+  response = await fetch(input, init);
+  return response;
+};
 export default function DashboardDemo() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -103,7 +111,7 @@ export default function DashboardDemo() {
       setSelectedId(firstCard.id);
       setDraft(firstCard);
       setAuthReady(true);
-      fetch("/api/cards", { cache: "no-store" }).then(async (response) => {
+      fetchWithSessionRefresh("/api/cards", { cache: "no-store" }).then(async (response) => {
         if (!response.ok) return;
         const payload = await response.json();
         const cloudCards = Array.isArray(payload.cards) ? payload.cards : [];
@@ -153,9 +161,12 @@ export default function DashboardDemo() {
     setCards(saved);
     if (currentUser) localStorage.setItem(storageKey(currentUser.email), JSON.stringify(saved));
     try {
-      const response = await fetch("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(draft) });
+      const response = await fetchWithSessionRefresh("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(draft) });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.message || "Cloud save failed.");
+      if (!response.ok) {
+        if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); return; }
+        throw new Error(payload.message || "Cloud save failed.");
+      }
       const cloudCard = payload.card as Card;
       const cloudSaved = saved.map(card => card.id === draft.id ? { ...draft, ...cloudCard } : card);
       setCards(cloudSaved); setDraft({ ...draft, ...cloudCard }); setSelectedId(cloudCard.id);
