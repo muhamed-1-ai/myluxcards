@@ -35,7 +35,7 @@ class LuxApp {
     button.textContent = user.name?.split(' ')[0] || 'Account';
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
-    button.setAttribute('aria-label', `Open dashboard for ${user.name || user.email}`);
+    button.setAttribute('aria-label', `Signed in as ${user.name || user.email}`);
   }
 
   init() {
@@ -75,6 +75,7 @@ class LuxApp {
     this.initScrollReveal();
     this.initHeroParticles();
     this.initEngagementBanner();
+    this.initCustomCursor();
     this.initConfigurator();
     this.initTapDemo();
     this.initProfileBuilder();
@@ -1217,10 +1218,22 @@ class LuxApp {
     // Trigger login modal
     document.getElementById('login-trigger')?.addEventListener('click', () => {
       const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
-      if (currentUser) {
+      if (currentUser) return;
+      document.getElementById('login-modal')?.classList.add('open');
+    });
+
+    document.getElementById('dashboard-nav-link')?.addEventListener('click', async (event) => {
+      event.preventDefault();
+      let session = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (session.status === 401) {
+        const refreshed = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (refreshed.ok) session = await fetch('/api/auth/me', { cache: 'no-store' });
+      }
+      if (session.ok) {
         window.location.href = '/dashboard';
         return;
       }
+      sessionStorage.setItem('myluxcards_auth_next', '/dashboard');
       document.getElementById('login-modal')?.classList.add('open');
     });
 
@@ -1276,23 +1289,38 @@ class LuxApp {
       e.preventDefault();
       const email = document.getElementById('login-email')?.value.trim().toLowerCase();
       const password = document.getElementById('login-password')?.value || '';
-      const accounts = JSON.parse(localStorage.getItem('myluxcards_accounts') || '[]');
-      const account = accounts.find((item) => item.email === email);
-      if (!account || account.passwordHash !== await this.hashPassword(password)) {
-        this.showToast('Email or password is incorrect.', 'error');
+      const error = document.getElementById('login-error');
+      if (error) error.textContent = '';
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (error) error.textContent = data.message || 'Email or password is incorrect.';
         return;
       }
-      const user = { name: account.name, email: account.email };
+      const user = {
+        name: data.user?.user_metadata?.name || data.user?.email?.split('@')[0] || email.split('@')[0],
+        email: data.user?.email || email,
+      };
       localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
       this.updateAccountButton(user);
       e.currentTarget.reset();
       this.closeModal('login-modal');
-      this.showToast(`Welcome back, ${account.name}!`, 'success');
+      this.showToast(`Welcome back, ${user.name}!`, 'success');
+      const next = sessionStorage.getItem('myluxcards_auth_next');
+      if (next) {
+        sessionStorage.removeItem('myluxcards_auth_next');
+        window.location.href = next;
+      }
     });
 
     const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
     if (currentUser) this.updateAccountButton(currentUser);
-    if (!currentUser && new URLSearchParams(window.location.search).get('login') === '1') {
+    if (new URLSearchParams(window.location.search).get('login') === '1') {
+      if (new URLSearchParams(window.location.search).get('next') === '/dashboard') sessionStorage.setItem('myluxcards_auth_next', '/dashboard');
       document.getElementById('login-modal')?.classList.add('open');
     }
 

@@ -98,6 +98,7 @@ const improvedMarkup = markup
   )
   .replace('<a href="#" class="logo logo-img-link"', '<a href="/" class="logo logo-img-link"')
   .replace('<li><a href="#" class="nav-link active">Home</a></li>', '<li><a href="/" class="nav-link active">Home</a></li>')
+  .replace('<li><a href="/" class="nav-link active">Home</a></li>', '<li><a href="/" class="nav-link active">Home</a></li><li><a href="/dashboard" class="nav-link" id="dashboard-nav-link">Dashboard</a></li>')
   .replace(/<section[^>]*id="card-configurator"[\s\S]*?<\/section>/, guidedConfigurator)
   .replace(
     '<li><a href="#featured-categories-section" class="nav-link">Shop</a></li>\n      </ul>',
