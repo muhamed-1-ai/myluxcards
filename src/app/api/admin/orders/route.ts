@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const fromDate = url.searchParams.get("from");
     const toDate = url.searchParams.get("to");
     const sort = url.searchParams.get("sort") === "oldest" ? "created_at.asc" : url.searchParams.get("sort") === "total" ? "total_minor.desc" : "created_at.desc";
-    let path = "/rest/v1/orders?select=id,order_number,customer_name,customer_email,customer_phone,status,payment_status,currency,subtotal_minor,discount_minor,tax_minor,shipping_minor,total_minor,shipping_address,billing_address,courier,tracking_number,internal_notes,created_at,order_items(id,product_name,product_type,sku,variant,quantity,unit_price_minor,total_minor)";
+    let path = "/rest/v1/orders?select=id,order_number,customer_name,customer_email,customer_phone,status,payment_status,currency,subtotal_minor,discount_minor,tax_minor,shipping_minor,total_minor,shipping_address,billing_address,courier,tracking_number,internal_notes,created_at,order_items(id,product_name,product_type,sku,variant,quantity,unit_price_minor,total_minor),payments(provider,status,provider_transaction_id)";
     if (search) path += `&or=(order_number.ilike.*${encodeURIComponent(search)}*,customer_email.ilike.*${encodeURIComponent(search)}*,customer_name.ilike.*${encodeURIComponent(search)}*)`;
     if (status && statuses.has(status)) path += `&status=eq.${status}`;
     if (paymentStatus && paymentStatuses.has(paymentStatus)) path += `&payment_status=eq.${paymentStatus}`;

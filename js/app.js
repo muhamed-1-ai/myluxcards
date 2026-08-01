@@ -484,6 +484,13 @@ class LuxApp {
     if (!checkout) return;
     const itemCount = this.state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
     if (summary) summary.textContent = `${itemCount} item${itemCount === 1 ? '' : 's'} · ${this.formatCartTotal()}`;
+    const user = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
+    if (user) {
+      const name = document.getElementById('checkout-name');
+      const email = document.getElementById('checkout-email');
+      if (name && !name.value) name.value = user.name || '';
+      if (email) email.value = user.email || '';
+    }
     checkout.classList.add('open');
     checkout.setAttribute('aria-hidden', 'false');
   }
@@ -502,15 +509,48 @@ class LuxApp {
     if (button) button.textContent = method === 'Cash on Delivery' ? 'Place cash on delivery order' : `Continue with ${method}`;
   }
 
-  completeCheckout() {
-    const method = document.querySelector('input[name="payment-method"]:checked')?.value || 'selected payment method';
-    this.state.cart = [];
-    this.updateCounters();
-    this.renderCartDrawer();
-    this.closeCheckout();
-    document.getElementById('drawer-overlay')?.classList.remove('open');
-    document.getElementById('cart-drawer')?.classList.remove('open');
-    this.showToast(`Demo order placed with ${method}.`, 'success');
+  async completeCheckout() {
+    const method = document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI';
+    const button = document.getElementById('pay-now-btn');
+    if (button?.disabled) return;
+    if (button) { button.disabled = true; button.textContent = 'Saving order…'; }
+    const value = id => document.getElementById(id)?.value?.trim() || '';
+    const payload = {
+      paymentMethod: method,
+      couponCode: value('checkout-coupon'),
+      customer: { name:value('checkout-name'), email:value('checkout-email'), phone:value('checkout-phone') },
+      shippingAddress: { line1:value('checkout-address1'), line2:value('checkout-address2'), city:value('checkout-city'), state:value('checkout-state'), postalCode:value('checkout-postal'), country:value('checkout-country') },
+      items: this.state.cart.map(item => ({ id:String(item.id), quantity:Number(item.quantity)||1, details:item.details||'', design:item.design||{} })),
+    };
+    try {
+      let response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      if (response.status === 401) {
+        const refreshed = await fetch('/api/auth/refresh', { method:'POST' });
+        if (refreshed.ok) response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.setItem('myluxcards_auth_next', '/');
+          this.closeCheckout();
+          document.getElementById('login-modal')?.classList.add('open');
+        }
+        throw new Error(result.message || 'The order could not be placed.');
+      }
+      this.state.cart = [];
+      this.updateCounters();
+      this.renderCartDrawer();
+      this.closeCheckout();
+      document.getElementById('drawer-overlay')?.classList.remove('open');
+      document.getElementById('cart-drawer')?.classList.remove('open');
+      document.getElementById('checkout-form')?.reset();
+      this.setPaymentMethod('UPI');
+      this.showToast(`Order ${result.orderNumber} was placed successfully.`, 'success');
+    } catch (error) {
+      this.showToast(error.message || 'The order could not be placed.', 'error');
+    } finally {
+      if (button) { button.disabled = false; this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI'); }
+    }
   }
 
   removeFromCart(cardId) {
@@ -1126,9 +1166,9 @@ class LuxApp {
     document.querySelectorAll('input[name="payment-method"]').forEach(input => {
       input.addEventListener('change', () => this.setPaymentMethod(input.value));
     });
-    document.getElementById('checkout-form')?.addEventListener('submit', (event) => {
+    document.getElementById('checkout-form')?.addEventListener('submit', async (event) => {
       event.preventDefault();
-      this.completeCheckout();
+      await this.completeCheckout();
     });
     this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI');
 
