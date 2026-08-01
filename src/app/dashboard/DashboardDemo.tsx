@@ -10,6 +10,7 @@ type Card = {
   social: Record<string, string>; about: string; services: string[];
   logo: string; cover: string; profileBackground: string; profileAccent: string; profileText: string;
   logoScale: number; logoRotation: number; logoX: number; logoY: number;
+  coverScale: number; coverRotation: number; coverX: number; coverY: number;
   start: string; expiry: string; views: number; active: boolean; activatedAt?: string | null;
   analytics?: Record<string, number>;
 };
@@ -51,6 +52,7 @@ const createBlankCard = (user: CurrentUser): Card => {
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
     logo: "", cover: "", profileBackground: "#020202", profileAccent: "#d4af37", profileText: "#ffffff",
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
+    coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
     views: 0, active: true,
   };
@@ -414,7 +416,8 @@ function AppearanceForm({ draft, update, handleFile }: any) {
     </div>
     <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>Upload an image, then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "logo")} />Select image</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{transform:`scale(${(draft.logoScale||100)/100}) rotate(${draft.logoRotation||0}deg)`,objectPosition:`${draft.logoX||50}% ${draft.logoY||50}%`}} /> : <span>YOUR<br />IMAGE</span>}</div></div>
     {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale||100} onChange={event=>update("logoScale",Number(event.target.value))}/><output>{draft.logoScale||100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation||0} onChange={event=>update("logoRotation",Number(event.target.value))}/><output>{draft.logoRotation||0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX||50} onChange={event=>update("logoX",Number(event.target.value))}/></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY||50} onChange={event=>update("logoY",Number(event.target.value))}/></label><button type="button" onClick={()=>{update("logoScale",100);update("logoRotation",0);update("logoX",50);update("logoY",50);}}>Reset image</button></div>}
-    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600).</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "cover")} />Select background image</label></div><div className="cover-upload-preview" style={draft.cover ? { backgroundImage: `url(${draft.cover})` } : undefined}>{!draft.cover && <span>Cover image preview</span>}</div></div>
+    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600).</p><label className="upload-btn"><input type="file" accept="image/*" onChange={(e) => handleFile(e, "cover")} />Select background image</label></div><div className="cover-upload-preview">{draft.cover ? <img src={draft.cover} alt="Cover preview" style={{transform:`scale(${(draft.coverScale ?? 100)/100}) rotate(${draft.coverRotation ?? 0}deg)`,objectPosition:`${draft.coverX ?? 50}% ${draft.coverY ?? 50}%`}} /> : <span>Cover image preview</span>}</div></div>
+    {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event=>update("coverScale",Number(event.target.value))}/><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event=>update("coverRotation",Number(event.target.value))}/><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event=>update("coverX",Number(event.target.value))}/><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event=>update("coverY",Number(event.target.value))}/><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={()=>{update("coverScale",100);update("coverRotation",0);update("coverX",50);update("coverY",50);}}>Reset cover</button></div>}
   </>;
 }
 function Field({ label, error, wide, children }: { label: string; error?: string; wide?: boolean; children: React.ReactNode }) {
@@ -448,7 +451,7 @@ function PreviewPanel({ card }: { card: Card }) {
     <div className="url-card"><div><span>Your Card URL</span><a href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">myluxcards.com/{card.slug}</a></div><button onClick={viewCard}>View Card ↗</button></div>
     <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#d4af37", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
       <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
-      <div className="cover" style={card.cover ? { backgroundImage: `url(${card.cover})` } : undefined}><span>MYLUX</span></div>
+      <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{transform:`scale(${(card.coverScale ?? 100)/100}) rotate(${card.coverRotation ?? 0}deg)`,objectPosition:`${card.coverX ?? 50}% ${card.coverY ?? 50}%`}} /> : <span>MYLUX</span>}</div>
       <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" style={{transform:`scale(${(card.logoScale||100)/100}) rotate(${card.logoRotation||0}deg)`,objectPosition:`${card.logoX||50}% ${card.logoY||50}%`}} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
       <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
       <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>

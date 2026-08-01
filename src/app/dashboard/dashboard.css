@@ -604,11 +604,19 @@
     serif;
   background-size: cover;
   background-position: center;
+  overflow: hidden;
+  position: relative;
 }
 .logo-upload-preview img {
   max-height: 100px;
   max-width: 150px;
   object-fit: contain;
+}
+.cover-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .16s ease, object-position .16s ease;
 }
 .preview-panel {
   position: sticky;
@@ -715,7 +723,17 @@
     700 28px Georgia,
     serif;
   letter-spacing: 0.2em;
+  overflow: hidden;
+  position: relative;
 }
+.cover > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .16s ease, object-position .16s ease;
+}
+.cover > span { position: relative; z-index: 1; }
 .profile-logo {
   width: 82px;
   height: 82px;

@@ -10,6 +10,7 @@ type Card = {
   services: string[]; logo: string; cover: string; active: boolean;
   profileBackground?: string; profileAccent?: string; profileText?: string;
   logoScale?: number; logoRotation?: number; logoX?: number; logoY?: number;
+  coverScale?: number; coverRotation?: number; coverX?: number; coverY?: number;
   previewAuthorized?: boolean;
 };
 
@@ -139,10 +140,16 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
       {/* ── Hero Card ── */}
       <div className="pc-hero">
-        <div
-          className="pc-hero-cover"
-          style={card.cover ? { backgroundImage: `url(${card.cover})` } : undefined}
-        >
+        <div className="pc-hero-cover">
+          {card.cover && <img
+            src={card.cover}
+            className="pc-hero-cover-image"
+            alt=""
+            style={{
+              transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
+              objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
+            }}
+          />}
           {!card.cover && <span className="pc-hero-wordmark">MYLUX</span>}
           <div className="pc-hero-overlay">
             <div className="pc-hero-bottom">

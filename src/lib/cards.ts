@@ -4,7 +4,7 @@ export const CARD_FIELDS = [
   "name","title","business","countryCode","countryIso","mobile","whatsapp","email","website",
   "state","stateCode","city","address","brochure","brochureData","social","about","services",
   "logo","cover","profileBackground","profileAccent","profileText","start","expiry",
-  "logoScale","logoRotation","logoX","logoY",
+  "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
 ] as const;
 
 export function cleanSlug(value: unknown) {
@@ -20,7 +20,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
     } else if (field === "services" && Array.isArray(value)) {
       output.services = value.slice(0, 30).map(item => String(item).trim().slice(0, 120)).filter(Boolean);
-    } else if (["logoScale","logoRotation","logoX","logoY"].includes(field)) {
+    } else if (["logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY"].includes(field)) {
       output[field] = Number.isFinite(Number(value)) ? Number(value) : 0;
     } else if (typeof value === "string") {
       const max = ["logo","cover","brochureData"].includes(field) ? 7_000_000 : field === "about" ? 3000 : 500;
