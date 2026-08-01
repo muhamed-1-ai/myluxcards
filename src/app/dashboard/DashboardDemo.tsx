@@ -138,6 +138,7 @@ export default function DashboardDemo() {
   const [accountMenu, setAccountMenu] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activationCode, setActivationCode] = useState("");
+  const [activationPrompt, setActivationPrompt] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -188,6 +189,15 @@ export default function DashboardDemo() {
   }, []);
 
   useEffect(() => {
+    if (!cloudReady || !cards.some((card) => !card.activatedAt)) return;
+    const promptKey = "myluxcards-activation-prompt-shown";
+    if (!sessionStorage.getItem(promptKey)) {
+      sessionStorage.setItem(promptKey, "1");
+      setActivationPrompt(true);
+    }
+  }, [cloudReady, cards]);
+
+  useEffect(() => {
     const found = cards.find((card) => card.id === selectedId);
     if (found) setDraft(found);
   }, [selectedId]);
@@ -197,6 +207,11 @@ export default function DashboardDemo() {
   };
   const update = (key: keyof Card, value: Card[keyof Card]) => setDraft((old) => ({ ...old, [key]: value }));
   const selectTab = (next: Tab) => { setTab(next); setSidebar(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const goToActivation = () => {
+    setActivationPrompt(false);
+    selectTab("cards");
+    window.setTimeout(() => document.querySelector(".activation-box")?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+  };
   const validate = (section: Tab) => {
     const next: Record<string, string> = {};
     if (section === "contact") {
@@ -350,7 +365,7 @@ export default function DashboardDemo() {
           <div className="table-card">
             <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
             <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Activation</th><th>Expiry date</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
-              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><strong>{card.name}</strong><small>/{card.slug}</small></td><td data-label="Activation">{card.activatedAt ? "Activated" : <span className="needs-activation">Code required</span>}</td><td data-label="Expiry">{card.expiry?.split("-").reverse().join("-") || "—"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} disabled={!card.activatedAt} aria-label={`Toggle ${card.name}`} onClick={async () => { const changed={...card,active:!card.active}; const next=cards.map(x=>x.id===card.id?changed:x); setCards(next); await fetch("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(changed)}); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
+              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><strong>{card.name}</strong><small>/{card.slug}</small></td><td data-label="Activation">{card.activatedAt ? "Activated" : <button className="activation-required" onClick={goToActivation}>Activate card</button>}</td><td data-label="Expiry">{card.expiry?.split("-").reverse().join("-") || "—"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={card.activatedAt ? `Toggle ${card.name}` : `Activate ${card.name}`} onClick={async () => { if (!card.activatedAt) { setActivationPrompt(true); return; } const changed={...card,active:!card.active}; const next=cards.map(x=>x.id===card.id?changed:x); setCards(next); await fetch("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(changed)}); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
         <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Enter its unused one-time code. The card will be securely added to this account.</span></div><input value={activationCode} onChange={event=>setActivationCode(event.target.value.toUpperCase().replace(/\s/g,""))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(refreshed.ok&&cloud.cards?.length){setCards(cloud.cards);const claimed=cloud.cards.find((x:Card)=>x.id===payload.cardId)||cloud.cards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.email,cloud.cards);}setActivationCode("");notify(`/${payload.slug} is activated and added to your account.`);}}>Activate</button></div>
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
@@ -359,6 +374,7 @@ export default function DashboardDemo() {
         {tab === "leads" && <section><div className="page-heading"><div><p>CONTACT EXCHANGE</p><h1>Leads</h1><span>People who explicitly shared their details through your card.</span></div></div><div className="table-card"><div className="table-scroll"><table><thead><tr><th>Date</th><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Message</th></tr></thead><tbody>{leads.length?leads.map(lead=><tr key={lead.id}><td data-label="Date">{new Date(lead.created_at).toLocaleDateString()}</td><td data-label="Name"><strong>{lead.name}</strong></td><td data-label="Company">{lead.company||"—"}</td><td data-label="Email">{lead.email||"—"}</td><td data-label="Phone">{lead.phone||"—"}</td><td data-label="Message">{lead.message||"—"}</td></tr>):<tr className="empty-row"><td colSpan={6}>No contacts have been shared yet.</td></tr>}</tbody></table></div></div></section>}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
+      {activationPrompt && <div className="modal-back"><div className="confirm activation-confirm" role="dialog" aria-modal="true" aria-labelledby="activation-title"><i>✓</i><h2 id="activation-title">Activate your card</h2><p>Your card needs its one-time activation code before it can be published. You’ll find the activation box under <strong>My Cards</strong>.</p><div><button onClick={() => setActivationPrompt(false)}>Later</button><button className="activation-primary" onClick={goToActivation}>Activate card now</button></div></div></div>}
       {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Clear this card?</h2><p>This removes your saved card information. Your account name will remain.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={async () => { if(/^[0-9a-f-]{36}$/i.test(deleteId)) await fetch("/api/cards",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:deleteId})}); const blank = createBlankCard(currentUser); setCards([blank]); setDraft(blank); setSelectedId(blank.id); localStorage.removeItem(storageKey(currentUser.email)); setDeleteId(null); notify("Saved card information cleared."); }}>Clear card</button></div></div></div>}
     </div>
   );

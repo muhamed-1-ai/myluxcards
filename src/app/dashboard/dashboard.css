@@ -1805,6 +1805,28 @@ td small {
 .confirm p {
   color: #c1b69f;
 }
+.activation-required {
+  border: 0;
+  background: transparent;
+  color: #e8c968;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.activation-confirm i {
+  background: #d4af3720;
+  color: #d4af37;
+}
+.confirm .activation-primary {
+  border: 1px solid #f1d36c;
+  background: #d4af37;
+  color: #050505;
+  padding: 9px 15px;
+  border-radius: 5px;
+  font-weight: 800;
+  cursor: pointer;
+}
 .dash-shell {
   --d-bg: #000;
   --d-navy: #000;
