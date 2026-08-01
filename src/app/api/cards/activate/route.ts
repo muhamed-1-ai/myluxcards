@@ -28,9 +28,8 @@ export async function POST(request: Request) {
       ]);
       if (events.data?.length || leads.data?.length) return Response.json({ message: "This used card has private history and cannot be transferred. Ask MyLuxCards to issue a new card." }, { status: 409 });
     }
-    const expiry = new Date(); expiry.setFullYear(expiry.getFullYear() + 1);
-    const claimed = await supabaseJson(`/rest/v1/digital_cards?id=eq.${card.id}&activation_code_hash=eq.${submittedHash}`, { method: "PATCH", body: JSON.stringify({ owner_id:identity.id, activated_at: new Date().toISOString(), expires_at: expiry.toISOString(), active: true, activation_code_hash:null, updated_at:new Date().toISOString() }) }, true);
+    const claimed = await supabaseJson(`/rest/v1/digital_cards?id=eq.${card.id}&activation_code_hash=eq.${submittedHash}`, { method: "PATCH", body: JSON.stringify({ owner_id:identity.id, activated_at: new Date().toISOString(), expires_at: null, active: true, activation_code_hash:null, updated_at:new Date().toISOString() }) }, true);
     if (!claimed.data?.[0]) return Response.json({ message: "This activation code has already been used. Ask MyLuxCards for a new code." }, { status: 409 });
-    return Response.json({ ok: true, cardId:card.id, slug:card.slug, expiry: expiry.toISOString() });
+    return Response.json({ ok: true, cardId:card.id, slug:card.slug });
   } catch (error) { return safeError(error); }
 }

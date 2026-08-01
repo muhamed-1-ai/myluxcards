@@ -2345,3 +2345,5 @@ th {
   .table-footer button { flex:1; min-height:42px; }
   .dash-toast { left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); padding:14px 16px; line-height:1.45; }
 }
+.save-state{margin-left:auto;padding:6px 10px;border:1px solid #d4af3745;border-radius:99px;color:#aaa;font-size:11px;white-space:nowrap}.save-state.saved{color:#75d69a;border-color:#75d69a55}.save-state.saving,.save-state.unsaved{color:#e9c65d}.save-state.error{color:#ff9999;border-color:#ff777755}.card-name-link{display:grid;gap:3px;padding:0;border:0;background:none;color:inherit;text-align:left;cursor:pointer}.card-name-link small{color:#d4af37}
+.public-url{padding:0;border:0;background:none;color:#d4af37;text-align:left;cursor:pointer;font:inherit}.view-card-link{cursor:pointer}

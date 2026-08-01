@@ -2,9 +2,9 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
-type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"notifications"|"admins"|"audit"|"settings";
+type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
-const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",activations:"Card activation",products:"Products",payments:"Payments",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
+const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",activations:"Card activation",products:"Products",payments:"Payments",support:"Support tickets",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
 const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
 
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
@@ -46,6 +46,7 @@ function Content({section,payload,identity,mutate}:{section:Section,payload:any,
   if(section==="activations") return <Activations rows={rows}/>;
   if(section==="products") return <Products rows={rows} mutate={mutate}/>;
   if(section==="payments") return rows.length?<Table heads={["Provider","Transaction","Amount","Status","Refunded","Date"]} rows={rows.map(r=>[r.provider,r.provider_transaction_id,money(r.amount_minor,r.currency),r.status,money(r.refunded_minor,r.currency),new Date(r.provider_created_at||r.created_at).toLocaleString()])}/>:<Empty title="Payment provider not connected" text="Payment rows will appear after a trusted server webhook writes verified transactions. Refund controls remain disabled until a provider is configured."/>;
+  if(section==="support") return <SupportTickets rows={rows} mutate={mutate}/>;
   if(section==="notifications") return rows.length?<Table heads={["When","Type","Notification","Email","Action"]} rows={rows.map(r=>[new Date(r.created_at).toLocaleString(),String(r.type||"GENERAL").replaceAll("_"," "),<><b>{r.title}</b><small>{r.message}</small></>,r.emailed_at?"Sent":r.email_recipient?"Pending or failed":"Not configured",<button className="small" disabled={Boolean(r.read_at)} onClick={()=>mutate("notifications","PATCH",{id:r.id,read:true})}>{r.read_at?"Read":"Mark read"}</button>])}/>:<Empty title="No notifications" text="New orders, support tickets, and other important events will appear here." />;
   if(section==="admins") return <Admins rows={rows} identity={identity} mutate={mutate}/>;
   if(section==="audit") return <Table heads={["When","Actor role","Action","Entity","IP"]} rows={rows.map(r=>[new Date(r.created_at).toLocaleString(),r.actor_role,r.action,`${r.entity_type} ${r.entity_id||""}`,r.ip_address||"—"])}/>;
@@ -59,6 +60,12 @@ function Overview({data}:{data:any}) {
 function Orders({rows,mutate}:{rows:Row[],mutate:any}) {
   if(!rows.length)return <Empty title="No matching orders" text="Adjust your search or wait for verified checkout data."/>;
   return <Table heads={["Order","Customer","Products","Delivery","Pricing","Payment","Status","Action"]} rows={rows.map(r=>[<><b>{r.order_number}</b><small>{new Date(r.created_at).toLocaleString()}</small></>,<><b>{r.customer_name}</b><small>{r.customer_email}</small><small>{r.customer_phone||"No phone"}</small></>,<>{r.order_items?.map((item:Row)=><span key={item.id}><b>{item.product_name} × {item.quantity}</b><small>{item.sku||item.product_type} · {money(item.unit_price_minor,r.currency)}</small>{item.variant?.details&&<small>{item.variant.details}</small>}</span>)||"—"}</>,<><b>{[r.shipping_address?.line1,r.shipping_address?.line2].filter(Boolean).join(", ")}</b><small>{[r.shipping_address?.city,r.shipping_address?.state,r.shipping_address?.postalCode,r.shipping_address?.country].filter(Boolean).join(", ")}</small></>,<><b>Total: {money(r.total_minor,r.currency)}</b><small>Subtotal {money(r.subtotal_minor,r.currency)} · Discount {money(r.discount_minor,r.currency)}</small><small>Tax {money(r.tax_minor,r.currency)} · Shipping {money(r.shipping_minor,r.currency)}</small></>,<><b>{r.payment_status}</b><small>{r.payments?.[0]?.provider?.replaceAll("_"," ")||"Not recorded"}</small></>,<span className={`pill ${r.status.toLowerCase()}`}>{r.status}</span>,<select aria-label={`Status for ${r.order_number}`} value={r.status} onChange={e=>confirm(`Change ${r.order_number} to ${e.target.value}?`)&&mutate("orders","PATCH",{id:r.id,status:e.target.value})}>{["PENDING","CONFIRMED","PROCESSING","SHIPPED","DELIVERED","CANCELLED","REFUNDED"].map(x=><option key={x}>{x}</option>)}</select>])}/>;
+}
+function SupportTickets({rows,mutate}:{rows:Row[],mutate:any}) {
+  if(!rows.length)return <Empty title="No support tickets" text="Customer messages submitted through Support will appear here."/>;
+  const update=(row:Row,status:string)=>mutate("support","PATCH",{id:row.id,status});
+  const reply=(row:Row)=>{const message=prompt(`Reply to ${row.customer_email}`);if(message?.trim())mutate("support","PATCH",{id:row.id,reply:message.trim(),status:"WAITING_CUSTOMER"}).catch((error:Error)=>alert(error.message))};
+  return <Table heads={["Ticket","Customer","Message","Status","Last reply","Actions"]} rows={rows.map(row=>[<><b>{row.reference}</b><small>{row.topic}</small><small>{new Date(row.created_at).toLocaleString()}</small></>,<><b>{row.customer_name}</b><small>{row.customer_email}</small><small>{row.contact_time||"No preferred time"}</small></>,<><span>{row.message}</span><small>{row.support_ticket_replies?.length||0} replies</small></>,<select value={row.status} onChange={event=>update(row,event.target.value)}>{["OPEN","IN_PROGRESS","WAITING_CUSTOMER","RESOLVED","CLOSED"].map(status=><option key={status}>{status}</option>)}</select>,row.last_reply_at?new Date(row.last_reply_at).toLocaleString():"—",<div className="row-actions"><button className="small gold" onClick={()=>reply(row)}>Reply</button><button className="small" disabled={row.assigned_to===undefined} onClick={()=>mutate("support","PATCH",{id:row.id,assignToMe:true})}>Assign to me</button></div>])}/>;
 }
 function Customers({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate:any}) {
   if(!rows.length)return <Empty title="No customers found" text="Customer profiles are created from Supabase Auth registrations."/>;

@@ -668,6 +668,10 @@ class LuxApp {
         }
         throw new Error(result.message || 'The order could not be placed.');
       }
+      if (result.paymentCheckout?.provider === 'RAZORPAY') {
+        if (button) button.textContent = 'Opening secure payment…';
+        await this.completeRazorpayPayment(result, payload.customer);
+      }
       this.state.cart = [];
       this.updateCounters();
       this.renderCartDrawer();
@@ -676,12 +680,54 @@ class LuxApp {
       document.getElementById('cart-drawer')?.classList.remove('open');
       document.getElementById('checkout-form')?.reset();
       this.setPaymentMethod('UPI');
-      this.showToast(`Order ${result.orderNumber} was placed successfully. Payment status: pending.`, 'success');
+      this.showToast(`Order ${result.orderNumber} was placed successfully. ${result.paymentCheckout ? 'Payment confirmed.' : 'Payment is due on delivery.'}`, 'success');
     } catch (error) {
       this.showToast(error.message || 'The order could not be placed.', 'error');
     } finally {
       if (button) { button.disabled = false; this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI'); }
     }
+  }
+
+  async completeRazorpayPayment(order, customer) {
+    if (!window.Razorpay) {
+      await new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-razorpay-checkout]');
+        if (existing) { existing.addEventListener('load', resolve, { once:true }); existing.addEventListener('error', reject, { once:true }); return; }
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.dataset.razorpayCheckout = 'true';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Secure payment could not be loaded. Your pending order is saved; please try again or contact support.'));
+        document.head.appendChild(script);
+      });
+    }
+    if (!window.Razorpay) throw new Error('Secure payment is unavailable. Your pending order is saved; please contact support.');
+    await new Promise((resolve, reject) => {
+      let completed = false;
+      const checkout = new window.Razorpay({
+        key: order.paymentCheckout.keyId,
+        order_id: order.paymentCheckout.providerOrderId,
+        amount: order.totalMinor,
+        currency: order.currency,
+        name: 'MyLuxCards',
+        description: `Order ${order.orderNumber}`,
+        prefill: { name: customer.name, email: customer.email, contact: customer.phone },
+        theme: { color: '#d4af37' },
+        modal: { ondismiss: () => { if (!completed) reject(new Error(`Payment was not completed. Order ${order.orderNumber} remains pending.`)); } },
+        handler: async payment => {
+          completed = true;
+          try {
+            const response = await fetch('/api/payments/razorpay/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ orderId:order.orderId, ...payment }) });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.message || 'Payment verification failed.');
+            resolve(result);
+          } catch (error) { reject(error); }
+        },
+      });
+      checkout.on('payment.failed', response => reject(new Error(response?.error?.description || 'Payment failed. Please try again.')));
+      checkout.open();
+    });
   }
 
   removeFromCart(cardId) {

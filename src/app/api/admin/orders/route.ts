@@ -1,6 +1,7 @@
 import { audit, requireAdmin, safeError, validMutationOrigin } from "@/lib/adminAuth";
 import { supabaseJson } from "@/lib/supabaseAuth";
 import { syncCommissionForTrustedOrder } from "@/lib/affiliate";
+import { sendOrderStatus } from "@/lib/customerEmails";
 
 export const runtime = "nodejs";
 const statuses = new Set(["PENDING","CONFIRMED","PROCESSING","SHIPPED","DELIVERED","CANCELLED","REFUNDED"]);
@@ -49,11 +50,12 @@ export async function PATCH(request: Request) {
     if (typeof body.trackingNumber === "string") changes.tracking_number = body.trackingNumber.trim().slice(0, 150) || null;
     if (typeof body.internalNotes === "string") changes.internal_notes = body.internalNotes.trim().slice(0, 5000) || null;
     if (!Object.keys(changes).length) return Response.json({ message: "No valid changes." }, { status: 400 });
-    const before = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}&select=id,status,courier,tracking_number&limit=1`, {}, true);
+    const before = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}&select=id,order_number,customer_name,customer_email,status,courier,tracking_number&limit=1`, {}, true);
     if (!before.data?.[0]) return Response.json({ message: "Order not found." }, { status: 404 });
     const { data } = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}`, { method: "PATCH", body: JSON.stringify(changes) }, true);
     await syncCommissionForTrustedOrder(body.id);
     await audit(actor, "ORDER_UPDATED", "order", body.id, before.data[0], changes);
+    if(changes.status&&changes.status!==before.data[0].status)await sendOrderStatus({id:body.id,number:before.data[0].order_number,name:before.data[0].customer_name,email:before.data[0].customer_email,status:changes.status,courier:changes.courier??before.data[0].courier,tracking:changes.tracking_number??before.data[0].tracking_number}).catch(()=>false);
     return Response.json({ data: data?.[0] });
   } catch (error) { return safeError(error); }
 }

@@ -233,6 +233,7 @@ const improvedMarkup = markup
   .replace('This demo does not collect or process real payment details.', 'Your order is stored securely. Payment instructions are confirmed after review.')
   .replace('Private phone numbers can remain hidden, and MyLux Find supports secure finder-to-owner messaging.', 'You choose which contact details and links are displayed on your public profile. Only publish information you want visitors to see.')
   .replace('href="#privacy">Privacy Controls', 'href="/privacy">Privacy Controls')
+  .replace('</footer>', '<div class="legal-footer-links"><a href="/terms">Terms</a><a href="/shipping">Shipping</a><a href="/refunds">Returns &amp; refunds</a><a href="/acceptable-use">Acceptable use</a><a href="/privacy">Privacy</a></div></footer>')
   .replace(
     '<p>Unlock an exclusive premium NFC card offer and browse our best sellers.</p>',
     '<p>Explore card materials and build a design that fits your work.</p>',

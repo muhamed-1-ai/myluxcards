@@ -1,0 +1,5 @@
+import Link from "next/link";
+
+export default function LegalPage({ title, updated="1 August 2026", children }:{ title:string; updated?:string; children:React.ReactNode }) {
+  return <main style={{minHeight:"100vh",background:"#050504",color:"#f5f0e4",fontFamily:"Arial,sans-serif",padding:"0 22px 70px"}}><header style={{maxWidth:920,margin:"auto",padding:"24px 0",borderBottom:"1px solid #493b16",display:"flex",justifyContent:"space-between"}}><Link href="/" style={{color:"#d4af37",textDecoration:"none",fontWeight:800}}>MYLUXCARDS</Link><Link href="/support" style={{color:"#d4af37"}}>Support</Link></header><article style={{maxWidth:820,margin:"auto",paddingTop:65,lineHeight:1.75}}><p style={{color:"#d4af37",fontWeight:800,letterSpacing:2,fontSize:12}}>CUSTOMER INFORMATION</p><h1 style={{font:"52px Georgia,serif",margin:"8px 0 5px"}}>{title}</h1><p style={{color:"#aaa195"}}>Last updated: {updated}</p><div className="legal-copy">{children}</div><hr style={{border:0,borderTop:"1px solid #493b16",marginTop:40}}/><p>Questions about this policy can be submitted through the <Link href="/support" style={{color:"#d4af37"}}>support page</Link>.</p></article></main>;
+}

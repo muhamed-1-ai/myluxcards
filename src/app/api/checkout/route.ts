@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { currentIdentity, safeError, validMutationOrigin } from "@/lib/adminAuth";
 import { resolveAffiliateAttribution } from "@/lib/affiliate";
 import { notifySuperAdminsOfOrder } from "@/lib/orderNotifications";
+import { createRazorpayOrder } from "@/lib/razorpay";
+import { sendOrderConfirmation } from "@/lib/customerEmails";
 import { supabaseJson } from "@/lib/supabaseAuth";
 
 export const runtime = "nodejs";
@@ -53,12 +55,21 @@ export async function POST(request:Request){
     const created=await supabaseJson("/rest/v1/orders",{method:"POST",body:JSON.stringify(orderPayload)},true);orderId=created.data?.[0]?.id;
     if(!orderId)throw new Error("Order creation failed.");
     await supabaseJson("/rest/v1/order_items",{method:"POST",body:JSON.stringify(items.map(item=>({order_id:orderId,product_name:item.name,product_type:item.type,sku:item.sku,variant:item.variant,quantity:item.quantity,unit_price_minor:item.priceMinor})))},true);
-    await supabaseJson("/rest/v1/payments",{method:"POST",body:JSON.stringify({order_id:orderId,provider:method.toUpperCase().replaceAll(" ","_"),provider_transaction_id:`PENDING-${orderId}`,amount_minor:total,currency:"INR",status:"PENDING"})},true);
+    let paymentCheckout:null|{provider:"RAZORPAY";keyId:string;providerOrderId:string}=null;
+    if(method==="Cash on Delivery"){
+      await supabaseJson("/rest/v1/payments",{method:"POST",body:JSON.stringify({order_id:orderId,provider:"CASH_ON_DELIVERY",provider_transaction_id:`COD-${orderId}`,amount_minor:total,currency:"INR",status:"PENDING"})},true);
+    }else{
+      const providerOrder=await createRazorpayOrder({amount:total,currency:"INR",receipt:orderNumber,orderId});
+      await supabaseJson("/rest/v1/payments",{method:"POST",body:JSON.stringify({order_id:orderId,provider:"RAZORPAY",provider_transaction_id:providerOrder.id,amount_minor:total,currency:"INR",status:"PENDING",provider_created_at:new Date().toISOString()})},true);
+      paymentCheckout={provider:"RAZORPAY",keyId:providerOrder.keyId,providerOrderId:providerOrder.id};
+    }
     await notifySuperAdminsOfOrder({eventKey:`new-order:${orderId}`,orderId,orderNumber,customerName:name,customerEmail:email,items:items.map(item=>({name:item.name,quantity:item.quantity})),totalMinor:total,currency:"INR",paymentStatus:"PENDING",shippingLocation:[shippingAddress.city,shippingAddress.state,shippingAddress.country].join(", ")}).catch(()=>null);
-    return Response.json({ok:true,orderId,orderNumber,totalMinor:total,currency:"INR"},{status:201});
+    await sendOrderConfirmation({id:orderId,number:orderNumber,name,email,totalMinor:total,currency:"INR",paymentStatus:"PENDING"}).catch(()=>false);
+    return Response.json({ok:true,orderId,orderNumber,totalMinor:total,currency:"INR",paymentCheckout},{status:201});
   }catch(error:any){
     if(orderId)await supabaseJson(`/rest/v1/orders?id=eq.${orderId}`,{method:"DELETE"},true).catch(()=>null);
     if(error?.message==="UNAVAILABLE_PRODUCT")return Response.json({message:"One of the products is unavailable. Remove it and try again."},{status:400});
+    if(error?.message==="PAYMENTS_NOT_CONFIGURED")return Response.json({message:"Online payment is temporarily unavailable. Choose cash on delivery or contact support."},{status:503});
     return safeError(error);
   }
 }

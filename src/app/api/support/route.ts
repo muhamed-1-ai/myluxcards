@@ -32,9 +32,9 @@ export async function POST(request: Request) {
     const context = await requestContext();
     const fingerprint = createHash("sha256").update(`${context.ip || "unknown"}|${email}`).digest("hex").slice(0, 24);
     const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const recent = await supabaseJson(`/rest/v1/admin_notifications?type=eq.SUPPORT_TICKET&event_key=like.support-${fingerprint}-*&created_at=gte.${encodeURIComponent(since)}&select=id`, {
+    const recent = await supabaseJson(`/rest/v1/support_tickets?fingerprint=eq.${fingerprint}&created_at=gte.${encodeURIComponent(since)}&select=id`, {
       headers: { Prefer: "count=exact", Range: "0-2" },
-    }, true);
+    }, true).catch(() => supabaseJson(`/rest/v1/admin_notifications?type=eq.SUPPORT_TICKET&event_key=like.support-${fingerprint}-*&created_at=gte.${encodeURIComponent(since)}&select=id`, { headers: { Prefer: "count=exact", Range: "0-2" } }, true));
     const recentCount = Number(recent.response.headers.get("content-range")?.split("/")[1] || recent.data?.length || 0);
     if (recentCount >= 3) return Response.json({ message: "Too many support requests. Please wait an hour before trying again." }, { status: 429 });
 
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     const title = `New support ticket ${reference}: ${topics[topic]}`;
     const notificationMessage = `${name} · ${email}${contactTime ? ` · Best contact: ${contactTime}` : ""} · ${message}`;
     const recipient = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL?.trim() || null;
+    await supabaseJson("/rest/v1/support_tickets", { method:"POST", body:JSON.stringify({ id, reference, customer_name:name, customer_email:email, topic:topics[topic], contact_time:contactTime || null, message, fingerprint }) }, true).catch(() => null);
     await supabaseJson("/rest/v1/admin_notifications", {
       method: "POST",
       body: JSON.stringify({ event_key: eventKey, type: "SUPPORT_TICKET", title, message: notificationMessage, email_recipient: recipient }),

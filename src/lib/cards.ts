@@ -34,7 +34,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
       else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#d4af37" : "#ffffff";
       else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
-      else if (field === "brochureData") output[field] = /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
+      else if (field === "brochureData") output[field] = /^https:\/\/[^\s]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
       else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
     }
   }
@@ -68,6 +68,6 @@ export function safePublicCard(row: any) {
     id: row.id,
     slug: row.slug,
     ...cleanCardProfile(row.profile && typeof row.profile === "object" ? row.profile : {}),
-    active: Boolean(row.active && row.activated_at && (!row.expires_at || new Date(row.expires_at) > new Date())),
+    active: Boolean(row.active && row.activated_at),
   };
 }

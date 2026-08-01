@@ -4278,3 +4278,6 @@ iframe {
     bottom: 78px !important;
   }
 }
+/* Legal policy navigation shared by the legacy storefront footer. */
+.legal-footer-links{display:flex;flex-wrap:wrap;gap:14px 22px;justify-content:center;padding:20px;color:#b8ae9d;border-top:1px solid rgba(212,175,55,.2)}
+.legal-footer-links a{color:#d4af37;text-decoration:none}
