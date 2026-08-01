@@ -2216,3 +2216,106 @@ th {
   }
   .profile-theme-grid { grid-template-columns: 1fr; }
 }
+
+/* Final mobile dashboard experience */
+@media (max-width: 620px) {
+  .dash-shell { overflow-x: hidden; }
+  .dash-top {
+    height: calc(64px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 14px 0;
+    gap: 8px;
+  }
+  .hamb {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #d4af3745;
+    border-radius: 10px;
+    color: #d4af37;
+    background: #080808;
+    display: grid;
+    place-items: center;
+  }
+  .dash-brand img { width: 118px; height: 38px; }
+  .avatar { width: 42px; height: 42px; flex: 0 0 42px; }
+  .account-popover { position: fixed; top: calc(70px + env(safe-area-inset-top)); right: 12px; left: 12px; width: auto; }
+  .dash-side {
+    top: calc(64px + env(safe-area-inset-top));
+    width: min(86vw, 320px);
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 24px 0 55px #000c;
+    transition: transform .22s ease-out;
+  }
+  .side-scrim { inset: calc(64px + env(safe-area-inset-top)) 0 0; backdrop-filter: blur(3px); }
+  .dash-side nav > button,.dash-side .side-link,.card-owner { min-height: 52px; height: auto; }
+  .subnav button { min-height: 44px; height: auto; }
+  .dash-main { padding: calc(86px + env(safe-area-inset-top)) 12px calc(32px + env(safe-area-inset-bottom)); }
+  .page-heading { display: grid; gap: 14px; margin-bottom: 20px; }
+  .page-heading h1 { font-size: clamp(25px, 8vw, 31px); line-height: 1.08; }
+  .page-heading span { line-height: 1.55; }
+  .page-heading > button { width: 100%; min-height: 46px; }
+  .stats { gap: 10px; }
+  .stats article { min-height: 104px; padding: 20px; border-radius: 12px; }
+  .stats strong { font-size: 34px; }
+  .welcome-panel { padding: 22px 18px; border-radius: 12px; }
+  .welcome-panel h2 { font-size: 26px; }
+  .form-card,.preview-card,.table-card,.url-card { border-radius: 12px; }
+  .form-card { padding: 20px 15px; }
+  .form-intro { margin-inline: -15px; padding-inline: 15px; }
+  .form-grid,.social-list { gap: 15px; }
+  .field input,.field select,.field textarea,.add-service input { min-height: 46px; font-size: 16px; }
+  .form-actions {
+    position: sticky;
+    z-index: 12;
+    bottom: 0;
+    margin: 24px -15px -20px;
+    padding: 12px 15px calc(12px + env(safe-area-inset-bottom));
+    background: #050505f2;
+    backdrop-filter: blur(12px);
+  }
+  .form-actions button { flex: 1; min-height: 46px; }
+  .upload-section { padding: 20px 0; gap: 16px; }
+  .logo-upload-preview,.cover-upload-preview { width: 100%; height: 180px; }
+  .image-controls { padding: 14px; }
+  .image-controls label { grid-template-columns: 1fr 48px; gap: 6px 10px; }
+  .image-controls label input { grid-column: 1/-1; grid-row: 2; width: 100%; }
+  .image-controls output { grid-column: 2; grid-row: 1; }
+  .preview-panel { gap: 10px; min-width: 0; }
+  .url-card { display: grid; grid-template-columns:minmax(0,1fr) auto; padding: 14px; }
+  .url-card a { max-width: 100%; }
+  .url-card button { min-height: 42px; }
+  .preview-card { padding: 10px; }
+  .phone-preview { height: min(680px,76vh); border-radius: 10px; overscroll-behavior: contain; }
+  .table-card { padding: 12px; overflow: visible; }
+  .table-tools { width: 100%; }
+  .table-tools label,.table-tools .search { width: 100%; }
+  .search { display: flex; align-items: center; }
+  .search input { width: 100%; min-height: 44px; font-size: 16px; }
+  .table-scroll { overflow: visible; }
+  .table-card .table-scroll table,.table-card .table-scroll tbody,.table-card .table-scroll tr,.table-card .table-scroll td { display: block; width: 100%; min-width: 0; }
+  .table-card .table-scroll thead { display: none; }
+  .table-card .table-scroll tbody { display: grid; gap: 12px; }
+  .table-card .table-scroll tr { padding: 6px 14px; border: 1px solid #d4af3740; border-radius: 12px; background:#080807; }
+  .table-card .table-scroll td { display:grid; grid-template-columns: 92px minmax(0,1fr); gap:12px; align-items:center; min-height:42px; padding:10px 0; border-bottom:1px solid #d4af3725; overflow-wrap:anywhere; }
+  .table-card .table-scroll td:last-child { border-bottom:0; }
+  .table-card .table-scroll td::before { content:attr(data-label); color:#d4af37; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+  .table-card .table-scroll .empty-row td { display:block; text-align:center; padding:24px 8px; }
+  .table-card .table-scroll .empty-row td::before { display:none; }
+  .edit-btn,.delete-btn { min-width:82px; min-height:38px; }
+  .switch { width:46px; height:26px; padding:4px; }
+  .switch span { width:18px; height:18px; }
+  .switch.on span { transform:translateX(20px); }
+  .activation-box { display:grid; gap:12px; margin-top:12px; padding:16px; border:1px solid #d4af3745; border-radius:12px; }
+  .activation-box>div { margin:0; gap:4px; }
+  .activation-box span { line-height:1.5; }
+  .activation-box input { width:100%; min-height:48px; font-size:16px; letter-spacing:.03em; }
+  .activation-box button { width:100%; min-height:48px; }
+  .activation-box button:disabled { opacity:.45; }
+  .table-footer { padding:16px 2px 2px; }
+  .table-footer div { width:100%; }
+  .table-footer button { flex:1; min-height:42px; }
+  .dash-toast { left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); padding:14px 16px; line-height:1.45; }
+}
