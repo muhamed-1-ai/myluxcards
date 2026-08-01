@@ -488,6 +488,10 @@
   background: var(--d-blue);
   color: #fff;
 }
+.form-actions button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
 .social-list {
   display: grid;
   gap: 18px;

@@ -78,6 +78,30 @@ const fetchWithSessionRefresh = async (input: RequestInfo | URL, init?: RequestI
   response = await fetch(input, init);
   return response;
 };
+const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight: number) => {
+  if (!source.startsWith("data:image/") || source.length < 350_000) return source;
+  return new Promise<string>((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const ratio = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+      const context = canvas.getContext("2d");
+      if (!context) { resolve(source); return; }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(source); return; }
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || source));
+        reader.onerror = () => resolve(source);
+        reader.readAsDataURL(blob);
+      }, "image/webp", 0.82);
+    };
+    image.onerror = () => resolve(source);
+    image.src = source;
+  });
+};
 export default function DashboardDemo() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -98,6 +122,7 @@ export default function DashboardDemo() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activationCode, setActivationCode] = useState("");
   const [cloudReady, setCloudReady] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     try {
@@ -164,23 +189,32 @@ export default function DashboardDemo() {
     setErrors(next); return Object.keys(next).length === 0;
   };
   const save = async (section: Tab, next?: Tab) => {
+    if (saving) return;
     if (!validate(section)) { notify("Please fix the highlighted fields."); return; }
-    const saved = cards.map((card) => card.id === draft.id ? draft : card);
+    setSaving(true);
+    notify("Saving your card…");
+    const optimizedDraft = {
+      ...draft,
+      logo: await optimizeProfileImage(draft.logo, 800, 800),
+      cover: await optimizeProfileImage(draft.cover, 1600, 900),
+    };
+    const saved = cards.map((card) => card.id === optimizedDraft.id ? optimizedDraft : card);
     setCards(saved);
     if (currentUser) localStorage.setItem(storageKey(currentUser.email), JSON.stringify(saved));
     try {
-      const response = await fetchWithSessionRefresh("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(draft) });
+      const response = await fetchWithSessionRefresh("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(optimizedDraft) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); return; }
+        if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); setSaving(false); return; }
         throw new Error(payload.message || "Cloud save failed.");
       }
       const cloudCard = payload.card as Card;
-      const cloudSaved = saved.map(card => card.id === draft.id ? { ...draft, ...cloudCard } : card);
-      setCards(cloudSaved); setDraft({ ...draft, ...cloudCard }); setSelectedId(cloudCard.id);
+      const cloudSaved = saved.map(card => card.id === optimizedDraft.id ? { ...optimizedDraft, ...cloudCard } : card);
+      setCards(cloudSaved); setDraft({ ...optimizedDraft, ...cloudCard }); setSelectedId(cloudCard.id);
       setCloudReady(true);
       notify("Card saved securely.");
     } catch { notify("Saved in this browser. Cloud storage is not ready yet."); }
+    finally { setSaving(false); }
     if (next) selectTab(next);
   };
   const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
@@ -277,9 +311,9 @@ export default function DashboardDemo() {
               {tab === "appearance" && <AppearanceForm draft={draft} update={update} handleFile={handleFile} />}
               {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
               <div className="form-actions">
-                <button className="save" onClick={() => save(tab)}>Update</button>
-                {tab !== "appearance" && <button className="next" onClick={() => save(tab, tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>Next →</button>}
-                {tab === "appearance" && <button className="next" onClick={() => save(tab, "cards")}>Save & finish →</button>}
+                <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
+                {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
+                {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
               </div>
             </div>
             <PreviewPanel card={draft} />
@@ -465,7 +499,7 @@ function PreviewPanel({ card }: { card: Card }) {
       ? saved.map((item) => item.id === card.id ? card : item)
       : [...saved, card];
     localStorage.setItem(key, JSON.stringify(next));
-    window.open(`/card/${card.slug}${card.active ? "?preview=1" : ""}`, "_blank", "noopener,noreferrer");
+    window.location.assign(`/card/${card.slug}?preview=1`);
   };
   return <aside className="preview-panel">
     <div className="url-card"><div><span>Your Card URL</span><a href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">myluxcards.com/{card.slug}</a></div><button onClick={viewCard}>View Card ↗</button></div>
