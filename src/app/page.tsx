@@ -79,13 +79,6 @@ const clearPurchaseJourney = `<section class="home-journey" id="how-it-works" ar
 const purchaseConfidence = `<section class="purchase-confidence" aria-labelledby="purchase-confidence-title">
   <div class="container">
     <div class="purchase-confidence-head"><span>BEFORE YOU ORDER</span><h2 id="purchase-confidence-title">Everything you need to know.</h2><p>A clear look at the product, delivery, compatibility, activation, and support before you customise.</p></div>
-    <div class="product-showcase">
-      <div class="showcase-card-scene" aria-label="Front and back NFC card preview">
-        <div class="showcase-card showcase-front"><small>YOUR BRAND</small><strong>Your Name</strong><span>Your role · Company</span><i>)))</i></div>
-        <div class="showcase-card showcase-back"><strong>SCAN TO CONNECT</strong><div class="showcase-qr">QR</div><span>NFC + QR backup</span></div>
-      </div>
-      <div class="showcase-copy"><span class="journey-kicker">LIVE PRODUCT EXPERIENCE</span><h3>See what happens after the tap.</h3><p>The recipient opens a mobile profile in their browser, saves your contact, visits your links, or securely exchanges their details. No app is required.</p><button class="btn btn-primary" type="button" onclick="document.getElementById('tap-card')?.click()">Try the live tap demo</button></div>
-    </div>
     <div class="purchase-facts">
       <article><i data-lucide="smartphone"></i><h3>Phone compatibility</h3><p>Works with modern NFC-enabled iPhone and Android devices. The printed QR code provides a fallback.</p></article>
       <article><i data-lucide="package-check"></i><h3>What is included</h3><p>Custom double-sided card, programmed NFC chip, QR backup, digital profile activation, and pre-dispatch testing.</p></article>
@@ -193,8 +186,8 @@ const improvedMarkup = markup
     '<button class="hamburger" id="hamburger" type="button" aria-label="Open navigation" aria-controls="nav-menu" aria-expanded="false">',
   )
   .replace(
-    '</span>\n      </div>\n    </div>\n  </nav>',
-    '</span>\n      </button>\n    </div>\n  </nav>',
+    /<\/span>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/nav>/,
+    '</span>\n        </button>\n      </div>\n    </div>\n  </nav>',
   )
   .replace(/<button class="drawer-close">/g, '<button class="drawer-close" type="button" aria-label="Close panel">')
   .replace(
