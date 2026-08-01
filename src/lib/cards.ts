@@ -20,14 +20,35 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
     } else if (field === "services" && Array.isArray(value)) {
       output.services = value.slice(0, 30).map(item => String(item).trim().slice(0, 120)).filter(Boolean);
-    } else if (["logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY"].includes(field)) {
-      output[field] = Number.isFinite(Number(value)) ? Number(value) : 0;
+    } else if (["logoScale","coverScale"].includes(field)) {
+      output[field] = clamp(value, 25, 300, 100);
+    } else if (["logoRotation","coverRotation"].includes(field)) {
+      output[field] = clamp(value, -180, 180, 0);
+    } else if (["logoX","logoY","coverX","coverY"].includes(field)) {
+      output[field] = clamp(value, 0, 100, 50);
     } else if (typeof value === "string") {
-      const max = ["logo","cover","brochureData"].includes(field) ? 7_000_000 : field === "about" ? 3000 : 500;
-      output[field] = value.trim().slice(0, max);
+      const trimmed = value.trim();
+      if (field === "website") output[field] = cleanUrl(trimmed);
+      else if (field === "email") output[field] = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed.toLowerCase().slice(0, 254) : "";
+      else if (["mobile","whatsapp"].includes(field)) output[field] = /^[0-9 ()+.-]{0,30}$/.test(trimmed) ? trimmed : "";
+      else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
+      else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#d4af37" : "#ffffff";
+      else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
+      else if (field === "brochureData") output[field] = /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
+      else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
     }
   }
   return output;
+}
+
+function clamp(value: unknown, minimum: number, maximum: number, fallback: number) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, number)) : fallback;
+}
+
+function cleanImage(value: string) {
+  if (/^https:\/\/[^\s]+$/i.test(value)) return value.slice(0, 2000);
+  return /^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(value) ? value.slice(0, 7_000_000) : "";
 }
 
 function cleanUrl(value: unknown) {
@@ -46,7 +67,7 @@ export function safePublicCard(row: any) {
   return {
     id: row.id,
     slug: row.slug,
-    ...(row.profile || {}),
+    ...cleanCardProfile(row.profile && typeof row.profile === "object" ? row.profile : {}),
     active: Boolean(row.active && row.activated_at && (!row.expires_at || new Date(row.expires_at) > new Date())),
   };
 }

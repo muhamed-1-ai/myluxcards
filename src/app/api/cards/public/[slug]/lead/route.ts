@@ -1,7 +1,9 @@
 import { cleanSlug } from "@/lib/cards";
+import { validMutationOrigin } from "@/lib/adminAuth";
 import { supabaseJson } from "@/lib/supabaseAuth";
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  if (!validMutationOrigin(request)) return Response.json({ message: "Invalid request origin." }, { status: 403 });
   try {
     const { slug } = await params;
     const body = await request.json().catch(() => ({}));

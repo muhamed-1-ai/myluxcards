@@ -14,8 +14,6 @@ type Card = {
   previewAuthorized?: boolean;
 };
 
-const STORE_PREFIX = "mylux-dashboard-cards-v2:";
-
 export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -35,27 +33,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           }
           return;
         }
-      } catch { /* Browser-saved migration fallback below. */ }
-      for (let index = 0; index < localStorage.length; index += 1) {
-        const key = localStorage.key(index);
-        if (!key?.startsWith(STORE_PREFIX)) continue;
-        try {
-          const cards = JSON.parse(localStorage.getItem(key) || "[]") as Card[];
-          const match = cards.find((item) => item.slug === slug);
-          if (match) {
-            setCard(match);
-            if (!match.active) {
-              const noticeKey = `mylux-card-off-notice:${slug}`;
-              const noticeCount = Number(localStorage.getItem(noticeKey) || "0");
-              if (noticeCount < 2) {
-                setShowStatusBubble(true);
-                localStorage.setItem(noticeKey, String(noticeCount + 1));
-              }
-            }
-            break;
-          }
-        } catch { /* Ignore malformed unrelated browser data. */ }
-      }
+      } catch { /* The unavailable state is shown below. */ }
       if (!cancelled) setLoaded(true);
     };
     void load();

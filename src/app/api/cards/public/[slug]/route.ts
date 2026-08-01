@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { cleanSlug, safePublicCard } from "@/lib/cards";
 import { getSupabaseServiceConfig, supabaseJson } from "@/lib/supabaseAuth";
-import { currentIdentity } from "@/lib/adminAuth";
+import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
   if (!getSupabaseServiceConfig()) return Response.json({ message: "Cards are not configured." }, { status: 503 });
@@ -22,6 +22,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  if (!validMutationOrigin(request)) return Response.json({ message: "Invalid request origin." }, { status: 403 });
   const { slug } = await params;
   try {
     const body = await request.json().catch(() => ({}));

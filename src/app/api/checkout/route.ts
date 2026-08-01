@@ -12,7 +12,12 @@ const CATALOG: Record<string,{name:string;type:"NFC_CARD";sku:string;priceMinor:
 };
 const methods = new Set(["UPI","Card","Net Banking","Cash on Delivery"]);
 const clean=(value:unknown,max=200)=>String(value||"").trim().slice(0,max);
+const cleanOrderLogo=(value:unknown)=>{
+  const text=String(value||"").trim();
+  return /^data:image\/(?:png|jpeg);base64,[a-z0-9+/=\r\n]+$/i.test(text)&&text.length<=3_000_000?text:"";
+};
 type CheckoutItem={id:string;name:string;type:"NFC_CARD";sku:string;priceMinor:number;quantity:number;variant:Record<string,unknown>};
+const customMaterialPrices:Record<string,number>={"White PVC":79900,"Matte Black PVC":89900};
 
 export async function POST(request:Request){
   if(!validMutationOrigin(request))return Response.json({message:"Invalid request origin."},{status:403});
@@ -31,8 +36,11 @@ export async function POST(request:Request){
     const items:CheckoutItem[]=body.items.map((input:any)=>{
       const id=clean(input.id,80), product=CATALOG[id], quantity=Math.min(10,Math.max(1,Math.floor(Number(input.quantity)||1)));
       if(!product)throw new Error("UNAVAILABLE_PRODUCT");
-      const design=input.design&&typeof input.design==="object"?Object.fromEntries(Object.entries(input.design).slice(0,20).map(([key,value])=>[clean(key,40),clean(value,200)])):{};
-      return {...product,id,quantity,variant:{details:clean(input.details,300),design}};
+      const design=input.design&&typeof input.design==="object"?Object.fromEntries(Object.entries(input.design).slice(0,20).map(([key,value])=>[clean(key,40),key==="logoData"?cleanOrderLogo(value):clean(value,200)])):{};
+      const material=clean(input.design?.material,80);
+      const priceMinor=id==="custom-nfc-card"?(customMaterialPrices[material]+49900+(input.design?.expertDesign===true?49900:0)):product.priceMinor;
+      if(!Number.isSafeInteger(priceMinor))throw new Error("UNAVAILABLE_PRODUCT");
+      return {...product,id,priceMinor,quantity,variant:{details:clean(input.details,300),design:{...design,expertDesign:input.design?.expertDesign===true}}};
     });
     const subtotal=items.reduce((sum,item)=>sum+item.priceMinor*item.quantity,0), shipping=0, tax=0, discount=0, total=subtotal+shipping+tax-discount;
     const attribution=await resolveAffiliateAttribution(clean(body.couponCode,50)||null,email);

@@ -230,7 +230,9 @@ class LuxApp {
       logoColor: $('quick-logo-colour')?.value || ink?.value,
       logoPosition: { left: $('config-logo')?.style.left || '', top: $('config-logo')?.style.top || '' },
       qrPosition: { left: $('config-qr')?.style.left || '', top: $('config-qr')?.style.top || '' },
-      colorName: document.querySelector('.colour-preset.active')?.textContent.trim() || 'Custom Colours', logoData
+      colorName: document.querySelector('.colour-preset.active')?.textContent.trim() || 'Custom Colours',
+      expertDesign: $('expert-design')?.checked === true,
+      logoData
     });
     const updateCard = () => {
       const preset = document.querySelector('.colour-preset.active');
@@ -326,9 +328,10 @@ class LuxApp {
     makeMovable($('config-logo')); makeMovable($('config-qr'));
     $('card-logo-upload')?.addEventListener('change', event => {
       const file = event.target.files?.[0]; if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { warning.hidden = false; warning.textContent = 'Image is larger than 5MB. Choose a smaller file.'; return; }
+      if (!['image/png', 'image/jpeg'].includes(file.type)) { warning.hidden = false; warning.textContent = 'Choose a PNG or JPG image.'; event.target.value = ''; return; }
+      if (file.size > 2 * 1024 * 1024) { warning.hidden = false; warning.textContent = 'Image is larger than 2 MB. Choose a smaller file.'; event.target.value = ''; return; }
       const reader = new FileReader(); reader.onload = () => { logoData = String(reader.result); $('config-logo').innerHTML = `<img src="${logoData}" alt="Uploaded logo">`; updatePrice(); }; reader.readAsDataURL(file);
-      if (file.type !== 'image/svg+xml') { const image = new Image(); image.onload = () => { if (image.width < 600 || image.height < 600) { warning.hidden = false; warning.textContent = 'Your image may appear blurred. Upload an image of at least 600 × 600px.'; } }; image.src = URL.createObjectURL(file); }
+      const image = new Image(); image.onload = () => { if (image.width < 600 || image.height < 600) { warning.hidden = false; warning.textContent = 'Your image may appear blurred. Upload an image of at least 600 × 600px.'; } URL.revokeObjectURL(image.src); }; image.src = URL.createObjectURL(file);
     });
     $('remove-card-logo')?.addEventListener('click', () => { logoData = ''; $('config-logo').innerHTML = ''; $('card-logo-upload').value = ''; updatePrice(); });
     $('expert-design')?.addEventListener('change', updatePrice);
@@ -612,6 +615,13 @@ class LuxApp {
     if (!checkout) return;
     const itemCount = this.state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
     if (summary) summary.textContent = `${itemCount} item${itemCount === 1 ? '' : 's'} · ${this.formatCartTotal()}`;
+    const user = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
+    const name = document.getElementById('checkout-name');
+    const email = document.getElementById('checkout-email');
+    if (user) {
+      if (name && !name.value) name.value = user.name || '';
+      if (email && !email.value) email.value = user.email || '';
+    }
     checkout.classList.add('open');
     checkout.setAttribute('aria-hidden', 'false');
   }
@@ -627,18 +637,51 @@ class LuxApp {
       option.classList.toggle('active', option.querySelector('input')?.value === method);
     });
     const button = document.getElementById('pay-now-btn');
-    if (button) button.textContent = method === 'Cash on Delivery' ? 'Place cash on delivery order' : `Continue with ${method}`;
+    if (button) button.textContent = method === 'Cash on Delivery' ? 'Place cash on delivery order' : `Place order · ${method} payment pending`;
   }
 
-  completeCheckout() {
-    const method = document.querySelector('input[name="payment-method"]:checked')?.value || 'selected payment method';
-    this.state.cart = [];
-    this.updateCounters();
-    this.renderCartDrawer();
-    this.closeCheckout();
-    document.getElementById('drawer-overlay')?.classList.remove('open');
-    document.getElementById('cart-drawer')?.classList.remove('open');
-    this.showToast(`Demo order placed with ${method}.`, 'success');
+  async completeCheckout() {
+    const method = document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI';
+    const button = document.getElementById('pay-now-btn');
+    if (button?.disabled) return;
+    if (button) { button.disabled = true; button.textContent = 'Saving order…'; }
+    const value = id => document.getElementById(id)?.value?.trim() || '';
+    const payload = {
+      paymentMethod: method,
+      couponCode: value('checkout-coupon'),
+      customer: { name:value('checkout-name'), email:value('checkout-email'), phone:value('checkout-phone') },
+      shippingAddress: { line1:value('checkout-address1'), line2:value('checkout-address2'), city:value('checkout-city'), state:value('checkout-state'), postalCode:value('checkout-postal'), country:value('checkout-country') },
+      items: this.state.cart.map(item => ({ id:String(item.id), quantity:Number(item.quantity)||1, details:item.details||'', design:item.design||{} })),
+    };
+    try {
+      let response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      if (response.status === 401) {
+        const refreshed = await fetch('/api/auth/refresh', { method:'POST' });
+        if (refreshed.ok) response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.setItem('myluxcards_auth_next', '/');
+          this.closeCheckout();
+          document.getElementById('login-modal')?.classList.add('open');
+        }
+        throw new Error(result.message || 'The order could not be placed.');
+      }
+      this.state.cart = [];
+      this.updateCounters();
+      this.renderCartDrawer();
+      this.closeCheckout();
+      document.getElementById('drawer-overlay')?.classList.remove('open');
+      document.getElementById('cart-drawer')?.classList.remove('open');
+      document.getElementById('checkout-form')?.reset();
+      this.setPaymentMethod('UPI');
+      this.showToast(`Order ${result.orderNumber} was placed successfully. Payment status: pending.`, 'success');
+    } catch (error) {
+      this.showToast(error.message || 'The order could not be placed.', 'error');
+    } finally {
+      if (button) { button.disabled = false; this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI'); }
+    }
   }
 
   removeFromCart(cardId) {

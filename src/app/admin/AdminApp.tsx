@@ -19,12 +19,13 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
       setData(await response.json());
     } catch(e){setError(e instanceof Error?e.message:"Could not load this section.")} finally{setLoading(false)}
   },[section,search]);
+  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get("section") as Section|null;if(requested&&Object.hasOwn(labels,requested))setSection(requested)},[]);
   useEffect(()=>{load()},[load]);
   const mutate=async(path:string,method:string,body:unknown)=>{
     const response=await fetch(`/api/admin/${path}`,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     const result=await response.json(); if(!response.ok) throw new Error(result.message||"Request failed."); await load(); return result;
   };
-  const navigate=(next:Section)=>{setSection(next);setSearch("");setMobile(false)};
+  const navigate=(next:Section)=>{setSection(next);setSearch("");setMobile(false);const url=new URL(window.location.href);if(next==="overview")url.searchParams.delete("section");else url.searchParams.set("section",next);window.history.replaceState(null,"",url)};
   const logout=async()=>{await fetch("/api/auth/logout",{method:"POST"});localStorage.removeItem("myluxcards_current_user");window.location.replace("/")};
   const allowed=(Object.keys(labels) as Section[]).filter(item=>identity.role==="SUPER_ADMIN"||!["admins","audit","settings"].includes(item));
   return <div className="admin-shell">
