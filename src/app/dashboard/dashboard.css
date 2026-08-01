@@ -1663,6 +1663,38 @@ td small {
 .form-actions {
   border-top-color: #d4af373c;
 }
+.save-finish-reminder {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 22px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #d4af3755;
+  border-radius: 10px;
+  background: #d4af370d;
+  color: #c9c1ad;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.save-finish-reminder > span {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d4af37;
+  color: #050505;
+  font-weight: 900;
+}
+.save-finish-reminder p { margin: 0; }
+.save-finish-reminder strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #f2d66b;
+  font-size: 12px;
+}
+.save-finish-reminder b { color: #fff; }
 .social-input span {
   background: #d4af37;
   color: #050505;

@@ -256,6 +256,7 @@ export default function DashboardDemo() {
               {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
               {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
               {tab === "appearance" && <AppearanceForm draft={draft} update={update} handleFile={handleFile} />}
+              {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
               <div className="form-actions">
                 <button className="save" onClick={() => save(tab)}>Update</button>
                 {tab !== "appearance" && <button className="next" onClick={() => save(tab, tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>Next →</button>}
