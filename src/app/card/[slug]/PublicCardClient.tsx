@@ -129,6 +129,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     Twitter:           { subtitle: "Follow me",              icon: <TwitterXIcon />,    iconBg: "#000" },
     YouTube:           { subtitle: "Subscribe",              icon: <YouTubeIcon />,     iconBg: "#ff0000" },
     "Google Business": { subtitle: "Find us online",         icon: <GoogleLetter />,    iconBg: "#4285f4" },
+    "Google Maps":     { subtitle: "Get directions",         icon: <LocationIcon />,    iconBg: "#4285f4" },
     WhatsApp:          { subtitle: "Message me",             icon: <WhatsAppBrandIcon />, iconBg: "#25d366" },
     Threads:           { subtitle: "Follow me",              icon: <ThreadsIcon />,     iconBg: "#000" },
   };

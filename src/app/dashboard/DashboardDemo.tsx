@@ -17,7 +17,7 @@ type Lead = { id:string; card_id:string; name:string; email?:string; phone?:stri
 type CurrentUser = { name: string; email: string };
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
-const socialFields = ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "Google Business"];
+const socialFields = ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "Google Business", "Google Maps"];
 type DialCode = { flag: string; code: string; name: string; iso: string };
 type LocationState = { name: string; isoCode: string };
 type LocationCity = { name: string; latitude?: string | null; longitude?: string | null };
@@ -26,6 +26,13 @@ type LocationApi = {
   getCitiesOfState: (countryIso: string, stateCode: string) => LocationCity[];
 };
 const blankSocial = Object.fromEntries(socialFields.map((x) => [x, ""]));
+const profileThemes = [
+  { name: "MyLux Gold", background: "#020202", accent: "#d4af37", text: "#ffffff" },
+  { name: "Minimal White", background: "#f7f5ef", accent: "#171717", text: "#171717" },
+  { name: "Midnight Blue", background: "#071523", accent: "#5ca9e6", text: "#f5f9ff" },
+  { name: "Burgundy", background: "#18070d", accent: "#a83d5b", text: "#fff4f6" },
+  { name: "Executive Silver", background: "#101214", accent: "#aeb6bf", text: "#f4f6f8" },
+];
 const storageKey = (email: string) => `${STORE_PREFIX}${email.trim().toLowerCase()}`;
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "my-card";
 const accountSuffix = (email: string) => {
@@ -214,7 +221,7 @@ export default function DashboardDemo() {
           <div className="subnav">
             {(["contact", "social", "company", "appearance"] as Tab[]).map((item) =>
               <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>
-                {item === "contact" ? "Contact Info" : item === "social" ? "Social Links" : item[0].toUpperCase() + item.slice(1)}
+                {item === "contact" ? "Contact Info" : item === "social" ? "Apps & Links" : item[0].toUpperCase() + item.slice(1)}
               </button>)}
             <small>Expiry: {selected.expiry.split("-").reverse().join("-")} ({selected.id.replace("card-", "#")})</small>
           </div>
@@ -240,7 +247,7 @@ export default function DashboardDemo() {
         </section>}
 
         {(["contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
-          <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "contact" ? "Contact information" : tab === "social" ? "Social links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
+          <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
           <div className="edit-layout">
             <div className="form-card">
               {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
@@ -367,7 +374,7 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
   </div></>;
 }
 function SocialForm({ draft, update, errors }: any) {
-  return <><div className="form-intro"><h2>Your online presence</h2><p>Add any links you want visitors to discover.</p></div><div className="social-list">{socialFields.map((key) => <Field key={key} label={`${key} URL`} error={errors[key]}><div className="social-input"><span>{key[0]}</span><input value={draft.social[key]} onChange={(e) => update("social", { ...draft.social, [key]: e.target.value })} placeholder={`https://${key.toLowerCase().replace(" ", "")}.com/yourname`} /></div></Field>)}</div></>;
+  return <><div className="form-intro"><h2>Apps &amp; links</h2><p>Add social profiles, your Google Maps location, and useful links for visitors.</p></div><div className="social-list">{socialFields.map((key) => <Field key={key} label={`${key} URL`} error={errors[key]}><div className="social-input"><span>{key === "Google Maps" ? "⌖" : key[0]}</span><input value={draft.social[key] || ""} onChange={(e) => update("social", { ...draft.social, [key]: e.target.value })} placeholder={key === "Google Maps" ? "Paste your Google Maps place or directions link" : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`} /></div></Field>)}</div></>;
 }
 function CompanyForm({ draft, update, service, setService, notify }: any) {
   const add = () => { if (!service.trim()) { notify("Enter a service or product name."); return; } update("services", [...draft.services, service.trim()]); setService(""); };
@@ -379,7 +386,17 @@ function CompanyForm({ draft, update, service, setService, notify }: any) {
 function AppearanceForm({ draft, update, handleFile }: any) {
   return <><div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
     <div className="profile-colours">
-      <div><span className="step">01</span><h3>Profile colours</h3><p>Choose a background, accent, and readable text colour.</p></div>
+      <div><span className="step">01</span><h3>Profile colours</h3><p>Start with a professional theme, then customise any colour.</p>
+        <div className="profile-theme-grid">
+          {profileThemes.map((theme) => {
+            const active = draft.profileBackground?.toLowerCase() === theme.background && draft.profileAccent?.toLowerCase() === theme.accent && draft.profileText?.toLowerCase() === theme.text;
+            return <button key={theme.name} type="button" className={active ? "active" : ""} aria-pressed={active} onClick={() => { update("profileBackground", theme.background); update("profileAccent", theme.accent); update("profileText", theme.text); }}>
+              <i style={{ background: `linear-gradient(135deg, ${theme.background} 50%, ${theme.accent} 50%)` }} />
+              <span>{theme.name}</span>
+            </button>;
+          })}
+        </div>
+      </div>
       <div className="colour-pickers">
         {[["Background", "profileBackground", "#020202"], ["Accent", "profileAccent", "#d4af37"], ["Text", "profileText", "#ffffff"]].map(([label, key, fallback]) =>
           <label key={key}><span>{label}</span><div><input type="color" value={draft[key] || fallback} onChange={(event) => update(key, event.target.value)} /><input className="colour-code" value={draft[key] || fallback} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && update(key, event.target.value)} aria-label={`${label} hex colour`} /></div></label>
@@ -415,6 +432,7 @@ function PreviewPanel({ card }: { card: Card }) {
     ["Twitter", "twitter"],
     ["YouTube", "youtube"],
     ["Google Business", "google"],
+    ["Google Maps", "maps"],
   ].map(([name, brand]) => ({ name, brand, url: card.social[name] })).filter((item) => item.url);
   const viewCard = () => {
     const key = storageKey(card.ownerId);
@@ -441,7 +459,7 @@ function PreviewPanel({ card }: { card: Card }) {
         {card.services.length > 0 && <div className="company-services-preview"><h5>Services / Products</h5><ol>{card.services.map((service) => <li key={service}>{service}</li>)}</ol></div>}
       </div>}
       {socialLinks.length > 0 && <div className="social-preview">
-        <h4>Social Media Links</h4>
+        <h4>Apps &amp; Links</h4>
         <div>{socialLinks.map((item) => <a className={`social-preview-icon ${item.brand}`} href={item.url} target="_blank" rel="noopener noreferrer" key={item.name} aria-label={`Open ${item.name}`} title={item.name}><SocialBrandIcon brand={item.brand} /></a>)}</div>
       </div>}
     </div></div>
@@ -449,6 +467,7 @@ function PreviewPanel({ card }: { card: Card }) {
 }
 
 function SocialBrandIcon({ brand }: { brand: string }) {
+  if (brand === "maps") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 10.2A3.2 3.2 0 1 1 12 5.8a3.2 3.2 0 0 1 0 6.4Z" /></svg>;
   if (brand === "instagram") return <svg viewBox="0 0 24 24" aria-hidden><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5.2" fill="none" stroke="currentColor" strokeWidth="2.2" /><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" strokeWidth="2.2" /><circle cx="17.6" cy="6.7" r="1.2" fill="currentColor" /></svg>;
   if (brand === "facebook") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M13.8 21v-8h2.8l.4-3.1h-3.2V8c0-.9.3-1.6 1.6-1.6h1.8V3.6c-.4 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5v1.9H7.3V13h2.9v8h3.6Z" /></svg>;
   if (brand === "linkedin") return <svg viewBox="0 0 24 24" aria-hidden><circle cx="6.2" cy="6.3" r="2" fill="currentColor" /><path fill="currentColor" d="M4.5 9.5h3.4V20H4.5V9.5Zm5.5 0h3.3v1.4h.1c.7-1.1 1.9-1.8 3.4-1.8 3.6 0 4.2 2.4 4.2 5.4V20h-3.4v-4.9c0-1.2 0-2.8-1.8-2.8s-2 1.3-2 2.7v5H10V9.5Z" /></svg>;

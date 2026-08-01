@@ -1197,6 +1197,9 @@ td small {
 .social-preview-icon.google {
   background: #4285f4;
 }
+.social-preview-icon.maps {
+  background: linear-gradient(145deg, #34a853, #4285f4 58%, #fbbc04);
+}
 .company-form-title h2 {
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1959,6 +1962,49 @@ th {
   margin: 0;
   color: #aaa38e;
 }
+.profile-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+.profile-theme-grid button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid #3b351d;
+  border-radius: 10px;
+  background: #050505;
+  color: #d9d4c7;
+  font: 700 11px/1.25 Manrope, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, transform .18s ease, background .18s ease;
+}
+.profile-theme-grid button:hover,
+.profile-theme-grid button.active {
+  border-color: #d4af37;
+  background: #111007;
+  transform: translateY(-1px);
+}
+.profile-theme-grid button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.profile-theme-grid i {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid #ffffff38;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #000;
+}
+.profile-theme-grid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .colour-pickers {
   display: grid;
   gap: 12px;
@@ -2114,4 +2160,5 @@ th {
     grid-template-columns: 1fr;
     padding: 22px 18px;
   }
+  .profile-theme-grid { grid-template-columns: 1fr; }
 }

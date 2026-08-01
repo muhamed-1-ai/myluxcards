@@ -203,7 +203,7 @@
 ══════════════════════════════════════════════ */
 .pc-card {
   width: 100%;
-  background: color-mix(in srgb, var(--pc-accent, #b8962e) 18%, #000 82%);
+  background: color-mix(in srgb, var(--pc-accent, #b8962e) 18%, var(--pc-bg, #0a0a0a) 82%);
   border-radius: 38px;
   padding: 22px 20px;
   /* Subtle accent glow on border */
@@ -243,7 +243,7 @@
   gap: 14px;
   min-height: 82px;
   padding: 14px 20px;
-  background: color-mix(in srgb, var(--pc-accent, #b8962e) 15%, #000 85%);
+  background: color-mix(in srgb, var(--pc-accent, #b8962e) 15%, var(--pc-bg, #0a0a0a) 85%);
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--pc-accent, #b8962e) 20%, transparent);
   text-decoration: none;
@@ -251,7 +251,7 @@
   transition: background .18s, transform .12s;
   cursor: pointer;
 }
-.pc-link-row:hover  { background: color-mix(in srgb, var(--pc-accent, #b8962e) 28%, #000 72%); transform: translateX(2px); }
+.pc-link-row:hover  { background: color-mix(in srgb, var(--pc-accent, #b8962e) 28%, var(--pc-bg, #0a0a0a) 72%); transform: translateX(2px); }
 .pc-link-row:active { transform: translateX(0); }
 
 /* Circular icon container — background set inline from SOCIAL config */
