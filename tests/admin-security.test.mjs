@@ -8,6 +8,8 @@ const migration = readFileSync(new URL("../supabase/migrations/202607250001_supe
 const bootstrap = readFileSync(new URL("../scripts/create-super-admin.ts", import.meta.url), "utf8");
 const notifications = readFileSync(new URL("../src/lib/orderNotifications.ts", import.meta.url), "utf8");
 const orders = readFileSync(new URL("../src/app/api/admin/orders/route.ts", import.meta.url), "utf8");
+const support = readFileSync(new URL("../src/app/api/support/route.ts", import.meta.url), "utf8");
+const publicApp = readFileSync(new URL("../public/js/app.js", import.meta.url), "utf8");
 
 test("public signup fixes the role server-side", () => {
   assert.match(signup, /role:\s*"CUSTOMER"/);
@@ -45,4 +47,14 @@ test("admin order mutation cannot change payment status", () => {
   const patch = orders.slice(orders.indexOf("export async function PATCH"));
   assert.doesNotMatch(patch, /changes\.payment_status/);
   assert.match(patch, /requireAdmin\(\)/);
+});
+test("support submissions create rate-limited admin notifications", () => {
+  assert.match(support, /validMutationOrigin\(request\)/);
+  assert.match(support, /type: "SUPPORT_TICKET"/);
+  assert.match(support, /recentCount >= 3/);
+  assert.match(support, /admin_notifications/);
+  assert.match(publicApp, /fetch\('\/api\/support'/);
+  const handler = publicApp.slice(publicApp.indexOf("async handleSupportTicket"), publicApp.indexOf("handleReviewSubmission"));
+  assert.match(handler, /if \(!response\.ok\) throw/);
+  assert.doesNotMatch(handler, /submitted successfully/);
 });

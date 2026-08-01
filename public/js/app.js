@@ -901,10 +901,11 @@ class LuxApp {
     dots.forEach((dot, index) => dot.classList.toggle('active', index === this.state.currentTestimonialIndex));
   }
 
-  handleSupportTicket() {
+  async handleSupportTicket() {
     const name = document.getElementById('support-name')?.value.trim();
     const email = document.getElementById('support-email')?.value.trim();
     const topic = document.getElementById('support-topic')?.value;
+    const contactTime = document.getElementById('support-contact')?.value.trim();
     const message = document.getElementById('support-message')?.value.trim();
 
     if (!name || !email || !topic || !message) {
@@ -912,22 +913,25 @@ class LuxApp {
       return;
     }
 
-    const newTicket = {
-      id: `TKT-${Date.now()}`,
-      name,
-      email,
-      topic,
-      message,
-      createdAt: new Date().toISOString(),
-      status: 'Open'
-    };
-
-    this.state.supportTickets.unshift(newTicket);
-    localStorage.setItem('myluxcards_support_tickets', JSON.stringify(this.state.supportTickets));
-    this.renderSupportTickets();
-    this.showToast('Support ticket submitted successfully.', 'success');
-
-    document.getElementById('support-form')?.reset();
+    const form = document.getElementById('support-form');
+    const button = form?.querySelector('button[type="submit"]');
+    if (button?.disabled) return;
+    if (button) { button.disabled = true; button.textContent = 'Submitting…'; }
+    try {
+      const response = await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, topic, contactTime, message }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || 'Your support request could not be submitted.');
+      const newTicket = { id: result.reference, name, email, topic, message, createdAt: new Date().toISOString(), status: 'Open' };
+      this.state.supportTickets.unshift(newTicket);
+      try { localStorage.setItem('myluxcards_support_tickets', JSON.stringify(this.state.supportTickets.slice(0, 10))); } catch (_) {}
+      this.renderSupportTickets();
+      this.showToast(`Support ticket ${result.reference} submitted.`, 'success');
+      form?.reset();
+    } catch (error) {
+      this.showToast(error instanceof Error ? error.message : 'Support request failed. Please try again.', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Submit Support Ticket'; }
+    }
   }
 
   handleReviewSubmission() {
@@ -964,11 +968,11 @@ class LuxApp {
     const tickets = this.state.supportTickets;
     const ticketItems = tickets.length ? tickets.map(ticket => `
       <div class="ticket-card">
-        <strong>${ticket.topic} • ${ticket.status}</strong>
-        <span><strong>Name:</strong> ${ticket.name}</span>
-        <span><strong>Email:</strong> ${ticket.email}</span>
+        <strong>${this.escapeHtml(ticket.id || '')} · ${this.escapeHtml(ticket.topic)} • ${this.escapeHtml(ticket.status)}</strong>
+        <span><strong>Name:</strong> ${this.escapeHtml(ticket.name)}</span>
+        <span><strong>Email:</strong> ${this.escapeHtml(ticket.email)}</span>
         <span><strong>Submitted:</strong> ${new Date(ticket.createdAt).toLocaleString()}</span>
-        <span>${ticket.message}</span>
+        <span>${this.escapeHtml(ticket.message)}</span>
       </div>
     `).join('') : '<div class="ticket-empty">No support tickets yet. Submit one using the form to see your request appear here.</div>';
 
