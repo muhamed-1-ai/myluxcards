@@ -107,7 +107,7 @@ const improvedMarkup = markup
   .replace(/<!-- Dark Mode Toggle -->[\s\S]*?<\/button>/, "")
   .replace(
     '<button class="btn btn-glass" id="login-trigger">Login</button>',
-    '<button class="btn btn-glass" id="login-trigger">Login</button><a class="btn btn-primary nav-design-cta" href="#card-configurator">Design Your Card</a>',
+    '<div class="account-menu" id="account-menu"><button class="btn btn-glass account-button" id="login-trigger" type="button" aria-haspopup="menu" aria-expanded="false">Login</button><div class="account-dropdown" id="account-dropdown" role="menu" hidden><a href="/dashboard" role="menuitem">Dashboard</a><button id="account-logout" type="button" role="menuitem">Log out</button></div></div><a class="btn btn-primary nav-design-cta" href="#card-configurator">Design Your Card</a>',
   )
   .replace(
     'Tap the card to see a live professional profile—then manage your card, connections and MyLux Find tags from one smart hub.',

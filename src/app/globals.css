@@ -3521,6 +3521,7 @@ h1,h2,.hero-title,.section-header h2{font-family:"Instrument Serif",Georgia,seri
 .brand-logo{width:190px!important;height:72px!important;object-fit:contain!important}
 .nav-menu{gap:24px}.nav-link{font:600 14px/96px Manrope,Inter,sans-serif;padding:0;color:var(--text-muted);white-space:nowrap}.nav-link:after{height:2px;bottom:25px;background:var(--primary);box-shadow:none}.nav-link:hover{color:var(--text-main)}
 .nav-actions{gap:8px}.nav-actions .btn{min-height:42px;border-radius:9px;box-shadow:none}.nav-actions .btn-icon{width:42px!important;min-width:42px!important;padding:0!important;background:transparent;border-color:var(--border-glass)}.nav-actions #cart-trigger{color:var(--primary)}.search-input-wrapper{height:42px;border-radius:9px;background:var(--surface);border:1px solid var(--border-glass)}.search-input-wrapper input{width:130px}.nav-design-cta{padding:11px 16px!important;white-space:nowrap;color:#0b0a08!important}
+.account-menu{position:relative}.account-dropdown{position:absolute;z-index:1100;top:calc(100% + 10px);right:0;width:170px;padding:7px;border:1px solid var(--border-glass);border-radius:10px;background:#0d0c0a;box-shadow:0 18px 45px #000b}.account-dropdown[hidden]{display:none}.account-dropdown a,.account-dropdown button{display:flex;width:100%;padding:11px 12px;border:0;border-radius:7px;background:transparent;color:var(--text-main);font:600 13px Manrope,Inter,sans-serif;text-align:left;text-decoration:none;cursor:pointer}.account-dropdown a:hover,.account-dropdown button:hover,.account-dropdown a:focus-visible,.account-dropdown button:focus-visible{outline:0;background:rgba(201,162,77,.14);color:var(--primary)}.account-dropdown button{color:#f2a5a5}.mobile-account-actions{display:none}
 .hero{padding-top:150px;min-height:780px;background:radial-gradient(circle at 73% 35%,rgba(201,162,77,.1),transparent 34%),var(--bg-dark)}
 .hero-grid{align-items:center}.hero-title{font-size:clamp(58px,5.7vw,82px);line-height:.98;letter-spacing:-.025em;max-width:750px}.hero-title span{color:var(--primary)}.hero-subtitle{font-size:18px;line-height:1.7;max-width:650px;color:var(--text-muted)}
 .hero-actions .btn{border-radius:9px;padding:14px 23px;transition:transform .2s ease,background .2s ease}.hero-actions .btn:hover{transform:translateY(-2px)}.hero-actions .btn-primary{color:#0b0a08;box-shadow:none}.hero-actions .btn-glass{background:transparent;border:1px solid var(--primary);color:var(--primary)}.pulse-primary{animation:none!important}
@@ -3857,6 +3858,26 @@ iframe {
   .nav-actions .btn-login,
   .nav-actions #wishlist-trigger {
     display: none !important;
+  }
+
+  .mobile-account-actions {
+    display: block;
+    border-top: 1px solid var(--border-glass);
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .mobile-account-actions .nav-link {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .mobile-account-actions .mobile-logout {
+    color: #f2a5a5;
+    cursor: pointer;
   }
 
   .hero {

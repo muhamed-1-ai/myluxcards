@@ -36,6 +36,31 @@ class LuxApp {
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
     button.setAttribute('aria-label', `Signed in as ${user.name || user.email}`);
+    button.setAttribute('aria-expanded', 'false');
+    this.updateMobileAccountMenu(user);
+  }
+
+  updateMobileAccountMenu(user) {
+    const nav = document.getElementById('nav-menu');
+    if (!nav || !user) return;
+    nav.querySelector('.mobile-account-actions')?.remove();
+    const item = document.createElement('li');
+    item.className = 'mobile-account-actions';
+    item.innerHTML = `<a href="/dashboard" class="nav-link">${user.name?.split(' ')[0] || 'Account'} dashboard</a><button type="button" class="nav-link mobile-logout">Log out</button>`;
+    nav.appendChild(item);
+    item.querySelector('.mobile-logout')?.addEventListener('click', () => this.logout());
+  }
+
+  async logout() {
+    const button = document.getElementById('account-logout');
+    if (button) button.disabled = true;
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      localStorage.removeItem('myluxcards_current_user');
+      sessionStorage.removeItem('myluxcards_auth_next');
+      window.location.replace('/');
+    }
   }
 
   init() {
@@ -1216,10 +1241,38 @@ class LuxApp {
     });
 
     // Trigger login modal
-    document.getElementById('login-trigger')?.addEventListener('click', () => {
+    document.getElementById('login-trigger')?.addEventListener('click', (event) => {
       const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
-      if (currentUser) return;
+      if (currentUser) {
+        event.stopPropagation();
+        const dropdown = document.getElementById('account-dropdown');
+        const button = event.currentTarget;
+        const opening = dropdown?.hidden ?? true;
+        if (dropdown) dropdown.hidden = !opening;
+        button.setAttribute('aria-expanded', String(opening));
+        return;
+      }
       document.getElementById('login-modal')?.classList.add('open');
+    });
+
+    document.getElementById('account-logout')?.addEventListener('click', () => this.logout());
+    document.addEventListener('click', (event) => {
+      const menu = document.getElementById('account-menu');
+      const dropdown = document.getElementById('account-dropdown');
+      const button = document.getElementById('login-trigger');
+      if (!menu?.contains(event.target) && dropdown && !dropdown.hidden) {
+        dropdown.hidden = true;
+        button?.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      const dropdown = document.getElementById('account-dropdown');
+      if (dropdown && !dropdown.hidden) {
+        dropdown.hidden = true;
+        document.getElementById('login-trigger')?.setAttribute('aria-expanded', 'false');
+        document.getElementById('login-trigger')?.focus();
+      }
     });
 
     document.getElementById('dashboard-nav-link')?.addEventListener('click', async (event) => {
