@@ -619,7 +619,48 @@ function AppearanceForm({ draft, update, handleFile }: any) {
 function Field({ label, error, wide, children }: { label: string; error?: string; wide?: boolean; children: React.ReactNode }) {
   return <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}><span>{label}</span>{children}{error && <em>{error}</em>}</label>;
 }
+
 function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }) {
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState("");
+
+  useEffect(() => {
+    setQrOpen(false);
+    setQrSvg(null);
+    setQrError("");
+  }, [card.slug]);
+
+  const openQr = async () => {
+    setQrOpen(true);
+    if (qrSvg) return;
+    setQrLoading(true);
+    setQrError("");
+    try {
+      const res = await fetch(`/api/cards/qr?slug=${encodeURIComponent(card.slug)}`);
+      if (!res.ok) throw new Error("QR request failed");
+      setQrSvg(await res.text());
+    } catch {
+      setQrError("Could not generate the QR code. Please try again.");
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const downloadQr = () => {
+    if (!qrSvg) return;
+    const blob = new Blob([qrSvg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mylux-qr-${card.slug}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   const contact = [
     ["☎", "Mobile", card.mobile ? `${card.countryCode} ${card.mobile}` : ""], ["✉", "Email", card.email],
     ["⌁", "Website", card.website], ["◉", "WhatsApp", card.whatsapp ? `${card.countryCode} ${card.whatsapp}` : ""],
@@ -634,7 +675,26 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
     ["Google Maps", "maps"],
   ].map(([name, brand]) => ({ name, brand, url: card.social[name] })).filter((item) => item.url);
   return <aside className="preview-panel">
-    <div className="url-card"><div><span>Your Card URL</span><button className="public-url" type="button" onClick={()=>onOpen(card)}>myluxcards.com/card/{card.slug}</button></div><button className="view-card-link" type="button" onClick={()=>onOpen(card)}>View Card ↗</button></div>
+    {qrOpen && (
+      <div className="qr-modal-overlay" onClick={() => setQrOpen(false)}>
+        <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
+          <button className="qr-modal-close" type="button" onClick={() => setQrOpen(false)} aria-label="Close">✕</button>
+          <div className="qr-modal-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
+            QR Code
+          </div>
+          <p className="qr-modal-slug">myluxcards.com/card/{card.slug}</p>
+          <div className="qr-modal-img">
+            {qrLoading ? <span className="qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="qr-loading">{qrError || "QR code unavailable"}</span>}
+          </div>
+          <div className="qr-modal-actions">
+            {qrError ? <button type="button" className="qr-download-btn" onClick={openQr} disabled={qrLoading}>Try again</button> : <button type="button" className="qr-download-btn" onClick={downloadQr} disabled={!qrSvg}>Download SVG</button>}
+            <a className="qr-open-link" href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">Open Card ↗</a>
+          </div>
+        </div>
+      </div>
+    )}
+    <div className="url-card"><div><span>Your Card URL</span><button className="public-url" type="button" onClick={()=>onOpen(card)}>myluxcards.com/card/{card.slug}</button></div><div className="url-card-actions"><button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg> QR</button><button className="view-card-link" type="button" onClick={()=>onOpen(card)}>View Card ↗</button></div></div>
     <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#d4af37", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
       <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
       <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{transform:`scale(${(card.coverScale ?? 100)/100}) rotate(${card.coverRotation ?? 0}deg)`,objectPosition:`${card.coverX ?? 50}% ${card.coverY ?? 50}%`}} /> : <span>MYLUX</span>}</div>
