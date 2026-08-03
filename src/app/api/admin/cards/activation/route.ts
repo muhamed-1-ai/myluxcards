@@ -4,6 +4,7 @@ import { cleanSlug, hashActivationCode } from "@/lib/cards";
 import { supabaseJson } from "@/lib/supabaseAuth";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const actor = await requireAdmin();
@@ -37,7 +38,7 @@ export async function GET() {
       created_at: owner.created_at,
       updated_at: owner.created_at,
     }));
-    return Response.json({ data: [...cardRows, ...customersWithoutCards] });
+    return Response.json({ data: [...cardRows, ...customersWithoutCards] }, { headers:{ "Cache-Control":"private, no-store, max-age=0" } });
   } catch (error) { return safeError(error); }
 }
 

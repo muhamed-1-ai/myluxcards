@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
 type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
@@ -10,14 +10,30 @@ const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   const [section,setSection]=useState<Section>("overview"), [mobile,setMobile]=useState(false);
   const [data,setData]=useState<any>(null), [loading,setLoading]=useState(true), [error,setError]=useState(""), [search,setSearch]=useState("");
+  const loadVersion=useRef(0);
   const load=useCallback(async()=>{
+    const version=++loadVersion.current;
     setLoading(true);setError("");
     const path=section==="overview"?"dashboard":section==="activations"?"cards/activation":section;
     try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
-      setData(await response.json());
-    } catch(e){setError(e instanceof Error?e.message:"Could not load this section.")} finally{setLoading(false)}
+      let payload=await response.json();
+      if(section==="activations"){
+        // Cross-check the canonical customer list. This makes the activation
+        // screen resilient if a card query or deployment cache returns an
+        // incomplete owner list, while retaining every existing card row.
+        const customerResponse=await fetch("/api/admin/customers",{cache:"no-store"});
+        if(customerResponse.status===403){window.location.replace("/forbidden");return}
+        if(!customerResponse.ok)throw new Error((await customerResponse.json()).message||"Customers could not be loaded.");
+        const customerPayload=await customerResponse.json();
+        const activationRows:Row[]=Array.isArray(payload?.data)?payload.data:[];
+        const represented=new Set(activationRows.map(row=>String(row.owner_id||row.owner?.id||"")));
+        const missing=(Array.isArray(customerPayload?.data)?customerPayload.data:[]).filter((customer:Row)=>!represented.has(String(customer.id))).map((customer:Row)=>({id:`customer-${customer.id}`,owner_id:customer.id,owner:customer,cardMissing:true,active:false,activated_at:null,hasActivationCode:false,created_at:customer.created_at,updated_at:customer.created_at}));
+        payload={...payload,data:[...activationRows,...missing]};
+      }
+      if(version===loadVersion.current)setData(payload);
+    } catch(e){if(version===loadVersion.current)setError(e instanceof Error?e.message:"Could not load this section.")} finally{if(version===loadVersion.current)setLoading(false)}
   },[section,search]);
   useEffect(()=>{const requested=new URLSearchParams(window.location.search).get("section") as Section|null;if(requested&&Object.hasOwn(labels,requested))setSection(requested)},[]);
   useEffect(()=>{load()},[load]);

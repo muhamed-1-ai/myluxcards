@@ -9,6 +9,7 @@ const publicCard = readFileSync("src/app/api/cards/public/[slug]/route.ts","utf8
 const activation = readFileSync("src/app/api/admin/cards/activation/route.ts","utf8");
 const customerActivation = readFileSync("src/app/api/cards/activate/route.ts","utf8");
 const dashboard = readFileSync("src/app/dashboard/DashboardDemo.tsx","utf8");
+const dashboardAdmin = readFileSync("src/app/admin/AdminApp.tsx","utf8");
 const cardLibrary = readFileSync("src/lib/cards.ts","utf8");
 
 test("digital card data is owner scoped and protected by RLS", () => {
@@ -30,6 +31,8 @@ test("activation stores a hash and requires an administrator to provision", () =
   assert.match(activation,/role=eq\.CUSTOMER/);
   assert.match(activation,/customersWithoutCards/);
   assert.match(activation,/owner_id: ownerId/);
+  assert.match(activation,/force-dynamic/);
+  assert.match(dashboardAdmin,/fetch\("\/api\/admin\/customers",\{cache:"no-store"\}\)/);
 });
 
 test("replacing an activation code never switches a working card off", () => {
