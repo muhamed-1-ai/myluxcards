@@ -11,6 +11,8 @@ const customerActivation = readFileSync("src/app/api/cards/activate/route.ts","u
 const dashboard = readFileSync("src/app/dashboard/DashboardDemo.tsx","utf8");
 const dashboardAdmin = readFileSync("src/app/admin/AdminApp.tsx","utf8");
 const cardLibrary = readFileSync("src/lib/cards.ts","utf8");
+const publicCardClient = readFileSync("src/app/card/[slug]/PublicCardClient.tsx","utf8");
+const cardQr = readFileSync("src/app/api/cards/qr/route.ts","utf8");
 
 test("digital card data is owner scoped and protected by RLS", () => {
   assert.match(migration,/digital_cards_owner_read/);
@@ -84,4 +86,16 @@ test("dashboard logout, uploads, and deletion use secure server state", () => {
   assert.match(dashboard, /fetchWithSessionRefresh\("\/api\/media"/);
   assert.match(dashboard, /const remaining = cards\.filter\(card=>card\.id!==cardId\)/);
   assert.match(dashboard, /if \(!response\.ok\) \{ notify\(payload\.message \|\| "Card could not be removed\."\); return; \}/);
+});
+
+test("card QR generation is stable across loading and supports recovery", () => {
+  assert.ok(
+    publicCardClient.indexOf("const [qrOpen, setQrOpen] = useState(false)") < publicCardClient.indexOf("if (!loaded) return"),
+    "QR hooks must run before the public card's conditional returns",
+  );
+  assert.match(publicCardClient, /setQrError\("Could not generate the QR code\. Please try again\."\)/);
+  assert.match(publicCardClient, />Try again<\/button>/);
+  assert.match(dashboard, /setQrSvg\(null\);[\s\S]*\}, \[card\.slug\]\)/);
+  assert.match(cardQr, /QRCode\.toString\(cardUrl/);
+  assert.match(cardQr, /Content-Type": "image\/svg\+xml"/);
 });

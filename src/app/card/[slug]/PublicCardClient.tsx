@@ -20,6 +20,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [loadMessage, setLoadMessage] = useState("");
   const [loadReason, setLoadReason] = useState("");
   const [showStatusBubble, setShowStatusBubble] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +108,35 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     track("CONTACT_SAVE");
   };
 
+  const openQr = async () => {
+    setQrOpen(true);
+    if (qrSvg) return;
+    setQrLoading(true);
+    setQrError("");
+    try {
+      const res = await fetch(`/api/cards/qr?slug=${encodeURIComponent(slug)}`);
+      if (!res.ok) throw new Error("QR request failed");
+      setQrSvg(await res.text());
+    } catch {
+      setQrError("Could not generate the QR code. Please try again.");
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const downloadQr = () => {
+    if (!qrSvg) return;
+    const blob = new Blob([qrSvg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mylux-qr-${slug}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   /* Social platform metadata */
   const SOCIAL: Record<string, { subtitle: string; icon: React.ReactNode; iconBg: string }> = {
     Facebook:          { subtitle: "Follow me",              icon: <FacebookIcon />,    iconBg: "#1877f2" },
@@ -181,10 +214,35 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         </div>
       </div>
 
+      {/* ── QR Code modal ── */}
+      {qrOpen && (
+        <div className="pc-qr-overlay" onClick={() => setQrOpen(false)} role="dialog" aria-modal="true" aria-label="QR Code">
+          <div className="pc-qr-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="pc-qr-close" type="button" onClick={() => setQrOpen(false)} aria-label="Close">×</button>
+            <p className="pc-qr-title">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden style={{flexShrink:0}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
+              Scan to visit this card
+            </p>
+            <div className="pc-qr-img">
+              {qrLoading ? <span className="pc-qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="pc-qr-loading">{qrError || "QR code unavailable"}</span>}
+            </div>
+            <p className="pc-qr-url">{typeof window !== "undefined" ? window.location.href : ""}</p>
+            <div className="pc-qr-actions">
+              {qrError && <button type="button" className="pc-qr-download" onClick={openQr} disabled={qrLoading}>Try again</button>}
+              {!qrError && <button type="button" className="pc-qr-download" onClick={downloadQr} disabled={!qrSvg}>Download QR</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Action buttons ── */}
       <div className="pc-actions">
         <button className="pc-action-btn" onClick={saveContact}>Save Contact</button>
         <button className="pc-action-btn" onClick={() => { track("SHARE"); void share(); }}>Share</button>
+        <button className="pc-action-btn pc-action-qr" onClick={openQr}>
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{flexShrink:0,verticalAlign:"middle"}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
+          {" "}QR Code
+        </button>
         {card.brochure && (
           <a
             className="pc-action-btn"
