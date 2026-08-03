@@ -29,9 +29,9 @@ export async function POST(request:Request){
   try{
     const body=await request.json().catch(()=>({}));
     const customer=body.customer||{}, address=body.shippingAddress||{};
-    const name=clean(customer.name,120), email=clean(customer.email,254).toLowerCase(), phone=clean(customer.phone,30);
+    const name=clean(customer.name,120), jobTitle=clean(customer.jobTitle,100), email=clean(customer.email,254).toLowerCase(), phone=clean(customer.phone,30);
     if(name.length<2||email!==identity.email.toLowerCase()||!/^\S+@\S+\.\S+$/.test(email)||phone.length<7)return Response.json({message:"Enter the signed-in customer's valid name, email, and phone number."},{status:400});
-    const shippingAddress={line1:clean(address.line1,200),line2:clean(address.line2,200),city:clean(address.city,100),state:clean(address.state,100),postalCode:clean(address.postalCode,20),country:clean(address.country,100)};
+    const shippingAddress={jobTitle,line1:clean(address.line1,200),line2:clean(address.line2,200),city:clean(address.city,100),state:clean(address.state,100),postalCode:clean(address.postalCode,20),country:clean(address.country,100)};
     if(!shippingAddress.line1||!shippingAddress.city||!shippingAddress.state||!shippingAddress.postalCode||!shippingAddress.country)return Response.json({message:"Complete all required delivery-address fields."},{status:400});
     const method=clean(body.paymentMethod,40);if(!methods.has(method))return Response.json({message:"Choose a valid payment method."},{status:400});
     if(!Array.isArray(body.items)||!body.items.length||body.items.length>20)return Response.json({message:"Your cart is empty or too large."},{status:400});

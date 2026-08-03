@@ -649,7 +649,7 @@ class LuxApp {
     const payload = {
       paymentMethod: method,
       couponCode: value('checkout-coupon'),
-      customer: { name:value('checkout-name'), email:value('checkout-email'), phone:value('checkout-phone') },
+      customer: { name:value('checkout-name'), jobTitle:value('checkout-job-title'), email:value('checkout-email'), phone:value('checkout-phone') },
       shippingAddress: { line1:value('checkout-address1'), line2:value('checkout-address2'), city:value('checkout-city'), state:value('checkout-state'), postalCode:value('checkout-postal'), country:value('checkout-country') },
       items: this.state.cart.map(item => ({ id:String(item.id), quantity:Number(item.quantity)||1, details:item.details||'', design:item.design||{} })),
     };
