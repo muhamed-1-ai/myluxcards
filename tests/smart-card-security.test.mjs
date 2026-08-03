@@ -46,8 +46,9 @@ test("profile autosave cannot silently change publication status", () => {
   assert.match(cards, /body\.updateActive === true/);
   assert.match(cards, /body\.toggleActive === true/);
   assert.match(cards, /active:!Boolean\(card\.active\)/);
+  assert.match(cards, /slug=eq\.\$\{encodeURIComponent\(statusSlug\)\}&owner_id=eq\.\$\{identity\.id\}/);
   assert.match(dashboard, /toggleActive:true/);
-  assert.match(dashboard, /JSON\.stringify\(\{id:card\.id,toggleActive:true\}\)/);
+  assert.match(dashboard, /JSON\.stringify\(\{id:card\.id,slug:card\.slug,toggleActive:true\}\)/);
 });
 
 test("dashboard warns about inactive cards and automatically saves edits", () => {
