@@ -10,6 +10,7 @@ const notifications = readFileSync(new URL("../src/lib/orderNotifications.ts", i
 const orders = readFileSync(new URL("../src/app/api/admin/orders/route.ts", import.meta.url), "utf8");
 const support = readFileSync(new URL("../src/app/api/support/route.ts", import.meta.url), "utf8");
 const publicApp = readFileSync(new URL("../public/js/app.js", import.meta.url), "utf8");
+const customerDetail = readFileSync(new URL("../src/app/api/admin/customers/[id]/route.ts", import.meta.url), "utf8");
 
 test("public signup fixes the role server-side", () => {
   assert.match(signup, /role:\s*"CUSTOMER"/);
@@ -57,4 +58,11 @@ test("support submissions create rate-limited admin notifications", () => {
   const handler = publicApp.slice(publicApp.indexOf("async handleSupportTicket"), publicApp.indexOf("handleReviewSubmission"));
   assert.match(handler, /if \(!response\.ok\) throw/);
   assert.doesNotMatch(handler, /submitted successfully/);
+});
+test("customer detail records require admin access and stay scoped to one customer", () => {
+  assert.match(customerDetail, /requireAdmin\(\)/);
+  assert.match(customerDetail, /id=eq\.\$\{id\}&role=eq\.CUSTOMER/);
+  assert.match(customerDetail, /owner_id=eq\.\$\{id\}/);
+  assert.match(customerDetail, /customer_id=eq\.\$\{id\}/);
+  assert.doesNotMatch(customerDetail, /password_hash|encrypted_password/);
 });
