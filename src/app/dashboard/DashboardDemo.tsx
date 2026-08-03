@@ -296,7 +296,8 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     return () => window.clearTimeout(timer);
   }, [draft, authReady, currentUser]);
   const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
-  const logout = () => {
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method:"POST" }).catch(()=>null);
     localStorage.removeItem("myluxcards_current_user");
     window.location.replace("/");
   };
@@ -324,7 +325,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     const form = new FormData(); form.append("file", file); form.append("kind", kind);
     notify("Uploading securely…");
     try {
-      const response = await fetch("/api/media", { method:"POST", body:form });
+      const response = await fetchWithSessionRefresh("/api/media", { method:"POST", body:form });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.message || "Upload failed.");
       if (kind === "brochure") setDraft(old => ({ ...old, brochure:file.name, brochureData:payload.url }));
@@ -332,6 +333,19 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       notify("Upload complete. Press Save & Finish to publish it.");
     } catch (error) { notify(error instanceof Error ? error.message : "Upload failed."); }
     finally { event.target.value = ""; }
+  };
+  const clearCard = async (cardId:string) => {
+    if (/^[0-9a-f-]{36}$/i.test(cardId)) {
+      const response = await fetchWithSessionRefresh("/api/cards", { method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:cardId}) });
+      const payload = await response.json().catch(()=>({}));
+      if (!response.ok) { notify(payload.message || "Card could not be removed."); return; }
+    }
+    const remaining = cards.filter(card=>card.id!==cardId);
+    const next = remaining[0] || createBlankCard(identity);
+    const nextCards = remaining.length ? remaining : [next];
+    setCards(nextCards); setDraft(next); setSelectedId(next.id);
+    cacheCards(identity.email, nextCards);
+    setDeleteId(null); setSaveStatus("saved"); notify("Card removed.");
   };
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
@@ -435,7 +449,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       {activationPrompt && <div className="modal-back"><div className="confirm activation-confirm" role="dialog" aria-modal="true" aria-labelledby="activation-title"><i>!</i><h2 id="activation-title">{promptCard.activatedAt?"Your card is switched off":"Your card is not active yet"}</h2><p>{promptCard.activatedAt?"Visitors cannot view this card while it is switched off. Turn it on under My Cards when you are ready to publish it.":<>Visitors cannot view this card until you activate it using its one-time activation code. You’ll find the activation box under <strong>My Cards</strong>.</>}</p><div><button onClick={() => setActivationPrompt(false)}>Later</button><button className="activation-primary" onClick={()=>{if(promptCard.activatedAt){setActivationPrompt(false);selectTab("cards")}else goToActivation()}}>{promptCard.activatedAt?"Go to status switch":"Activate card now"}</button></div></div></div>}
-      {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Clear this card?</h2><p>This removes your saved card information. Your account name will remain.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={async () => { if(/^[0-9a-f-]{36}$/i.test(deleteId)) await fetch("/api/cards",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:deleteId})}); const blank = createBlankCard(currentUser); setCards([blank]); setDraft(blank); setSelectedId(blank.id); localStorage.removeItem(storageKey(currentUser.email)); setDeleteId(null); notify("Saved card information cleared."); }}>Clear card</button></div></div></div>}
+      {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Remove this card?</h2><p>This permanently removes only this card. Your other cards and account remain unchanged.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={()=>clearCard(deleteId)}>Remove card</button></div></div></div>}
     </div>
   );
 }

@@ -40,3 +40,9 @@ test("support replies require an admin and preserve an audit record", () => {
   assert.match(adminSupport, /SUPPORT_TICKET_UPDATED/);
   assert.match(migration, /support_ticket_replies/);
 });
+
+test("support replies remain recorded when outbound email is unavailable", () => {
+  assert.match(adminSupport, /const replyAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(adminSupport, /changes\.last_reply_at = replyAt/);
+  assert.doesNotMatch(adminSupport, /Email delivery is not configured.*status:503/);
+});

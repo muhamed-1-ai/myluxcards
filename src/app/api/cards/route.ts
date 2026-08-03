@@ -81,7 +81,8 @@ export async function DELETE(request: Request) {
     const body = await request.json().catch(() => ({}));
     const id = String(body.id || "");
     if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ message: "Invalid card." }, { status: 400 });
-    await supabaseJson(`/rest/v1/digital_cards?id=eq.${id}&owner_id=eq.${identity.id}`, { method:"DELETE" }, true);
+    const removed = await supabaseJson(`/rest/v1/digital_cards?id=eq.${id}&owner_id=eq.${identity.id}`, { method:"DELETE" }, true);
+    if (!removed.data?.length) return Response.json({ message:"Card not found or already removed." }, { status:404 });
     return Response.json({ ok:true });
   } catch (error) { return safeError(error); }
 }

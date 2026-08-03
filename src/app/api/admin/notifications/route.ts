@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const pageSize = Math.min(100, Math.max(10, Number(url.searchParams.get("pageSize")) || 25));
     const from = (page - 1) * pageSize;
     const { data, response } = await supabaseJson(
-      "/rest/v1/admin_notifications?select=id,type,title,message,order_id,read_at,emailed_at,created_at&order=created_at.desc",
+      "/rest/v1/admin_notifications?select=id,type,title,message,order_id,read_at,email_recipient,emailed_at,email_error,created_at&order=created_at.desc",
       { headers: { Prefer: "count=exact", Range: `${from}-${from + pageSize - 1}` } },
       true,
     );

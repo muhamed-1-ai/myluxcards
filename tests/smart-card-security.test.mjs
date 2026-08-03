@@ -64,3 +64,10 @@ test("dashboard identity and card ownership come from the authenticated server",
   assert.match(dashboard, /cloud account owns no cards/);
   assert.match(dashboard, /activeCards = cards\.filter\(\(card\) => card\.active && card\.activatedAt\)/);
 });
+
+test("dashboard logout, uploads, and deletion use secure server state", () => {
+  assert.match(dashboard, /fetch\("\/api\/auth\/logout", \{ method:"POST" \}\)/);
+  assert.match(dashboard, /fetchWithSessionRefresh\("\/api\/media"/);
+  assert.match(dashboard, /const remaining = cards\.filter\(card=>card\.id!==cardId\)/);
+  assert.match(dashboard, /if \(!response\.ok\) \{ notify\(payload\.message \|\| "Card could not be removed\."\); return; \}/);
+});
