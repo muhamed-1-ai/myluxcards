@@ -57,3 +57,10 @@ test("dashboard warns about inactive cards and automatically saves edits", () =>
   assert.match(dashboard, /window\.setTimeout\(\(\) => \{ void save\("dashboard", undefined, true\); \}, 1200\)/);
   assert.match(dashboard, /Cloud save failed/);
 });
+
+test("dashboard identity and card ownership come from the authenticated server", () => {
+  assert.match(dashboard, /DashboardDemo\(\{identity\}/);
+  assert.match(dashboard, /const user = identity/);
+  assert.match(dashboard, /cloud account owns no cards/);
+  assert.match(dashboard, /activeCards = cards\.filter\(\(card\) => card\.active && card\.activatedAt\)/);
+});

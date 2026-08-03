@@ -79,7 +79,7 @@ const createBlankCard = (user: CurrentUser): Card => {
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
-    views: 0, active: true,
+    views: 0, active: false,
   };
 };
 const emptyCard = createBlankCard({ name: "", email: "" });
@@ -125,7 +125,7 @@ const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight:
     image.src = source;
   });
 };
-export default function DashboardDemo() {
+export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
@@ -154,11 +154,8 @@ export default function DashboardDemo() {
 
   useEffect(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("myluxcards_current_user") || "null");
-      if (!user?.email) {
-        window.location.replace("/?login=1");
-        return;
-      }
+      const user = identity;
+      localStorage.setItem("myluxcards_current_user", JSON.stringify(user));
       setCurrentUser(user);
       const key = storageKey(user.email);
       const stored = localStorage.getItem(key);
@@ -194,8 +191,17 @@ export default function DashboardDemo() {
           setDraft(cloudCards[0]);
           lastSavedRef.current = JSON.stringify(cloudCards[0]);
           cacheCards(user.email, cloudCards);
+        } else {
+          // The secure cloud account owns no cards. Never keep displaying a
+          // cached card from an old session/account as if it were cloud-backed.
+          const blank = createBlankCard(user);
+          setCards([blank]);
+          setSelectedId(blank.id);
+          setDraft(blank);
+          lastSavedRef.current = JSON.stringify(blank);
+          cacheCards(user.email, [blank]);
         }
-      }).catch(() => {});
+      }).catch(() => { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); });
     } catch {
       localStorage.removeItem("myluxcards_current_user");
       window.location.replace("/?login=1");
@@ -204,7 +210,7 @@ export default function DashboardDemo() {
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("tab") === "cards") setTab("cards");
-  }, []);
+  }, [identity]);
 
   useEffect(() => {
     if (!cloudReady || !cards.some((card) => !card.activatedAt)) return;
@@ -329,7 +335,7 @@ export default function DashboardDemo() {
   };
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
-  const activeCards = cards.filter((card) => card.active).length;
+  const activeCards = cards.filter((card) => card.active && card.activatedAt).length;
   const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
   const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
   const filtered = useMemo(() => cards.filter((card) =>
