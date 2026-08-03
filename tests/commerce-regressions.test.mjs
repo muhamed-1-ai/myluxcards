@@ -35,3 +35,10 @@ test("public card content filters unsafe URLs and image payloads", () => {
   assert.doesNotMatch(cardsLibrary, /image\/svg\+xml/);
   assert.match(cardsLibrary, /\.\.\.cleanCardProfile\(row\.profile/);
 });
+
+test("authenticated account button opens a real logout menu", () => {
+  assert.match(publicApp, /accountDropdown\.hidden = !opening/);
+  assert.match(publicApp, /fetch\('\/api\/auth\/logout', \{ method: 'POST' \}\)/);
+  assert.match(publicApp, /localStorage\.removeItem\('myluxcards_current_user'\)/);
+  assert.match(publicApp, /event\.key === 'Escape'/);
+});

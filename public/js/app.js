@@ -40,7 +40,7 @@ class LuxApp {
     button.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1);
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
-    button.setAttribute('aria-label', `Open dashboard for ${user.name || user.email}`);
+    button.setAttribute('aria-label', `Open account menu for ${user.name || user.email}`);
   }
 
   init() {
@@ -1469,13 +1469,40 @@ class LuxApp {
     });
 
     // Trigger login modal
-    document.getElementById('login-trigger')?.addEventListener('click', () => {
+    const accountButton = document.getElementById('login-trigger');
+    const accountMenu = document.getElementById('account-menu');
+    const accountDropdown = document.getElementById('account-dropdown');
+    const closeAccountMenu = () => {
+      if (accountDropdown) accountDropdown.hidden = true;
+      accountButton?.setAttribute('aria-expanded', 'false');
+    };
+    accountButton?.addEventListener('click', () => {
       const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
       if (currentUser) {
-        window.location.href = '/dashboard';
+        const opening = accountDropdown?.hidden !== false;
+        if (accountDropdown) accountDropdown.hidden = !opening;
+        accountButton.setAttribute('aria-expanded', String(opening));
         return;
       }
       document.getElementById('login-modal')?.classList.add('open');
+    });
+    document.getElementById('account-logout')?.addEventListener('click', async () => {
+      const logoutButton = document.getElementById('account-logout');
+      if (logoutButton) { logoutButton.disabled = true; logoutButton.textContent = 'Logging out…'; }
+      try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (_) { /* Local session is still cleared below. */ }
+      localStorage.removeItem('myluxcards_current_user');
+      sessionStorage.removeItem('myluxcards_auth_next');
+      closeAccountMenu();
+      window.location.replace('/');
+    });
+    document.addEventListener('click', event => {
+      if (accountMenu && !accountMenu.contains(event.target)) closeAccountMenu();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && accountDropdown?.hidden === false) {
+        closeAccountMenu();
+        accountButton?.focus();
+      }
     });
 
     const switchAuthModal = (fromId, toId) => {
