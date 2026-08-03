@@ -32,6 +32,17 @@ export async function PUT(request: Request) {
   if (!identity) return Response.json({ message: "Sign in required." }, { status: 401 });
   try {
     const body = await request.json().catch(() => ({}));
+    if (body.toggleActive === true) {
+      const id = String(body.id || "");
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ message:"Invalid card." }, { status:400 });
+      const current = await supabaseJson(`/rest/v1/digital_cards?id=eq.${encodeURIComponent(id)}&owner_id=eq.${identity.id}&select=*&limit=1`, {}, true);
+      const card = current.data?.[0];
+      if (!card) return Response.json({ message:"Card not found." }, { status:404 });
+      if (!card.activated_at) return Response.json({ message:"Activate this card with its one-time code before publishing it." }, { status:409 });
+      const changed = await supabaseJson(`/rest/v1/digital_cards?id=eq.${encodeURIComponent(id)}&owner_id=eq.${identity.id}`, { method:"PATCH", body:JSON.stringify({ active:!Boolean(card.active), updated_at:new Date().toISOString() }) }, true);
+      const row = changed.data?.[0];
+      return Response.json({ card:{ id:row.id,ownerId:identity.id,slug:row.slug,...row.profile,active:row.active,activatedAt:row.activated_at } });
+    }
     const slug = cleanSlug(body.slug);
     if (slug.length < 3) return Response.json({ message: "Choose a valid card URL." }, { status: 400 });
     const profile = cleanCardProfile(body);

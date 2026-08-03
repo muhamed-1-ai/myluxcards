@@ -45,8 +45,9 @@ test("activated cards stay published until the customer manually changes status"
 test("profile autosave cannot silently change publication status", () => {
   assert.match(cards, /body\.updateActive === true/);
   assert.match(cards, /body\.toggleActive === true/);
-  assert.match(dashboard, /updateActive:true/);
+  assert.match(cards, /active:!Boolean\(card\.active\)/);
   assert.match(dashboard, /toggleActive:true/);
+  assert.match(dashboard, /JSON\.stringify\(\{id:card\.id,toggleActive:true\}\)/);
 });
 
 test("dashboard warns about inactive cards and automatically saves edits", () => {
