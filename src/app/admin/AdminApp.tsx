@@ -28,9 +28,20 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
         if(!customerResponse.ok)throw new Error((await customerResponse.json()).message||"Customers could not be loaded.");
         const customerPayload=await customerResponse.json();
         const activationRows:Row[]=Array.isArray(payload?.data)?payload.data:[];
-        const represented=new Set(activationRows.map(row=>String(row.owner_id||row.owner?.id||"")));
-        const missing=(Array.isArray(customerPayload?.data)?customerPayload.data:[]).filter((customer:Row)=>!represented.has(String(customer.id))).map((customer:Row)=>({id:`customer-${customer.id}`,owner_id:customer.id,owner:customer,cardMissing:true,active:false,activated_at:null,hasActivationCode:false,created_at:customer.created_at,updated_at:customer.created_at}));
-        payload={...payload,data:[...activationRows,...missing]};
+        const cardsByCustomer=new Map<string,Row>();
+        for(const row of activationRows){
+          if(row.cardMissing)continue;
+          const ownerId=String(row.owner_id||row.owner?.id||"");
+          if(ownerId&&!cardsByCustomer.has(ownerId))cardsByCustomer.set(ownerId,row);
+        }
+        // Customers are the source of truth for this screen: exactly one row
+        // per registered customer, with their first card attached when one
+        // exists and a provisioning action otherwise.
+        const customerRows=(Array.isArray(customerPayload?.data)?customerPayload.data:[]).map((customer:Row)=>{
+          const card=cardsByCustomer.get(String(customer.id));
+          return card?{...card,owner:customer}:{id:`customer-${customer.id}`,owner_id:customer.id,owner:customer,cardMissing:true,active:false,activated_at:null,hasActivationCode:false,created_at:customer.created_at,updated_at:customer.created_at};
+        });
+        payload={...payload,data:customerRows};
       }
       if(version===loadVersion.current)setData(payload);
     } catch(e){if(version===loadVersion.current)setError(e instanceof Error?e.message:"Could not load this section.")} finally{if(version===loadVersion.current)setLoading(false)}

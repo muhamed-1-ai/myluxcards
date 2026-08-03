@@ -33,6 +33,8 @@ test("activation stores a hash and requires an administrator to provision", () =
   assert.match(activation,/owner_id: ownerId/);
   assert.match(activation,/force-dynamic/);
   assert.match(dashboardAdmin,/fetch\("\/api\/admin\/customers",\{cache:"no-store"\}\)/);
+  assert.match(dashboardAdmin,/const customerRows=/);
+  assert.match(dashboardAdmin,/exactly one row/);
 });
 
 test("replacing an activation code never switches a working card off", () => {
