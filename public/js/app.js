@@ -1486,6 +1486,14 @@ class LuxApp {
       }
       document.getElementById('login-modal')?.classList.add('open');
     });
+    [['account-dashboard', '/dashboard'], ['account-orders', '/orders']].forEach(([id, destination]) => {
+      document.getElementById(id)?.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeAccountMenu();
+        window.location.assign(destination);
+      });
+    });
     document.getElementById('account-logout')?.addEventListener('click', async () => {
       const logoutButton = document.getElementById('account-logout');
       if (logoutButton) { logoutButton.disabled = true; logoutButton.textContent = 'Logging out…'; }

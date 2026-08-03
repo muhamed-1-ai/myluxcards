@@ -41,4 +41,7 @@ test("authenticated account button opens a real logout menu", () => {
   assert.match(publicApp, /fetch\('\/api\/auth\/logout', \{ method: 'POST' \}\)/);
   assert.match(publicApp, /localStorage\.removeItem\('myluxcards_current_user'\)/);
   assert.match(publicApp, /event\.key === 'Escape'/);
+  assert.match(publicApp, /\['account-dashboard', '\/dashboard'\]/);
+  assert.match(publicApp, /\['account-orders', '\/orders'\]/);
+  assert.match(publicApp, /window\.location\.assign\(destination\)/);
 });

@@ -126,7 +126,7 @@ const improvedMarkup = markup
   .replace(/<!-- Dark Mode Toggle -->[\s\S]*?<\/button>/, "")
   .replace(
     '<button class="btn btn-glass" id="login-trigger">Login</button>',
-    '<div class="account-menu" id="account-menu"><button class="btn btn-glass account-button" id="login-trigger" type="button" aria-haspopup="menu" aria-controls="account-dropdown" aria-expanded="false">Login</button><div class="account-dropdown" id="account-dropdown" role="menu" hidden><a href="/dashboard" role="menuitem">Dashboard</a><a href="/orders" role="menuitem">My orders</a><button id="account-logout" type="button" role="menuitem">Log out</button></div></div><a class="btn btn-primary nav-design-cta" href="#card-configurator">Design Your Card</a>',
+    '<div class="account-menu" id="account-menu"><button class="btn btn-glass account-button" id="login-trigger" type="button" aria-haspopup="menu" aria-controls="account-dropdown" aria-expanded="false">Login</button><div class="account-dropdown" id="account-dropdown" role="menu" hidden><a href="/dashboard" id="account-dashboard" role="menuitem">Dashboard</a><a href="/orders" id="account-orders" role="menuitem">My orders</a><button id="account-logout" type="button" role="menuitem">Log out</button></div></div><a class="btn btn-primary nav-design-cta" href="#card-configurator">Design Your Card</a>',
   )
   .replace(
     '<div class="payment-fields" id="payment-fields"><label for="checkout-contact">Email or mobile number</label><input id="checkout-contact" type="text" required placeholder="name@example.com or +91 98765 43210"></div>',
