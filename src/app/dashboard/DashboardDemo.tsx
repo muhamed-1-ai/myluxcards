@@ -82,10 +82,23 @@ const createBlankCard = (user: CurrentUser): Card => {
     views: 0, active: false,
   };
 };
+const normalizeCard = (value: Partial<Card> | null | undefined, user: CurrentUser): Card => {
+  const fallback = createBlankCard(user);
+  const card = value && typeof value === "object" ? value : {};
+  return {
+    ...fallback,
+    ...card,
+    social: { ...blankSocial, ...(card.social && typeof card.social === "object" ? card.social : {}) },
+    services: Array.isArray(card.services) ? card.services.filter((item): item is string => typeof item === "string") : [],
+    active: Boolean(card.active),
+    activatedAt: typeof card.activatedAt === "string" ? card.activatedAt : null,
+    analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
+  };
+};
 const emptyCard = createBlankCard({ name: "", email: "" });
 
 const I = ({ children }: { children: string }) => <span className="nav-icon" aria-hidden>{children}</span>;
-const fieldValue = (value: string) => value.trim();
+const fieldValue = (value: unknown) => String(value ?? "").trim();
 const validUrl = (value: string) => !value || /^https?:\/\/.+\..+/i.test(value);
 const normalizeActivationCode = (value: string) => {
   const typed = value.toUpperCase().replace(/[^0-9A-Z]/g, "");
@@ -165,7 +178,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         // This cache key is already scoped to the signed-in email. Cloud cards
         // intentionally use the account UUID as ownerId, so filtering ownerId
         // against the email incorrectly discarded valid cards after relogin.
-        if (Array.isArray(parsed)) accountCards = parsed;
+        if (Array.isArray(parsed)) accountCards = parsed.map((card) => normalizeCard(card, user));
       }
       const firstCard = accountCards[0] || createBlankCard(user);
       setCards(accountCards.length ? accountCards : [firstCard]);
@@ -182,7 +195,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         }
         if (!response.ok) { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); return; }
         const payload = await response.json();
-        const cloudCards = Array.isArray(payload.cards) ? payload.cards : [];
+        const cloudCards = Array.isArray(payload.cards) ? payload.cards.map((card:Partial<Card>) => normalizeCard(card, user)) : [];
         setLeads(Array.isArray(payload.leads) ? payload.leads : []);
         setCloudReady(true);
         if (cloudCards.length) {
@@ -455,7 +468,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Activation</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
               <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={()=>requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Activation">{card.activatedAt ? "Activated" : <button className="activation-required" onClick={()=>{setPromptCardId(card.id);setActivationPrompt(true)}}>Activate card</button>}</td><td data-label="Availability">{card.activatedAt ? card.active ? "Published until you switch it off" : "Switched off" : "Not published"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active&&card.activatedAt ? "on" : ""}`} aria-label={card.activatedAt ? `Toggle ${card.name}` : `Activate ${card.name}`} onClick={async () => { if (!card.activatedAt) { setPromptCardId(card.id);setActivationPrompt(true); return; } const response=await fetchWithSessionRefresh("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:card.id,slug:card.slug,toggleActive:true})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Status could not be changed.");return;}const confirmed={...card,...payload.card};lastSavedRef.current=JSON.stringify(confirmed);setCards(current=>current.map(item=>item.id===card.id?confirmed:item));if(selectedId===card.id)setDraft(confirmed);setSaveStatus("saved");notify(confirmed.active?"Card published.":"Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
-        <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Paste its unused one-time code. Spaces and copied dash styles are corrected automatically.</span></div><input value={activationCode} onChange={event=>setActivationCode(normalizeActivationCode(event.target.value))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={activating||!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{setActivating(true);try{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401){localStorage.removeItem("myluxcards_current_user");sessionStorage.setItem("myluxcards_auth_next","/dashboard?tab=cards");window.location.replace("/?login=1");return;}notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(!refreshed.ok||!cloud.cards?.length){notify("Card activated. Refreshing your secure dashboard…");window.location.reload();return;}setCards(cloud.cards);const claimed=cloud.cards.find((x:Card)=>x.id===payload.cardId)||cloud.cards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.email,cloud.cards);setActivationCode("");setSaveStatus("saved");notify(`/${payload.slug} is activated and published.`);}finally{setActivating(false)}}}>{activating?"Activating…":"Activate card"}</button></div>
+        <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Paste its unused one-time code. Spaces and copied dash styles are corrected automatically.</span></div><input value={activationCode} onChange={event=>setActivationCode(normalizeActivationCode(event.target.value))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={activating||!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{setActivating(true);try{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401){localStorage.removeItem("myluxcards_current_user");sessionStorage.setItem("myluxcards_auth_next","/dashboard?tab=cards");window.location.replace("/?login=1");return;}notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(!refreshed.ok||!cloud.cards?.length){notify("Card activated. Refreshing your secure dashboard…");window.location.reload();return;}const normalizedCards=cloud.cards.map((card:Partial<Card>)=>normalizeCard(card,identity));setCards(normalizedCards);const claimed=normalizedCards.find((x:Card)=>x.id===payload.cardId)||normalizedCards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.email,normalizedCards);setActivationCode("");setSaveStatus("saved");notify(`/${payload.slug} is activated and published.`);}finally{setActivating(false)}}}>{activating?"Activating…":"Activate card"}</button></div>
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}

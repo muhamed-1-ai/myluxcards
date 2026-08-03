@@ -72,6 +72,9 @@ test("dashboard identity and card ownership come from the authenticated server",
   assert.match(dashboard, /const user = identity/);
   assert.match(dashboard, /cloud account owns no cards/);
   assert.match(dashboard, /activeCards = cards\.filter\(\(card\) => card\.active && card\.activatedAt\)/);
+  assert.match(dashboard, /const normalizeCard =/);
+  assert.match(dashboard, /String\(value \?\? ""\)\.trim\(\)/);
+  assert.match(dashboard, /payload\.cards\.map\(\(card:Partial<Card>\) => normalizeCard\(card, user\)\)/);
 });
 
 test("dashboard logout, uploads, and deletion use secure server state", () => {
