@@ -53,6 +53,8 @@ test("profile autosave cannot silently change publication status", () => {
 
 test("dashboard warns about inactive cards and automatically saves edits", () => {
   assert.match(dashboard, /Your card is not active yet/);
+  assert.match(dashboard, /cards\.some\(\(card\) => Boolean\(card\.activatedAt\) && card\.active\)/);
+  assert.match(dashboard, /setActivationPrompt\(false\)/);
   assert.match(dashboard, /Your card is switched off/);
   assert.match(dashboard, /window\.setTimeout\(\(\) => \{ void save\("dashboard", undefined, true\); \}, 1200\)/);
   assert.match(dashboard, /Cloud save failed/);

@@ -213,14 +213,28 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   }, [identity]);
 
   useEffect(() => {
-    if (!cloudReady || !cards.some((card) => !card.activatedAt)) return;
+    if (!cloudReady || cards.some((card) => Boolean(card.activatedAt) && card.active)) return;
+    const cardNeedingActivation = cards.find((card) => !card.activatedAt);
+    if (!cardNeedingActivation) return;
     const promptKey = "myluxcards-activation-prompt-shown";
     if (!sessionStorage.getItem(promptKey)) {
       sessionStorage.setItem(promptKey, "1");
-      setPromptCardId(cards.find((card) => !card.activatedAt)?.id || null);
+      setPromptCardId(cardNeedingActivation.id);
       setActivationPrompt(true);
     }
   }, [cloudReady, cards]);
+
+  useEffect(() => {
+    if (!activationPrompt || !promptCardId) return;
+    const promptedCard = cards.find((card) => card.id === promptCardId);
+    // A cloud refresh or successful activation can replace stale cached state
+    // while the modal is open. Never keep warning once that exact card is
+    // confirmed as published by the server.
+    if (!promptedCard || (Boolean(promptedCard.activatedAt) && promptedCard.active)) {
+      setActivationPrompt(false);
+      setPromptCardId(null);
+    }
+  }, [activationPrompt, promptCardId, cards]);
 
   useEffect(() => {
     const found = cards.find((card) => card.id === selectedId);
