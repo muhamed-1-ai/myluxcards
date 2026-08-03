@@ -9,12 +9,13 @@ export async function POST(request: Request) {
   if (!identity) return Response.json({ message: "Sign in required." }, { status: 401 });
   try {
     const body = await request.json().catch(() => ({}));
-    const code = String(body.code || "").trim();
+    const raw = String(body.code || "").toUpperCase().replace(/^\s*MLC/i, "").replace(/[^0-9A-F]/g, "").slice(0, 16);
+    const code = raw ? `MLC-${raw.match(/.{1,4}/g)?.join("-") || raw}` : "";
     if (!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(code)) return Response.json({ message: "Enter the complete new activation code, for example MLC-12AB-34CD-56EF-7890." }, { status: 400 });
     // An unused activation code is a bearer credential supplied with a physical
     // card. The signed-in customer who possesses it claims that exact card.
-    const found = await supabaseJson("/rest/v1/digital_cards?activation_code_hash=not.is.null&select=id,owner_id,slug,activation_code_hash&limit=5000", {}, true);
     const submittedHash = hashActivationCode(code);
+    const found = await supabaseJson(`/rest/v1/digital_cards?activation_code_hash=eq.${encodeURIComponent(submittedHash)}&select=id,owner_id,slug,activation_code_hash&limit=1`, {}, true);
     const card = (found.data || []).find((candidate: { activation_code_hash?: string | null }) => {
       const storedHash = String(candidate.activation_code_hash || "");
       if (storedHash.length !== submittedHash.length) return false;
