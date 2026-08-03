@@ -39,6 +39,11 @@ test("activated cards stay published until the customer manually changes status"
   assert.doesNotMatch(cardLibrary, /new Date\(row\.expires_at\)/);
 });
 
+test("profile autosave cannot silently change publication status", () => {
+  assert.match(cards, /body\.updateActive === true/);
+  assert.match(dashboard, /updateActive:true/);
+});
+
 test("dashboard warns about inactive cards and automatically saves edits", () => {
   assert.match(dashboard, /Your card is not active yet/);
   assert.match(dashboard, /Your card is switched off/);

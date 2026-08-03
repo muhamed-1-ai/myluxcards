@@ -6,11 +6,14 @@ export async function GET() {
   const identity = await currentIdentity();
   if (!identity) return Response.json({ message: "Sign in required." }, { status: 401 });
   try {
-    const [{ data: cards }, { data: events }, { data: leads }] = await Promise.all([
-      supabaseJson(`/rest/v1/digital_cards?owner_id=eq.${identity.id}&select=*&order=updated_at.desc`, {}, true),
-      supabaseJson(`/rest/v1/card_events?digital_cards.owner_id=eq.${identity.id}&select=card_id,event_type,created_at,digital_cards!inner(owner_id)&order=created_at.desc&limit=5000`, {}, true),
-      supabaseJson(`/rest/v1/card_leads?digital_cards.owner_id=eq.${identity.id}&select=id,card_id,name,email,phone,company,message,status,consent_at,created_at,digital_cards!inner(owner_id)&order=created_at.desc&limit=500`, {}, true),
+    // Card state is critical and must still load if optional analytics or lead
+    // queries are temporarily unavailable or their migration is incomplete.
+    const { data: cards } = await supabaseJson(`/rest/v1/digital_cards?owner_id=eq.${identity.id}&select=*&order=updated_at.desc`, {}, true);
+    const [eventResult,leadResult] = await Promise.all([
+      supabaseJson(`/rest/v1/card_events?digital_cards.owner_id=eq.${identity.id}&select=card_id,event_type,created_at,digital_cards!inner(owner_id)&order=created_at.desc&limit=5000`, {}, true).catch(()=>({data:[]})),
+      supabaseJson(`/rest/v1/card_leads?digital_cards.owner_id=eq.${identity.id}&select=id,card_id,name,email,phone,company,message,status,consent_at,created_at,digital_cards!inner(owner_id)&order=created_at.desc&limit=500`, {}, true).catch(()=>({data:[]})),
     ]);
+    const events = eventResult.data, leads = leadResult.data;
     const counts: Record<string, Record<string, number>> = {};
     for (const event of events || []) {
       counts[event.card_id] ||= {};
@@ -38,8 +41,11 @@ export async function PUT(request: Request) {
     const found = await supabaseJson(`/rest/v1/digital_cards?${existing}&select=id,activated_at&limit=1`, {}, true);
     let saved;
     if (found.data?.[0]) {
+      const stateChange = body.updateActive === true && Boolean(found.data[0].activated_at);
+      const changes:Record<string,unknown> = { slug, profile, updated_at: new Date().toISOString() };
+      if (stateChange) changes.active = Boolean(body.active);
       saved = await supabaseJson(`/rest/v1/digital_cards?id=eq.${found.data[0].id}&owner_id=eq.${identity.id}`, {
-        method: "PATCH", body: JSON.stringify({ slug, profile, active: Boolean(body.active), updated_at: new Date().toISOString() }),
+        method: "PATCH", body: JSON.stringify(changes),
       }, true);
     } else {
       saved = await supabaseJson("/rest/v1/digital_cards", {
