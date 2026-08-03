@@ -2606,14 +2606,21 @@ th {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.preview-panel .url-card-actions {
+.preview-panel .url-card-controls {
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  column-gap: 18px;
+}
+.preview-panel .url-card-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
 }
 .preview-panel .url-card .qr-btn,
 .preview-panel .url-card .view-card-link {
-  width: 100%;
+  width: auto;
   min-width: 0;
   min-height: 44px;
   margin: 0;
@@ -2675,12 +2682,18 @@ th {
     font-size: 13px;
     line-height: 1.5;
   }
-  .preview-panel .url-card-actions {
+  .preview-panel .url-card-controls {
     grid-template-columns: 1fr;
+    row-gap: 14px;
+  }
+  .preview-panel .url-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
   .preview-panel .url-card .qr-btn,
   .preview-panel .url-card .view-card-link {
+    width: 100%;
     min-height: 48px;
     font-size: 12px;
   }

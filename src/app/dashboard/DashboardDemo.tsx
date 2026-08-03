@@ -699,13 +699,15 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
         <div><span>Your Card URL</span><small>Share your live digital profile</small></div>
         <i aria-label="Card is live">LIVE</i>
       </div>
-      <button className="public-url" type="button" onClick={()=>onOpen(card)} title={`Open myluxcards.com/card/${card.slug}`}>
-        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
-        <span>myluxcards.com/card/{card.slug}</span>
-      </button>
-      <div className="url-card-actions">
-        <button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg> QR Code</button>
-        <button className="view-card-link" type="button" onClick={()=>onOpen(card)}>Open card <span aria-hidden>↗</span></button>
+      <div className="url-card-controls">
+        <button className="public-url" type="button" onClick={()=>onOpen(card)} title={`Open myluxcards.com/card/${card.slug}`}>
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
+          <span>myluxcards.com/card/{card.slug}</span>
+        </button>
+        <div className="url-card-actions">
+          <button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg> QR</button>
+          <button className="view-card-link" type="button" onClick={()=>onOpen(card)}>View Card <span aria-hidden>↗</span></button>
+        </div>
       </div>
     </div>
     <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#d4af37", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
