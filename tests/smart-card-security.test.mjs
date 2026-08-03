@@ -27,6 +27,9 @@ test("activation stores a hash and requires an administrator to provision", () =
   assert.match(activation,/requireAdmin\(\)/);
   assert.match(activation,/hashActivationCode\(code\)/);
   assert.doesNotMatch(activation,/activation_code_hash:code/);
+  assert.match(activation,/role=eq\.CUSTOMER/);
+  assert.match(activation,/customersWithoutCards/);
+  assert.match(activation,/owner_id: ownerId/);
 });
 
 test("replacing an activation code never switches a working card off", () => {
