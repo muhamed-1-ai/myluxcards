@@ -18,6 +18,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadMessage, setLoadMessage] = useState("");
+  const [loadReason, setLoadReason] = useState("");
   const [showStatusBubble, setShowStatusBubble] = useState(false);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           }
           return;
         }
-        if (!cancelled) setLoadMessage(payload.message || "Card unavailable.");
+        if (!cancelled) { setLoadMessage(payload.message || "Card unavailable."); setLoadReason(payload.reason || ""); }
       } catch { /* The unavailable state is shown below. */ }
       if (!cancelled) setLoaded(true);
     };
@@ -46,7 +47,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   if (!card) return (
     <main className="pc-state">
       <h1>{loadMessage === "Card unavailable." ? "This card is not active" : "Card not found"}</h1>
-      <p>{loadMessage === "Card unavailable." ? "The owner needs to activate this card or turn its status switch on in My Cards." : "Check that the card link was copied completely."}</p>
+      <p>{loadMessage === "Card unavailable." ? loadReason === "NOT_ACTIVATED" ? "This card still needs its one-time activation code." : loadReason === "SWITCHED_OFF" ? "The owner has switched this card off in My Cards." : "The owner needs to activate this card or turn its status switch on in My Cards." : "Check that the card link was copied completely."}</p>
       <a href="/dashboard?tab=cards">Open My Cards</a>
     </main>
   );

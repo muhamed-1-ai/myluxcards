@@ -17,7 +17,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
     if (!publiclyActive) {
       const identity = await currentIdentity();
       previewAuthorized = identity?.id === row.owner_id;
-      if (!previewAuthorized) return Response.json({ message: "Card unavailable." }, { status: 404 });
+      if (!previewAuthorized) return Response.json({
+        message: "Card unavailable.",
+        reason: !row.activated_at ? "NOT_ACTIVATED" : !row.active ? "SWITCHED_OFF" : "UNAVAILABLE",
+      }, { status: 404 });
     }
     return Response.json({ card: { ...safePublicCard(row), previewAuthorized } });
   } catch { return Response.json({ message: "Card unavailable." }, { status: 503 }); }
