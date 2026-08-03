@@ -38,12 +38,12 @@ export async function PUT(request: Request) {
     const existing = body.id && /^[0-9a-f-]{36}$/i.test(body.id)
       ? `id=eq.${encodeURIComponent(body.id)}&owner_id=eq.${identity.id}`
       : `slug=eq.${encodeURIComponent(slug)}&owner_id=eq.${identity.id}`;
-    const found = await supabaseJson(`/rest/v1/digital_cards?${existing}&select=id,activated_at&limit=1`, {}, true);
+    const found = await supabaseJson(`/rest/v1/digital_cards?${existing}&select=id,active,activated_at&limit=1`, {}, true);
     let saved;
     if (found.data?.[0]) {
       const stateChange = body.updateActive === true && Boolean(found.data[0].activated_at);
       const changes:Record<string,unknown> = { slug, profile, updated_at: new Date().toISOString() };
-      if (stateChange) changes.active = Boolean(body.active);
+      if (stateChange) changes.active = body.toggleActive === true ? !Boolean(found.data[0].active) : Boolean(body.active);
       saved = await supabaseJson(`/rest/v1/digital_cards?id=eq.${found.data[0].id}&owner_id=eq.${identity.id}`, {
         method: "PATCH", body: JSON.stringify(changes),
       }, true);
