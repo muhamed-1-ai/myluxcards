@@ -87,7 +87,7 @@ function Activations({rows}:{rows:Row[]}) {
   const [issued,setIssued]=useState<string[]>([]);
   const generate=async(card:Row)=>{
     const replacing=card.hasActivationCode||card.activated_at;
-    if(replacing&&!confirm(`Replace the activation code for ${card.owner?.email||card.slug}? The card will be inactive until the new code is entered.`))return;
+    if(replacing&&!confirm(`Replace the activation code for ${card.owner?.email||card.slug}? The previous unused code will stop working. An already active card will stay online.`))return;
     setBusy(card.id);setCode(null);
     try{
       const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cardId:card.id})});

@@ -17,6 +17,7 @@ type Card = {
 export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadMessage, setLoadMessage] = useState("");
   const [showStatusBubble, setShowStatusBubble] = useState(false);
 
   useEffect(() => {
@@ -24,8 +25,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     const load = async () => {
       try {
         const response = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, { cache: "no-store" });
+        const payload = await response.json().catch(() => ({}));
         if (response.ok) {
-          const payload = await response.json();
           if (!cancelled) {
             setCard(payload.card);
             setLoaded(true);
@@ -33,6 +34,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           }
           return;
         }
+        if (!cancelled) setLoadMessage(payload.message || "Card unavailable.");
       } catch { /* The unavailable state is shown below. */ }
       if (!cancelled) setLoaded(true);
     };
@@ -43,8 +45,9 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   if (!loaded) return <main className="pc-state">Loading card…</main>;
   if (!card) return (
     <main className="pc-state">
-      <h1>Card not found</h1>
-      <a href="/dashboard">Return to dashboard</a>
+      <h1>{loadMessage === "Card unavailable." ? "This card is not active" : "Card not found"}</h1>
+      <p>{loadMessage === "Card unavailable." ? "The owner needs to activate this card or turn its status switch on in My Cards." : "Check that the card link was copied completely."}</p>
+      <a href="/dashboard?tab=cards">Open My Cards</a>
     </main>
   );
 

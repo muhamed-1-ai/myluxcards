@@ -28,6 +28,11 @@ test("activation stores a hash and requires an administrator to provision", () =
   assert.doesNotMatch(activation,/activation_code_hash:code/);
 });
 
+test("replacing an activation code never switches a working card off", () => {
+  assert.doesNotMatch(activation, /activation_code_hash:hashActivationCode\(code\),\s*activated_at:null/);
+  assert.doesNotMatch(activation, /activation_code_hash:hashActivationCode\(code\),\s*active:false/);
+});
+
 test("activated cards stay published until the customer manually changes status", () => {
   assert.match(customerActivation, /expires_at: null/);
   assert.match(cardLibrary, /Boolean\(row\.active && row\.activated_at\)/);
