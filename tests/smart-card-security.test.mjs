@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const migration = readFileSync("supabase/migrations/202607300004_smart_cards.sql","utf8");
 const cards = readFileSync("src/app/api/cards/route.ts","utf8");
 const lead = readFileSync("src/app/api/cards/public/[slug]/lead/route.ts","utf8");
+const publicCard = readFileSync("src/app/api/cards/public/[slug]/route.ts","utf8");
 const activation = readFileSync("src/app/api/admin/cards/activation/route.ts","utf8");
 const customerActivation = readFileSync("src/app/api/cards/activate/route.ts","utf8");
 const dashboard = readFileSync("src/app/dashboard/DashboardDemo.tsx","utf8");
@@ -37,6 +38,8 @@ test("activated cards stay published until the customer manually changes status"
   assert.match(customerActivation, /expires_at: null/);
   assert.match(cardLibrary, /Boolean\(row\.active && row\.activated_at\)/);
   assert.doesNotMatch(cardLibrary, /new Date\(row\.expires_at\)/);
+  assert.match(publicCard, /Boolean\(row\.active && row\.activated_at\)/);
+  assert.doesNotMatch(publicCard, /new Date\(row\.expires_at\)/);
 });
 
 test("profile autosave cannot silently change publication status", () => {

@@ -10,7 +10,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
     const { data } = await supabaseJson(`/rest/v1/digital_cards?slug=eq.${encodeURIComponent(cleanSlug(slug))}&select=id,owner_id,slug,profile,active,activated_at,expires_at&limit=1`, {}, true);
     if (!data?.[0]) return Response.json({ message: "Card not found." }, { status: 404 });
     const row = data[0];
-    const publiclyActive = Boolean(row.active && row.activated_at && (!row.expires_at || new Date(row.expires_at) > new Date()));
+    // Activated cards remain public until their owner explicitly switches them
+    // off. Legacy expiry values must not silently override the owner's status.
+    const publiclyActive = Boolean(row.active && row.activated_at);
     let previewAuthorized = false;
     if (!publiclyActive) {
       const identity = await currentIdentity();
