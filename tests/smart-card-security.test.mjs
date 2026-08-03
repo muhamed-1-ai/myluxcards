@@ -17,6 +17,8 @@ test("digital card data is owner scoped and protected by RLS", () => {
   assert.match(migration,/owner_id=auth\.uid\(\)/);
   assert.match(cards,/currentIdentity\(\)/);
   assert.match(cards,/owner_id=eq\.\$\{identity\.id\}/);
+  assert.match(cards,/completeCardProfile\(row\.profile\)/);
+  assert.match(cardLibrary,/export function completeCardProfile/);
 });
 
 test("public lead exchange requires explicit consent", () => {

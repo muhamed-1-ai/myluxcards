@@ -7,6 +7,13 @@ export const CARD_FIELDS = [
   "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
 ] as const;
 
+const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
+  name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
+  state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
+  logo:"", cover:"", profileBackground:"#020202", profileAccent:"#d4af37", profileText:"#ffffff", start:"", expiry:"",
+  logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
+};
+
 export function cleanSlug(value: unknown) {
   return String(value || "").toLowerCase().trim().replace(/[^a-z0-9-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 }
@@ -41,6 +48,17 @@ export function cleanCardProfile(input: Record<string, unknown>) {
   return output;
 }
 
+export function completeCardProfile(input: unknown) {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
+  const cleaned = cleanCardProfile(source);
+  return {
+    ...CARD_PROFILE_DEFAULTS,
+    ...cleaned,
+    social: cleaned.social && typeof cleaned.social === "object" ? cleaned.social : {},
+    services: Array.isArray(cleaned.services) ? cleaned.services : [],
+  };
+}
+
 function clamp(value: unknown, minimum: number, maximum: number, fallback: number) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, number)) : fallback;
@@ -67,7 +85,7 @@ export function safePublicCard(row: any) {
   return {
     id: row.id,
     slug: row.slug,
-    ...cleanCardProfile(row.profile && typeof row.profile === "object" ? row.profile : {}),
+    ...completeCardProfile(row.profile),
     active: Boolean(row.active && row.activated_at),
   };
 }

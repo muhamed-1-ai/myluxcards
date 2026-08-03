@@ -15,5 +15,14 @@ export default function nextConfig(phase: string): NextConfig {
         { source: '/support.html', destination: '/support', permanent: true },
       ];
     },
+    async headers() {
+      return [{
+        source: '/dashboard',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store, no-cache, must-revalidate, max-age=0' },
+          { key: 'Clear-Site-Data', value: '"cache"' },
+        ],
+      }];
+    },
   };
 }

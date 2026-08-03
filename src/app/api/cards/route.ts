@@ -1,5 +1,5 @@
 import { currentIdentity, safeError, validMutationOrigin } from "@/lib/adminAuth";
-import { cleanCardProfile, cleanSlug } from "@/lib/cards";
+import { cleanCardProfile, cleanSlug, completeCardProfile } from "@/lib/cards";
 import { supabaseJson } from "@/lib/supabaseAuth";
 
 export async function GET() {
@@ -20,7 +20,7 @@ export async function GET() {
       counts[event.card_id][event.event_type] = (counts[event.card_id][event.event_type] || 0) + 1;
     }
     return Response.json({
-      cards: (cards || []).map((row: any) => ({ id: row.id, ownerId: identity.id, slug: row.slug, ...row.profile, active: row.active, activatedAt: row.activated_at, expiry: row.expires_at?.slice(0,10) || row.profile?.expiry, analytics: counts[row.id] || {} })),
+      cards: (cards || []).map((row: any) => ({ id: row.id, ownerId: identity.id, slug: row.slug, ...completeCardProfile(row.profile), active: row.active, activatedAt: row.activated_at, expiry: row.expires_at?.slice(0,10) || row.profile?.expiry || "", analytics: counts[row.id] || {} })),
       leads: (leads || []).map(({ digital_cards: _join, ...lead }: any) => lead),
     });
   } catch (error) { return safeError(error); }

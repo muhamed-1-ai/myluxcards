@@ -33,7 +33,8 @@ test("public card content filters unsafe URLs and image payloads", () => {
   assert.match(cardsLibrary, /cleanImage/);
   assert.match(cardsLibrary, /png\|jpeg\|webp\|gif/);
   assert.doesNotMatch(cardsLibrary, /image\/svg\+xml/);
-  assert.match(cardsLibrary, /\.\.\.cleanCardProfile\(row\.profile/);
+  assert.match(cardsLibrary, /\.\.\.completeCardProfile\(row\.profile/);
+  assert.match(cardsLibrary, /const cleaned = cleanCardProfile\(source\)/);
 });
 
 test("authenticated account button opens a real logout menu", () => {
