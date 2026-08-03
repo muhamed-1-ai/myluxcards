@@ -14,35 +14,11 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   const load=useCallback(async()=>{
     const version=++loadVersion.current;
     setLoading(true);setError("");
-    const path=section==="overview"?"dashboard":section==="activations"?"cards/activation":section;
+    const path=section==="overview"?"dashboard":section==="activations"?"customers":section;
     try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
-      let payload=await response.json();
-      if(section==="activations"){
-        // Cross-check the canonical customer list. This makes the activation
-        // screen resilient if a card query or deployment cache returns an
-        // incomplete owner list, while retaining every existing card row.
-        const customerResponse=await fetch("/api/admin/customers",{cache:"no-store"});
-        if(customerResponse.status===403){window.location.replace("/forbidden");return}
-        if(!customerResponse.ok)throw new Error((await customerResponse.json()).message||"Customers could not be loaded.");
-        const customerPayload=await customerResponse.json();
-        const activationRows:Row[]=Array.isArray(payload?.data)?payload.data:[];
-        const cardsByCustomer=new Map<string,Row>();
-        for(const row of activationRows){
-          if(row.cardMissing)continue;
-          const ownerId=String(row.owner_id||row.owner?.id||"");
-          if(ownerId&&!cardsByCustomer.has(ownerId))cardsByCustomer.set(ownerId,row);
-        }
-        // Customers are the source of truth for this screen: exactly one row
-        // per registered customer, with their first card attached when one
-        // exists and a provisioning action otherwise.
-        const customerRows=(Array.isArray(customerPayload?.data)?customerPayload.data:[]).map((customer:Row)=>{
-          const card=cardsByCustomer.get(String(customer.id));
-          return card?{...card,owner:customer}:{id:`customer-${customer.id}`,owner_id:customer.id,owner:customer,cardMissing:true,active:false,activated_at:null,hasActivationCode:false,created_at:customer.created_at,updated_at:customer.created_at};
-        });
-        payload={...payload,data:customerRows};
-      }
+      const payload=await response.json();
       if(version===loadVersion.current)setData(payload);
     } catch(e){if(version===loadVersion.current)setError(e instanceof Error?e.message:"Could not load this section.")} finally{if(version===loadVersion.current)setLoading(false)}
   },[section,search]);
@@ -112,21 +88,20 @@ function Activations({rows}:{rows:Row[]}) {
   const [code,setCode]=useState<{value:string;slug:string;owner:string;email:string}|null>(null);
   const [busy,setBusy]=useState("");
   const [issued,setIssued]=useState<string[]>([]);
-  const generate=async(card:Row)=>{
-    const replacing=card.hasActivationCode||card.activated_at;
-    if(replacing&&!confirm(`Replace the activation code for ${card.owner?.email||card.slug}? The previous unused code will stop working. An already active card will stay online.`))return;
-    setBusy(card.id);setCode(null);
+  const generate=async(customer:Row)=>{
+    if(!confirm(`Generate a new activation code for ${customer.email}? Any previous unused code for their card will stop working.`))return;
+    setBusy(customer.id);setCode(null);
     try{
-      const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(card.cardMissing?{ownerId:card.owner_id}:{cardId:card.id})});
+      const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ownerId:customer.id})});
       const result=await response.json();if(!response.ok)throw new Error(result.message||"Could not generate code.");
-      setCode({value:result.activationCode,slug:result.slug,owner:card.owner?.name||card.owner?.email||"Customer",email:card.owner?.email||"Unknown account"});
-      setIssued(current=>current.includes(card.id)?current:[...current,card.id]);
+      setCode({value:result.activationCode,slug:result.slug,owner:customer.name||customer.email||"Customer",email:customer.email||"Unknown account"});
+      setIssued(current=>current.includes(customer.id)?current:[...current,customer.id]);
     }catch(error){alert(error instanceof Error?error.message:"Could not generate code.")}finally{setBusy("")}
   };
   if(!rows.length)return <Empty title="No customers yet" text="Customer accounts will appear here after registration."/>;
   return <>
     <section className="activation-guide"><div><span>HOW IT WORKS</span><h2>Generate or reset a card code</h2><p>Send the unused code to the intended customer. When they enter it while signed in, the exact card is securely added to their account and the code is permanently consumed.</p></div>{code&&<div className="activation-result" role="status"><small>NEW ONE-TIME CARD CODE</small><strong>{code.value}</strong><span>Current holder: {code.email}</span><span>Card: /card/{code.slug}</span><button onClick={async()=>{await navigator.clipboard.writeText(code.value);alert("Activation code copied.")}}>Copy code</button><p>Send it only to the intended customer. Whoever redeems this unused code will claim the card.</p></div>}</section>
-    <div className="table-wrap activation-table"><table><thead><tr><th>Customer</th><th>Card</th><th>Status</th><th>Code</th><th>Action</th></tr></thead><tbody>{rows.map(card=>{const hasCode=card.hasActivationCode||issued.includes(card.id);const wasActivated=Boolean(card.activated_at);const canReset=hasCode||wasActivated;return <tr key={card.id}><td data-label="Customer"><b>{card.owner?.name||"Unnamed customer"}</b><small>{card.owner?.email||card.owner_id}</small></td><td data-label="Card">{card.cardMissing?<><b>No card created</b><small>Create it securely when issuing a code</small></>:<><b>{card.slug}</b><small>/card/{card.slug}</small></>}</td><td data-label="Status"><span className="pill">{issued.includes(card.id)?"Awaiting activation":card.cardMissing?"Needs card":card.active&&wasActivated?"Active":wasActivated?"Inactive":"Not activated"}</span></td><td data-label="Code">{hasCode?"Code issued":wasActivated?"Code used":"Not generated"}</td><td data-label="Action"><button className="small gold" disabled={Boolean(busy)||card.owner?.disabled} onClick={()=>generate({...card,hasActivationCode:canReset})}>{busy===card.id?"Generating…":card.cardMissing?"Create card + code":canReset?"Reset code":"Generate code"}</button></td></tr>})}</tbody></table></div>
+    <div className="table-wrap activation-table"><table><thead><tr><th>Customer</th><th>Account</th><th>Status</th><th>Code</th><th>Action</th></tr></thead><tbody>{rows.map(customer=>{const codeIssued=issued.includes(customer.id);return <tr key={customer.id}><td data-label="Customer"><b>{customer.name||"Unnamed customer"}</b><small>{customer.email}</small></td><td data-label="Account"><b>{customer.disabled?"Account disabled":"Customer account"}</b><small>Existing card reused, or a new card is created automatically</small></td><td data-label="Status"><span className="pill">{customer.disabled?"Disabled":codeIssued?"Code ready":"Ready"}</span></td><td data-label="Code">{codeIssued?"New code issued":"Generate when needed"}</td><td data-label="Action"><button className="small gold" disabled={Boolean(busy)||customer.disabled} onClick={()=>generate(customer)}>{busy===customer.id?"Generating…":"Generate / reset code"}</button></td></tr>})}</tbody></table></div>
   </>;
 }
 function Products({rows,mutate}:{rows:Row[],mutate:any}) {
