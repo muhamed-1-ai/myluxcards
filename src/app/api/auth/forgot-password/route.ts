@@ -20,10 +20,9 @@ export async function POST(request: Request) {
   });
 
   if (result.status === 429) {
-    return NextResponse.json(
-      { message: "Too many emails were requested. Please wait about one hour and try again." },
-      { status: 429 },
-    );
+    return NextResponse.json({
+      message: "If an account exists for that email, a reset link has been sent.",
+    });
   }
 
   if (!result.ok) {

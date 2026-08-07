@@ -85,7 +85,124 @@ function Customers({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mut
   const requireChange=async(row:Row)=>{if(!confirm(`Require ${row.email} to change their password at next sign-in?`))return;try{const result=await mutate("customers","PATCH",{id:row.id,forcePasswordReset:true});alert(result.message||"Password change required.")}catch(error){alert(error instanceof Error?error.message:"Password policy could not be updated.")}};
   return <><Table heads={["Customer","Phone","Registered","Status","Action"]} rows={rows.map(r=>[<><b>{r.name||"Unnamed"}</b><small>{r.email}</small></>,r.phone||"—",new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",<div className="row-actions"><button className="small gold" onClick={()=>open(r)}>View details</button><button className="small" onClick={()=>sendReset(r)}>Send reset</button><button className="small" onClick={()=>requireChange(r)}>Require password change</button><button className={r.disabled?"small gold":"small danger"} onClick={()=>confirm(`${r.disabled?"Reactivate":"Disable"} ${r.email}?`)&&mutate("customers","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button>{identity.role==="SUPER_ADMIN"&&<button className="small" onClick={()=>confirm(`Promote ${r.email} to ADMIN?`)&&mutate("admins","PATCH",{id:r.id,role:"ADMIN"})}>Make admin</button>}</div>])}/>{detail&&<CustomerDetail data={detail} loading={loadingDetail} error={detailError} close={()=>setDetail(null)}/>}</>;
 }
-function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,error:string,close:()=>void}){const customer=data.customer||{};return <div className="admin-modal-back" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)close()}}><section className="customer-detail" role="dialog" aria-modal="true" aria-labelledby="customer-detail-title"><header><div><small>CUSTOMER RECORD</small><h2 id="customer-detail-title">{customer.name||"Unnamed customer"}</h2><p>{customer.email}</p></div><button onClick={close} aria-label="Close customer details">×</button></header>{loading?<Skeleton/>:error?<Empty title="Unable to load customer" text={error}/>:<><div className="customer-facts">{[["Account ID",customer.id],["Name",customer.name||"Not provided"],["Email",customer.email],["Phone",customer.phone||"Not provided"],["Account status",customer.disabled?"Disabled":customer.status||"Active"],["Registered",customer.created_at?new Date(customer.created_at).toLocaleString():"—"],["Last profile update",customer.updated_at?new Date(customer.updated_at).toLocaleString():"—"],["Password","Securely hashed — never viewable"]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><h3>Digital cards ({data.cards?.length||0})</h3>{data.cards?.length?<Table heads={["Card","Profile information","Activation","Published","Updated"]} rows={data.cards.map((card:Row)=>[<><b>{card.profile?.name||card.slug}</b><small>/card/{card.slug}</small></>,<><span>{card.profile?.title||"No title"}{card.profile?.business?` · ${card.profile.business}`:""}</span><small>{card.profile?.email||"No public email"} · {card.profile?.mobile||"No public phone"}</small><small>{[card.profile?.city,card.profile?.state,card.profile?.countryIso].filter(Boolean).join(", ")||"No location"}</small></>,card.activated_at?"Activated":"Not activated",card.active&&card.activated_at?"Yes":"No",new Date(card.updated_at).toLocaleString()])}/>:<p className="detail-empty">No digital cards.</p>}<h3>Orders ({data.orders?.length||0})</h3>{data.orders?.length?<Table heads={["Order","Items","Payment","Status","Total","Placed"]} rows={data.orders.map((order:Row)=>[order.order_number,order.order_items?.map((item:Row)=>`${item.product_name} × ${item.quantity}`).join(", ")||"—",order.payment_status,order.status,money(order.total_minor,order.currency),new Date(order.created_at).toLocaleString()])}/>:<p className="detail-empty">No orders.</p>}<h3>Support ({data.support?.length||0})</h3>{data.support?.length?<Table heads={["Reference","Topic","Status","Created"]} rows={data.support.map((ticket:Row)=>[ticket.reference,ticket.topic,ticket.status,new Date(ticket.created_at).toLocaleString()])}/>:<p className="detail-empty">No support tickets.</p>}<h3>Affiliate account</h3><p className="detail-empty">{data.affiliate?`${data.affiliate.partner_type} · ${data.affiliate.status} · Code ${data.affiliate.affiliate_code}`:"Not enrolled in the affiliate program."}</p>{customer.internal_notes&&<><h3>Internal notes</h3><p className="detail-empty">{customer.internal_notes}</p></>}</>}</section></div>}
+function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,error:string,close:()=>void}) {
+  const customer = data.customer || {};
+  const [qrSlug, setQrSlug] = useState<string | null>(null);
+  const [qrTitle, setQrTitle] = useState<string>("");
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState("");
+
+  const openQr = async (card: Row) => {
+    setQrSlug(card.slug);
+    setQrTitle(card.profile?.name || card.slug || "Card QR");
+    setQrSvg(null);
+    setQrError("");
+    setQrLoading(true);
+    try {
+      const response = await fetch(`/api/cards/qr?slug=${encodeURIComponent(card.slug)}`, { cache: "no-store" });
+      const text = await response.text();
+      if (!response.ok) throw new Error(text || "Could not load QR code.");
+      setQrSvg(text);
+    } catch (openError) {
+      setQrError(openError instanceof Error ? openError.message : "Could not load QR code.");
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const closeQr = () => {
+    setQrSlug(null);
+    setQrSvg(null);
+    setQrError("");
+    setQrLoading(false);
+  };
+
+  const downloadQr = () => {
+    if (!qrSvg || !qrSlug) return;
+    const blob = new Blob([qrSvg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${qrSlug}-qr.svg`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const cardUrl = qrSlug ? `${window.location.origin}/card/${qrSlug}` : "";
+
+  return (
+    <div className="admin-modal-back" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+      <section className="customer-detail" role="dialog" aria-modal="true" aria-labelledby="customer-detail-title">
+        <header>
+          <div>
+            <small>CUSTOMER RECORD</small>
+            <h2 id="customer-detail-title">{customer.name || "Unnamed customer"}</h2>
+            <p>{customer.email}</p>
+          </div>
+          <button onClick={close} aria-label="Close customer details">×</button>
+        </header>
+
+        {loading ? <Skeleton /> : error ? <Empty title="Unable to load customer" text={error} /> : <>
+          <div className="customer-facts">
+            {[["Account ID", customer.id], ["Name", customer.name || "Not provided"], ["Email", customer.email], ["Phone", customer.phone || "Not provided"], ["Account status", customer.disabled ? "Disabled" : customer.status || "Active"], ["Registered", customer.created_at ? new Date(customer.created_at).toLocaleString() : "—"], ["Last profile update", customer.updated_at ? new Date(customer.updated_at).toLocaleString() : "—"], ["Password", "Securely hashed — never viewable"]].map(([label, value]) => (
+              <div key={label}>
+                <small>{label}</small>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <h3>Digital cards ({data.cards?.length || 0})</h3>
+          {data.cards?.length ? <Table heads={["Card", "Profile information", "Activation", "Published", "Updated", "QR"]} rows={data.cards.map((card: Row) => ([
+            <><b>{card.profile?.name || card.slug}</b><small>/card/{card.slug}</small></>,
+            <><span>{card.profile?.title || "No title"}{card.profile?.business ? ` · ${card.profile.business}` : ""}</span><small>{card.profile?.email || "No public email"} · {card.profile?.mobile || "No public phone"}</small><small>{[card.profile?.city, card.profile?.state, card.profile?.countryIso].filter(Boolean).join(", ") || "No location"}</small></>,
+            card.activated_at ? "Activated" : "Not activated",
+            card.active && card.activated_at ? "Yes" : "No",
+            new Date(card.updated_at).toLocaleString(),
+            <button className="small gold" type="button" onClick={() => openQr(card)}>View QR</button>
+          ]))} /> : <p className="detail-empty">No digital cards.</p>}
+
+          <h3>Orders ({data.orders?.length || 0})</h3>
+          {data.orders?.length ? <Table heads={["Order", "Items", "Payment", "Status", "Total", "Placed"]} rows={data.orders.map((order: Row) => ([order.order_number, order.order_items?.map((item: Row) => `${item.product_name} × ${item.quantity}`).join(", ") || "—", order.payment_status, order.status, money(order.total_minor, order.currency), new Date(order.created_at).toLocaleString()]))} /> : <p className="detail-empty">No orders.</p>}
+
+          <h3>Support ({data.support?.length || 0})</h3>
+          {data.support?.length ? <Table heads={["Reference", "Topic", "Status", "Created"]} rows={data.support.map((ticket: Row) => ([ticket.reference, ticket.topic, ticket.status, new Date(ticket.created_at).toLocaleString()]))} /> : <p className="detail-empty">No support tickets.</p>}
+
+          <h3>Affiliate account</h3>
+          <p className="detail-empty">{data.affiliate ? `${data.affiliate.partner_type} · ${data.affiliate.status} · Code ${data.affiliate.affiliate_code}` : "Not enrolled in the affiliate program."}</p>
+          {customer.internal_notes && <><h3>Internal notes</h3><p className="detail-empty">{customer.internal_notes}</p></>}
+        </>}
+
+        {qrSlug && (
+          <div className="admin-modal-back" onMouseDown={(event) => { if (event.target === event.currentTarget) closeQr(); }}>
+            <section className="customer-qr-modal" role="dialog" aria-modal="true" aria-labelledby="customer-qr-title">
+              <header>
+                <div>
+                  <small>CARD QR CODE</small>
+                  <h2 id="customer-qr-title">{qrTitle}</h2>
+                  <p>{cardUrl}</p>
+                </div>
+                <button onClick={closeQr} aria-label="Close QR modal">×</button>
+              </header>
+              <div className="customer-qr-body">
+                <div className="customer-qr-img">
+                  {qrLoading ? <span className="customer-qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="customer-qr-error">{qrError || "QR code unavailable."}</span>}
+                </div>
+                <div className="customer-qr-actions">
+                  {qrError ? <button type="button" className="small gold" onClick={() => { if (qrSlug) { openQr({ slug: qrSlug, profile: { name: qrTitle } } as Row); } }} disabled={qrLoading}>Try again</button> : <button type="button" className="small gold" onClick={downloadQr} disabled={!qrSvg || qrLoading}>Download SVG</button>}
+                  <a className="small" href={cardUrl} target="_blank" rel="noopener noreferrer">Open card</a>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
 function Activations({rows}:{rows:Row[]}) {
   const [code,setCode]=useState<{value:string;slug:string;owner:string;email:string}|null>(null);
   const [busy,setBusy]=useState("");

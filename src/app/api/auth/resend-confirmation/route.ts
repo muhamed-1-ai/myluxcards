@@ -9,6 +9,12 @@ export async function POST(request: Request) {
   const config = getSupabaseConfig();
   if (!config) return Response.json({ message: "Authentication is not configured." }, { status: 503 });
   const upstream = await fetch(`${config.url}/auth/v1/resend`, { method: "POST", headers: { apikey: config.anonKey, "Content-Type": "application/json" }, body: JSON.stringify({ type: "signup", email: cleanEmail }), cache: "no-store" });
-  if (!upstream.ok) return Response.json({ message: "Confirmation email could not be sent right now." }, { status: upstream.status === 429 ? 429 : 502 });
+  if (!upstream.ok) {
+    if (upstream.status === 429) {
+      return Response.json({ message: "If that account needs confirmation, a new email has been sent." });
+    }
+
+    return Response.json({ message: "Confirmation email could not be sent right now." }, { status: 502 });
+  }
   return Response.json({ message: "If that account needs confirmation, a new email has been sent." });
 }
