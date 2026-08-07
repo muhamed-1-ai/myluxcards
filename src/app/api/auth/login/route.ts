@@ -16,7 +16,14 @@ export async function POST(request: Request) {
     cache: "no-store",
   });
   const data = await upstream.json().catch(() => ({}));
-  if (!upstream.ok) return NextResponse.json({ message: "Email or password is incorrect." }, { status: upstream.status === 429 ? 429 : 401 });
+  if (!upstream.ok) {
+    const errorText = String(data.code || data.error || data.error_description || data.msg || data.message || "").toLowerCase();
+    const unconfirmed = errorText.includes("not confirmed") || errorText.includes("email_not_confirmed");
+    if (unconfirmed) {
+      return NextResponse.json({ message: "Please confirm your email before signing in. You can request a new confirmation email below.", code: "EMAIL_NOT_CONFIRMED" }, { status: 403 });
+    }
+    return NextResponse.json({ message: "Email or password is incorrect." }, { status: upstream.status === 429 ? 429 : 401 });
+  }
   let profile = null;
   try {
     const result = await supabaseJson(`/rest/v1/profiles?id=eq.${data.user.id}&select=role,disabled,must_change_password&limit=1`, {}, true);

@@ -2981,6 +2981,29 @@ body.dark-mode .feature-icon {
 .signup-terms a,
 .form-error { color: var(--primary); }
 .form-error { display: block; min-height: 1.2em; margin-top: 7px; }
+.login-resend-confirmation { margin-top: 8px; border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px;
+  }
+
+  .signup-modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    margin: auto;
+    padding: 24px 18px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .signup-modal-card input,
+  .signup-modal-card button {
+    font-size: 16px;
+  }
+}
 
 /* --- Media Queries / Responsive Layout --- */
 @media (max-width: 1024px) {
@@ -3678,6 +3701,44 @@ iframe {
     display: none;
   }
 
+  .nav-actions #login-trigger {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    min-height: 44px;
+    padding: 0 9px;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .mobile-account-actions {
+    display: block;
+    border-top: 1px solid var(--border-glass);
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .mobile-account-actions .nav-link {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .mobile-account-actions .mobile-login {
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 800;
+  }
+
+  .mobile-account-actions .mobile-logout {
+    color: #f2a5a5;
+    cursor: pointer;
+  }
+
   .hero {
     min-height: auto;
     padding: 116px 0 72px !important;
@@ -3861,6 +3922,10 @@ iframe {
     display: none !important;
   }
 
+  .nav-actions #login-trigger {
+    display: inline-flex !important;
+  }
+
   .mobile-account-actions {
     display: block;
     border-top: 1px solid var(--border-glass);
@@ -3879,6 +3944,12 @@ iframe {
   .mobile-account-actions .mobile-logout {
     color: #f2a5a5;
     cursor: pointer;
+  }
+
+  .mobile-account-actions .mobile-login {
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 800;
   }
 
   .hero {
@@ -4005,6 +4076,12 @@ iframe {
 
   .nav-actions .btn-icon {
     display: none !important;
+  }
+
+  .nav-actions #login-trigger {
+    min-width: 52px;
+    padding-inline: 7px;
+    font-size: 11px;
   }
 
   .hamburger {

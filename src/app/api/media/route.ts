@@ -27,7 +27,11 @@ export async function POST(request: Request) {
     headers: { apikey: config.serviceRoleKey, Authorization: `Bearer ${config.serviceRoleKey}`, "Content-Type": file.type, "x-upsert": "false" },
     body: bytes,
   });
-  if (!response.ok) return Response.json({ message: "The file could not be saved to cloud storage." }, { status: 502 });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    console.error("[Media API] Supabase storage upload failed:", response.status, errorText);
+    return Response.json({ message: "The file could not be saved to cloud storage." }, { status: 502 });
+  }
   return Response.json({ url: `${config.url}/storage/v1/object/public/card-media/${path}`, name: file.name });
 }
 

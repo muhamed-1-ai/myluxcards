@@ -11,10 +11,15 @@ const orders = readFileSync(new URL("../src/app/api/admin/orders/route.ts", impo
 const support = readFileSync(new URL("../src/app/api/support/route.ts", import.meta.url), "utf8");
 const publicApp = readFileSync(new URL("../public/js/app.js", import.meta.url), "utf8");
 const customerDetail = readFileSync(new URL("../src/app/api/admin/customers/[id]/route.ts", import.meta.url), "utf8");
+const dashboardPage = readFileSync(new URL("../src/app/dashboard/page.tsx", import.meta.url), "utf8");
+const refresh = readFileSync(new URL("../src/app/api/auth/refresh/route.ts", import.meta.url), "utf8");
+const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
 
 test("public signup fixes the role server-side", () => {
   assert.match(signup, /role:\s*"CUSTOMER"/);
   assert.doesNotMatch(signup, /body\.role/);
+  assert.match(signup, /mlc_access_token/);
+  assert.match(signup, /Supabase signup failed/);
 });
 test("admin management requires Super Admin and protects Super Admin targets", () => {
   assert.match(admin, /requireAdmin\(true\)/);
@@ -65,4 +70,15 @@ test("customer detail records require admin access and stay scoped to one custom
   assert.match(customerDetail, /owner_id=eq\.\$\{id\}/);
   assert.match(customerDetail, /customer_id=eq\.\$\{id\}/);
   assert.doesNotMatch(customerDetail, /password_hash|encrypted_password/);
+});
+test("dashboard restores an expired access session before asking the user to sign in", () => {
+  assert.match(dashboardPage, /currentIdentity/);
+  assert.match(refresh, /export async function GET/);
+  assert.match(refresh, /safeNextPath/);
+  assert.match(middleware, /isAccountRoute/);
+  assert.match(middleware, /mlc_access_token/);
+  assert.match(middleware, /\/api\/auth\/refresh/);
+  for (const route of ["dashboard", "orders", "affiliate/apply", "partners/apply", "admin"]) {
+    assert.match(middleware, new RegExp(route.replace("/", "\\/")));
+  }
 });

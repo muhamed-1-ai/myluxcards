@@ -4,6 +4,13 @@ const REF_COOKIE = "mlc_affiliate_ref";
 const VISITOR_COOKIE = "mlc_affiliate_visitor";
 
 export async function middleware(request: NextRequest) {
+  if (isAccountRoute(request.nextUrl.pathname) && !request.cookies.has("mlc_access_token")) {
+    const destination = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+    const refreshUrl = new URL("/api/auth/refresh", request.url);
+    refreshUrl.searchParams.set("next", destination);
+    return NextResponse.redirect(refreshUrl);
+  }
+
   const code = request.nextUrl.searchParams.get("ref")?.trim().toUpperCase();
   if (!code || !/^[A-Z0-9][A-Z0-9_-]{5,11}$/.test(code)) return NextResponse.next();
   const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
@@ -88,6 +95,15 @@ export async function middleware(request: NextRequest) {
     // Tracking must never make the storefront unavailable.
     return NextResponse.next();
   }
+}
+
+function isAccountRoute(pathname: string) {
+  return pathname === "/dashboard"
+    || pathname === "/orders"
+    || pathname === "/affiliate/apply"
+    || pathname === "/partners/apply"
+    || pathname === "/admin"
+    || pathname.startsWith("/admin/");
 }
 
 function sanitizeLabel(value: string | null) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Card = {
   id?: string;
@@ -22,7 +22,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [showStatusBubble, setShowStatusBubble] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrPngUrl, setQrPngUrl] = useState<string | null>(null);
+  const qrPngUrlRef = useRef<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
 
   useEffect(() => {
@@ -74,7 +77,14 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const phone    = card.mobile   ? `${card.countryCode}${card.mobile}`   : "";
   const whatsapp = card.whatsapp ? `${card.countryCode}${card.whatsapp}` : "";
   const location = [card.address, card.city, card.state].filter(Boolean).join(", ");
-  const socials  = Object.entries(card.social || {}).filter(([, url]) => Boolean(url));
+  const preferredSocialOrder = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "WhatsApp", "Threads"];
+  const socials  = Object.entries(card.social || {})
+    .filter(([, url]) => Boolean(url))
+    .sort(([a], [b]) => {
+      const ia = preferredSocialOrder.indexOf(a);
+      const ib = preferredSocialOrder.indexOf(b);
+      return (ia !== -1 ? ia : 999) - (ib !== -1 ? ib : 999);
+    });
   const initials = card.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "ML";
 
   const cssVars = {
@@ -108,15 +118,40 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     track("CONTACT_SAVE");
   };
 
+  useEffect(() => {
+    return () => {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setQrOpen(false);
+    setQrSvg(null);
+    setQrError("");
+    setQrPngUrl(null);
+    if (qrPngUrlRef.current) {
+      URL.revokeObjectURL(qrPngUrlRef.current);
+      qrPngUrlRef.current = null;
+    }
+  }, [slug]);
+
   const openQr = async () => {
     setQrOpen(true);
-    if (qrSvg) return;
+    if (qrSvg) {
+      if (!qrPngUrl) void createPngFromSvg(qrSvg);
+      return;
+    }
     setQrLoading(true);
     setQrError("");
     try {
       const res = await fetch(`/api/cards/qr?slug=${encodeURIComponent(slug)}`);
       if (!res.ok) throw new Error("QR request failed");
-      setQrSvg(await res.text());
+      const text = await res.text();
+      setQrSvg(text);
+      void createPngFromSvg(text);
     } catch {
       setQrError("Could not generate the QR code. Please try again.");
     } finally {
@@ -124,17 +159,80 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     }
   };
 
-  const downloadQr = () => {
+  const createPngFromSvg = async (svg: string) => {
+    setQrDownloading(true);
+    try {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+      const blob = await svgToPngBlob(svg, 1024);
+      const url = URL.createObjectURL(blob);
+      qrPngUrlRef.current = url;
+      setQrPngUrl(url);
+    } catch {
+      // ignore, fallback to on-demand download
+    } finally {
+      setQrDownloading(false);
+    }
+  };
+
+  const downloadQr = async () => {
     if (!qrSvg) return;
-    const blob = new Blob([qrSvg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mylux-qr-${slug}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    if (qrPngUrl) {
+      const a = document.createElement("a");
+      a.href = qrPngUrl;
+      a.download = `mylux-qr-${card.slug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+    setQrDownloading(true);
+    try {
+      const blob = await svgToPngBlob(qrSvg, 1024);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mylux-qr-${card.slug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setQrError("Could not prepare PNG download. Please try again.");
+    } finally {
+      setQrDownloading(false);
+    }
+  };
+
+  const svgToPngBlob = async (svg: string, size: number) => {
+    const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    try {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      const loaded = new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Failed to load QR SVG"));
+      });
+      image.src = svgUrl;
+      await loaded;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Unable to create canvas context");
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(image, 0, 0, size, size);
+      const pngBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Failed to create PNG")), "image/png");
+      });
+      return pngBlob;
+    } finally {
+      URL.revokeObjectURL(svgUrl);
+    }
   };
 
   /* Social platform metadata */
@@ -229,7 +327,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             <p className="pc-qr-url">{typeof window !== "undefined" ? window.location.href : ""}</p>
             <div className="pc-qr-actions">
               {qrError && <button type="button" className="pc-qr-download" onClick={openQr} disabled={qrLoading}>Try again</button>}
-              {!qrError && <button type="button" className="pc-qr-download" onClick={downloadQr} disabled={!qrSvg}>Download QR</button>}
+              {!qrError && <button type="button" className="pc-qr-download" onClick={downloadQr} disabled={!qrSvg || qrLoading || qrDownloading}>{qrDownloading ? "Downloading…" : "Download PNG"}</button>}
             </div>
           </div>
         </div>

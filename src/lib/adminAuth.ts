@@ -53,11 +53,25 @@ export async function requireAdmin(superOnly = false) {
   return identity;
 }
 
+function normalizeHost(value: string | null) {
+  if (!value) return "";
+  const host = value.replace(/:(443|80)$/, "").toLowerCase();
+  return host.startsWith("www.") ? host.slice(4) : host;
+}
+
 export function validMutationOrigin(request: Request) {
   const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-  if (!origin || !host) return process.env.NODE_ENV !== "production";
-  try { return new URL(origin).host === host; } catch { return false; }
+  const normalizedHost = normalizeHost(host);
+  if (!normalizedHost) return process.env.NODE_ENV !== "production";
+  if (origin) {
+    try { return normalizeHost(new URL(origin).host) === normalizedHost; } catch { return false; }
+  }
+  if (referer) {
+    try { return normalizeHost(new URL(referer).host) === normalizedHost; } catch { return false; }
+  }
+  return process.env.NODE_ENV !== "production";
 }
 
 export async function requireAdminPage() {
