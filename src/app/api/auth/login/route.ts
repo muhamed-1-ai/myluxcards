@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const data = await upstream.json().catch(() => ({}));
   if (!upstream.ok) {
     const errorText = String(data.code || data.error || data.error_description || data.msg || data.message || "").toLowerCase();
-    const unconfirmed = errorText.includes("not confirmed") || errorText.includes("email_not_confirmed");
+    const unconfirmed = errorText.includes("not confirmed") || errorText.includes("email_not_confirmed") || errorText.includes("confirm") || errorText.includes("verification");
     if (unconfirmed) {
       return NextResponse.json({ message: "Please confirm your email before signing in. You can request a new confirmation email below.", code: "EMAIL_NOT_CONFIRMED" }, { status: 403 });
     }
