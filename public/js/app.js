@@ -1633,7 +1633,31 @@ class LuxApp {
           this.updateAccountButton({ name, email });
           this.showToast(`Welcome to MyLuxCards, ${name}!`, 'success');
         } else {
-          this.showToast('Check your email to confirm your account.', 'success');
+          const loginResponse = await fetch('/api/auth/login', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+            cache: 'no-store',
+          });
+          const loginData = await loginResponse.json().catch(() => ({}));
+          if (loginResponse.ok && loginData.user) {
+            const user = {
+              name: loginData.user.user_metadata?.name || loginData.user.email?.split('@')[0] || email.split('@')[0],
+              email: loginData.user.email || email,
+            };
+            localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
+            this.updateAccountButton(user);
+            form.reset();
+            this.closeModal('signup-modal');
+            this.showToast(`Welcome to MyLuxCards, ${user.name}!`, 'success');
+            return;
+          }
+          if (loginData.code === 'EMAIL_NOT_CONFIRMED' && error) {
+            error.textContent = 'Please confirm your email before signing in. A confirmation email has been sent.';
+          } else {
+            this.showToast('Check your email to confirm your account.', 'success');
+          }
         }
       } catch (_) {
         if (error) error.textContent = 'We could not reach the sign-up service. Check your connection and try again.';
