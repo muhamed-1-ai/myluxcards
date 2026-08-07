@@ -1684,11 +1684,12 @@ class LuxApp {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password }),
+          cache: 'no-store',
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.user) {
-          const message = data.message || 'Login could not be completed. Please try again.';
+          const message = data.message || data.error_description || data.error || data.msg || 'Login could not be completed. Please try again.';
           if (data.code === 'EMAIL_NOT_CONFIRMED' && email && error) {
             const resend = document.createElement('button');
             resend.type = 'button'; resend.className = 'login-resend-confirmation'; resend.textContent = 'Resend confirmation email';

@@ -55,7 +55,8 @@ export async function requireAdmin(superOnly = false) {
 
 function normalizeHost(value: string | null) {
   if (!value) return "";
-  return value.replace(/:(443|80)$/, "").toLowerCase();
+  const host = value.replace(/:(443|80)$/, "").toLowerCase();
+  return host.startsWith("www.") ? host.slice(4) : host;
 }
 
 export function validMutationOrigin(request: Request) {

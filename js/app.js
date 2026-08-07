@@ -1429,11 +1429,12 @@ class LuxApp {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        cache: 'no-store',
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (await fallbackLocalLogin()) return;
-        if (error) error.textContent = data.message || 'Email or password is incorrect.';
+        if (error) error.textContent = data.message || data.error_description || data.error || data.msg || 'Email or password is incorrect.';
         return;
       }
       const user = {

@@ -17,7 +17,11 @@ export async function POST(request: Request) {
   });
   const data = await upstream.json().catch(() => ({}));
   if (!upstream.ok) {
-    if (data.code === "email_not_confirmed") return NextResponse.json({ message: "Please confirm your email before signing in. You can request a new confirmation email below.", code: "EMAIL_NOT_CONFIRMED" }, { status: 403 });
+    const errorText = String(data.code || data.error || data.error_description || data.msg || data.message || "").toLowerCase();
+    const unconfirmed = errorText.includes("not confirmed") || errorText.includes("email_not_confirmed");
+    if (unconfirmed) {
+      return NextResponse.json({ message: "Please confirm your email before signing in. You can request a new confirmation email below.", code: "EMAIL_NOT_CONFIRMED" }, { status: 403 });
+    }
     return NextResponse.json({ message: "Email or password is incorrect." }, { status: upstream.status === 429 ? 429 : 401 });
   }
   let profile = null;
