@@ -18,7 +18,7 @@ type Lead = { id:string; card_id:string; name:string; email?:string; phone?:stri
 type CurrentUser = { name: string; email: string };
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
-const socialFields = ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "Google Business", "Google Maps"];
+const socialFields = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps"];
 type DialCode = { flag: string; code: string; name: string; iso: string };
 type LocationState = { name: string; isoCode: string };
 type LocationCity = { name: string; latitude?: string | null; longitude?: string | null };
@@ -624,6 +624,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
 
   useEffect(() => {
@@ -648,17 +649,53 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
     }
   };
 
-  const downloadQr = () => {
+  const downloadQr = async () => {
     if (!qrSvg) return;
-    const blob = new Blob([qrSvg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mylux-qr-${card.slug}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    setQrDownloading(true);
+    try {
+      const blob = await svgToPngBlob(qrSvg, 1024);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mylux-qr-${card.slug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setQrError("Could not prepare PNG download. Please try again.");
+    } finally {
+      setQrDownloading(false);
+    }
+  };
+
+  const svgToPngBlob = async (svg: string, size: number) => {
+    const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    try {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      const loaded = new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Failed to load QR SVG"));
+      });
+      image.src = svgUrl;
+      await loaded;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Unable to create canvas context");
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(image, 0, 0, size, size);
+      const pngBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Failed to create PNG")), "image/png");
+      });
+      return pngBlob;
+    } finally {
+      URL.revokeObjectURL(svgUrl);
+    }
   };
 
   const contact = [
@@ -666,11 +703,11 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
     ["⌁", "Website", card.website], ["◉", "WhatsApp", card.whatsapp ? `${card.countryCode} ${card.whatsapp}` : ""],
   ].filter((x) => x[2]);
   const socialLinks = [
-    ["Facebook", "facebook"],
     ["Instagram", "instagram"],
+    ["Facebook", "facebook"],
+    ["YouTube", "youtube"],
     ["LinkedIn", "linkedin"],
     ["Twitter", "twitter"],
-    ["YouTube", "youtube"],
     ["Google Business", "google"],
     ["Google Maps", "maps"],
   ].map(([name, brand]) => ({ name, brand, url: card.social[name] })).filter((item) => item.url);
@@ -688,7 +725,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
             {qrLoading ? <span className="qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="qr-loading">{qrError || "QR code unavailable"}</span>}
           </div>
           <div className="qr-modal-actions">
-            {qrError ? <button type="button" className="qr-download-btn" onClick={openQr} disabled={qrLoading}>Try again</button> : <button type="button" className="qr-download-btn" onClick={downloadQr} disabled={!qrSvg}>Download SVG</button>}
+            {qrError ? <button type="button" className="qr-download-btn" onClick={openQr} disabled={qrLoading}>Try again</button> : <button type="button" className="qr-download-btn" onClick={downloadQr} disabled={!qrSvg || qrLoading || qrDownloading}>{qrDownloading ? "Downloading…" : "Download PNG"}</button>}
             <a className="qr-open-link" href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">Open Card ↗</a>
           </div>
         </div>

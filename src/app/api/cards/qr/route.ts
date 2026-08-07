@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       type: "svg",
       errorCorrectionLevel: "M",
       margin: 2,
-      color: { dark: "#000000", light: "#FFFFFF" },
+      color: { dark: "#d4af37", light: "#000000" },
     });
 
     return new Response(svg, {

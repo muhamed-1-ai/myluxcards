@@ -561,7 +561,8 @@
   width: 200px;
   height: 200px;
   margin: 0 auto 12px;
-  background: #fff;
+  background: #000;
+  border: 1px solid #d4af37;
   border-radius: 14px;
   padding: 10px;
   display: flex;
