@@ -31,9 +31,11 @@ export async function POST(request: Request) {
     const data = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
       console.error("Supabase signup failed:", upstream.status, data);
-      return Response.json({
-        message: data.message || data.msg || data.error_description || data.error || "Account creation is temporarily unavailable.",
-      }, { status: upstream.status >= 500 ? 502 : upstream.status });
+      const fallbackMessage = "Unable to create your account right now. Please try again later.";
+      const message = upstream.status === 429
+        ? "Unable to create your account right now. Please try again later."
+        : data.message || data.msg || data.error_description || data.error || fallbackMessage;
+      return Response.json({ message }, { status: upstream.status >= 500 ? 502 : upstream.status });
     }
 
     const response = NextResponse.json(data, { status: upstream.status });
