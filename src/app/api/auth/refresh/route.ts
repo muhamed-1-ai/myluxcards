@@ -3,14 +3,22 @@ import { NextResponse } from "next/server";
 import { validMutationOrigin } from "@/lib/adminAuth";
 import { getSupabaseConfig } from "@/lib/supabaseAuth";
 
-export async function POST(request: Request) {
-  if (!validMutationOrigin(request)) return NextResponse.json({ message: "Invalid request origin." }, { status: 403 });
+const safeNextPath = (value: string | null) => value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+
+async function refreshSession(request: Request, redirectTo?: string) {
+  const destination = redirectTo ? new URL(safeNextPath(redirectTo), request.url) : null;
+  const reply = (body: { ok?: boolean; message?: string }, status: number) =>
+    destination
+      ? NextResponse.redirect(status === 200 ? destination : new URL(`/?login=1&next=${encodeURIComponent(destination.pathname + destination.search)}`, request.url))
+      : NextResponse.json(body, { status });
+
+  if (!redirectTo && !validMutationOrigin(request)) return reply({ message: "Invalid request origin." }, 403);
   const config = getSupabaseConfig();
-  if (!config) return NextResponse.json({ message: "Authentication is not configured." }, { status: 503 });
+  if (!config) return reply({ message: "Authentication is not configured." }, 503);
 
   const jar = await cookies();
   const refreshToken = jar.get("mlc_refresh_token")?.value;
-  if (!refreshToken) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+  if (!refreshToken) return reply({ message: "Sign in required." }, 401);
 
   const upstream = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
@@ -20,14 +28,14 @@ export async function POST(request: Request) {
   });
   const data = await upstream.json().catch(() => ({}));
   if (!upstream.ok || !data.access_token) {
-    const expired = NextResponse.json({ message: "Sign in required." }, { status: 401 });
+    const expired = reply({ message: "Sign in required." }, 401);
     expired.cookies.set("mlc_access_token", "", { httpOnly: true, path: "/", maxAge: 0 });
     expired.cookies.set("mlc_refresh_token", "", { httpOnly: true, path: "/api/auth", maxAge: 0 });
     return expired;
   }
 
   const secure = process.env.NODE_ENV === "production";
-  const response = NextResponse.json({ ok: true });
+  const response = reply({ ok: true }, 200);
   response.cookies.set("mlc_access_token", data.access_token, {
     httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: Math.min(data.expires_in || 3600, 3600),
   });
@@ -35,4 +43,13 @@ export async function POST(request: Request) {
     httpOnly: true, secure, sameSite: "strict", path: "/api/auth", maxAge: 60 * 60 * 24 * 30,
   });
   return response;
+}
+
+export async function POST(request: Request) {
+  return refreshSession(request);
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  return refreshSession(request, url.searchParams.get("next") || "/dashboard");
 }

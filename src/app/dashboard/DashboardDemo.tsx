@@ -623,25 +623,46 @@ function Field({ label, error, wide, children }: { label: string; error?: string
 function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrPngUrl, setQrPngUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
+  const qrPngUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     setQrOpen(false);
     setQrSvg(null);
     setQrError("");
+    setQrPngUrl(null);
+    if (qrPngUrlRef.current) {
+      URL.revokeObjectURL(qrPngUrlRef.current);
+      qrPngUrlRef.current = null;
+    }
   }, [card.slug]);
+
+  useEffect(() => {
+    return () => {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const openQr = async () => {
     setQrOpen(true);
-    if (qrSvg) return;
+    if (qrSvg) {
+      if (!qrPngUrl) void createPngFromSvg(qrSvg);
+      return;
+    }
     setQrLoading(true);
     setQrError("");
     try {
       const res = await fetch(`/api/cards/qr?slug=${encodeURIComponent(card.slug)}`);
       if (!res.ok) throw new Error("QR request failed");
-      setQrSvg(await res.text());
+      const text = await res.text();
+      setQrSvg(text);
+      void createPngFromSvg(text);
     } catch {
       setQrError("Could not generate the QR code. Please try again.");
     } finally {
@@ -651,6 +672,15 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
 
   const downloadQr = async () => {
     if (!qrSvg) return;
+    if (qrPngUrl) {
+      const a = document.createElement("a");
+      a.href = qrPngUrl;
+      a.download = `mylux-qr-${card.slug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
     setQrDownloading(true);
     try {
       const blob = await svgToPngBlob(qrSvg, 1024);
@@ -664,6 +694,25 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch {
       setQrError("Could not prepare PNG download. Please try again.");
+    } finally {
+      setQrDownloading(false);
+    }
+  };
+
+  const createPngFromSvg = async (svg: string) => {
+    if (!svg) return;
+    setQrDownloading(true);
+    try {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+      const blob = await svgToPngBlob(svg, 1024);
+      const url = URL.createObjectURL(blob);
+      qrPngUrlRef.current = url;
+      setQrPngUrl(url);
+    } catch {
+      // ignore, allow fallback on click
     } finally {
       setQrDownloading(false);
     }

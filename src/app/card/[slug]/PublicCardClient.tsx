@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Card = {
   id?: string;
@@ -22,6 +22,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [showStatusBubble, setShowStatusBubble] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrPngUrl, setQrPngUrl] = useState<string | null>(null);
+  const qrPngUrlRef = useRef<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
@@ -116,15 +118,40 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     track("CONTACT_SAVE");
   };
 
+  useEffect(() => {
+    return () => {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setQrOpen(false);
+    setQrSvg(null);
+    setQrError("");
+    setQrPngUrl(null);
+    if (qrPngUrlRef.current) {
+      URL.revokeObjectURL(qrPngUrlRef.current);
+      qrPngUrlRef.current = null;
+    }
+  }, [slug]);
+
   const openQr = async () => {
     setQrOpen(true);
-    if (qrSvg) return;
+    if (qrSvg) {
+      if (!qrPngUrl) void createPngFromSvg(qrSvg);
+      return;
+    }
     setQrLoading(true);
     setQrError("");
     try {
       const res = await fetch(`/api/cards/qr?slug=${encodeURIComponent(slug)}`);
       if (!res.ok) throw new Error("QR request failed");
-      setQrSvg(await res.text());
+      const text = await res.text();
+      setQrSvg(text);
+      void createPngFromSvg(text);
     } catch {
       setQrError("Could not generate the QR code. Please try again.");
     } finally {
@@ -132,8 +159,35 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     }
   };
 
+  const createPngFromSvg = async (svg: string) => {
+    setQrDownloading(true);
+    try {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+      const blob = await svgToPngBlob(svg, 1024);
+      const url = URL.createObjectURL(blob);
+      qrPngUrlRef.current = url;
+      setQrPngUrl(url);
+    } catch {
+      // ignore, fallback to on-demand download
+    } finally {
+      setQrDownloading(false);
+    }
+  };
+
   const downloadQr = async () => {
     if (!qrSvg) return;
+    if (qrPngUrl) {
+      const a = document.createElement("a");
+      a.href = qrPngUrl;
+      a.download = `mylux-qr-${card.slug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
     setQrDownloading(true);
     try {
       const blob = await svgToPngBlob(qrSvg, 1024);
