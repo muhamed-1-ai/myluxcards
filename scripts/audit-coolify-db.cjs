@@ -23,15 +23,29 @@ function localDatabaseUrl() {
     : "";
 }
 
-function databaseUrl() {
-  const value = process.env.DATABASE_URL || localDatabaseUrl();
-  if (!value) throw Object.assign(new Error("DATABASE_URL is not configured."), { code: "DATABASE_URL_MISSING" });
-  return value;
+function connectionConfig() {
+  if (process.env.PGHOST && process.env.PGUSER && process.env.PGDATABASE) {
+    return {
+      host: process.env.PGHOST,
+      port: process.env.PGPORT ? Number(process.env.PGPORT) : undefined,
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD,
+      database: process.env.PGDATABASE,
+    };
+  }
+
+  const connectionString = process.env.DATABASE_URL || localDatabaseUrl();
+  if (!connectionString) {
+    throw Object.assign(new Error("PostgreSQL connection settings are not configured."), {
+      code: "DATABASE_CONFIG_MISSING",
+    });
+  }
+  return { connectionString };
 }
 
-async function connect(connectionString, ssl) {
+async function connect(config, ssl) {
   const client = new Client({
-    connectionString,
+    ...config,
     ssl,
     statement_timeout: 15_000,
     query_timeout: 20_000,
@@ -53,7 +67,7 @@ function safeConnectionError(error) {
     ECONNREFUSED: "The PostgreSQL endpoint refused the connection.",
     ENOTFOUND: "The PostgreSQL host could not be resolved.",
     ETIMEDOUT: "The PostgreSQL connection timed out.",
-    DATABASE_URL_MISSING: "DATABASE_URL is not configured.",
+    DATABASE_CONFIG_MISSING: "PostgreSQL connection settings are not configured.",
   };
   return { connectionSuccessful: false, errorCode: code, error: messages[code] || "The PostgreSQL connection failed." };
 }
@@ -61,12 +75,12 @@ function safeConnectionError(error) {
 async function main() {
   let client;
   try {
-    const connectionString = databaseUrl();
+    const config = connectionConfig();
     try {
-      client = await connect(connectionString, false);
+      client = await connect(config, false);
     } catch (error) {
       if (!/ssl|pg_hba|no encryption/i.test(String(error.message))) throw error;
-      client = await connect(connectionString, { rejectUnauthorized: false });
+      client = await connect(config, { rejectUnauthorized: false });
     }
   } catch (error) {
     process.stdout.write(`${JSON.stringify(safeConnectionError(error), null, 2)}\n`);
