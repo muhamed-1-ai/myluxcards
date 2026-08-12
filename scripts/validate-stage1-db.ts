@@ -3,7 +3,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Pool, type PoolClient } from "pg";
 import { databaseConfig } from "../src/lib/db/config";
-import { hashCardToken } from "../src/lib/repositories/cards";
+import { hashCardToken } from "../src/lib/security/cardTokens";
 
 const EXPECTED = ["0001_extensions","0002_roles_and_identity","0003_auth_support","0004_catalog_and_orders","0005_payments_and_webhooks","0006_admin_settings_support","0007_digital_and_physical_cards","0008_affiliate_foundation","0009_affiliate_financials","0010_functions_triggers_indexes","0011_reference_data"];
 const MIGRATION_LOCK = 4_866_892_367;
