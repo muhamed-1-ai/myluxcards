@@ -79,6 +79,9 @@ test("dashboard identity and card ownership come from the authenticated server",
   assert.match(dashboard, /const normalizeCard =/);
   assert.match(dashboard, /String\(value \?\? ""\)\.trim\(\)/);
   assert.match(dashboard, /payload\.cards\.map\(\(card:Partial<Card>\) => normalizeCard\(card, user\)\)/);
+  assert.match(dashboard, /storageKey\(user\.id\)/);
+  assert.match(dashboard, /card\.ownerId === user\.id/);
+  assert.doesNotMatch(dashboard, /storageKey\(user\.email\)/);
 });
 
 test("dashboard logout, uploads, and deletion use secure server state", () => {

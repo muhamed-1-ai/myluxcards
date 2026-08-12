@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const identity = await currentIdentity();
   if (!identity) redirect("/?login=1&next=%2Fdashboard");
-  return <DashboardDemo identity={{ name:identity.name, email:identity.email }} />;
+  return <DashboardDemo identity={{ id:identity.id, name:identity.name, email:identity.email }} />;
 }

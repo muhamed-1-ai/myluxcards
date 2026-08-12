@@ -1,6 +1,9 @@
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSupabaseConfig, supabaseJson } from "./supabaseAuth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "./auth";
+import { findUserById } from "./repositories/users";
+import { pool } from "./db";
 
 export type AppRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
 export type AdminIdentity = {
@@ -13,28 +16,15 @@ export type AdminIdentity = {
 };
 
 export async function currentIdentity(): Promise<AdminIdentity | null> {
-  const jar = await cookies();
-  const accessToken = jar.get("mlc_access_token")?.value;
-  const config = getSupabaseConfig();
-  if (!accessToken || !config) return null;
-  const auth = await fetch(`${config.url}/auth/v1/user`, {
-    headers: { apikey: config.anonKey, Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-  if (!auth.ok) return null;
-  const user = await auth.json();
+  const session=await getServerSession(authOptions);
+  if(!session?.user?.id||!Number.isInteger(session.user.sessionVersion))return null;
   try {
-    const { data } = await supabaseJson(
-      `/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id,email,name,role,disabled,must_change_password&limit=1`,
-      {},
-      true,
-    );
-    const profile = data?.[0];
-    if (!profile || profile.disabled) return null;
+    const profile=await findUserById(session.user.id);
+    if(!profile||profile.disabled||profile.status!=="ACTIVE"||profile.session_version!==session.user.sessionVersion)return null;
     return {
       id: profile.id,
       email: profile.email,
-      name: profile.name || user.user_metadata?.name || profile.email.split("@")[0],
+      name: profile.name,
       role: profile.role,
       disabled: profile.disabled,
       mustChangePassword: profile.must_change_password,
@@ -107,14 +97,8 @@ export async function audit(
       .filter(([key]) => !blocked.test(key))
       .map(([key, nested]) => [key, scrub(nested)]));
   };
-  await supabaseJson("/rest/v1/admin_audit_logs", {
-    method: "POST",
-    body: JSON.stringify({
-      actor_id: actor.id, actor_role: actor.role, action, entity_type: entityType,
-      entity_id: entityId, before_summary: scrub(before), after_summary: scrub(after),
-      ip_address: context.ip, user_agent: context.userAgent,
-    }),
-  }, true);
+  await pool.query(`insert into admin_audit_logs(actor_id,actor_role,action,entity_type,entity_id,before_summary,after_summary,ip_address,user_agent)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[actor.id,actor.role,action,entityType,entityId,JSON.stringify(scrub(before)),JSON.stringify(scrub(after)),context.ip,context.userAgent]);
 }
 
 export function safeError(error: unknown) {

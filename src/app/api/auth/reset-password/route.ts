@@ -1,24 +1,4 @@
-import { supabaseAuthRequest } from "@/lib/supabaseAuth";
-
-export async function POST(request: Request) {
-  const authorization = request.headers.get("authorization") || "";
-  const token = authorization.startsWith("Bearer ")
-    ? authorization.slice(7)
-    : "";
-  const { password } = await request.json();
-
-  if (!token || typeof password !== "string" || password.length < 12 ||
-      !/[a-z]/.test(password) || !/[A-Z]/.test(password) ||
-      !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-    return Response.json(
-      { message: "The reset link or password is invalid." },
-      { status: 400 },
-    );
-  }
-
-  return supabaseAuthRequest(
-    "/user",
-    { method: "PUT", body: JSON.stringify({ password }) },
-    token,
-  );
-}
+import { createHash } from "node:crypto";
+import { hashPassword, validPassword } from "@/lib/authService";
+import { withTransaction } from "@/lib/db";
+export async function POST(request:Request){const body=await request.json().catch(()=>({})),token=typeof body.token==="string"?body.token:"",password=typeof body.password==="string"?body.password:"";if(!token||!validPassword(password))return Response.json({message:"The reset link or password is invalid."},{status:400});const tokenHash=createHash("sha256").update(token).digest("hex");const changed=await withTransaction(async db=>{const row=(await db.query<{id:string;user_id:string}>("select id,user_id from auth_action_tokens where token_hash=$1 and purpose='PASSWORD_RESET' and consumed_at is null and expires_at>now() for update",[tokenHash])).rows[0];if(!row)return false;await db.query("update users set password_hash=$1,session_version=session_version+1,must_change_password=false where id=$2",[await hashPassword(password),row.user_id]);await db.query("update auth_action_tokens set consumed_at=now() where id=$1",[row.id]);return true});return changed?Response.json({ok:true}):Response.json({message:"The reset link or password is invalid."},{status:400})}

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 const REF_COOKIE = "mlc_affiliate_ref";
 const VISITOR_COOKIE = "mlc_affiliate_visitor";
 
 export async function middleware(request: NextRequest) {
-  if (isAccountRoute(request.nextUrl.pathname) && !request.cookies.has("mlc_access_token")) {
+  const accountRoute = isAccountRoute(request.nextUrl.pathname);
+  const session = accountRoute
+    ? await getToken({ req: request, secret: process.env.AUTH_SECRET, secureCookie: process.env.NODE_ENV === "production" })
+    : null;
+  if (accountRoute && !session?.userId) {
     const destination = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     const refreshUrl = new URL("/api/auth/refresh", request.url);
     refreshUrl.searchParams.set("next", destination);

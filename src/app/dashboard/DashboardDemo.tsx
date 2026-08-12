@@ -15,7 +15,7 @@ type Card = {
   analytics?: Record<string, number>;
 };
 type Lead = { id:string; card_id:string; name:string; email?:string; phone?:string; company?:string; message?:string; status:string; created_at:string };
-type CurrentUser = { name: string; email: string };
+type CurrentUser = { id: string; name: string; email: string };
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
 const socialFields = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps"];
@@ -42,10 +42,10 @@ const profileThemes = [
   { name: "Coffee Cream", background: "#211811", accent: "#d4b483", text: "#fff9ef" },
   { name: "Sapphire Gold", background: "#061329", accent: "#e2b84b", text: "#f5f8ff" },
 ];
-const storageKey = (email: string) => `${STORE_PREFIX}${email.trim().toLowerCase()}`;
-const cacheCards = (email: string, cards: Card[]) => {
+const storageKey = (accountId: string) => `${STORE_PREFIX}${accountId}`;
+const cacheCards = (accountId: string, cards: Card[]) => {
   try {
-    localStorage.setItem(storageKey(email), JSON.stringify(cards));
+    localStorage.setItem(storageKey(accountId), JSON.stringify(cards));
   } catch {
     // Large uploaded images can exceed the browser quota. Keep the cloud save
     // working and retain a lightweight local fallback instead.
@@ -56,7 +56,7 @@ const cacheCards = (email: string, cards: Card[]) => {
         cover: card.cover.startsWith("data:") ? "" : card.cover,
         brochureData: card.brochureData?.startsWith("data:") ? "" : card.brochureData,
       }));
-      localStorage.setItem(storageKey(email), JSON.stringify(lightweight));
+      localStorage.setItem(storageKey(accountId), JSON.stringify(lightweight));
     } catch { /* Cloud storage remains the source of truth. */ }
   }
 };
@@ -95,7 +95,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user: CurrentUse
     analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
   };
 };
-const emptyCard = createBlankCard({ name: "", email: "" });
+const emptyCard = createBlankCard({ id: "", name: "", email: "" });
 
 const I = ({ children }: { children: string }) => <span className="nav-icon" aria-hidden>{children}</span>;
 const fieldValue = (value: unknown) => String(value ?? "").trim();
@@ -170,15 +170,16 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       const user = identity;
       localStorage.setItem("myluxcards_current_user", JSON.stringify(user));
       setCurrentUser(user);
-      const key = storageKey(user.email);
+      const key = storageKey(user.id);
       const stored = localStorage.getItem(key);
       let accountCards: Card[] = [];
       if (stored) {
         const parsed = JSON.parse(stored);
-        // This cache key is already scoped to the signed-in email. Cloud cards
-        // intentionally use the account UUID as ownerId, so filtering ownerId
-        // against the email incorrectly discarded valid cards after relogin.
-        if (Array.isArray(parsed)) accountCards = parsed.map((card) => normalizeCard(card, user));
+        if (Array.isArray(parsed)) {
+          accountCards = parsed
+            .filter((card): card is Partial<Card> => Boolean(card) && card.ownerId === user.id)
+            .map((card) => normalizeCard(card, user));
+        }
       }
       const firstCard = accountCards[0] || createBlankCard(user);
       setCards(accountCards.length ? accountCards : [firstCard]);
@@ -203,7 +204,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           setSelectedId(cloudCards[0].id);
           setDraft(cloudCards[0]);
           lastSavedRef.current = JSON.stringify(cloudCards[0]);
-          cacheCards(user.email, cloudCards);
+          cacheCards(user.id, cloudCards);
         } else {
           // The secure cloud account owns no cards. Never keep displaying a
           // cached card from an old session/account as if it were cloud-backed.
@@ -212,7 +213,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           setSelectedId(blank.id);
           setDraft(blank);
           lastSavedRef.current = JSON.stringify(blank);
-          cacheCards(user.email, [blank]);
+          cacheCards(user.id, [blank]);
         }
       }).catch(() => { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); });
     } catch {
@@ -296,7 +297,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     };
     const saved = cards.map((card) => card.id === optimizedDraft.id ? optimizedDraft : card);
     setCards(saved);
-    if (currentUser) cacheCards(currentUser.email, saved);
+    if (currentUser) cacheCards(currentUser.id, saved);
     try {
       const response = await fetchWithSessionRefresh("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(optimizedDraft) });
       const payload = await response.json().catch(() => ({}));
@@ -307,7 +308,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       const cloudCard = payload.card as Card;
       const cloudSaved = saved.map(card => card.id === optimizedDraft.id ? { ...optimizedDraft, ...cloudCard } : card);
       setCards(cloudSaved); setDraft({ ...optimizedDraft, ...cloudCard }); setSelectedId(cloudCard.id);
-      if (currentUser) cacheCards(currentUser.email, cloudSaved);
+      if (currentUser) cacheCards(currentUser.id, cloudSaved);
       setCloudReady(true);
       lastSavedRef.current = JSON.stringify({ ...optimizedDraft, ...cloudCard });
       setSaveStatus("saved");
@@ -371,7 +372,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     const next = remaining[0] || createBlankCard(identity);
     const nextCards = remaining.length ? remaining : [next];
     setCards(nextCards); setDraft(next); setSelectedId(next.id);
-    cacheCards(identity.email, nextCards);
+    cacheCards(identity.id, nextCards);
     setDeleteId(null); setSaveStatus("saved"); notify("Card removed.");
   };
   const selected = cards.find((card) => card.id === selectedId) || draft;
@@ -468,7 +469,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Activation</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
               <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={()=>requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Activation">{card.activatedAt ? "Activated" : <button className="activation-required" onClick={()=>{setPromptCardId(card.id);setActivationPrompt(true)}}>Activate card</button>}</td><td data-label="Availability">{card.activatedAt ? card.active ? "Published until you switch it off" : "Switched off" : "Not published"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active&&card.activatedAt ? "on" : ""}`} aria-label={card.activatedAt ? `Toggle ${card.name}` : `Activate ${card.name}`} onClick={async () => { if (!card.activatedAt) { setPromptCardId(card.id);setActivationPrompt(true); return; } const response=await fetchWithSessionRefresh("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:card.id,slug:card.slug,toggleActive:true})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Status could not be changed.");return;}const confirmed={...card,...payload.card};lastSavedRef.current=JSON.stringify(confirmed);setCards(current=>current.map(item=>item.id===card.id?confirmed:item));if(selectedId===card.id)setDraft(confirmed);setSaveStatus("saved");notify(confirmed.active?"Card published.":"Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
-        <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Paste its unused one-time code. Spaces and copied dash styles are corrected automatically.</span></div><input value={activationCode} onChange={event=>setActivationCode(normalizeActivationCode(event.target.value))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={activating||!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{setActivating(true);try{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401){localStorage.removeItem("myluxcards_current_user");sessionStorage.setItem("myluxcards_auth_next","/dashboard?tab=cards");window.location.replace("/?login=1");return;}notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(!refreshed.ok||!cloud.cards?.length){notify("Card activated. Refreshing your secure dashboard…");window.location.reload();return;}const normalizedCards=cloud.cards.map((card:Partial<Card>)=>normalizeCard(card,identity));setCards(normalizedCards);const claimed=normalizedCards.find((x:Card)=>x.id===payload.cardId)||normalizedCards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.email,normalizedCards);setActivationCode("");setSaveStatus("saved");notify(`/${payload.slug} is activated and published.`);}finally{setActivating(false)}}}>{activating?"Activating…":"Activate card"}</button></div>
+        <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Paste its unused one-time code. Spaces and copied dash styles are corrected automatically.</span></div><input value={activationCode} onChange={event=>setActivationCode(normalizeActivationCode(event.target.value))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={activating||!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{setActivating(true);try{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401){localStorage.removeItem("myluxcards_current_user");sessionStorage.setItem("myluxcards_auth_next","/dashboard?tab=cards");window.location.replace("/?login=1");return;}notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(!refreshed.ok||!cloud.cards?.length){notify("Card activated. Refreshing your secure dashboard…");window.location.reload();return;}const normalizedCards=cloud.cards.map((card:Partial<Card>)=>normalizeCard(card,identity));setCards(normalizedCards);const claimed=normalizedCards.find((x:Card)=>x.id===payload.cardId)||normalizedCards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.id,normalizedCards);setActivationCode("");setSaveStatus("saved");notify(`/${payload.slug} is activated and published.`);}finally{setActivating(false)}}}>{activating?"Activating…":"Activate card"}</button></div>
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}

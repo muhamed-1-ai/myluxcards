@@ -1552,6 +1552,29 @@ class LuxApp {
       switchAuthModal('signup-modal', 'login-modal');
     });
 
+    document.getElementById('google-login')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const error = document.getElementById('login-error');
+      if (error) error.textContent = '';
+      button.disabled = true;
+      try {
+        const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin', cache: 'no-store' });
+        const { csrfToken } = await csrfResponse.json();
+        if (!csrfResponse.ok || !csrfToken) throw new Error('Unable to start Google sign-in.');
+        const body = new URLSearchParams({ csrfToken, callbackUrl: `${window.location.origin}/dashboard`, json: 'true' });
+        const response = await fetch('/api/auth/signin/google', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.url) throw new Error('Unable to start Google sign-in.');
+        window.location.assign(data.url);
+      } catch (cause) {
+        if (error) error.textContent = cause instanceof Error ? cause.message : 'Unable to start Google sign-in.';
+        button.disabled = false;
+      }
+    });
+
     const signupPassword = document.getElementById('signup-password');
     const passwordRules = {
       length: value => value.length >= 12,
@@ -1678,31 +1701,6 @@ class LuxApp {
         button.disabled = true;
         button.textContent = 'Signing in…';
       }
-      const fallbackLocalLogin = async () => {
-        const accounts = JSON.parse(localStorage.getItem('myluxcards_accounts') || '[]');
-        if (!accounts.length) return false;
-        const passwordHash = await this.hashPassword(password);
-        const match = accounts.find((account) => account.email?.toLowerCase() === email && account.passwordHash === passwordHash);
-        if (!match) return false;
-        const user = {
-          name: match.name || email.split('@')[0],
-          email,
-          role: 'CUSTOMER',
-        };
-        localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-        this.updateAccountButton(user);
-        form.reset();
-        document.getElementById('login-password').type = 'password';
-        const passwordToggle = document.getElementById('login-password-toggle');
-        if (passwordToggle) {
-          passwordToggle.textContent = 'Show';
-          passwordToggle.setAttribute('aria-pressed', 'false');
-        }
-        this.closeModal('login-modal');
-        this.showToast(`Welcome back, ${user.name}!`, 'success');
-        return true;
-      };
-
       try {
         const response = await fetch('/api/auth/login', {
           method: 'POST',
@@ -1714,19 +1712,12 @@ class LuxApp {
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.user) {
           const message = data.message || data.error_description || data.error || data.msg || 'Login could not be completed. Please try again.';
-          if (data.code === 'EMAIL_NOT_CONFIRMED' && email && error) {
-            const resend = document.createElement('button');
-            resend.type = 'button'; resend.className = 'login-resend-confirmation'; resend.textContent = 'Resend confirmation email';
-            resend.onclick = async () => { const result = await fetch('/api/auth/resend-confirmation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})}); const payload = await result.json().catch(()=>({})); error.textContent = payload.message || 'Could not resend confirmation email.'; };
-            error.append(document.createElement('br'), resend);
-          }
-          if (await fallbackLocalLogin()) return;
           if (error) error.textContent = message;
           this.showToast(message, 'error');
           return;
         }
         const user = {
-          name: data.user.user_metadata?.name || email.split('@')[0],
+          name: data.user.name || email.split('@')[0],
           email: data.user.email || email,
           role: data.role || 'CUSTOMER'
         };
@@ -1750,30 +1741,6 @@ class LuxApp {
         this.closeModal('login-modal');
         this.showToast(`Welcome back, ${user.name}!`, 'success');
       } catch {
-        if (await (async () => {
-          const accounts = JSON.parse(localStorage.getItem('myluxcards_accounts') || '[]');
-          if (!accounts.length) return false;
-          const passwordHash = await this.hashPassword(password);
-          const match = accounts.find((account) => account.email?.toLowerCase() === email && account.passwordHash === passwordHash);
-          if (!match) return false;
-          const user = {
-            name: match.name || email.split('@')[0],
-            email,
-            role: 'CUSTOMER',
-          };
-          localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-          this.updateAccountButton(user);
-          form.reset();
-          document.getElementById('login-password').type = 'password';
-          const passwordToggle = document.getElementById('login-password-toggle');
-          if (passwordToggle) {
-            passwordToggle.textContent = 'Show';
-            passwordToggle.setAttribute('aria-pressed', 'false');
-          }
-          this.closeModal('login-modal');
-          this.showToast(`Welcome back, ${user.name}!`, 'success');
-          return true;
-        })()) return;
         const message = 'The login service could not be reached. Please try again.';
         if (error) error.textContent = message;
         this.showToast(message, 'error');
@@ -1841,10 +1808,17 @@ class LuxApp {
 
     const urlParams = new URLSearchParams(window.location.search);
     const loginFlag = urlParams.get('login') === '1';
+    const oauthError = urlParams.get('error');
     const nextDestination = urlParams.get('next');
     if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
 
-    if (loginFlag) {
+    if (oauthError) {
+      const error = document.getElementById('login-error');
+      if (error) error.textContent = oauthError === 'AccessDenied'
+        ? 'Google sign-in was cancelled or this account cannot be used.'
+        : 'Google sign-in could not be completed. Please try again.';
+      document.getElementById('login-modal')?.classList.add('open');
+    } else if (loginFlag) {
       fetch('/api/auth/me', { cache: 'no-store' })
         .then(async (res) => {
           if (!res.ok) {

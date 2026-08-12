@@ -2913,6 +2913,14 @@ body.dark-mode .feature-icon {
   font-weight: 700;
 }
 
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 16px; color: var(--text-muted); font-size: .78rem; }
+.auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--border-glass); }
+.google-auth-button { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid var(--border-glass); border-radius: 12px; background: var(--input-bg); color: var(--text-main); font: inherit; font-weight: 600; cursor: pointer; transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.google-auth-button:hover { border-color: var(--primary); background: rgba(212,175,55,.06); transform: translateY(-1px); }
+.google-auth-button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.google-auth-button:disabled { cursor: wait; opacity: .7; transform: none; }
+.google-auth-button svg { width: 18px; height: 18px; flex: none; }
+
 .form-group label {
   display: block;
   font-size: 0.85rem;

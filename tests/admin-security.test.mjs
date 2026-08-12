@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const signup = readFileSync(new URL("../src/app/api/auth/signup/route.ts", import.meta.url), "utf8");
+const authService = readFileSync(new URL("../src/lib/authService.ts", import.meta.url), "utf8");
 const admin = readFileSync(new URL("../src/app/api/admin/admins/route.ts", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/202607250001_super_admin.sql", import.meta.url), "utf8");
 const bootstrap = readFileSync(new URL("../scripts/create-super-admin.ts", import.meta.url), "utf8");
@@ -16,14 +17,14 @@ const refresh = readFileSync(new URL("../src/app/api/auth/refresh/route.ts", imp
 const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
 
 test("public signup fixes the role server-side", () => {
-  assert.match(signup, /role:\s*"CUSTOMER"/);
+  assert.match(authService, /'CUSTOMER'/);
   assert.doesNotMatch(signup, /body\.role/);
-  assert.match(signup, /mlc_access_token/);
-  assert.match(signup, /Supabase signup failed/);
+  assert.match(signup, /createCredentialUser/);
+  assert.doesNotMatch(signup, /Supabase|auth\/v1/);
 });
 test("admin management requires Super Admin and protects Super Admin targets", () => {
   assert.match(admin, /requireAdmin\(true\)/);
-  assert.match(admin, /target\.role === "SUPER_ADMIN"/);
+  assert.match(admin, /target\.role==="SUPER_ADMIN"/);
 });
 test("commerce and administration tables use RLS", () => {
   for (const table of ["profiles","products","orders","payments","admin_audit_logs","admin_notifications","admin_invites","website_settings"]) {
@@ -71,12 +72,12 @@ test("customer detail records require admin access and stay scoped to one custom
   assert.match(customerDetail, /customer_id=eq\.\$\{id\}/);
   assert.doesNotMatch(customerDetail, /password_hash|encrypted_password/);
 });
-test("dashboard restores an expired access session before asking the user to sign in", () => {
+test("dashboard validates the Auth.js session before asking the user to sign in", () => {
   assert.match(dashboardPage, /currentIdentity/);
   assert.match(refresh, /export async function GET/);
-  assert.match(refresh, /safeNextPath/);
+  assert.match(refresh, /!value\.startsWith\("\/\/"\)/);
   assert.match(middleware, /isAccountRoute/);
-  assert.match(middleware, /mlc_access_token/);
+  assert.match(middleware, /session\?\.userId/);
   assert.match(middleware, /\/api\/auth\/refresh/);
   for (const route of ["dashboard", "orders", "affiliate/apply", "partners/apply", "admin"]) {
     assert.match(middleware, new RegExp(route.replace("/", "\\/")));
