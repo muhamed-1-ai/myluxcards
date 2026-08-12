@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
+    "db:validate:stage1": "tsx scripts/validate-stage1-db.ts",
     "create:super-admin": "tsx scripts/create-super-admin.ts",
     "audit:coolify-db": "node scripts/audit-coolify-db.cjs"
   },
