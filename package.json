@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "db:validate:stage1": "tsx scripts/validate-stage1-db.ts",
+    "db:test:stage1": "tsx scripts/run-stage1-disposable-test.ts",
     "create:super-admin": "tsx scripts/create-super-admin.ts",
     "audit:coolify-db": "node scripts/audit-coolify-db.cjs",
     "db:migrate": "tsx scripts/migrate-db.ts",
