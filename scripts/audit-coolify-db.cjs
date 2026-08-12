@@ -88,13 +88,24 @@ async function main() {
     return;
   }
 
-  const query = async (text, values = []) => (await client.query(text, values)).rows;
+  let activeQuery = null;
+  const query = async (label, text, values = []) => {
+    activeQuery = label;
+    try {
+      return (await client.query(text, values)).rows;
+    } catch (error) {
+      error.auditQuery = label;
+      throw error;
+    } finally {
+      activeQuery = null;
+    }
+  };
   try {
-    await client.query("BEGIN READ ONLY");
+    await query("begin_read_only", "BEGIN READ ONLY");
     const result = { connectionSuccessful: true };
-    result.postgresqlVersion = (await query("show server_version"))[0].server_version;
-    result.transactionReadOnly = (await query("show transaction_read_only"))[0].transaction_read_only === "on";
-    result.schemas = (await query(`
+    result.postgresqlVersion = (await query("postgres_version", "show server_version"))[0].server_version;
+    result.transactionReadOnly = (await query("transaction_read_only", "show transaction_read_only"))[0].transaction_read_only === "on";
+    result.schemas = (await query("schemas", `
       select schema_name
       from information_schema.schemata
       where schema_name not like 'pg\\_%' escape '\\'
@@ -102,7 +113,7 @@ async function main() {
       order by schema_name
     `)).map((row) => row.schema_name);
 
-    const tables = await query(`
+    const tables = await query("table_inventory", `
       select table_schema, table_name
       from information_schema.tables
       where table_type = 'BASE TABLE'
@@ -118,7 +129,7 @@ async function main() {
     result.publicProfilesExists = hasTable("public", "profiles");
 
     const authColumns = result.authUsersExists
-      ? await query(`
+      ? await query("auth_user_columns", `
           select column_name
           from information_schema.columns
           where table_schema = $1 and table_name = $2
@@ -126,7 +137,7 @@ async function main() {
       : [];
     const passwordColumnExists = authColumns.some((row) => row.column_name === "encrypted_password");
     const hashesPresent = passwordColumnExists
-      ? Boolean((await query(`
+      ? Boolean((await query("password_hash_presence", `
           select exists (
             select 1 from auth.users
             where encrypted_password is not null and encrypted_password <> ''
@@ -143,47 +154,47 @@ async function main() {
     )) {
       const qualifiedName = `${identifier(table.table_schema)}.${identifier(table.table_name)}`;
       result.rowCounts[`${table.table_schema}.${table.table_name}`] = Number(
-        (await query(`select count(*)::bigint as count from ${qualifiedName}`))[0].count,
+        (await query("table_counts", `select count(*)::bigint as count from ${qualifiedName}`))[0].count,
       );
     }
     result.rowCounts.admins = result.publicProfilesExists
-      ? Number((await query(`
+      ? Number((await query("admin_profile_count", `
           select count(*)::bigint as count
           from public.profiles
           where role = any($1::text[])
         `, [["ADMIN", "SUPER_ADMIN"]]))[0].count)
       : 0;
 
-    result.foreignKeys = await query(`
-      select n.nspname as schema, c.relname as table,
-             con.conname as constraint, pg_get_constraintdef(con.oid) as definition
+    result.foreignKeys = await query("foreign_keys", `
+      select n.nspname as schema_name, c.relname as table_name,
+             con.conname as constraint_name, pg_get_constraintdef(con.oid) as definition
       from pg_constraint con
       join pg_class c on c.oid = con.conrelid
       join pg_namespace n on n.oid = c.relnamespace
       where con.contype = 'f' and n.nspname in ('public', 'auth')
-      order by schema, table, constraint
+      order by schema_name, table_name, constraint_name
     `);
     result.profilesAuthUsersForeignKeyIntact = result.foreignKeys.some(
-      (key) => key.schema === "public"
-        && key.table === "profiles"
+      (key) => key.schema_name === "public"
+        && key.table_name === "profiles"
         && /FOREIGN KEY \(id\) REFERENCES auth\.users\(id\)/i.test(key.definition),
     );
 
     result.roleSchema = result.publicProfilesExists
       ? {
-          column: (await query(`
+          column: (await query("role_schema", `
             select data_type, udt_schema, udt_name, is_nullable
             from information_schema.columns
             where table_schema = $1 and table_name = $2 and column_name = $3
           `, ["public", "profiles", "role"]))[0] || null,
-          constraints: await query(`
-            select con.conname as constraint, pg_get_constraintdef(con.oid) as definition
+          constraints: await query("role_constraints", `
+            select con.conname as constraint_name, pg_get_constraintdef(con.oid) as definition
             from pg_constraint con
             join pg_class c on c.oid = con.conrelid
             join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = $1 and c.relname = $2
               and (con.contype = 'c' or pg_get_constraintdef(con.oid) ilike $3)
-            order by constraint
+            order by constraint_name
           `, ["public", "profiles", "%role%"]),
         }
       : null;
@@ -204,14 +215,17 @@ async function main() {
         : "Important application data tables are missing.";
     }
 
-    await client.query("ROLLBACK");
+    await query("rollback", "ROLLBACK");
+    result.auditSuccessful = true;
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     process.stdout.write(`${JSON.stringify({
       connectionSuccessful: true,
       auditSuccessful: false,
+      query: error?.auditQuery || activeQuery || "unknown",
       errorCode: typeof error?.code === "string" ? error.code : "AUDIT_QUERY_FAILED",
+      position: typeof error?.position === "string" ? error.position : undefined,
       error: "A read-only audit query failed.",
     }, null, 2)}\n`);
     process.exitCode = 1;
