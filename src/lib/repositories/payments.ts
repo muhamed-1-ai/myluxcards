@@ -1,0 +1,3 @@
+import "server-only"; import { pool } from "../db"; import type { Queryable } from "../db/types"; import type { PaymentRow } from "@/types/database";
+export async function findPaymentByProviderPayment(provider:string,paymentId:string,db:Queryable=pool){return (await db.query<PaymentRow>("select * from payments where provider=$1 and provider_payment_id=$2",[provider,paymentId])).rows[0]??null}
+export async function findWebhookEvent(provider:string,eventId:string,db:Queryable=pool){return (await db.query("select * from payment_webhook_events where provider=$1 and provider_event_id=$2",[provider,eventId])).rows[0]??null}
