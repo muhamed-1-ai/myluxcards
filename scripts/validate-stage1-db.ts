@@ -10,6 +10,7 @@ const MIGRATION_LOCK = 4_866_892_367;
 const VALIDATION_LOCK = 4_866_892_368;
 const REPORT = path.resolve(process.cwd(),"STAGE1_LIVE_VALIDATION.md");
 type Result={name:string;passed:boolean;detail:string};
+type PgErrorDetails={code:string;constraint:string|null};
 const results:Result[]=[];
 const pass=(name:string,detail="Passed")=>results.push({name,passed:true,detail});
 const fail=(name:string,detail:string)=>results.push({name,passed:false,detail});
@@ -21,11 +22,23 @@ async function expectedChecksums(){
     const sql=await readFile(path.join(dir,file),"utf8"); return [file.slice(0,-4),createHash("sha256").update(sql).digest("hex")] as const;
   })));
 }
+function pgErrorDetails(error:unknown):PgErrorDetails {
+  if(typeof error!=="object"||error===null)return {code:"NON_POSTGRES_ERROR",constraint:null};
+  const value=error as {code?:unknown;constraint?:unknown};
+  return {code:typeof value.code==="string"?value.code:"UNKNOWN",constraint:typeof value.constraint==="string"?value.constraint:null};
+}
 async function expectPgError(client:PoolClient,name:string,sql:string,values:unknown[],code:string){
   await client.query("savepoint validation_expected_error");
-  try { await client.query(sql,values); throw new Error(`${name} unexpectedly succeeded`); }
-  catch(error){assert(typeof error==="object"&&error!==null&&"code" in error&&String(error.code)===code,`${name} returned an unexpected error`);pass(name,`Rejected with PostgreSQL ${code}`)}
-  finally {await client.query("rollback to savepoint validation_expected_error");await client.query("release savepoint validation_expected_error")}
+  let error:unknown;
+  try { await client.query(sql,values); }
+  catch(caught){error=caught}
+  await client.query("rollback to savepoint validation_expected_error");
+  await client.query("release savepoint validation_expected_error");
+  assert(error,`${name} unexpectedly succeeded`);
+  const actual=pgErrorDetails(error);
+  assert(actual.code===code,`${name} expected SQLSTATE ${code} but received ${actual.code}${actual.constraint?` (${actual.constraint})`:""}`);
+  pass(name,`Rejected with PostgreSQL ${actual.code}${actual.constraint?` (${actual.constraint})`:""}`);
+  return actual;
 }
 
 async function preflight(pool:Pool){
@@ -88,7 +101,11 @@ async function liveConstraints(pool:Pool){
     await expectPgError(client,"Payment idempotency uniqueness","insert into payments(order_id,provider,provider_payment_id,idempotency_key,amount_minor,currency) values($1,'RAZORPAY',$2,$3,149900,'INR')",[order.id,`pay2_${suffix}`,`idem_${suffix}`],"23505");
     const event=(await client.query<{id:string}>("insert into payment_webhook_events(payment_id,provider,provider_event_id,payload_hash) values($1,'RAZORPAY',$2,$3) returning id",[payment.id,`event_${suffix}`,"a".repeat(64)])).rows[0];
     await expectPgError(client,"Webhook event uniqueness","insert into payment_webhook_events(provider,provider_event_id,payload_hash) values('RAZORPAY',$1,$2)",[ `event_${suffix}`,"b".repeat(64)],"23505");
-    await expectPgError(client,"Order payment delete restriction","delete from orders where id=$1",[order.id],"23503");
+    const orderDeleteError=await expectPgError(client,"Order payment delete restriction","delete from orders where id=$1",[order.id],"23503");
+    assert(orderDeleteError.constraint==="payments_order_id_fkey",`Order deletion was rejected by unexpected constraint ${orderDeleteError.constraint??"UNKNOWN"}`);
+    const retained=(await client.query<{orders:string;payments:string}>("select (select count(*)::text from orders where id=$1) orders,(select count(*)::text from payments where id=$2) payments",[order.id,payment.id])).rows[0];
+    assert(retained.orders==="1"&&retained.payments==="1","Restricted order deletion did not preserve both order and payment");
+    pass("Order/payment retention","Referenced order and payment remained intact after rejected deletion");
 
     const raw=randomBytes(32).toString("base64url"),hash=hashCardToken(raw);
     assert(randomBytes(32).byteLength*8>=256,"Token entropy is below 256 bits");
