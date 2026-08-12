@@ -101,7 +101,7 @@ async function liveConstraints(pool:Pool){
     await expectPgError(client,"Payment idempotency uniqueness","insert into payments(order_id,provider,provider_payment_id,idempotency_key,amount_minor,currency) values($1,'RAZORPAY',$2,$3,149900,'INR')",[order.id,`pay2_${suffix}`,`idem_${suffix}`],"23505");
     const event=(await client.query<{id:string}>("insert into payment_webhook_events(payment_id,provider,provider_event_id,payload_hash) values($1,'RAZORPAY',$2,$3) returning id",[payment.id,`event_${suffix}`,"a".repeat(64)])).rows[0];
     await expectPgError(client,"Webhook event uniqueness","insert into payment_webhook_events(provider,provider_event_id,payload_hash) values('RAZORPAY',$1,$2)",[ `event_${suffix}`,"b".repeat(64)],"23505");
-    const orderDeleteError=await expectPgError(client,"Order payment delete restriction","delete from orders where id=$1",[order.id],"23503");
+    const orderDeleteError=await expectPgError(client,"Order payment delete restriction","delete from orders where id=$1",[order.id],"23001");
     assert(orderDeleteError.constraint==="payments_order_id_fkey",`Order deletion was rejected by unexpected constraint ${orderDeleteError.constraint??"UNKNOWN"}`);
     const retained=(await client.query<{orders:string;payments:string}>("select (select count(*)::text from orders where id=$1) orders,(select count(*)::text from payments where id=$2) payments",[order.id,payment.id])).rows[0];
     assert(retained.orders==="1"&&retained.payments==="1","Restricted order deletion did not preserve both order and payment");
@@ -127,7 +127,7 @@ async function liveConstraints(pool:Pool){
     await expectPgError(client,"Payout commission uniqueness","insert into affiliate_payout_items(payout_id,commission_id,amount_minor) values($1,$2,14990)",[payout2.id,commission.id],"23505");
     await client.query("insert into affiliate_commission_adjustments(commission_id,source_event_id,adjustment_type,amount_minor,reason,created_by) values($1,$2,'PARTIAL_REFUND',100,'Fixture',$3)",[commission.id,event.id,user.id]);
     await expectPgError(client,"Refund source event uniqueness","insert into affiliate_commission_adjustments(commission_id,source_event_id,adjustment_type,amount_minor,reason,created_by) values($1,$2,'PARTIAL_REFUND',100,'Retry',$3)",[commission.id,event.id,user.id],"23505");
-    await expectPgError(client,"Financial user delete restriction","delete from users where id=$1",[user.id],"23503");
+    await expectPgError(client,"Financial user delete restriction","delete from users where id=$1",[user.id],"23001");
 
     const auditUser=(await client.query<{id:string}>("insert into users(email,normalized_email,name) values($1,$1,'Audit Actor') returning id",[`audit-${email}`])).rows[0];
     const audit=(await client.query<{id:string}>("insert into admin_audit_logs(actor_id,actor_role,action,entity_type) values($1,'CUSTOMER','VALIDATE','fixture') returning id",[auditUser.id])).rows[0];
