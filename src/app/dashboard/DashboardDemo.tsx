@@ -15,7 +15,7 @@ type Card = {
   analytics?: Record<string, number>;
 };
 type Lead = { id:string; card_id:string; name:string; email?:string; phone?:string; company?:string; message?:string; status:string; created_at:string };
-type CurrentUser = { id: string; name: string; email: string };
+type CurrentUser = { id: string; name: string; email: string; role?: string };
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
 const socialFields = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps"];
@@ -366,6 +366,9 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           {accountMenu && <div className="account-popover">
             <strong>{currentUser.name}</strong>
             <span>{currentUser.email}</span>
+            {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
+              <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#d4af37", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
+            )}
             <button onClick={logout}>Log out</button>
           </div>}
         </div>
@@ -387,6 +390,9 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
           <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
+          {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
+            <a className="side-link" href="/admin" style={{ color: "#d4af37", fontWeight: 600 }}><I>⚙</I> Admin Portal</a>
+          )}
         </nav>
         <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
       </aside>
