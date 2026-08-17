@@ -1,5 +1,5 @@
 import { audit, requireAdmin, safeError, validMutationOrigin } from "@/lib/adminAuth";
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 import { syncCommissionForTrustedOrder } from "@/lib/affiliate";
 import { sendOrderStatus } from "@/lib/customerEmails";
 
@@ -21,19 +21,102 @@ export async function GET(request: Request) {
     const productType = url.searchParams.get("productType");
     const fromDate = url.searchParams.get("from");
     const toDate = url.searchParams.get("to");
-    const sort = url.searchParams.get("sort") === "oldest" ? "created_at.asc" : url.searchParams.get("sort") === "total" ? "total_minor.desc" : "created_at.desc";
-    let path = "/rest/v1/orders?select=id,order_number,customer_name,customer_email,customer_phone,status,payment_status,currency,subtotal_minor,discount_minor,tax_minor,shipping_minor,total_minor,shipping_address,billing_address,courier,tracking_number,internal_notes,created_at,order_items(id,product_name,product_type,sku,variant,quantity,unit_price_minor,total_minor),payments(provider,status,provider_transaction_id)";
-    if (search) path += `&or=(order_number.ilike.*${encodeURIComponent(search)}*,customer_email.ilike.*${encodeURIComponent(search)}*,customer_name.ilike.*${encodeURIComponent(search)}*)`;
-    if (status && statuses.has(status)) path += `&status=eq.${status}`;
-    if (paymentStatus && paymentStatuses.has(paymentStatus)) path += `&payment_status=eq.${paymentStatus}`;
-    if (productType && productTypes.has(productType)) path += `&order_items.product_type=eq.${productType}`;
-    if (fromDate && /^\d{4}-\d{2}-\d{2}$/.test(fromDate)) path += `&created_at=gte.${fromDate}T00:00:00.000Z`;
-    if (toDate && /^\d{4}-\d{2}-\d{2}$/.test(toDate)) path += `&created_at=lte.${toDate}T23:59:59.999Z`;
-    const from = (page - 1) * pageSize;
-    const { data, response } = await supabaseJson(`${path}&order=${sort}`, {
-      headers: { Prefer: "count=exact", Range: `${from}-${from + pageSize - 1}` },
-    }, true);
-    return Response.json({ data, total: Number(response.headers.get("content-range")?.split("/")[1] || 0), page, pageSize });
+    
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: "insensitive" } },
+        { customerEmail: { contains: search, mode: "insensitive" } },
+        { customerName: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    if (status && statuses.has(status)) where.status = status;
+    if (paymentStatus && paymentStatuses.has(paymentStatus)) where.paymentStatus = paymentStatus;
+    if (productType && productTypes.has(productType)) {
+      where.orderItems = { some: { productType } };
+    }
+    if (fromDate && /^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+      where.createdAt = { ...(where.createdAt || {}), gte: new Date(`${fromDate}T00:00:00.000Z`) };
+    }
+    if (toDate && /^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+      where.createdAt = { ...(where.createdAt || {}), lte: new Date(`${toDate}T23:59:59.999Z`) };
+    }
+
+    const orderBy: any = url.searchParams.get("sort") === "oldest"
+      ? { createdAt: "asc" }
+      : url.searchParams.get("sort") === "total"
+        ? { totalMinor: "desc" }
+        : { createdAt: "desc" };
+
+    const [total, orders] = await prisma.$transaction([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          orderItems: {
+            select: {
+              id: true,
+              productName: true,
+              productType: true,
+              sku: true,
+              variant: true,
+              quantity: true,
+              unitPriceMinor: true,
+              totalMinor: true,
+            },
+          },
+          payments: {
+            select: {
+              provider: true,
+              status: true,
+              providerPaymentId: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const formatted = orders.map(o => ({
+      id: o.id,
+      order_number: o.orderNumber,
+      customer_name: o.customerName,
+      customer_email: o.customerEmail,
+      customer_phone: o.customerPhone,
+      status: o.status,
+      payment_status: o.paymentStatus,
+      currency: o.currency,
+      subtotal_minor: o.subtotalMinor,
+      discount_minor: o.discountMinor,
+      tax_minor: o.taxMinor,
+      shipping_minor: o.shippingMinor,
+      total_minor: o.totalMinor,
+      shipping_address: o.shippingAddress,
+      billing_address: o.billingAddress,
+      courier: o.courier,
+      tracking_number: o.trackingNumber,
+      internal_notes: o.internalNotes,
+      created_at: o.createdAt,
+      order_items: o.orderItems.map(i => ({
+        id: i.id,
+        product_name: i.productName,
+        product_type: i.productType,
+        sku: i.sku,
+        variant: i.variant,
+        quantity: i.quantity,
+        unit_price_minor: i.unitPriceMinor,
+        total_minor: i.totalMinor,
+      })),
+      payments: o.payments.map(p => ({
+        provider: p.provider,
+        status: p.status,
+        provider_transaction_id: p.providerPaymentId,
+      })),
+    }));
+
+    return Response.json({ data: formatted, total, page, pageSize });
   } catch (error) { return safeError(error); }
 }
 
@@ -44,18 +127,48 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     if (typeof body.id !== "string") return Response.json({ message: "Invalid order." }, { status: 400 });
-    const changes: Record<string, string | null> = {};
-    if (typeof body.status === "string" && statuses.has(body.status)) changes.status = body.status;
-    if (typeof body.courier === "string") changes.courier = body.courier.trim().slice(0, 100) || null;
-    if (typeof body.trackingNumber === "string") changes.tracking_number = body.trackingNumber.trim().slice(0, 150) || null;
-    if (typeof body.internalNotes === "string") changes.internal_notes = body.internalNotes.trim().slice(0, 5000) || null;
-    if (!Object.keys(changes).length) return Response.json({ message: "No valid changes." }, { status: 400 });
-    const before = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}&select=id,order_number,customer_name,customer_email,status,courier,tracking_number&limit=1`, {}, true);
-    if (!before.data?.[0]) return Response.json({ message: "Order not found." }, { status: 404 });
-    const { data } = await supabaseJson(`/rest/v1/orders?id=eq.${encodeURIComponent(body.id)}`, { method: "PATCH", body: JSON.stringify(changes) }, true);
+    const updateData: any = {};
+    if (typeof body.status === "string" && statuses.has(body.status)) updateData.status = body.status;
+    if (typeof body.courier === "string") updateData.courier = body.courier.trim().slice(0, 100) || null;
+    if (typeof body.trackingNumber === "string") updateData.trackingNumber = body.trackingNumber.trim().slice(0, 150) || null;
+    if (typeof body.internalNotes === "string") updateData.internalNotes = body.internalNotes.trim().slice(0, 5000) || null;
+    if (!Object.keys(updateData).length) return Response.json({ message: "No valid changes." }, { status: 400 });
+    
+    const before = await prisma.order.findUnique({
+      where: { id: body.id },
+      select: { id: true, orderNumber: true, customerName: true, customerEmail: true, status: true, courier: true, trackingNumber: true },
+    });
+    if (!before) return Response.json({ message: "Order not found." }, { status: 404 });
+
+    const updated = await prisma.order.update({
+      where: { id: body.id },
+      data: updateData,
+    });
+
     await syncCommissionForTrustedOrder(body.id);
-    await audit(actor, "ORDER_UPDATED", "order", body.id, before.data[0], changes);
-    if(changes.status&&changes.status!==before.data[0].status)await sendOrderStatus({id:body.id,number:before.data[0].order_number,name:before.data[0].customer_name,email:before.data[0].customer_email,status:changes.status,courier:changes.courier??before.data[0].courier,tracking:changes.tracking_number??before.data[0].tracking_number}).catch(()=>false);
-    return Response.json({ data: data?.[0] });
+    await audit(actor, "ORDER_UPDATED", "order", body.id, before, updateData);
+    
+    if (updateData.status && updateData.status !== before.status) {
+      await sendOrderStatus({
+        id: body.id,
+        number: before.orderNumber,
+        name: before.customerName,
+        email: before.customerEmail,
+        status: updateData.status,
+        courier: updateData.courier ?? before.courier,
+        tracking: updateData.trackingNumber ?? before.trackingNumber,
+      }).catch(() => false);
+    }
+    
+    return Response.json({
+      data: {
+        id: updated.id,
+        order_number: updated.orderNumber,
+        status: updated.status,
+        courier: updated.courier,
+        tracking_number: updated.trackingNumber,
+        internal_notes: updated.internalNotes,
+      },
+    });
   } catch (error) { return safeError(error); }
 }

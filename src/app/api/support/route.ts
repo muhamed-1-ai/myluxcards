@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { requestContext, validMutationOrigin } from "@/lib/adminAuth";
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 
 export const runtime = "nodejs";
 
@@ -31,11 +31,14 @@ export async function POST(request: Request) {
 
     const context = await requestContext();
     const fingerprint = createHash("sha256").update(`${context.ip || "unknown"}|${email}`).digest("hex").slice(0, 24);
-    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const recent = await supabaseJson(`/rest/v1/support_tickets?fingerprint=eq.${fingerprint}&created_at=gte.${encodeURIComponent(since)}&select=id`, {
-      headers: { Prefer: "count=exact", Range: "0-2" },
-    }, true).catch(() => supabaseJson(`/rest/v1/admin_notifications?type=eq.SUPPORT_TICKET&event_key=like.support-${fingerprint}-*&created_at=gte.${encodeURIComponent(since)}&select=id`, { headers: { Prefer: "count=exact", Range: "0-2" } }, true));
-    const recentCount = Number(recent.response.headers.get("content-range")?.split("/")[1] || recent.data?.length || 0);
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    
+    const recentCount = await prisma.supportTicket.count({
+      where: {
+        fingerprint,
+        createdAt: { gte: since },
+      },
+    });
     if (recentCount >= 3) return Response.json({ message: "Too many support requests. Please wait an hour before trying again." }, { status: 429 });
 
     const id = randomUUID();
@@ -44,11 +47,31 @@ export async function POST(request: Request) {
     const title = `New support ticket ${reference}: ${topics[topic]}`;
     const notificationMessage = `${name} · ${email}${contactTime ? ` · Best contact: ${contactTime}` : ""} · ${message}`;
     const recipient = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL?.trim() || null;
-    await supabaseJson("/rest/v1/support_tickets", { method:"POST", body:JSON.stringify({ id, reference, customer_name:name, customer_email:email, topic:topics[topic], contact_time:contactTime || null, message, fingerprint }) }, true).catch(() => null);
-    await supabaseJson("/rest/v1/admin_notifications", {
-      method: "POST",
-      body: JSON.stringify({ event_key: eventKey, type: "SUPPORT_TICKET", title, message: notificationMessage, email_recipient: recipient }),
-    }, true);
+    
+    await prisma.$transaction([
+      prisma.supportTicket.create({
+        data: {
+          id,
+          reference,
+          customerName: name,
+          customerEmail: email,
+          topic: topics[topic],
+          contactTime: contactTime || null,
+          message,
+          fingerprint,
+        },
+      }),
+      // admin_notifications logging
+      prisma.adminNotification.create({
+        data: {
+          eventKey,
+          type: "SUPPORT_TICKET",
+          title,
+          message: notificationMessage,
+          emailRecipient: recipient,
+        },
+      }),
+    ]);
 
     if (recipient && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
       try {
@@ -60,9 +83,10 @@ export async function POST(request: Request) {
             html: `<h1>${escapeHtml(title)}</h1><p><strong>Customer:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><strong>Best contact:</strong> ${escapeHtml(contactTime || "Not specified")}</p><p><strong>Message:</strong> ${escapeHtml(message)}</p><p><a href="${escapeHtml((process.env.APP_URL || "https://myluxcards.vercel.app").replace(/\/$/, ""))}/admin">Open Admin notifications</a></p>`,
           }), cache: "no-store",
         });
-        await supabaseJson(`/rest/v1/admin_notifications?event_key=eq.${encodeURIComponent(eventKey)}`, {
-          method: "PATCH", body: JSON.stringify(response.ok ? { emailed_at: new Date().toISOString(), email_error: null } : { email_error: `Delivery failed (${response.status})` }),
-        }, true);
+        await prisma.adminNotification.update({
+          where: { eventKey },
+          data: response.ok ? { emailedAt: new Date(), emailError: null } : { emailError: `Delivery failed (${response.status})` },
+        }).catch(() => null);
       } catch { /* The in-dashboard notification is already safely stored. */ }
     }
     return Response.json({ ok: true, reference }, { status: 201 });

@@ -4,7 +4,7 @@ import { resolveAffiliateAttribution } from "@/lib/affiliate";
 import { notifySuperAdminsOfOrder } from "@/lib/orderNotifications";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import { sendOrderConfirmation } from "@/lib/customerEmails";
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 
 export const runtime = "nodejs";
 
@@ -25,7 +25,6 @@ export async function POST(request:Request){
   if(!validMutationOrigin(request))return Response.json({message:"Invalid request origin."},{status:403});
   const identity=await currentIdentity();
   if(!identity)return Response.json({message:"Please sign in before placing your order."},{status:401});
-  let orderId="";
   try{
     const body=await request.json().catch(()=>({}));
     const customer=body.customer||{}, address=body.shippingAddress||{};
@@ -47,27 +46,94 @@ export async function POST(request:Request){
     const subtotal=items.reduce((sum,item)=>sum+item.priceMinor*item.quantity,0), shipping=0, tax=0, discount=0, total=subtotal+shipping+tax-discount;
     const attribution=await resolveAffiliateAttribution(clean(body.couponCode,50)||null,email);
     const orderNumber=`MLC-${new Date().toISOString().slice(0,10).replaceAll("-","")}-${randomBytes(3).toString("hex").toUpperCase()}`;
-    const orderPayload:any={order_number:orderNumber,customer_id:identity.id,customer_name:name,customer_email:email,customer_phone:phone,status:"PENDING",payment_status:"PENDING",currency:"INR",subtotal_minor:subtotal,discount_minor:discount,tax_minor:tax,shipping_minor:shipping,total_minor:total,shipping_address:shippingAddress,billing_address:shippingAddress,internal_notes:`Checkout payment method: ${method}`};
-    if(attribution){
-      orderPayload.affiliate_id=attribution.affiliateId;orderPayload.affiliate_source=attribution.source;orderPayload.affiliate_coupon_code=(attribution as any).couponCode||null;orderPayload.affiliate_lead_id=(attribution as any).businessLeadId||null;orderPayload.affiliate_attributed_at=new Date().toISOString();
-      if((attribution as any).campaign){const campaign=await supabaseJson(`/rest/v1/affiliate_campaigns?affiliate_id=eq.${attribution.affiliateId}&name=eq.${encodeURIComponent((attribution as any).campaign)}&select=id&limit=1`,{},true);orderPayload.affiliate_campaign_id=campaign.data?.[0]?.id||null;}
+    
+    let affiliateCampaignId: string | null = null;
+    if(attribution && (attribution as any).campaign){
+      const campaign = await prisma.affiliateCampaign.findFirst({
+        where: { affiliateId: attribution.affiliateId, name: (attribution as any).campaign },
+        select: { id: true },
+      });
+      affiliateCampaignId = campaign?.id || null;
     }
-    const created=await supabaseJson("/rest/v1/orders",{method:"POST",body:JSON.stringify(orderPayload)},true);orderId=created.data?.[0]?.id;
-    if(!orderId)throw new Error("Order creation failed.");
-    await supabaseJson("/rest/v1/order_items",{method:"POST",body:JSON.stringify(items.map(item=>({order_id:orderId,product_name:item.name,product_type:item.type,sku:item.sku,variant:item.variant,quantity:item.quantity,unit_price_minor:item.priceMinor})))},true);
-    let paymentCheckout:null|{provider:"RAZORPAY";keyId:string;providerOrderId:string}=null;
-    if(method==="Cash on Delivery"){
-      await supabaseJson("/rest/v1/payments",{method:"POST",body:JSON.stringify({order_id:orderId,provider:"CASH_ON_DELIVERY",provider_transaction_id:`COD-${orderId}`,amount_minor:total,currency:"INR",status:"PENDING"})},true);
-    }else{
-      const providerOrder=await createRazorpayOrder({amount:total,currency:"INR",receipt:orderNumber,orderId});
-      await supabaseJson("/rest/v1/payments",{method:"POST",body:JSON.stringify({order_id:orderId,provider:"RAZORPAY",provider_transaction_id:providerOrder.id,amount_minor:total,currency:"INR",status:"PENDING",provider_created_at:new Date().toISOString()})},true);
-      paymentCheckout={provider:"RAZORPAY",keyId:providerOrder.keyId,providerOrderId:providerOrder.id};
-    }
+
+    const { orderId, paymentCheckout } = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          orderNumber,
+          customerId: identity.id,
+          customerName: name,
+          customerEmail: email,
+          customerPhone: phone,
+          status: "PENDING",
+          paymentStatus: "PENDING",
+          currency: "INR",
+          subtotalMinor: subtotal,
+          discountMinor: discount,
+          taxMinor: tax,
+          shippingMinor: shipping,
+          totalMinor: total,
+          shippingAddress: shippingAddress as any,
+          billingAddress: shippingAddress as any,
+          internalNotes: `Checkout payment method: ${method}`,
+          affiliateId: attribution?.affiliateId || null,
+          affiliateSource: attribution?.source || null,
+          affiliateCouponCode: (attribution as any)?.couponCode || null,
+          affiliateLeadId: (attribution as any)?.businessLeadId || null,
+          affiliateAttributedAt: attribution ? new Date() : null,
+          affiliateCampaignId,
+        },
+      });
+
+      await tx.orderItem.createMany({
+        data: items.map(item => ({
+          orderId: order.id,
+          productName: item.name,
+          productType: item.type,
+          sku: item.sku,
+          variant: item.variant as any,
+          quantity: item.quantity,
+          unitPriceMinor: item.priceMinor,
+          totalMinor: item.quantity * item.priceMinor,
+        })),
+      });
+
+      let checkoutInfo: null | { provider: "RAZORPAY"; keyId: string; providerOrderId: string } = null;
+      if (method === "Cash on Delivery") {
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            provider: "CASH_ON_DELIVERY",
+            providerOrderId: `COD-${order.id}`,
+            idempotencyKey: `COD-${order.id}`,
+            amountMinor: total,
+            currency: "INR",
+            status: "PENDING",
+          },
+        });
+      } else {
+        const providerOrder = await createRazorpayOrder({ amount: total, currency: "INR", receipt: orderNumber, orderId: order.id });
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            provider: "RAZORPAY",
+            providerOrderId: providerOrder.id,
+            providerPaymentId: providerOrder.id,
+            idempotencyKey: providerOrder.id,
+            amountMinor: total,
+            currency: "INR",
+            status: "PENDING",
+            providerCreatedAt: new Date(),
+          },
+        });
+        checkoutInfo = { provider: "RAZORPAY", keyId: providerOrder.keyId, providerOrderId: providerOrder.id };
+      }
+      return { orderId: order.id, paymentCheckout: checkoutInfo };
+    });
+
     await notifySuperAdminsOfOrder({eventKey:`new-order:${orderId}`,orderId,orderNumber,customerName:name,customerEmail:email,items:items.map(item=>({name:item.name,quantity:item.quantity})),totalMinor:total,currency:"INR",paymentStatus:"PENDING",shippingLocation:[shippingAddress.city,shippingAddress.state,shippingAddress.country].join(", ")}).catch(()=>null);
     await sendOrderConfirmation({id:orderId,number:orderNumber,name,email,totalMinor:total,currency:"INR",paymentStatus:"PENDING"}).catch(()=>false);
     return Response.json({ok:true,orderId,orderNumber,totalMinor:total,currency:"INR",paymentCheckout},{status:201});
   }catch(error:any){
-    if(orderId)await supabaseJson(`/rest/v1/orders?id=eq.${orderId}`,{method:"DELETE"},true).catch(()=>null);
     if(error?.message==="UNAVAILABLE_PRODUCT")return Response.json({message:"One of the products is unavailable. Remove it and try again."},{status:400});
     if(error?.message==="PAYMENTS_NOT_CONFIGURED")return Response.json({message:"Online payment is temporarily unavailable. Choose cash on delivery or contact support."},{status:503});
     return safeError(error);

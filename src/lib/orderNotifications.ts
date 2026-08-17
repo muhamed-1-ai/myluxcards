@@ -1,4 +1,4 @@
-import { supabaseJson } from "./supabaseAuth";
+import { prisma } from "./db/prisma";
 
 type OrderNotification = {
   eventKey: string;
@@ -21,20 +21,18 @@ export async function notifySuperAdminsOfOrder(order: OrderNotification) {
   const message = `${order.customerName} placed ${order.items.length} item line(s) for ${order.currency} ${(order.totalMinor / 100).toFixed(2)}.`;
 
   try {
-    await supabaseJson("/rest/v1/admin_notifications", {
-      method: "POST",
-      body: JSON.stringify({
-        event_key: order.eventKey,
+    await prisma.adminNotification.create({
+      data: {
+        eventKey: order.eventKey,
         type: "NEW_ORDER",
         title,
         message,
-        order_id: order.orderId,
-        email_recipient: recipient || null,
-      }),
-    }, true);
-  } catch (error) {
-    // The unique event key is the idempotency gate. A retry must never send a second email.
-    if ((error as { status?: number }).status === 409) return { duplicate: true };
+        orderId: order.orderId,
+        emailRecipient: recipient || null,
+      },
+    });
+  } catch (error: any) {
+    if (error?.code === "P2002") return { duplicate: true };
     throw error;
   }
 
@@ -65,12 +63,13 @@ export async function notifySuperAdminsOfOrder(order: OrderNotification) {
     cache: "no-store",
   });
 
-  await supabaseJson(`/rest/v1/admin_notifications?event_key=eq.${encodeURIComponent(order.eventKey)}`, {
-    method: "PATCH",
-    body: JSON.stringify(response.ok
-      ? { emailed_at: new Date().toISOString(), email_error: null }
-      : { email_error: `Delivery failed (${response.status})` }),
-  }, true);
+  await prisma.adminNotification.update({
+    where: { eventKey: order.eventKey },
+    data: response.ok
+      ? { emailedAt: new Date(), emailError: null }
+      : { emailError: `Delivery failed (${response.status})` },
+  }).catch(() => null);
+
   if (!response.ok) throw new Error("Order notification email delivery failed.");
   return { created: true, email: "sent" as const };
 }

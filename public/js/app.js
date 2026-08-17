@@ -1646,6 +1646,45 @@ class LuxApp {
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
+          if (response.status === 409) {
+            const loginTry = await fetch('/api/auth/login', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password }),
+              cache: 'no-store',
+            });
+            const loginData = await loginTry.json().catch(() => ({}));
+            if (loginTry.ok && loginData.user) {
+              const user = {
+                id: loginData.user.id,
+                name: loginData.user.name || name || email.split('@')[0],
+                email: loginData.user.email || email,
+              };
+              localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
+              this.updateAccountButton(user);
+              form.reset();
+              this.closeModal('signup-modal');
+              this.showToast(`Welcome back to MyLuxCards, ${user.name}!`, 'success');
+              const next = sessionStorage.getItem('myluxcards_auth_next');
+              if (next && next.startsWith('/') && !next.startsWith('//')) {
+                sessionStorage.removeItem('myluxcards_auth_next');
+                window.location.href = next;
+              }
+              return;
+            }
+            if (error) {
+              error.innerHTML = `${data.message || 'An account with that email already exists.'} <button type="button" class="btn-link-inline" style="color:#d4af37;background:none;border:none;text-decoration:underline;cursor:pointer;font-weight:600;padding:0;margin-left:4px;" id="switch-to-login-btn">Sign in here</button>`;
+              document.getElementById('switch-to-login-btn')?.addEventListener('click', () => {
+                this.closeModal('signup-modal');
+                this.openModal('login-modal');
+                const loginEmail = document.getElementById('login-email');
+                if (loginEmail) loginEmail.value = email;
+                document.getElementById('login-password')?.focus();
+              });
+            }
+            return;
+          }
           if (error) error.textContent = data.message || data.msg || data.error_description || data.error || 'Unable to create your account. Please try again.';
           return;
         }
@@ -1674,6 +1713,11 @@ class LuxApp {
             form.reset();
             this.closeModal('signup-modal');
             this.showToast(`Welcome to MyLuxCards, ${user.name}!`, 'success');
+            const next = sessionStorage.getItem('myluxcards_auth_next');
+            if (next && next.startsWith('/') && !next.startsWith('//')) {
+              sessionStorage.removeItem('myluxcards_auth_next');
+              window.location.href = next;
+            }
             return;
           }
           if (loginData.code === 'EMAIL_NOT_CONFIRMED' && error) {
@@ -1740,6 +1784,11 @@ class LuxApp {
         }
         this.closeModal('login-modal');
         this.showToast(`Welcome back, ${user.name}!`, 'success');
+        const next = sessionStorage.getItem('myluxcards_auth_next');
+        if (next && next.startsWith('/') && !next.startsWith('//')) {
+          sessionStorage.removeItem('myluxcards_auth_next');
+          window.location.href = next;
+        }
       } catch {
         const message = 'The login service could not be reached. Please try again.';
         if (error) error.textContent = message;
@@ -1810,7 +1859,7 @@ class LuxApp {
     const loginFlag = urlParams.get('login') === '1';
     const oauthError = urlParams.get('error');
     const nextDestination = urlParams.get('next');
-    if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
+    if (nextDestination && nextDestination.startsWith('/') && !nextDestination.startsWith('//')) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
 
     if (oauthError) {
       const error = document.getElementById('login-error');

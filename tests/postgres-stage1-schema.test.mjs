@@ -4,13 +4,15 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 const dir="db/migrations";
-const expected=["0001_extensions.sql","0002_roles_and_identity.sql","0003_auth_support.sql","0004_catalog_and_orders.sql","0005_payments_and_webhooks.sql","0006_admin_settings_support.sql","0007_digital_and_physical_cards.sql","0008_affiliate_foundation.sql","0009_affiliate_financials.sql","0010_functions_triggers_indexes.sql","0011_reference_data.sql"];
+const immutable=["0001_extensions.sql","0002_roles_and_identity.sql","0003_auth_support.sql","0004_catalog_and_orders.sql","0005_payments_and_webhooks.sql","0006_admin_settings_support.sql","0007_digital_and_physical_cards.sql","0008_affiliate_foundation.sql","0009_affiliate_financials.sql","0010_functions_triggers_indexes.sql","0011_reference_data.sql"];
+const expected=[...immutable,"0012_physical_card_claim_and_production.sql"];
 const files=readdirSync(dir).filter(x=>x.endsWith(".sql")).sort();
 const sql=files.map(file=>readFileSync(`${dir}/${file}`,"utf8")).join("\n");
 
-test("Stage 1 has the exact ordered migration set and 40 application tables",()=>{
+test("immutable Stage 1 migrations are preserved and forward migrations stay ordered",()=>{
   assert.deepEqual(files,expected);
-  assert.equal((sql.match(/^create table /gmi)||[]).length,40);
+  assert.deepEqual(files.slice(0,11),immutable);
+  assert.equal((sql.match(/^create table /gmi)||[]).length,42);
   assert.equal((sql.match(/^create type /gmi)||[]).length,1);
   assert.match(sql,/create type app_role as enum \('CUSTOMER','ADMIN','SUPER_ADMIN'\)/i);
 });
@@ -54,7 +56,7 @@ test("migration runner records SHA-256 checksums and uses a transaction and advi
 test("Supabase Storage remains untouched and documented as an external dependency",()=>{
   assert.doesNotMatch(sql,/storage\.buckets|storage\.objects/i);
   assert.match(sql,/S3-compatible object storage before removing Supabase Storage/i);
-  assert.match(readFileSync("src/app/api/media/route.ts","utf8"),/storage\/v1\/object\/card-media/);
+  assert.match(readFileSync("src/server/integrations/storage/supabase.ts","utf8"),/storage\/v1\/object\/\$\{BUCKET\}/);
 });
 
 test("live validator is disposable-only, rollback-clean, and covers required safety checks",()=>{

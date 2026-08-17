@@ -1,4 +1,5 @@
 import type { PoolConfig } from "pg";
+import { sanitizeDatabaseUrl } from "@/lib/env/server";
 
 export function databaseConfig(env: NodeJS.ProcessEnv = process.env): PoolConfig {
   const common: PoolConfig = {
@@ -13,5 +14,5 @@ export function databaseConfig(env: NodeJS.ProcessEnv = process.env): PoolConfig
       user: env.PGUSER, password: env.PGPASSWORD, database: env.PGDATABASE };
   }
   if (!env.DATABASE_URL) throw new Error("PostgreSQL connection settings are not configured.");
-  return { ...common, connectionString: env.DATABASE_URL };
+  return { ...common, connectionString: sanitizeDatabaseUrl(env.DATABASE_URL) };
 }

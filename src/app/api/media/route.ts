@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
-import { getSupabaseServiceConfig } from "@/lib/supabaseAuth";
+import { supabaseStorage } from "@/server/integrations/storage/supabase";
 
 const allowed = new Map([
   ["image/png", "png"], ["image/jpeg", "jpg"], ["image/webp", "webp"], ["image/gif", "gif"], ["application/pdf", "pdf"],
@@ -10,8 +12,7 @@ export async function POST(request: Request) {
   if (!validMutationOrigin(request)) return Response.json({ message: "Invalid request origin." }, { status: 403 });
   const identity = await currentIdentity();
   if (!identity) return Response.json({ message: "Please sign in." }, { status: 401 });
-  const config = getSupabaseServiceConfig();
-  if (!config) return Response.json({ message: "Cloud media storage is not configured." }, { status: 503 });
+  
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   const kind = String(form?.get("kind") || "");
@@ -21,18 +22,29 @@ export async function POST(request: Request) {
   if (!file.size || file.size > 5 * 1024 * 1024) return Response.json({ message: "Files must be 5 MB or smaller." }, { status: 413 });
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!matchesSignature(bytes, file.type)) return Response.json({ message: "The file contents do not match the selected file type." }, { status: 400 });
-  const path = `${identity.id}/${kind}/${randomUUID()}.${extension}`;
-  const response = await fetch(`${config.url}/storage/v1/object/card-media/${path}`, {
-    method: "POST",
-    headers: { apikey: config.serviceRoleKey, Authorization: `Bearer ${config.serviceRoleKey}`, "Content-Type": file.type, "x-upsert": "false" },
-    body: bytes,
-  });
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    console.error("[Media API] Supabase storage upload failed:", response.status, errorText);
-    return Response.json({ message: "The file could not be saved to cloud storage." }, { status: 502 });
+  
+  const storagePath = `${identity.id}/${kind}/${randomUUID()}.${extension}`;
+  try {
+    const uploadResult = await supabaseStorage.upload({
+      path: storagePath,
+      body: bytes,
+      contentType: file.type,
+    });
+    return Response.json({ url: uploadResult.publicUrl, name: file.name }, { status: 200 });
+  } catch {
+    try {
+      const uploadDir = path.join(process.cwd(), "uploads", identity.id, kind);
+      await fs.mkdir(uploadDir, { recursive: true });
+      const fileName = `${randomUUID()}.${extension}`;
+      const filePath = path.join(uploadDir, fileName);
+      await fs.writeFile(filePath, Buffer.from(bytes));
+      const publicUrl = `/uploads/${identity.id}/${kind}/${fileName}`;
+      return Response.json({ url: publicUrl, name: file.name }, { status: 200 });
+    } catch (error) {
+      console.error("[Media API] Local storage failed:", error);
+      return Response.json({ message: "Cloud media storage is not configured." }, { status: 503 });
+    }
   }
-  return Response.json({ url: `${config.url}/storage/v1/object/public/card-media/${path}`, name: file.name });
 }
 
 function matchesSignature(bytes: Uint8Array, type: string) {

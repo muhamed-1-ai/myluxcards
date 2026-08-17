@@ -407,7 +407,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </div>
       </header>
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
+        {(["dashboard","contact","social","company","appearance","cards"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":"My Cards"}</button>)}
       </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
@@ -422,9 +422,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <small>{selected.activatedAt ? selected.active ? "Published until you switch it off" : "Currently switched off" : "Activation required"} ({selected.id.replace("card-", "#")})</small>
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
-          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>◎</I> Leads <b>{leads.length}</b></button>
           <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
-          <a className="side-link" href="/account/referrals"><I>↗</I> Referrals</a>
         </nav>
         <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards, leads, and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
       </aside>

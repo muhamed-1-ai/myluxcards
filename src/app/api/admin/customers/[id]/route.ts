@@ -1,5 +1,5 @@
 import { requireAdmin, safeError } from "@/lib/adminAuth";
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const actor = await requireAdmin();
@@ -7,13 +7,91 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   const { id } = await context.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ message: "Customer not found." }, { status: 404 });
   try {
-    const profileRequest = supabaseJson(`/rest/v1/profiles?id=eq.${id}&role=eq.CUSTOMER&select=id,email,name,phone,role,status,disabled,must_change_password,internal_notes,created_at,updated_at&limit=1`, {}, true);
-    const cardsRequest = supabaseJson(`/rest/v1/digital_cards?owner_id=eq.${id}&select=id,slug,profile,active,activated_at,expires_at,created_at,updated_at&order=updated_at.desc&limit=100`, {}, true);
-    const ordersRequest = supabaseJson(`/rest/v1/orders?customer_id=eq.${id}&select=id,order_number,status,payment_status,currency,total_minor,created_at,order_items(product_name,quantity)&order=created_at.desc&limit=100`, {}, true);
-    const [profile, cards, orders] = await Promise.all([profileRequest, cardsRequest, ordersRequest]);
-    if (!profile.data?.[0]) return Response.json({ message: "Customer not found." }, { status: 404 });
-    const support = await supabaseJson(`/rest/v1/support_tickets?customer_email=eq.${encodeURIComponent(profile.data[0].email)}&select=id,reference,topic,status,created_at&order=created_at.desc&limit=100`, {}, true).catch(() => ({ data: [] }));
-    const affiliate = await supabaseJson(`/rest/v1/affiliate_profiles?user_id=eq.${id}&select=id,affiliate_code,coupon_code,partner_type,status,created_at&limit=1`, {}, true).catch(() => ({ data: [] }));
-    return Response.json({ customer: profile.data[0], cards: cards.data || [], orders: orders.data || [], support: support.data || [], affiliate: affiliate.data?.[0] || null });
+    // id=eq.${id}&role=eq.CUSTOMER
+    const user = await prisma.user.findFirst({
+      where: { id, role: "CUSTOMER" },
+      include: { profile: true },
+    });
+    if (!user) return Response.json({ message: "Customer not found." }, { status: 404 });
+
+    // owner_id=eq.${id}
+    const cards = await prisma.digitalCard.findMany({
+      where: { ownerId: id },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+    });
+
+    // customer_id=eq.${id}
+    const orders = await prisma.order.findMany({
+      where: { customerId: id },
+      include: { orderItems: { select: { productName: true, quantity: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    const support = await prisma.supportTicket.findMany({
+      where: { customerEmail: user.email },
+      select: { id: true, reference: true, topic: true, status: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    const affiliate = await prisma.affiliateProfile.findUnique({
+      where: { userId: id },
+      select: { id: true, affiliateCode: true, couponCode: true, partnerType: true, status: true, createdAt: true },
+    });
+
+    const customerData = {
+      id: user.id,
+      email: user.email,
+      name: user.name || "",
+      phone: user.profile?.phone || null,
+      role: user.role,
+      status: user.status,
+      disabled: user.disabled,
+      must_change_password: user.mustChangePassword,
+      internal_notes: user.profile?.internalNotes || null,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+    };
+
+    const cardsData = cards.map(c => ({
+      id: c.id,
+      slug: c.slug,
+      profile: c.profile,
+      active: c.active,
+      activated_at: c.activatedAt,
+      expires_at: c.expiresAt,
+      created_at: c.createdAt,
+      updated_at: c.updatedAt,
+    }));
+
+    const ordersData = orders.map(o => ({
+      id: o.id,
+      order_number: o.orderNumber,
+      status: o.status,
+      payment_status: o.paymentStatus,
+      currency: o.currency,
+      total_minor: o.totalMinor,
+      created_at: o.createdAt,
+      order_items: o.orderItems.map(i => ({ product_name: i.productName, quantity: i.quantity })),
+    }));
+
+    const affiliateData = affiliate ? {
+      id: affiliate.id,
+      affiliate_code: affiliate.affiliateCode,
+      coupon_code: affiliate.couponCode,
+      partner_type: affiliate.partnerType,
+      status: affiliate.status,
+      created_at: affiliate.createdAt,
+    } : null;
+
+    return Response.json({
+      customer: customerData,
+      cards: cardsData,
+      orders: ordersData,
+      support,
+      affiliate: affiliateData,
+    });
   } catch (error) { return safeError(error); }
 }

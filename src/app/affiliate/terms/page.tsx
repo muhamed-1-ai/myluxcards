@@ -1,4 +1,4 @@
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 
 export const metadata = { title: "Affiliate Terms | MyLuxCards" };
 export const dynamic = "force-dynamic";
@@ -26,8 +26,8 @@ MyLuxCards may review, suspend, or terminate participation for abuse or breach. 
 export default async function TermsPage() {
   let content = fallback;
   try {
-    const { data } = await supabaseJson("/rest/v1/affiliate_settings?id=eq.true&select=terms_content&limit=1", {}, true);
-    if (data?.[0]?.terms_content?.trim()) content = data[0].terms_content;
+    const settings = await prisma.affiliateSetting.findUnique({ where: { id: true }, select: { termsContent: true } });
+    if (settings?.termsContent?.trim()) content = settings.termsContent;
   } catch { /* Migration may not yet be applied. */ }
   return <main className="affiliate-section"><article className="affiliate-panel"><div className="affiliate-kicker">Program policy</div><h1>Affiliate Program terms</h1><div className="terms-content">{content}</div></article></main>;
 }

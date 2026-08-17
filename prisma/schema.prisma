@@ -1,0 +1,1204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppRole {
+  CUSTOMER
+  ADMIN
+  SUPER_ADMIN
+
+  @@map("app_role")
+}
+
+enum ProductType {
+  NFC_CARD
+  QR_LOST_FOUND
+  ACCESSORY
+  OTHER
+
+  @@map("product_type")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+
+  @@map("order_status")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  PARTIALLY_REFUNDED
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+enum CardStatus {
+  UNASSIGNED
+  ASSIGNED
+  PROGRAMMED
+  TESTED
+  SHIPPED
+  ACTIVATED
+  ACTIVE
+  DISABLED
+  REPLACED
+  LOST
+
+  @@map("card_status")
+}
+
+enum CardEventType {
+  VIEW
+  CONTACT_SAVE
+  LINK_CLICK
+  SHARE
+  LEAD
+
+  @@map("card_event_type")
+}
+
+enum CardEventChannel {
+  NFC
+  QR
+  LINK
+  PREVIEW
+
+  @@map("card_event_channel")
+}
+
+enum CardLeadStatus {
+  NEW
+  CONTACTED
+  ARCHIVED
+
+  @@map("card_lead_status")
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+
+  @@map("support_ticket_status")
+}
+
+enum AffiliateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  DISABLED
+
+  @@map("affiliate_status")
+}
+
+enum PartnerType {
+  CUSTOMER_REFERRER
+  CREATOR
+  BUSINESS_PARTNER
+  CAMPUS_AMBASSADOR
+
+  @@map("partner_type")
+}
+
+enum CommissionType {
+  PERCENT_BPS
+  FIXED_ORDER_MINOR
+  FIXED_PRODUCT_MINOR
+  PRODUCT_PERCENT_BPS
+
+  @@map("commission_type")
+}
+
+enum CommissionStatus {
+  TRACKED
+  PENDING
+  APPROVED
+  REJECTED
+  REVERSED
+  PAYOUT_REQUESTED
+  RESERVED_FOR_PAYOUT
+  PAID
+
+  @@map("commission_status")
+}
+
+enum CommissionRisk {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("commission_risk")
+}
+
+enum PayoutStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  PROCESSING
+  PAID
+  REJECTED
+  CANCELLED
+
+  @@map("payout_status")
+}
+
+enum AdjustmentType {
+  CREDIT
+  DEBIT
+  PARTIAL_REFUND
+  RECOVERY
+
+  @@map("adjustment_type")
+}
+
+enum BusinessLeadStatus {
+  REGISTERED
+  UNDER_REVIEW
+  QUALIFIED
+  CONTACTED
+  QUOTATION_SENT
+  NEGOTIATION
+  WON
+  LOST
+  EXPIRED
+  REJECTED
+
+  @@map("business_lead_status")
+}
+
+enum RewardStatus {
+  ELIGIBLE
+  APPROVED
+  REJECTED
+  FULFILLED
+
+  @@map("reward_status")
+}
+
+enum StoreCreditStatus {
+  PENDING
+  AVAILABLE
+  USED
+  EXPIRED
+  REVERSED
+
+  @@map("store_credit_status")
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+
+  @@map("webhook_status")
+}
+
+model User {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String
+  normalizedEmail    String    @unique @map("normalized_email")
+  name               String
+  passwordHash       String?   @map("password_hash")
+  emailVerifiedAt    DateTime? @map("email_verified_at") @db.Timestamptz
+  image              String?
+  role               AppRole   @default(CUSTOMER)
+  status             String    @default("ACTIVE")
+  disabled           Boolean   @default(false)
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  sessionVersion     Int       @default(1) @map("session_version")
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  accounts                  Account[]
+  profile                   Profile?
+  orders                    Order[]
+  adminAuditLogs            AdminAuditLog[]
+  adminInvitesIssued        AdminInvite[]              @relation("InvitedBy")
+  websiteSettingsUpdated    WebsiteSetting[]
+  supportTicketsAssigned    SupportTicket[]            @relation("AssignedTo")
+  supportTicketReplies      SupportTicketReply[]
+  digitalCards              DigitalCard[]
+  cards                     Card[]                     @relation("CardOwner")
+  cardBatchesCreated        CardBatch[]                @relation("CardBatchCreator")
+  cardLifecycleEvents       CardLifecycleEvent[]       @relation("CardLifecycleActor")
+  cardActivationsIssued     CardActivation[]           @relation("ActivationIssuer")
+  cardActivationsClaimed    CardActivation[]           @relation("ActivationClaimer")
+  affiliateProfile          AffiliateProfile?
+  affiliateApprovedBy       AffiliateProfile[]         @relation("ProfileApprovedBy")
+  affiliateApplications     AffiliateApplication[]     @relation("ApplicationUser")
+  affiliateDecidedBy        AffiliateApplication[]     @relation("ApplicationDecidedBy")
+  affiliateSettingsUpdated  AffiliateSetting[]
+  affiliateMaterialsCreated AffiliateMaterial[]
+  affiliatePayoutsReviewed  AffiliatePayout[]          @relation("PayoutReviewedBy")
+  commissionAdjustments     AffiliateCommissionAdjustment[]
+  fraudFlagsResolved        AffiliateFraudFlag[]
+  businessLeadsReviewed     AffiliateBusinessLead[]    @relation("LeadReviewedBy")
+  rewardsReviewed           AffiliateReward[]          @relation("RewardReviewedBy")
+
+  @@index([role, createdAt(sort: Desc)], map: "users_role_created_idx")
+  @@index([status, createdAt(sort: Desc)], map: "users_status_created_idx")
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId], map: "accounts_provider_provider_account_id_key")
+  @@unique([userId, provider], map: "accounts_user_id_provider_key")
+  @@index([userId], map: "accounts_user_idx")
+  @@map("accounts")
+}
+
+model Profile {
+  id            String   @id @db.Uuid
+  phone         String?
+  internalNotes String?  @map("internal_notes")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Product {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  slug              String   @unique
+  description       String   @default("")
+  productType       String   @default("OTHER") @map("product_type")
+  sku               String?  @unique
+  priceMinor        Int      @map("price_minor")
+  salePriceMinor    Int?     @map("sale_price_minor")
+  currency          String   @default("INR")
+  stock             Int      @default(0)
+  lowStockThreshold Int      @default(5) @map("low_stock_threshold")
+  images            Json     @default("[]")
+  variants          Json     @default("[]")
+  active            Boolean  @default(true)
+  featured          Boolean  @default(false)
+  archivedAt        DateTime? @map("archived_at") @db.Timestamptz
+  seoTitle          String?  @map("seo_title")
+  seoDescription    String?  @map("seo_description")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  orderItems            OrderItem[]
+  affiliateProductRates AffiliateProductRate[]
+  businessLeads         AffiliateBusinessLead[]
+  physicalCards         Card[]
+  cardBatches           CardBatch[]
+
+  @@index([productType, active], map: "products_type_active_idx")
+  @@index([active, featured], map: "products_active_featured_idx")
+  @@index([stock], map: "products_stock_idx")
+  @@map("products")
+}
+
+model Order {
+  id                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber                  String    @unique @map("order_number")
+  customerId                   String?   @map("customer_id") @db.Uuid
+  customerName                 String    @map("customer_name")
+  customerEmail                String    @map("customer_email")
+  customerPhone                String?   @map("customer_phone")
+  status                       String    @default("PENDING")
+  paymentStatus                String    @default("PENDING") @map("payment_status")
+  currency                     String    @default("INR")
+  subtotalMinor                Int       @map("subtotal_minor")
+  discountMinor                Int       @default(0) @map("discount_minor")
+  taxMinor                     Int       @default(0) @map("tax_minor")
+  shippingMinor                Int       @default(0) @map("shipping_minor")
+  totalMinor                   Int       @map("total_minor")
+  shippingAddress              Json      @default("{}") @map("shipping_address")
+  billingAddress               Json      @default("{}") @map("billing_address")
+  courier                      String?
+  trackingNumber               String?   @map("tracking_number")
+  internalNotes                String?   @map("internal_notes")
+  affiliateId                  String?   @map("affiliate_id") @db.Uuid
+  affiliateCampaignId          String?   @map("affiliate_campaign_id") @db.Uuid
+  affiliateSource              String?   @map("affiliate_source")
+  affiliateCouponCode          String?   @map("affiliate_coupon_code")
+  affiliateCodeSnapshot        String?   @map("affiliate_code_snapshot")
+  affiliateAttributionMethod   String?   @map("affiliate_attribution_method")
+  affiliateAttributedAt        DateTime? @map("affiliate_attributed_at") @db.Timestamptz
+  affiliateCommissionEligible Boolean   @default(false) @map("affiliate_commission_eligible")
+  affiliateLeadId              String?   @map("affiliate_lead_id") @db.Uuid
+  createdAt                    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  customer               User?                  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  affiliate              AffiliateProfile?      @relation(fields: [affiliateId], references: [id], onDelete: SetNull)
+  campaign               AffiliateCampaign?     @relation(fields: [affiliateCampaignId], references: [id], onDelete: SetNull)
+  businessLead           AffiliateBusinessLead? @relation("OrderBusinessLead", fields: [affiliateLeadId], references: [id], onDelete: SetNull)
+
+  orderItems             OrderItem[]
+  physicalCards          Card[]
+  payments               Payment[]
+  adminNotifications     AdminNotification[]
+  affiliateCommissions   AffiliateCommission[]
+  affiliateFraudFlags    AffiliateFraudFlag[]
+  linkedBusinessLead     AffiliateBusinessLead? @relation("LinkedOrder")
+  storeCreditsIssued     AffiliateStoreCredit[] @relation("StoreCreditOrder")
+  storeCreditsUsed       AffiliateStoreCredit[] @relation("UsedStoreCreditOrder")
+
+  @@index([createdAt(sort: Desc)], map: "orders_created_idx")
+  @@index([status, paymentStatus], map: "orders_status_idx")
+  @@index([customerId, createdAt(sort: Desc)], map: "orders_customer_idx")
+  @@index([paymentStatus, createdAt(sort: Desc)], map: "orders_payment_created_idx")
+  @@index([affiliateId, createdAt(sort: Desc)], map: "orders_affiliate_idx")
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String  @map("order_id") @db.Uuid
+  productId      String? @map("product_id") @db.Uuid
+  productName    String  @map("product_name")
+  productType    String  @map("product_type")
+  sku            String?
+  variant        Json    @default("{}")
+  quantity       Int
+  unitPriceMinor Int     @map("unit_price_minor")
+  totalMinor     Int     @map("total_minor")
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  affiliateCommissions AffiliateCommission[]
+  physicalCards        Card[]
+
+  @@index([orderId], map: "order_items_order_idx")
+  @@index([productId], map: "order_items_product_idx")
+  @@map("order_items")
+}
+
+model Payment {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId               String    @map("order_id") @db.Uuid
+  provider              String
+  providerOrderId       String?   @map("provider_order_id")
+  providerPaymentId     String?   @map("provider_payment_id")
+  providerRefundId      String?   @map("provider_refund_id")
+  idempotencyKey        String    @map("idempotency_key")
+  amountMinor           Int       @map("amount_minor")
+  currency              String
+  status                String    @default("PENDING")
+  failureReason         String?   @map("failure_reason")
+  refundedMinor         Int       @default(0) @map("refunded_minor")
+  providerCreatedAt     DateTime? @map("provider_created_at") @db.Timestamptz
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  webhookEvents PaymentWebhookEvent[]
+
+  @@unique([provider, idempotencyKey], map: "payments_provider_idempotency_key_key")
+  @@index([orderId], map: "payments_order_idx")
+  @@index([status, createdAt(sort: Desc)], map: "payments_status_created_idx")
+  @@map("payments")
+}
+
+model PaymentWebhookEvent {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentId          String?   @map("payment_id") @db.Uuid
+  provider           String
+  providerEventId    String    @map("provider_event_id")
+  providerOrderId    String?   @map("provider_order_id")
+  providerPaymentId  String?   @map("provider_payment_id")
+  providerRefundId   String?   @map("provider_refund_id")
+  payloadHash        String    @map("payload_hash")
+  signatureVerified  Boolean   @default(false) @map("signature_verified")
+  status             String    @default("RECEIVED")
+  attemptCount       Int       @default(0) @map("attempt_count")
+  lastError          String?   @map("last_error")
+  receivedAt         DateTime  @default(now()) @map("received_at") @db.Timestamptz
+  processedAt        DateTime? @map("processed_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  commissionAdjustments AffiliateCommissionAdjustment[]
+
+  @@unique([provider, providerEventId], map: "payment_webhook_events_provider_provider_event_id_key")
+  @@index([paymentId], map: "webhook_payment_idx")
+  @@index([provider, providerPaymentId], map: "webhook_provider_payment_idx")
+  @@index([status, receivedAt], map: "webhook_status_received_idx")
+  @@map("payment_webhook_events")
+}
+
+model AdminAuditLog {
+  id            BigInt   @id @default(autoincrement())
+  actorId       String?  @map("actor_id") @db.Uuid
+  actorRole     AppRole  @map("actor_role")
+  action        String
+  entityType    String   @map("entity_type")
+  entityId      String?  @map("entity_id")
+  beforeSummary Json?    @map("before_summary")
+  afterSummary  Json?    @map("after_summary")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)], map: "audit_created_idx")
+  @@index([actorId, createdAt(sort: Desc)], map: "audit_actor_idx")
+  @@index([entityType, entityId], map: "audit_entity_idx")
+  @@index([action, createdAt(sort: Desc)], map: "audit_action_idx")
+  @@map("admin_audit_logs")
+}
+
+model AdminNotification {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventKey       String    @unique @map("event_key")
+  type           String
+  title          String
+  message        String
+  orderId        String?   @map("order_id") @db.Uuid
+  emailRecipient String?   @map("email_recipient")
+  emailedAt      DateTime? @map("emailed_at") @db.Timestamptz
+  emailError     String?   @map("email_error")
+  readAt         DateTime? @map("read_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)], map: "notifications_created_idx")
+  @@map("admin_notifications")
+}
+
+model AdminInvite {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String
+  normalizedEmail String    @map("normalized_email")
+  role            AppRole   @default(ADMIN)
+  tokenHash       String    @unique @map("token_hash")
+  invitedBy       String    @map("invited_by") @db.Uuid
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz
+  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  inviter User @relation("InvitedBy", fields: [invitedBy], references: [id], onDelete: Restrict)
+
+  @@index([normalizedEmail, createdAt(sort: Desc)], map: "invites_email_idx")
+  @@map("admin_invites")
+}
+
+model WebsiteSetting {
+  id                      Boolean  @id @default(true)
+  businessName            String   @default("MyLuxCards") @map("business_name")
+  supportEmail            String?  @map("support_email")
+  supportPhone            String?  @map("support_phone")
+  orderNotificationEmail  String?  @map("order_notification_email")
+  currency                String   @default("INR")
+  lowStockThreshold       Int      @default(5) @map("low_stock_threshold")
+  shipping                Json     @default("{}")
+  tax                     Json     @default("{}")
+  invoice                 Json     @default("{}")
+  socialLinks             Json     @default("{}") @map("social_links")
+  maintenanceMessage      String?  @map("maintenance_message")
+  termsUrl                String?  @map("terms_url")
+  privacyUrl              String?  @map("privacy_url")
+  updatedBy               String?  @map("updated_by") @db.Uuid
+  updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  updater User? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("website_settings")
+}
+
+model SupportTicket {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reference     String    @unique
+  customerName  String    @map("customer_name")
+  customerEmail String    @map("customer_email")
+  topic         String
+  contactTime   String?   @map("contact_time")
+  message       String
+  status        String    @default("OPEN")
+  assignedTo    String?   @map("assigned_to") @db.Uuid
+  lastReplyAt   DateTime? @map("last_reply_at") @db.Timestamptz
+  fingerprint   String
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  assignee User? @relation("AssignedTo", fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  replies SupportTicketReply[]
+
+  @@index([status, createdAt(sort: Desc)], map: "support_status_created_idx")
+  @@index([fingerprint, createdAt(sort: Desc)], map: "support_fingerprint_idx")
+  @@map("support_tickets")
+}
+
+model SupportTicketReply {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String    @map("ticket_id") @db.Uuid
+  authorId  String?   @map("author_id") @db.Uuid
+  authorRole AppRole  @map("author_role")
+  message   String
+  emailedAt DateTime? @map("emailed_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  author User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt], map: "support_replies_ticket_idx")
+  @@index([authorId, createdAt(sort: Desc)], map: "support_replies_author_idx")
+  @@map("support_ticket_replies")
+}
+
+model DigitalCard {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String    @map("owner_id") @db.Uuid
+  slug        String    @unique
+  profile     Json      @default("{}")
+  design      Json      @default("{}")
+  active      Boolean   @default(false)
+  activatedAt DateTime? @map("activated_at") @db.Timestamptz
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz
+  activationCodeHash String?   @map("activation_code_hash")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  cards      Card[]
+  cardEvents CardEvent[]
+  cardLeads  CardLead[]
+
+  @@index([ownerId, updatedAt(sort: Desc)], map: "digital_cards_owner_idx")
+  @@map("digital_cards")
+}
+
+model Card {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId              String?   @map("owner_id") @db.Uuid
+  digitalCardId        String?   @map("digital_card_id") @db.Uuid
+  publicTokenHash      String    @unique @map("public_token_hash")
+  inventoryReference   String?   @unique @map("inventory_reference")
+  status               String    @default("UNASSIGNED")
+  cardMode             String    @default("STOCK") @map("card_mode")
+  batchId              String?   @map("batch_id") @db.Uuid
+  productId            String?   @map("product_id") @db.Uuid
+  orderId              String?   @map("order_id") @db.Uuid
+  orderItemId          String?   @map("order_item_id") @db.Uuid
+  qrSvg                 String?   @map("qr_svg")
+  qrPng                 Bytes?    @map("qr_png")
+  qrSha256              String?   @map("qr_sha256")
+  claimedAt             DateTime? @map("claimed_at") @db.Timestamptz
+  replacementCardId    String?   @map("replacement_card_id") @db.Uuid
+  assignedAt           DateTime? @map("assigned_at") @db.Timestamptz
+  programmedAt         DateTime? @map("programmed_at") @db.Timestamptz
+  testedAt             DateTime? @map("tested_at") @db.Timestamptz
+  shippedAt            DateTime? @map("shipped_at") @db.Timestamptz
+  activatedAt          DateTime? @map("activated_at") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  owner           User?        @relation("CardOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  digitalCard     DigitalCard? @relation(fields: [digitalCardId], references: [id], onDelete: SetNull)
+  batch           CardBatch?   @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  product         Product?     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  order           Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItem       OrderItem?   @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  replacementCard Card?        @relation("CardReplacement", fields: [replacementCardId], references: [id], onDelete: SetNull)
+
+  replacedBy      Card[]       @relation("CardReplacement")
+  cardActivations CardActivation[]
+  lifecycleEvents CardLifecycleEvent[]
+
+  @@index([ownerId, createdAt(sort: Desc)], map: "cards_owner_idx")
+  @@index([status, updatedAt(sort: Desc)], map: "cards_status_idx")
+  @@index([replacementCardId], map: "cards_replacement_idx")
+  @@index([batchId, createdAt], map: "cards_batch_idx")
+  @@index([orderId, orderItemId], map: "cards_order_idx")
+  @@map("cards")
+}
+
+model CardBatch {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reference   String    @unique
+  productId   String?   @map("product_id") @db.Uuid
+  quantity    Int
+  status      String    @default("GENERATING")
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  creator User?    @relation("CardBatchCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  cards   Card[]
+
+  @@map("card_batches")
+}
+
+model CardLifecycleEvent {
+  id        BigInt   @id @default(autoincrement())
+  cardId    String   @map("card_id") @db.Uuid
+  eventType String   @map("event_type")
+  actorId   String?  @map("actor_id") @db.Uuid
+  channel   String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  card  Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  actor User? @relation("CardLifecycleActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([cardId, createdAt(sort: Desc)], map: "card_lifecycle_events_card_idx")
+  @@index([createdAt(sort: Desc)], map: "card_lifecycle_events_created_idx")
+  @@map("card_lifecycle_events")
+}
+
+model CardActivation {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cardId    String    @map("card_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  issuedBy  String?   @map("issued_by") @db.Uuid
+  claimedBy String?   @map("claimed_by") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  card    Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  issuer  User? @relation("ActivationIssuer", fields: [issuedBy], references: [id], onDelete: SetNull)
+  claimer User? @relation("ActivationClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
+
+  @@index([cardId, createdAt(sort: Desc)], map: "card_activations_card_idx")
+  @@index([expiresAt], map: "card_activations_expiry_idx")
+  @@map("card_activations")
+}
+
+model CardEvent {
+  id          BigInt   @id @default(autoincrement())
+  cardId      String   @map("card_id") @db.Uuid
+  eventType   String   @map("event_type")
+  channel     String?
+  linkType    String?  @map("link_type")
+  visitorHash String?  @map("visitor_hash")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  card DigitalCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, createdAt(sort: Desc)], map: "card_events_card_created_idx")
+  @@index([cardId, eventType], map: "card_events_card_type_idx")
+  @@index([createdAt], map: "card_events_created_idx")
+  @@map("card_events")
+}
+
+model CardLead {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cardId    String   @map("card_id") @db.Uuid
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  message   String?
+  consentAt DateTime @map("consent_at") @db.Timestamptz
+  status    String   @default("NEW")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  card DigitalCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, createdAt(sort: Desc)], map: "card_leads_card_created_idx")
+  @@index([cardId, status, createdAt(sort: Desc)], map: "card_leads_status_idx")
+  @@map("card_leads")
+}
+
+model AffiliateTier {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String   @unique
+  minCompletedOrders       Int      @default(0) @map("min_completed_orders")
+  minApprovedRevenueMinor BigInt   @default(0) @map("min_approved_revenue_minor")
+  commissionType           String   @default("PERCENT_BPS") @map("commission_type")
+  commissionValue          Int      @default(0) @map("commission_value")
+  benefits                 String   @default("")
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliateProfiles     AffiliateProfile[]
+  affiliateProductRates AffiliateProductRate[]
+
+  @@index([active, minCompletedOrders], map: "affiliate_tiers_active_idx")
+  @@map("affiliate_tiers")
+}
+
+model AffiliateProfile {
+  id                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                       String    @unique @map("user_id") @db.Uuid
+  status                       String    @default("PENDING")
+  affiliateCode                String?   @unique @map("affiliate_code")
+  couponCode                   String?   @unique @map("coupon_code")
+  tierId                       String?   @map("tier_id") @db.Uuid
+  commissionType               String?   @map("commission_type")
+  commissionValue              Int?      @map("commission_value")
+  partnerType                  String    @default("CREATOR") @map("partner_type")
+  displayName                  String?   @map("display_name")
+  temporaryCommissionType      String?   @map("temporary_commission_type")
+  temporaryCommissionValue     Int?      @map("temporary_commission_value")
+  temporaryCommissionExpiresAt DateTime? @map("temporary_commission_expires_at") @db.Timestamptz
+  approvedAt                   DateTime? @map("approved_at") @db.Timestamptz
+  approvedBy                   String?   @map("approved_by") @db.Uuid
+  suspendedAt                  DateTime? @map("suspended_at") @db.Timestamptz
+  rejectionReason              String?   @map("rejection_reason")
+  internalNotes                String?   @map("internal_notes")
+  payoutMethod                 String?   @map("payout_method")
+  payoutDetailsCiphertext      String?   @map("payout_details_ciphertext")
+  createdAt                    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tier       AffiliateTier? @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  approver   User?          @relation("ProfileApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+
+  applications          AffiliateApplication[]
+  productRates          AffiliateProductRate[]
+  campaigns             AffiliateCampaign[]
+  visitors              AffiliateVisitor[]
+  clicks                AffiliateClick[]
+  emailEvents           AffiliateEmailEvent[]
+  commissions           AffiliateCommission[]
+  payouts               AffiliatePayout[]
+  fraudFlags            AffiliateFraudFlag[]
+  businessLeads         AffiliateBusinessLead[]
+  rewards               AffiliateReward[]
+  storeCredits          AffiliateStoreCredit[]
+  orders                Order[]
+
+  @@index([status, createdAt(sort: Desc)], map: "affiliate_profiles_status_idx")
+  @@index([partnerType, status], map: "affiliate_profiles_partner_idx")
+  @@map("affiliate_profiles")
+}
+
+model AffiliateApplication {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId           String    @map("affiliate_id") @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  fullName              String    @map("full_name")
+  email                 String
+  phone                 String?
+  country               String
+  region                String?
+  websiteUrl            String?   @map("website_url")
+  instagramUsername     String?   @map("instagram_username")
+  youtubeUrl            String?   @map("youtube_url")
+  otherSocialUrl        String?   @map("other_social_url")
+  businessName          String?   @map("business_name")
+  promotionMethod       String    @map("promotion_method")
+  estimatedAudienceSize Int?      @map("estimated_audience_size")
+  reason                String
+  termsAcceptedAt       DateTime  @map("terms_accepted_at") @db.Timestamptz
+  partnerType           String    @default("CREATOR") @map("partner_type")
+  status                String    @default("PENDING")
+  decisionReason        String?   @map("decision_reason")
+  decidedAt             DateTime? @map("decided_at") @db.Timestamptz
+  decidedBy             String?   @map("decided_by") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  user      User             @relation("ApplicationUser", fields: [userId], references: [id], onDelete: Restrict)
+  decider   User?            @relation("ApplicationDecidedBy", fields: [decidedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)], map: "affiliate_applications_status_idx")
+  @@index([affiliateId, createdAt(sort: Desc)], map: "affiliate_applications_affiliate_idx")
+  @@map("affiliate_applications")
+}
+
+model AffiliateSetting {
+  id                          Boolean  @id @default(true)
+  defaultCommissionType       String   @default("PERCENT_BPS") @map("default_commission_type")
+  defaultCommissionValue      Int      @default(1000) @map("default_commission_value")
+  attributionWindowDays       Int      @default(30) @map("attribution_window_days")
+  minimumPayoutMinor          BigInt   @default(500000) @map("minimum_payout_minor")
+  holdingPeriodDays           Int      @default(7) @map("holding_period_days")
+  shippingCommissionable      Boolean  @default(false) @map("shipping_commissionable")
+  taxCommissionable           Boolean  @default(false) @map("tax_commissionable")
+  discountsReduceBasis        Boolean  @default(true) @map("discounts_reduce_basis")
+  cancelledCommissionable     Boolean  @default(false) @map("cancelled_commissionable")
+  refundedReverse             Boolean  @default(true) @map("refunded_reverse")
+  affiliateCouponsEnabled     Boolean  @default(true) @map("affiliate_coupons_enabled")
+  selfReferralsAllowed        Boolean  @default(false) @map("self_referrals_allowed")
+  automaticTierUpgrades       Boolean  @default(false) @map("automatic_tier_upgrades")
+  attributionPolicy           String   @default("LAST_VALID_CLICK") @map("attribution_policy")
+  attributionPriority         String   @default("COUPON_THEN_COOKIE") @map("attribution_priority")
+  payoutSchedule              String   @default("ON_REQUEST") @map("payout_schedule")
+  programTermsUrl             String   @default("/affiliate/terms") @map("program_terms_url")
+  termsContent                String   @default("") @map("terms_content")
+  programEnabled              Boolean  @default(true) @map("program_enabled")
+  publicApplicationsEnabled   Boolean  @default(true) @map("public_applications_enabled")
+  allowedPartnerTypes         String[] @default(["CUSTOMER_REFERRER", "CREATOR", "BUSINESS_PARTNER", "CAMPUS_AMBASSADOR"]) @map("allowed_partner_types")
+  partnerTypeRates            Json     @default("{\"CUSTOMER_REFERRER\":{\"type\":\"PERCENT_BPS\",\"value\":500},\"CREATOR\":{\"type\":\"PERCENT_BPS\",\"value\":1000},\"BUSINESS_PARTNER\":{\"type\":\"PERCENT_BPS\",\"value\":1000},\"CAMPUS_AMBASSADOR\":{\"type\":\"PERCENT_BPS\",\"value\":1000}}") @map("partner_type_rates")
+  customerReferralDiscountBps Int      @default(500) @map("customer_referral_discount_bps")
+  customerReferralCashEnabled Boolean  @default(false) @map("customer_referral_cash_enabled")
+  businessLeadProtectionDays  Int      @default(90) @map("business_lead_protection_days")
+  couponStackingAllowed       Boolean  @default(false) @map("coupon_stacking_allowed")
+  tapToReferEnabled           Boolean  @default(false) @map("tap_to_refer_enabled")
+  allowedPayoutMethods        String[] @default(["BANK_TRANSFER", "UPI", "PAYPAL", "OTHER"]) @map("allowed_payout_methods")
+  supportEmail                String?  @map("support_email")
+  storeCreditExpiryDays       Int?     @map("store_credit_expiry_days")
+  updatedBy                   String?  @map("updated_by") @db.Uuid
+  updatedAt                   DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  updater User? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("affiliate_settings")
+}
+
+model AffiliateProductRate {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  affiliateId     String?  @map("affiliate_id") @db.Uuid
+  tierId          String?  @map("tier_id") @db.Uuid
+  commissionType  String   @map("commission_type")
+  commissionValue Int      @map("commission_value")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  affiliate AffiliateProfile? @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  tier      AffiliateTier?    @relation(fields: [tierId], references: [id], onDelete: Restrict)
+
+  @@index([productId, active], map: "affiliate_product_rates_active_idx")
+  @@map("affiliate_product_rates")
+}
+
+model AffiliateCampaign {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId     String   @map("affiliate_id") @db.Uuid
+  name            String
+  source          String?
+  destinationPath String   @map("destination_path")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+
+  clicks AffiliateClick[]
+  orders Order[]
+
+  @@unique([affiliateId, name], map: "affiliate_campaigns_affiliate_id_name_key")
+  @@index([affiliateId, createdAt(sort: Desc)], map: "affiliate_campaigns_created_idx")
+  @@index([affiliateId, active], map: "affiliate_campaigns_active_idx")
+  @@map("affiliate_campaigns")
+}
+
+model AffiliateVisitor {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId String   @map("affiliate_id") @db.Uuid
+  visitorHash String   @map("visitor_hash")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+
+  @@unique([affiliateId, visitorHash], map: "affiliate_visitors_affiliate_id_visitor_hash_key")
+  @@index([lastSeenAt], map: "affiliate_visitors_last_seen_idx")
+  @@map("affiliate_visitors")
+}
+
+model AffiliateClick {
+  id              BigInt   @id @default(autoincrement())
+  affiliateId     String   @map("affiliate_id") @db.Uuid
+  campaignId      String?  @map("campaign_id") @db.Uuid
+  visitorHash     String   @map("visitor_hash")
+  isUnique        Boolean  @default(false) @map("is_unique")
+  destinationPath String   @map("destination_path")
+  campaign        String?
+  source          String?
+  referrerHost    String?  @map("referrer_host")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  affiliate AffiliateProfile   @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  campaignRef AffiliateCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  fraudFlags AffiliateFraudFlag[]
+
+  @@index([affiliateId, createdAt(sort: Desc)], map: "affiliate_clicks_affiliate_idx")
+  @@index([campaignId, createdAt(sort: Desc)], map: "affiliate_clicks_campaign_idx")
+  @@index([visitorHash, createdAt(sort: Desc)], map: "affiliate_clicks_visitor_idx")
+  @@map("affiliate_clicks")
+}
+
+model AffiliateMaterial {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title           String
+  materialType    String   @map("material_type")
+  description     String?
+  storageUrl      String?  @map("storage_url")
+  promotionalText String?  @map("promotional_text")
+  active          Boolean  @default(true)
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([active, createdAt(sort: Desc)], map: "affiliate_materials_active_idx")
+  @@map("affiliate_materials")
+}
+
+model AffiliateEmailEvent {
+  eventKey    String    @id @map("event_key")
+  affiliateId String?   @map("affiliate_id") @db.Uuid
+  eventType   String    @map("event_type")
+  recipient   String
+  sentAt      DateTime? @map("sent_at") @db.Timestamptz
+  error       String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  affiliate AffiliateProfile? @relation(fields: [affiliateId], references: [id], onDelete: SetNull)
+
+  @@index([affiliateId, createdAt(sort: Desc)], map: "affiliate_email_events_affiliate_idx")
+  @@index([eventType, createdAt(sort: Desc)], map: "affiliate_email_events_type_idx")
+  @@map("affiliate_email_events")
+}
+
+model AffiliateRewardDefinition {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String   @unique
+  requiredDeliveredOrders Int      @map("required_delivered_orders")
+  description            String
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  rewards AffiliateReward[]
+
+  @@index([active, requiredDeliveredOrders], map: "affiliate_reward_defs_active_idx")
+  @@map("affiliate_reward_definitions")
+}
+
+model AffiliateCommission {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId          String    @map("affiliate_id") @db.Uuid
+  orderId              String    @map("order_id") @db.Uuid
+  orderItemId          String?   @map("order_item_id") @db.Uuid
+  commissionableMinor  BigInt    @map("commissionable_minor")
+  commissionType       String    @map("commission_type")
+  commissionValue      Int       @map("commission_value")
+  commissionMinor      BigInt    @map("commission_minor")
+  currency             String
+  status               String    @default("PENDING")
+  referralSource       String?   @map("referral_source")
+  campaign             String?
+  risk                 String    @default("LOW")
+  eligibleAt           DateTime? @map("eligible_at") @db.Timestamptz
+  approvedAt           DateTime? @map("approved_at") @db.Timestamptz
+  payoutAt             DateTime? @map("payout_at") @db.Timestamptz
+  rejectionReason      String?   @map("rejection_reason")
+  reversalReason       String?   @map("reversal_reason")
+  calculationSnapshot  Json      @default("{}") @map("calculation_snapshot")
+  discountMinor        BigInt    @default(0) @map("discount_minor")
+  excludedTaxMinor     BigInt    @default(0) @map("excluded_tax_minor")
+  excludedShippingMinor BigInt   @default(0) @map("excluded_shipping_minor")
+  calculatedAt         DateTime  @default(now()) @map("calculated_at") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  order     Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem OrderItem?        @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  payoutItems  AffiliatePayoutItem?
+  adjustments  AffiliateCommissionAdjustment[]
+
+  @@unique([orderId, orderItemId], map: "affiliate_commissions_order_id_order_item_id_key")
+  @@index([affiliateId, status, createdAt(sort: Desc)], map: "affiliate_commissions_status_idx")
+  @@index([orderId], map: "affiliate_commissions_order_idx")
+  @@map("affiliate_commissions")
+}
+
+model AffiliatePayout {
+  id                                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId                       String    @map("affiliate_id") @db.Uuid
+  amountMinor                       BigInt    @map("amount_minor")
+  currency                          String
+  status                            String    @default("REQUESTED")
+  payoutMethod                      String    @map("payout_method")
+  payoutDetailsSnapshotCiphertext   String?   @map("payout_details_snapshot_ciphertext")
+  transactionReference              String?   @map("transaction_reference")
+  rejectionReason                   String?   @map("rejection_reason")
+  internalNote                      String?   @map("internal_note")
+  requestedAt                       DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  reviewedAt                        DateTime? @map("reviewed_at") @db.Timestamptz
+  paidAt                            DateTime? @map("paid_at") @db.Timestamptz
+  reviewedBy                        String?   @map("reviewed_by") @db.Uuid
+  createdAt                         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                         DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  reviewer  User?            @relation("PayoutReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  payoutItems AffiliatePayoutItem[]
+
+  @@index([status, requestedAt(sort: Desc)], map: "affiliate_payouts_status_idx")
+  @@index([affiliateId, requestedAt(sort: Desc)], map: "affiliate_payouts_affiliate_idx")
+  @@map("affiliate_payouts")
+}
+
+model AffiliatePayoutItem {
+  payoutId     String @map("payout_id") @db.Uuid
+  commissionId String @unique @map("commission_id") @db.Uuid
+  amountMinor  BigInt @map("amount_minor")
+
+  payout     AffiliatePayout     @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  commission AffiliateCommission @relation(fields: [commissionId], references: [id], onDelete: Restrict)
+
+  @@id([payoutId, commissionId])
+  @@map("affiliate_payout_items")
+}
+
+model AffiliateCommissionAdjustment {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commissionId  String   @map("commission_id") @db.Uuid
+  sourceEventId String?  @map("source_event_id") @db.Uuid
+  adjustmentType String  @map("adjustment_type")
+  amountMinor   BigInt   @map("amount_minor")
+  reason        String
+  createdBy     String   @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  commission  AffiliateCommission  @relation(fields: [commissionId], references: [id], onDelete: Restrict)
+  sourceEvent PaymentWebhookEvent? @relation(fields: [sourceEventId], references: [id], onDelete: Restrict)
+  creator     User                 @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([commissionId, createdAt(sort: Desc)], map: "affiliate_adjustments_commission_idx")
+  @@index([createdBy, createdAt(sort: Desc)], map: "affiliate_adjustments_creator_idx")
+  @@map("affiliate_commission_adjustments")
+}
+
+model AffiliateFraudFlag {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId    String    @map("affiliate_id") @db.Uuid
+  orderId        String?   @map("order_id") @db.Uuid
+  clickId        BigInt?   @map("click_id")
+  risk           String
+  reasonCode     String    @map("reason_code")
+  details        Json      @default("{}")
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz
+  resolvedBy     String?   @map("resolved_by") @db.Uuid
+  decisionReason String?   @map("decision_reason")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  order     Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  click     AffiliateClick?   @relation(fields: [clickId], references: [id], onDelete: SetNull)
+  resolver  User?             @relation(fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([affiliateId, createdAt(sort: Desc)], map: "affiliate_fraud_affiliate_idx")
+  @@index([orderId], map: "affiliate_fraud_order_idx")
+  @@map("affiliate_fraud_flags")
+}
+
+model AffiliateBusinessLead {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId          String    @map("affiliate_id") @db.Uuid
+  companyName          String    @map("company_name")
+  normalizedCompany    String    @map("normalized_company")
+  contactPerson        String    @map("contact_person")
+  businessEmail        String    @map("business_email")
+  emailHash            String    @map("email_hash")
+  phone                String?
+  phoneHash            String?   @map("phone_hash")
+  estimatedQuantity    Int       @map("estimated_quantity")
+  productId            String?   @map("product_id") @db.Uuid
+  expectedPurchaseDate DateTime? @map("expected_purchase_date") @db.Date
+  notes                String?
+  consentConfirmedAt   DateTime  @map("consent_confirmed_at") @db.Timestamptz
+  leadSource           String?   @map("lead_source")
+  status               String    @default("REGISTERED")
+  protectionExpiresAt  DateTime? @map("protection_expires_at") @db.Timestamptz
+  reviewedBy           String?   @map("reviewed_by") @db.Uuid
+  decisionReason       String?   @map("decision_reason")
+  linkedOrderId        String?   @unique @map("linked_order_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  product   Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  reviewer  User?             @relation("LeadReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  linkedOrder Order?          @relation("LinkedOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+
+  orders Order[] @relation("OrderBusinessLead")
+
+  @@index([affiliateId, status, createdAt(sort: Desc)], map: "affiliate_leads_affiliate_idx")
+  @@index([normalizedCompany, emailHash, phoneHash], map: "affiliate_leads_duplicate_idx")
+  @@map("affiliate_business_leads")
+}
+
+model AffiliateReward {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId        String    @map("affiliate_id") @db.Uuid
+  rewardDefinitionId String    @map("reward_definition_id") @db.Uuid
+  status             String    @default("ELIGIBLE")
+  decisionReason     String?   @map("decision_reason")
+  reviewedBy         String?   @map("reviewed_by") @db.Uuid
+  fulfilledAt        DateTime? @map("fulfilled_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate        AffiliateProfile          @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  rewardDefinition AffiliateRewardDefinition @relation(fields: [rewardDefinitionId], references: [id], onDelete: Restrict)
+  reviewer         User?                     @relation("RewardReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@unique([affiliateId, rewardDefinitionId], map: "affiliate_rewards_affiliate_id_reward_definition_id_key")
+  @@index([affiliateId, status, createdAt(sort: Desc)], map: "affiliate_rewards_status_idx")
+  @@map("affiliate_rewards")
+}
+
+model AffiliateStoreCredit {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  affiliateId  String    @map("affiliate_id") @db.Uuid
+  orderId      String?   @map("order_id") @db.Uuid
+  amountMinor  BigInt    @map("amount_minor")
+  currency     String
+  status       String
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz
+  usedOrderId  String?   @map("used_order_id") @db.Uuid
+  reversalReason String? @map("reversal_reason")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  affiliate AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  order     Order?            @relation("StoreCreditOrder", fields: [orderId], references: [id], onDelete: Restrict)
+  usedOrder Order?            @relation("UsedStoreCreditOrder", fields: [usedOrderId], references: [id], onDelete: Restrict)
+
+  @@unique([affiliateId, orderId], map: "affiliate_store_credits_affiliate_id_order_id_key")
+  @@index([affiliateId, status, createdAt(sort: Desc)], map: "affiliate_store_credits_balance_idx")
+  @@map("affiliate_store_credits")
+}

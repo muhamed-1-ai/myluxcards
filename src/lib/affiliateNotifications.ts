@@ -1,4 +1,4 @@
-import { supabaseJson } from "./supabaseAuth";
+import { prisma } from "./db/prisma";
 
 type AffiliateEmail = {
   eventKey: string;
@@ -15,17 +15,16 @@ export async function sendAffiliateEmail(input: AffiliateEmail) {
   const recipient = input.recipient.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) return { email: "invalid-recipient" as const };
   try {
-    await supabaseJson("/rest/v1/affiliate_email_events", {
-      method: "POST",
-      body: JSON.stringify({
-        event_key: input.eventKey,
-        affiliate_id: input.affiliateId || null,
-        event_type: input.eventType,
+    await prisma.affiliateEmailEvent.create({
+      data: {
+        eventKey: input.eventKey,
+        affiliateId: input.affiliateId || null,
+        eventType: input.eventType,
         recipient,
-      }),
-    }, true);
-  } catch (error) {
-    if ((error as { status?: number }).status === 409) return { duplicate: true };
+      },
+    });
+  } catch (error: any) {
+    if (error?.code === "P2002") return { duplicate: true };
     throw error;
   }
 
@@ -54,29 +53,33 @@ export async function sendAffiliateEmail(input: AffiliateEmail) {
     }),
     cache: "no-store",
   });
-  await supabaseJson(`/rest/v1/affiliate_email_events?event_key=eq.${encodeURIComponent(input.eventKey)}`, {
-    method: "PATCH",
-    body: JSON.stringify(response.ok
-      ? { sent_at: new Date().toISOString(), error: null }
-      : { error: `Delivery failed (${response.status})` }),
-  }, true);
+
+  await prisma.affiliateEmailEvent.update({
+    where: { eventKey: input.eventKey },
+    data: response.ok
+      ? { sentAt: new Date(), error: null }
+      : { error: `Delivery failed (${response.status})` },
+  }).catch(() => null);
+
   return { created: true, email: response.ok ? "sent" as const : "failed" as const };
 }
 
 export async function notifyAffiliateAdmin(eventKey: string, title: string, message: string, affiliateId?: string) {
   const recipient = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.SUPER_ADMIN_NOTIFICATION_EMAIL;
-  await supabaseJson("/rest/v1/admin_notifications", {
-    method: "POST",
-    body: JSON.stringify({
-      event_key: eventKey,
-      type: "AFFILIATE",
-      title,
-      message,
-      email_recipient: recipient || null,
-    }),
-  }, true).catch((error) => {
-    if ((error as { status?: number }).status !== 409) throw error;
-  });
+  try {
+    await prisma.adminNotification.create({
+      data: {
+        eventKey,
+        type: "AFFILIATE",
+        title,
+        message,
+        emailRecipient: recipient || null,
+      },
+    });
+  } catch (error: any) {
+    if (error?.code !== "P2002") throw error;
+  }
+
   if (recipient) {
     return sendAffiliateEmail({
       eventKey: `${eventKey}:admin`,

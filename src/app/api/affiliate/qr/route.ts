@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 import { cleanText, requireApprovedAffiliate, safeDestination } from "@/lib/affiliate";
 import { safeError } from "@/lib/adminAuth";
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 export const runtime="nodejs";
 
 const buildGoldQrSvg = (text: string, colors: { dark: string; light: string }) => {
@@ -39,9 +39,9 @@ export async function GET(request:Request){
   try{
     const appUrl=process.env.APP_URL?.replace(/\/$/,"");if(!appUrl)return Response.json({message:"APP_URL is not configured."},{status:503});
     const url=new URL(request.url);const destination=safeDestination(url.searchParams.get("destination"));const campaign=cleanText(url.searchParams.get("campaign"),80).replace(/[^a-zA-Z0-9 _.-]/g,"");const source=cleanText(url.searchParams.get("source"),80).replace(/[^a-zA-Z0-9 _.-]/g,"");
-    if(campaign){const active=await supabaseJson(`/rest/v1/affiliate_campaigns?affiliate_id=eq.${affiliate.id}&name=eq.${encodeURIComponent(campaign)}&active=eq.true&select=id&limit=1`,{},true);if(!active.data?.[0])return Response.json({message:"Campaign not found."},{status:404})}
-    if(destination.startsWith("/products/")){const slug=destination.split("/")[2]?.split("?")[0];const product=await supabaseJson(`/rest/v1/products?slug=eq.${encodeURIComponent(slug)}&active=eq.true&archived_at=is.null&select=id&limit=1`,{},true);if(!product.data?.[0])return Response.json({message:"Product not found."},{status:404})}
-    const referral=new URL(destination,appUrl);referral.searchParams.set("ref",affiliate.affiliate_code);if(campaign)referral.searchParams.set("campaign",campaign);if(source)referral.searchParams.set("source",source);
+    if(campaign){const active=await prisma.affiliateCampaign.findFirst({where:{affiliateId:affiliate.id,name:campaign,active:true},select:{id:true}});if(!active)return Response.json({message:"Campaign not found."},{status:404})}
+    if(destination.startsWith("/products/")){const slug=destination.split("/")[2]?.split("?")[0]||"";const product=await prisma.product.findFirst({where:{slug,active:true,archivedAt:null},select:{id:true}});if(!product)return Response.json({message:"Product not found."},{status:404})}
+    const referral=new URL(destination,appUrl as string);referral.searchParams.set("ref",affiliate.affiliate_code||"");if(campaign)referral.searchParams.set("campaign",campaign);if(source)referral.searchParams.set("source",source);
     const svg = buildGoldQrSvg(referral.toString(), { dark: "#d4af37", light: "#000000" });
     return new Response(svg,{headers:{"Content-Type":"image/svg+xml","Content-Disposition":`attachment; filename="mylux-partner-${affiliate.affiliate_code}.svg"`,"Cache-Control":"private, no-store"}});
   }catch(error){return safeError(error)}

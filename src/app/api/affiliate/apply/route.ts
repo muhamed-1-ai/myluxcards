@@ -1,7 +1,7 @@
 import { currentIdentity, safeError, validMutationOrigin } from "@/lib/adminAuth";
 import { cleanText } from "@/lib/affiliate";
 import { notifyAffiliateAdmin, sendAffiliateEmail } from "@/lib/affiliateNotifications";
-import { supabaseJson } from "@/lib/supabaseAuth";
+import { prisma } from "@/lib/db/prisma";
 
 export const runtime = "nodejs";
 
@@ -9,12 +9,41 @@ export async function GET() {
   const identity = await currentIdentity();
   if (!identity) return Response.json({ message: "Authentication required." }, { status: 401 });
   try {
-    const { data } = await supabaseJson(
-      `/rest/v1/affiliate_profiles?user_id=eq.${encodeURIComponent(identity.id)}&select=id,status,affiliate_code,rejection_reason,affiliate_applications(id,status,decision_reason,created_at)&limit=1`,
-      {},
-      true,
-    );
-    return Response.json({ data: data?.[0] || null });
+    const profile = await prisma.affiliateProfile.findUnique({
+      where: { userId: identity.id },
+      select: {
+        id: true,
+        status: true,
+        affiliateCode: true,
+        rejectionReason: true,
+        applications: {
+          select: {
+            id: true,
+            status: true,
+            decisionReason: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+    return Response.json({
+      data: profile
+        ? {
+            id: profile.id,
+            status: profile.status,
+            affiliate_code: profile.affiliateCode,
+            rejection_reason: profile.rejectionReason,
+            affiliate_applications: profile.applications.map(a => ({
+              id: a.id,
+              status: a.status,
+              decision_reason: a.decisionReason,
+              created_at: a.createdAt,
+            })),
+          }
+        : null,
+    });
   } catch (error) {
     return safeError(error);
   }
@@ -50,55 +79,64 @@ export async function POST(request: Request) {
     if (urls.website_url === false || urls.youtube_url === false || urls.other_social_url === false) {
       return Response.json({ message: "Website and social links must be valid HTTPS URLs." }, { status: 400 });
     }
-    const program = await supabaseJson("/rest/v1/affiliate_settings?id=eq.true&select=program_enabled,public_applications_enabled,allowed_partner_types&limit=1", {}, true);
-    const programSettings = program.data?.[0];
-    if (!programSettings?.program_enabled || !programSettings?.public_applications_enabled) return Response.json({ message: "Partner applications are currently closed." }, { status: 403 });
-    if (!programSettings.allowed_partner_types?.includes(partnerType)) return Response.json({ message: "That partner type is not currently accepting applications." }, { status: 400 });
-    const existing = await supabaseJson(
-      `/rest/v1/affiliate_profiles?user_id=eq.${encodeURIComponent(identity.id)}&select=id,status&limit=1`,
-      {},
-      true,
-    );
-    let affiliate = existing.data?.[0];
-    if (affiliate && ["PENDING", "APPROVED", "SUSPENDED"].includes(affiliate.status)) {
+    const programSettings = await prisma.affiliateSetting.findUnique({
+      where: { id: true },
+      select: { programEnabled: true, publicApplicationsEnabled: true, allowedPartnerTypes: true },
+    });
+    if (!programSettings?.programEnabled || !programSettings?.publicApplicationsEnabled) {
+      return Response.json({ message: "Partner applications are currently closed." }, { status: 403 });
+    }
+    const allowedTypes = (programSettings.allowedPartnerTypes as string[]) || [];
+    if (!allowedTypes.includes(partnerType)) {
+      return Response.json({ message: "That partner type is not currently accepting applications." }, { status: 400 });
+    }
+
+    const existingAffiliate = await prisma.affiliateProfile.findUnique({
+      where: { userId: identity.id },
+      select: { id: true, status: true },
+    });
+
+    if (existingAffiliate && ["PENDING", "APPROVED", "SUSPENDED"].includes(existingAffiliate.status)) {
       return Response.json({ message: "You already have an active affiliate application." }, { status: 409 });
     }
+
+    let affiliate = existingAffiliate;
     if (!affiliate) {
-      const created = await supabaseJson("/rest/v1/affiliate_profiles", {
-        method: "POST",
-        body: JSON.stringify({ user_id: identity.id, status: "PENDING", partner_type: partnerType, display_name: fullName }),
-      }, true);
-      affiliate = created.data?.[0];
+      affiliate = await prisma.affiliateProfile.create({
+        data: { userId: identity.id, status: "PENDING", partnerType, displayName: fullName },
+        select: { id: true, status: true },
+      });
     } else {
-      await supabaseJson(`/rest/v1/affiliate_profiles?id=eq.${affiliate.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "PENDING", partner_type: partnerType, display_name: fullName, rejection_reason: null, updated_at: new Date().toISOString() }),
-      }, true);
+      affiliate = await prisma.affiliateProfile.update({
+        where: { id: affiliate.id },
+        data: { status: "PENDING", partnerType, displayName: fullName, rejectionReason: null },
+        select: { id: true, status: true },
+      });
     }
-    const created = await supabaseJson("/rest/v1/affiliate_applications", {
-      method: "POST",
-      body: JSON.stringify({
-        affiliate_id: affiliate.id,
-        user_id: identity.id,
-        full_name: fullName,
+
+    const application = await prisma.affiliateApplication.create({
+      data: {
+        affiliateId: affiliate.id,
+        userId: identity.id,
+        fullName,
         email: identity.email,
         phone: phone || null,
         country,
         region: region || null,
-        website_url: urls.website_url || null,
-        instagram_username: cleanText(body.instagramUsername, 100) || null,
-        youtube_url: urls.youtube_url || null,
-        business_name: cleanText(body.businessName, 160) || null,
-        promotion_method: promotionMethod,
-        partner_type: partnerType,
-        other_social_url: urls.other_social_url || null,
-        estimated_audience_size: audience,
+        websiteUrl: urls.website_url || null,
+        instagramUsername: cleanText(body.instagramUsername, 100) || null,
+        youtubeUrl: urls.youtube_url || null,
+        businessName: cleanText(body.businessName, 160) || null,
+        promotionMethod,
+        partnerType,
+        otherSocialUrl: urls.other_social_url || null,
+        estimatedAudienceSize: audience,
         reason,
-        terms_accepted_at: new Date().toISOString(),
+        termsAcceptedAt: new Date(),
         status: "PENDING",
-      }),
-    }, true);
-    const application = created.data?.[0];
+      },
+    });
+
     await Promise.allSettled([
       notifyAffiliateAdmin(`affiliate-application:${application.id}`, "New affiliate application", `${fullName} submitted an affiliate application.`, affiliate.id),
       sendAffiliateEmail({
@@ -113,8 +151,8 @@ export async function POST(request: Request) {
       }),
     ]);
     return Response.json({ data: { id: application.id, status: "PENDING" } }, { status: 201 });
-  } catch (error) {
-    if ((error as { status?: number }).status === 409) {
+  } catch (error: any) {
+    if (error?.code === "P2002") {
       return Response.json({ message: "You already have an active affiliate application." }, { status: 409 });
     }
     return safeError(error);
