@@ -69,7 +69,8 @@ export async function POST(request: Request) {
           owner_id: ownerId,
           slug: generatedSlug,
           profile: { name: customer.name || String(customer.email).split("@")[0], email: customer.email },
-          active: false,
+          active: true,
+          activated_at: new Date().toISOString(),
         }) }, true);
         card = created.data?.[0];
       }
@@ -79,13 +80,8 @@ export async function POST(request: Request) {
       card = found.data?.[0];
     }
     if (!card) return Response.json({ message: "Card not found." }, { status: 404 });
-    const token = randomBytes(8).toString("hex").toUpperCase();
-    const code = `MLC-${token.match(/.{1,4}/g)?.join("-")}`;
-    // Issuing a replacement code must never take a customer's working card
-    // offline. Existing activation/publication state changes only when the
-    // customer explicitly uses the status switch or claims an unactivated card.
-    await supabaseJson(`/rest/v1/digital_cards?id=eq.${card.id}`, { method:"PATCH", body:JSON.stringify({ activation_code_hash:hashActivationCode(code), updated_at:new Date().toISOString() }) }, true);
-    await audit(actor, "CARD_ACTIVATION_PROVISIONED", "digital_card", card.id, null, { slug:card.slug, ownerId:card.owner_id });
-    return Response.json({ cardId:card.id, slug:card.slug, activationCode:code });
+    await supabaseJson(`/rest/v1/digital_cards?id=eq.${card.id}`, { method:"PATCH", body:JSON.stringify({ active: true, activated_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }, true);
+    await audit(actor, "CARD_PROVISIONED", "digital_card", card.id, null, { slug:card.slug, ownerId:card.owner_id });
+    return Response.json({ cardId:card.id, slug:card.slug, status:"ASSIGNED_AND_READY" });
   } catch (error) { return safeError(error); }
 }

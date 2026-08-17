@@ -83,3 +83,17 @@ test("dashboard validates the Auth.js session before asking the user to sign in"
     assert.match(middleware, new RegExp(route.replace("/", "\\/")));
   }
 });
+
+test("super admin promotion is server-only, idempotent, and increments session_version", () => {
+  const promoteScript = readFileSync(new URL("../scripts/promote-super-admin.ts", import.meta.url), "utf8");
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(pkg.scripts["promote:super-admin"], "tsx scripts/promote-super-admin.ts");
+  assert.match(promoteScript, /normalizeEmail/);
+  assert.match(promoteScript, /select id, email, role, session_version from users/);
+  assert.match(promoteScript, /User is already SUPER_ADMIN/);
+  assert.match(promoteScript, /role = 'SUPER_ADMIN', session_version = session_version \+ 1/);
+  assert.match(promoteScript, /SUPER_ADMIN_PROMOTION/);
+  assert.match(promoteScript, /SERVER_CLI/);
+  assert.doesNotMatch(promoteScript, /password_hash|SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(promoteScript, /console\.log\(.*DATABASE_URL/);
+});

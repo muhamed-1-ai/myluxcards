@@ -4,7 +4,7 @@ import type { AdminIdentity } from "@/lib/adminAuth";
 
 type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
-const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",activations:"Card activation",products:"Products",payments:"Payments",support:"Support tickets",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
+const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",activations:"Card assignment",products:"Products",payments:"Payments",support:"Support tickets",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
 const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
 
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
@@ -204,23 +204,23 @@ function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,err
   );
 }
 function Activations({rows}:{rows:Row[]}) {
-  const [code,setCode]=useState<{value:string;slug:string;owner:string;email:string}|null>(null);
+  const [assigned,setAssigned]=useState<{slug:string;email:string}|null>(null);
   const [busy,setBusy]=useState("");
   const [issued,setIssued]=useState<string[]>([]);
   const generate=async(customer:Row)=>{
-    if(!confirm(`Generate a new activation code for ${customer.email}? Any previous unused code for their card will stop working.`))return;
-    setBusy(customer.id);setCode(null);
+    if(!confirm(`Provision and assign physical card for ${customer.email}?`))return;
+    setBusy(customer.id);setAssigned(null);
     try{
       const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ownerId:customer.id})});
-      const result=await response.json();if(!response.ok)throw new Error(result.message||"Could not generate code.");
-      setCode({value:result.activationCode,slug:result.slug,owner:customer.name||customer.email||"Customer",email:customer.email||"Unknown account"});
+      const result=await response.json();if(!response.ok)throw new Error(result.message||"Could not assign card.");
+      setAssigned({slug:result.slug,email:customer.email||"Customer account"});
       setIssued(current=>current.includes(customer.id)?current:[...current,customer.id]);
-    }catch(error){alert(error instanceof Error?error.message:"Could not generate code.")}finally{setBusy("")}
+    }catch(error){alert(error instanceof Error?error.message:"Could not assign card.")}finally{setBusy("")}
   };
   if(!rows.length)return <Empty title="No customers yet" text="Customer accounts will appear here after registration."/>;
   return <>
-    <section className="activation-guide"><div><span>HOW IT WORKS</span><h2>Generate or reset a card code</h2><p>Send the unused code to the intended customer. When they enter it while signed in, the exact card is securely added to their account and the code is permanently consumed.</p></div>{code&&<div className="activation-result" role="status"><small>NEW ONE-TIME CARD CODE</small><strong>{code.value}</strong><span>Current holder: {code.email}</span><span>Card: /card/{code.slug}</span><button onClick={async()=>{await navigator.clipboard.writeText(code.value);alert("Activation code copied.")}}>Copy code</button><p>Send it only to the intended customer. Whoever redeems this unused code will claim the card.</p></div>}</section>
-    <div className="table-wrap activation-table"><table><thead><tr><th>Customer</th><th>Account</th><th>Status</th><th>Code</th><th>Action</th></tr></thead><tbody>{rows.map(customer=>{const codeIssued=issued.includes(customer.id);return <tr key={customer.id}><td data-label="Customer"><b>{customer.name||"Unnamed customer"}</b><small>{customer.email}</small></td><td data-label="Account"><b>{customer.disabled?"Account disabled":"Customer account"}</b><small>Existing card reused, or a new card is created automatically</small></td><td data-label="Status"><span className="pill">{customer.disabled?"Disabled":codeIssued?"Code ready":"Ready"}</span></td><td data-label="Code">{codeIssued?"New code issued":"Generate when needed"}</td><td data-label="Action"><button className="small gold" disabled={Boolean(busy)||customer.disabled} onClick={()=>generate(customer)}>{busy===customer.id?"Generating…":"Generate / reset code"}</button></td></tr>})}</tbody></table></div>
+    <section className="activation-guide"><div><span>FULFILLMENT WORKFLOW</span><h2>Provision &amp; assign customer card</h2><p>Assign a physical NFC / QR card directly to the customer account. The card is instantly linked to their digital profile and ready to ship.</p></div>{assigned&&<div className="activation-result" role="status"><small>CARD READY FOR SHIPPING</small><strong>/{assigned.slug}</strong><span>Assigned holder: {assigned.email}</span><span>Status: ASSIGNED &amp; READY</span><p>This card is linked to the customer account and ready to deliver.</p></div>}</section>
+    <div className="table-wrap activation-table"><table><thead><tr><th>Customer</th><th>Account</th><th>Fulfillment Status</th><th>Action</th></tr></thead><tbody>{rows.map(customer=>{const codeIssued=issued.includes(customer.id);return <tr key={customer.id}><td data-label="Customer"><b>{customer.name||"Unnamed customer"}</b><small>{customer.email}</small></td><td data-label="Account"><b>{customer.disabled?"Account disabled":"Customer account"}</b><small>Digital card linked and ready</small></td><td data-label="Status"><span className="pill">{customer.disabled?"Disabled":codeIssued?"Card assigned":"Ready for card"}</span></td><td data-label="Action"><button className="small gold" disabled={Boolean(busy)||customer.disabled} onClick={()=>generate(customer)}>{busy===customer.id?"Assigning…":"Provision & assign card"}</button></td></tr>})}</tbody></table></div>
   </>;
 }
 function Products({rows,mutate}:{rows:Row[],mutate:any}) {

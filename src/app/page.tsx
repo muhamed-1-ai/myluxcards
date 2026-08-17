@@ -80,18 +80,17 @@ const afterPurchaseSteps = `<section class="after-purchase" id="after-purchase" 
   <div class="container">
     <div class="after-purchase-heading reveal">
       <span>AFTER YOU BUY</span>
-      <h2 id="after-purchase-title">Your card has arrived. What next?</h2>
-      <p>Follow these steps once you receive your MyLuxCard. You only activate it once, and you can update your digital profile whenever you need.</p>
+      <h2 id="after-purchase-title">Your card arrives ready. What next?</h2>
+      <p>Follow these quick steps to get the most out of your MyLuxCard. Your card arrives ready to tap, and you can update your digital profile anytime.</p>
     </div>
     <ol class="after-purchase-steps">
-      <li class="reveal"><b>01</b><i data-lucide="package-check"></i><div><h3>Receive your card</h3><p>Check your delivered card and keep the one-time activation code supplied for your card.</p></div></li>
+      <li class="reveal"><b>01</b><i data-lucide="package-check"></i><div><h3>Order your card</h3><p>Choose your material, design, and details. Your card is custom programmed and tested before dispatch.</p></div></li>
       <li class="reveal reveal-delay-1"><b>02</b><i data-lucide="log-in"></i><div><h3>Log in to MyLuxCards</h3><p>Sign in using the customer account connected to your order, then open <strong>Dashboard → My Cards</strong>.</p></div></li>
-      <li class="reveal reveal-delay-2"><b>03</b><i data-lucide="key-round"></i><div><h3>Activate your card</h3><p>Enter your unused activation code in the activation box. Each code works only for the card and customer it was issued to.</p></div></li>
-      <li class="reveal"><b>04</b><i data-lucide="contact-round"></i><div><h3>Build your profile</h3><p>Add your contact details, social links, company information, logo, cover image, colours, and location.</p></div></li>
-      <li class="reveal reveal-delay-1"><b>05</b><i data-lucide="save"></i><div><h3>Press Save &amp; finish</h3><p>This securely publishes your latest details so the same profile appears when the card is opened on any phone.</p></div></li>
-      <li class="reveal reveal-delay-2"><b>06</b><i data-lucide="scan-line"></i><div><h3>Test, tap, and share</h3><p>Tap the card on an NFC-enabled phone or scan its QR code. Confirm your profile opens correctly, then start sharing.</p></div></li>
+      <li class="reveal reveal-delay-2"><b>03</b><i data-lucide="contact-round"></i><div><h3>Build your profile</h3><p>Add your contact details, social links, company information, logo, cover image, colours, and location.</p></div></li>
+      <li class="reveal"><b>04</b><i data-lucide="save"></i><div><h3>Press Save &amp; finish</h3><p>This securely publishes your latest details so the same profile appears when the card is opened on any phone.</p></div></li>
+      <li class="reveal reveal-delay-1"><b>05</b><i data-lucide="scan-line"></i><div><h3>Receive, tap, and share</h3><p>Tap your card on an NFC-enabled phone or scan its QR code. Your profile opens instantly—no activation code required.</p></div></li>
     </ol>
-    <div class="after-purchase-help reveal"><div><strong>Need your activation code?</strong><span>Use the code supplied for your exact card. If it is missing or rejected, contact MyLuxCards support—do not use another customer’s code.</span></div><a class="btn btn-glass" href="/support">Get activation help</a><a class="btn btn-primary" href="/dashboard?tab=cards">Open My Cards</a></div>
+    <div class="after-purchase-help reveal"><div><strong>Need help with your card?</strong><span>Our support team is here to assist with your order, digital profile, or delivery questions.</span></div><a class="btn btn-glass" href="/support">Get support</a><a class="btn btn-primary" href="/dashboard?tab=cards">Open My Cards</a></div>
   </div>
 </section>`;
 

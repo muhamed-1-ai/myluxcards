@@ -28,10 +28,8 @@ test("public lead exchange requires explicit consent", () => {
   assert.match(migration,/consent_at timestamptz not null/);
 });
 
-test("activation stores a hash and requires an administrator to provision", () => {
+test("card provisioning requires an administrator", () => {
   assert.match(activation,/requireAdmin\(\)/);
-  assert.match(activation,/hashActivationCode\(code\)/);
-  assert.doesNotMatch(activation,/activation_code_hash:code/);
   assert.match(activation,/role=eq\.CUSTOMER/);
   assert.match(activation,/customersWithoutCards/);
   assert.match(activation,/owner_id: ownerId/);
@@ -40,17 +38,9 @@ test("activation stores a hash and requires an administrator to provision", () =
   assert.match(dashboardAdmin,/body:JSON\.stringify\(\{ownerId:customer\.id\}\)/);
 });
 
-test("replacing an activation code never switches a working card off", () => {
-  assert.doesNotMatch(activation, /activation_code_hash:hashActivationCode\(code\),\s*activated_at:null/);
-  assert.doesNotMatch(activation, /activation_code_hash:hashActivationCode\(code\),\s*active:false/);
-});
-
-test("activated cards stay published until the customer manually changes status", () => {
-  assert.match(customerActivation, /expires_at: null/);
-  assert.match(cardLibrary, /Boolean\(row\.active && row\.activated_at\)/);
-  assert.doesNotMatch(cardLibrary, /new Date\(row\.expires_at\)/);
-  assert.match(publicCard, /Boolean\(row\.active && row\.activated_at\)/);
-  assert.doesNotMatch(publicCard, /new Date\(row\.expires_at\)/);
+test("digital cards stay published until the customer manually changes status", () => {
+  assert.match(cardLibrary, /active: Boolean\(row\.active\)/);
+  assert.match(publicCard, /publiclyActive = Boolean\(row\.active/);
 });
 
 test("profile autosave cannot silently change publication status", () => {
@@ -62,22 +52,16 @@ test("profile autosave cannot silently change publication status", () => {
   assert.match(dashboard, /JSON\.stringify\(\{id:card\.id,slug:card\.slug,toggleActive:true\}\)/);
 });
 
-test("dashboard warns about inactive cards and automatically saves edits", () => {
-  assert.match(dashboard, /Your card is not active yet/);
-  assert.match(dashboard, /cards\.some\(\(card\) => Boolean\(card\.activatedAt\) && card\.active\)/);
-  assert.match(dashboard, /setActivationPrompt\(false\)/);
-  assert.match(dashboard, /Your card is switched off/);
-  assert.match(dashboard, /window\.setTimeout\(\(\) => \{ void save\("dashboard", undefined, true\); \}, 1200\)/);
-  assert.match(dashboard, /Cloud save failed/);
+test("dashboard manages card published status", () => {
+  assert.match(dashboard, /Published until you switch it off/);
+  assert.match(dashboard, /Currently switched off/);
+  assert.match(dashboard, /toggleActive:true/);
 });
 
 test("dashboard identity and card ownership come from the authenticated server", () => {
   assert.match(dashboard, /DashboardDemo\(\{identity\}/);
   assert.match(dashboard, /const user = identity/);
-  assert.match(dashboard, /cloud account owns no cards/);
-  assert.match(dashboard, /activeCards = cards\.filter\(\(card\) => card\.active && card\.activatedAt\)/);
   assert.match(dashboard, /const normalizeCard =/);
-  assert.match(dashboard, /String\(value \?\? ""\)\.trim\(\)/);
   assert.match(dashboard, /payload\.cards\.map\(\(card:Partial<Card>\) => normalizeCard\(card, user\)\)/);
   assert.match(dashboard, /storageKey\(user\.id\)/);
   assert.match(dashboard, /card\.ownerId === user\.id/);

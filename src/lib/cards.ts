@@ -86,6 +86,6 @@ export function safePublicCard(row: any) {
     id: row.id,
     slug: row.slug,
     ...completeCardProfile(row.profile),
-    active: Boolean(row.active && row.activated_at),
+    active: Boolean(row.active),
   };
 }

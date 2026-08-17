@@ -156,10 +156,6 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const [page, setPage] = useState(1);
   const [accountMenu, setAccountMenu] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [activationCode, setActivationCode] = useState("");
-  const [activating, setActivating] = useState(false);
-  const [activationPrompt, setActivationPrompt] = useState(false);
-  const [promptCardId, setPromptCardId] = useState<string | null>(null);
   const [cloudReady, setCloudReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved"|"unsaved"|"saving"|"error">("saved");
@@ -206,8 +202,6 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           lastSavedRef.current = JSON.stringify(cloudCards[0]);
           cacheCards(user.id, cloudCards);
         } else {
-          // The secure cloud account owns no cards. Never keep displaying a
-          // cached card from an old session/account as if it were cloud-backed.
           const blank = createBlankCard(user);
           setCards([blank]);
           setSelectedId(blank.id);
@@ -227,30 +221,6 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   }, [identity]);
 
   useEffect(() => {
-    if (!cloudReady || cards.some((card) => Boolean(card.activatedAt) && card.active)) return;
-    const cardNeedingActivation = cards.find((card) => !card.activatedAt);
-    if (!cardNeedingActivation) return;
-    const promptKey = "myluxcards-activation-prompt-shown";
-    if (!sessionStorage.getItem(promptKey)) {
-      sessionStorage.setItem(promptKey, "1");
-      setPromptCardId(cardNeedingActivation.id);
-      setActivationPrompt(true);
-    }
-  }, [cloudReady, cards]);
-
-  useEffect(() => {
-    if (!activationPrompt || !promptCardId) return;
-    const promptedCard = cards.find((card) => card.id === promptCardId);
-    // A cloud refresh or successful activation can replace stale cached state
-    // while the modal is open. Never keep warning once that exact card is
-    // confirmed as published by the server.
-    if (!promptedCard || (Boolean(promptedCard.activatedAt) && promptedCard.active)) {
-      setActivationPrompt(false);
-      setPromptCardId(null);
-    }
-  }, [activationPrompt, promptCardId, cards]);
-
-  useEffect(() => {
     const found = cards.find((card) => card.id === selectedId);
     if (found) setDraft(found);
   }, [selectedId]);
@@ -260,15 +230,9 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   };
   const update = (key: keyof Card, value: Card[keyof Card]) => { setSaveStatus("unsaved"); setDraft((old) => ({ ...old, [key]: value })); };
   const selectTab = (next: Tab) => { setTab(next); setSidebar(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const goToActivation = () => {
-    setActivationPrompt(false);
-    selectTab("cards");
-    window.setTimeout(() => document.querySelector(".activation-box")?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-  };
-  const promptCard = cards.find(card => card.id === promptCardId) || draft;
   const requestCardOpen = (card: Card) => {
-    if (!card.activatedAt || !card.active) {
-      setSelectedId(card.id); setPromptCardId(card.id); setActivationPrompt(true); return;
+    if (!card.active) {
+      setSelectedId(card.id); return;
     }
     window.open(`/card/${card.slug}`, "_blank", "noopener,noreferrer");
   };
@@ -419,14 +383,12 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
               <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>
                 {item === "contact" ? "Contact Info" : item === "social" ? "Apps & Links" : item[0].toUpperCase() + item.slice(1)}
               </button>)}
-            <small>{selected.activatedAt ? selected.active ? "Published until you switch it off" : "Currently switched off" : "Activation required"} ({selected.id.replace("card-", "#")})</small>
+            <small>{selected.active ? "Published until you switch it off" : "Currently switched off"} ({selected.id.replace("card-", "#")})</small>
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
-          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>◎</I> Leads <b>{leads.length}</b></button>
           <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
-          <a className="side-link" href="/account/referrals"><I>↗</I> Referrals</a>
         </nav>
-        <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards, leads, and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
+        <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
       </aside>
       <main className="dash-main">
         {tab === "dashboard" && <section>
@@ -436,7 +398,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <article className="orange"><div><strong>{totalViews.toLocaleString()}</strong><span>Browser-recorded views</span></div><i>↗</i></article>
             <article className="green"><div><strong>{activeCards}</strong><span>Active cards</span></div><i>✓</i></article>
           </div>
-          <div className="analytics-disclosure"><strong>Connection analytics</strong><p>{cloudReady ? `${cards.reduce((n,c)=>n+(c.analytics?.CONTACT_SAVE||0),0)} contact saves · ${cards.reduce((n,c)=>n+(c.analytics?.LINK_CLICK||0),0)} link clicks · ${leads.length} exchanged contacts.` : "Connect cloud storage to collect privacy-conscious NFC, QR, save, and link activity."}</p></div>
+          <div className="analytics-disclosure"><strong>Connection analytics</strong><p>{cloudReady ? `${cards.reduce((n,c)=>n+(c.analytics?.CONTACT_SAVE||0),0)} contact saves · ${cards.reduce((n,c)=>n+(c.analytics?.LINK_CLICK||0),0)} link clicks.` : "Connect cloud storage to collect privacy-conscious NFC, QR, save, and link activity."}</p></div>
           <div className="welcome-panel">
             <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Complete your profile so visitors have the details they need to connect with you.</p><div className="completion"><span><b>Profile completion</b><strong>{profileCompletion}%</strong></span><i><b style={{width:`${profileCompletion}%`}} /></i></div><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
             <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{selected.views} views</b></div>
@@ -466,17 +428,14 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           <div className="page-heading"><div><p>CARD LIBRARY</p><h1>My Cards</h1><span>Search, publish, and manage your digital cards.</span></div><button className="primary" onClick={() => selectTab("contact")}>Edit my card</button></div>
           <div className="table-card">
             <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
-            <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Activation</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
-              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={()=>requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Activation">{card.activatedAt ? "Activated" : <button className="activation-required" onClick={()=>{setPromptCardId(card.id);setActivationPrompt(true)}}>Activate card</button>}</td><td data-label="Availability">{card.activatedAt ? card.active ? "Published until you switch it off" : "Switched off" : "Not published"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active&&card.activatedAt ? "on" : ""}`} aria-label={card.activatedAt ? `Toggle ${card.name}` : `Activate ${card.name}`} onClick={async () => { if (!card.activatedAt) { setPromptCardId(card.id);setActivationPrompt(true); return; } const response=await fetchWithSessionRefresh("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:card.id,slug:card.slug,toggleActive:true})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Status could not be changed.");return;}const confirmed={...card,...payload.card};lastSavedRef.current=JSON.stringify(confirmed);setCards(current=>current.map(item=>item.id===card.id?confirmed:item));if(selectedId===card.id)setDraft(confirmed);setSaveStatus("saved");notify(confirmed.active?"Card published.":"Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
+            <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
+              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={()=>requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response=await fetchWithSessionRefresh("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:card.id,slug:card.slug,toggleActive:true})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Status could not be changed.");return;}const confirmed={...card,...payload.card};lastSavedRef.current=JSON.stringify(confirmed);setCards(current=>current.map(item=>item.id===card.id?confirmed:item));if(selectedId===card.id)setDraft(confirmed);setSaveStatus("saved");notify(confirmed.active?"Card published.":"Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
-        <div className="activation-box"><div><strong>Activate a delivered card</strong><span>Paste its unused one-time code. Spaces and copied dash styles are corrected automatically.</span></div><input value={activationCode} onChange={event=>setActivationCode(normalizeActivationCode(event.target.value))} placeholder="MLC-12AB-34CD-56EF-7890" autoComplete="off"/><button disabled={activating||!/^MLC-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/i.test(activationCode)} onClick={async()=>{setActivating(true);try{const response=await fetchWithSessionRefresh("/api/cards/activate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:activationCode})});const payload=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401){localStorage.removeItem("myluxcards_current_user");sessionStorage.setItem("myluxcards_auth_next","/dashboard?tab=cards");window.location.replace("/?login=1");return;}notify(payload.message||"Activation failed.");return;}const refreshed=await fetchWithSessionRefresh("/api/cards",{cache:"no-store"});const cloud=await refreshed.json().catch(()=>({}));if(!refreshed.ok||!cloud.cards?.length){notify("Card activated. Refreshing your secure dashboard…");window.location.reload();return;}const normalizedCards=cloud.cards.map((card:Partial<Card>)=>normalizeCard(card,identity));setCards(normalizedCards);const claimed=normalizedCards.find((x:Card)=>x.id===payload.cardId)||normalizedCards[0];setDraft(claimed);setSelectedId(claimed.id);if(currentUser)cacheCards(currentUser.id,normalizedCards);setActivationCode("");setSaveStatus("saved");notify(`/${payload.slug} is activated and published.`);}finally{setActivating(false)}}}>{activating?"Activating…":"Activate card"}</button></div>
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
-        {tab === "leads" && <section><div className="page-heading"><div><p>CONTACT EXCHANGE</p><h1>Leads</h1><span>People who explicitly shared their details through your card.</span></div></div><div className="table-card"><div className="table-scroll"><table><thead><tr><th>Date</th><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Message</th></tr></thead><tbody>{leads.length?leads.map(lead=><tr key={lead.id}><td data-label="Date">{new Date(lead.created_at).toLocaleDateString()}</td><td data-label="Name"><strong>{lead.name}</strong></td><td data-label="Company">{lead.company||"—"}</td><td data-label="Email">{lead.email||"—"}</td><td data-label="Phone">{lead.phone||"—"}</td><td data-label="Message">{lead.message||"—"}</td></tr>):<tr className="empty-row"><td colSpan={6}>No contacts have been shared yet.</td></tr>}</tbody></table></div></div></section>}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
-      {activationPrompt && <div className="modal-back"><div className="confirm activation-confirm" role="dialog" aria-modal="true" aria-labelledby="activation-title"><i>!</i><h2 id="activation-title">{promptCard.activatedAt?"Your card is switched off":"Your card is not active yet"}</h2><p>{promptCard.activatedAt?"Visitors cannot view this card while it is switched off. Turn it on under My Cards when you are ready to publish it.":<>Visitors cannot view this card until you activate it using its one-time activation code. You’ll find the activation box under <strong>My Cards</strong>.</>}</p><div><button onClick={() => setActivationPrompt(false)}>Later</button><button className="activation-primary" onClick={()=>{if(promptCard.activatedAt){setActivationPrompt(false);selectTab("cards")}else goToActivation()}}>{promptCard.activatedAt?"Go to status switch":"Activate card now"}</button></div></div></div>}
       {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Remove this card?</h2><p>This permanently removes only this card. Your other cards and account remain unchanged.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={()=>clearCard(deleteId)}>Remove card</button></div></div></div>}
     </div>
   );

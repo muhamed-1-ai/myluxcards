@@ -50,11 +50,31 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     return () => { cancelled = true; };
   }, [slug]);
 
+  useEffect(() => {
+    return () => {
+      if (qrPngUrlRef.current) {
+        URL.revokeObjectURL(qrPngUrlRef.current);
+        qrPngUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setQrOpen(false);
+    setQrSvg(null);
+    setQrError("");
+    setQrPngUrl(null);
+    if (qrPngUrlRef.current) {
+      URL.revokeObjectURL(qrPngUrlRef.current);
+      qrPngUrlRef.current = null;
+    }
+  }, [slug]);
+
   if (!loaded) return <main className="pc-state">Loading card…</main>;
   if (!card) return (
     <main className="pc-state">
-      <h1>{loadMessage === "Card unavailable." ? "This card is not active" : "Card not found"}</h1>
-      <p>{loadMessage === "Card unavailable." ? loadReason === "NOT_ACTIVATED" ? "This card still needs its one-time activation code." : loadReason === "SWITCHED_OFF" ? "The owner has switched this card off in My Cards." : "The owner needs to activate this card or turn its status switch on in My Cards." : "Check that the card link was copied completely."}</p>
+      <h1>{loadMessage === "Card unavailable." ? "Card temporarily unavailable" : "Card not found"}</h1>
+      <p>{loadMessage === "Card unavailable." ? (loadReason === "SWITCHED_OFF" ? "The owner has switched this card off in My Cards." : "This digital card is being updated. Please try again in a moment.") : "Check that the card link was copied completely."}</p>
       <a href="/dashboard?tab=cards">Open My Cards</a>
     </main>
   );
@@ -117,26 +137,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     URL.revokeObjectURL(link.href);
     track("CONTACT_SAVE");
   };
-
-  useEffect(() => {
-    return () => {
-      if (qrPngUrlRef.current) {
-        URL.revokeObjectURL(qrPngUrlRef.current);
-        qrPngUrlRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    setQrOpen(false);
-    setQrSvg(null);
-    setQrError("");
-    setQrPngUrl(null);
-    if (qrPngUrlRef.current) {
-      URL.revokeObjectURL(qrPngUrlRef.current);
-      qrPngUrlRef.current = null;
-    }
-  }, [slug]);
 
   const openQr = async () => {
     setQrOpen(true);

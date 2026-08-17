@@ -13,7 +13,8 @@
     "db:validate:stage1": "tsx scripts/validate-stage1-db.ts",
     "db:test:stage1": "tsx scripts/run-stage1-disposable-test.ts",
     "audit:coolify-db": "node scripts/audit-coolify-db.cjs",
-    "create:super-admin": "tsx scripts/create-super-admin.ts"
+    "create:super-admin": "tsx scripts/create-super-admin.ts",
+    "promote:super-admin": "tsx scripts/promote-super-admin.ts"
   },
   "dependencies": {
     "@types/pg": "^8.21.0",
