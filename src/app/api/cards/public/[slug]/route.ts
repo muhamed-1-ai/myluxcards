@@ -1,34 +1,15 @@
 import { createHash } from "node:crypto";
 import { cleanSlug, safePublicCard } from "@/lib/cards";
+import { getSupabaseServiceConfig, supabaseJson } from "@/lib/supabaseAuth";
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
-import { prisma } from "@/lib/db/prisma";
 
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!process.env.DATABASE_URL) return Response.json({ message: "Cards are not configured." }, { status: 503 });
+  if (!getSupabaseServiceConfig()) return Response.json({ message: "Cards are not configured." }, { status: 503 });
   const { slug } = await params;
   try {
-    const card = await prisma.digitalCard.findUnique({
-      where: { slug: cleanSlug(slug) },
-      select: {
-        id: true,
-        ownerId: true,
-        slug: true,
-        profile: true,
-        active: true,
-        activatedAt: true,
-        expiresAt: true,
-      },
-    });
-    if (!card) return Response.json({ message: "Card not found." }, { status: 404 });
-    const row = {
-      id: card.id,
-      owner_id: card.ownerId,
-      slug: card.slug,
-      profile: card.profile,
-      active: card.active,
-      activated_at: card.activatedAt,
-      expires_at: card.expiresAt,
-    };
+    const { data } = await supabaseJson(`/rest/v1/digital_cards?slug=eq.${encodeURIComponent(cleanSlug(slug))}&select=id,owner_id,slug,profile,active,activated_at,expires_at&limit=1`, {}, true);
+    if (!data?.[0]) return Response.json({ message: "Card not found." }, { status: 404 });
+    const row = data[0];
     // Activated cards remain public until their owner explicitly switches them
     // off. Legacy expiry values must not silently override the owner's status.
     const publiclyActive = Boolean(row.active && row.activated_at);
@@ -50,26 +31,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   try {
     const body = await request.json().catch(() => ({}));
-    const card = await prisma.digitalCard.findUnique({
-      where: { slug: cleanSlug(slug) },
-      select: { id: true, active: true, activatedAt: true },
-    });
-    if (!card?.active || !card.activatedAt) return Response.json({ message: "Card unavailable." }, { status: 404 });
+    const { data } = await supabaseJson(`/rest/v1/digital_cards?slug=eq.${encodeURIComponent(cleanSlug(slug))}&select=id,active,activated_at&limit=1`, {}, true);
+    const card = data?.[0];
+    if (!card?.active || !card.activated_at) return Response.json({ message: "Card unavailable." }, { status: 404 });
     const type = String(body.type || "");
     if (!["VIEW","CONTACT_SAVE","LINK_CLICK","SHARE"].includes(type)) return Response.json({ message: "Invalid event." }, { status: 400 });
     const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0] || "";
     const day = new Date().toISOString().slice(0,10);
-    const visitorHash = createHash("sha256").update(`${process.env.ANALYTICS_SALT || process.env.NEXTAUTH_SECRET || "salt"}:${day}:${forwarded}:${request.headers.get("user-agent") || ""}`).digest("hex");
-    
-    await prisma.cardEvent.create({
-      data: {
-        cardId: card.id,
-        eventType: type,
-        channel: ["NFC","QR","LINK","PREVIEW"].includes(body.channel) ? body.channel : "LINK",
-        linkType: String(body.linkType || "").slice(0,40) || null,
-        visitorHash,
-      },
-    });
+    const visitorHash = createHash("sha256").update(`${process.env.ANALYTICS_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY}:${day}:${forwarded}:${request.headers.get("user-agent") || ""}`).digest("hex");
+    await supabaseJson("/rest/v1/card_events", { method: "POST", body: JSON.stringify({ card_id: card.id, event_type: type, channel: ["NFC","QR","LINK","PREVIEW"].includes(body.channel) ? body.channel : "LINK", link_type: String(body.linkType || "").slice(0,40) || null, visitor_hash: visitorHash }) }, true);
     return Response.json({ ok: true });
   } catch { return Response.json({ ok: false }, { status: 202 }); }
 }

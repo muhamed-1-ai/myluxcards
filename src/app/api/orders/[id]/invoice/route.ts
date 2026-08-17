@@ -1,5 +1,5 @@
 import { currentIdentity } from "@/lib/adminAuth";
-import { findUserOrderInvoice } from "@/lib/repositories/orders";
+import { supabaseJson } from "@/lib/supabaseAuth";
 
 const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, character => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[character]!));
 const money = (minor: unknown, currency: unknown) => `${esc(currency)} ${(Number(minor || 0) / 100).toFixed(2)}`;
@@ -9,8 +9,8 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   if (!identity) return new Response("Please sign in.", { status: 401 });
   const { id } = await context.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response("Invoice not found.", { status: 404 });
-  // Scoped query: customer_id=eq.${identity.id}
-  const order = await findUserOrderInvoice(id, identity.id);
+  const { data } = await supabaseJson(`/rest/v1/orders?id=eq.${id}&customer_id=eq.${identity.id}&select=id,order_number,customer_name,customer_email,customer_phone,status,payment_status,currency,subtotal_minor,discount_minor,tax_minor,shipping_minor,total_minor,shipping_address,created_at,order_items(product_name,sku,quantity,unit_price_minor,total_minor)&limit=1`, {}, true);
+  const order = data?.[0];
   if (!order) return new Response("Invoice not found.", { status: 404 });
   const address = order.shipping_address || {};
   const rows = (order.order_items || []).map((item: any) => `<tr><td>${esc(item.product_name)}</td><td>${esc(item.sku)}</td><td>${Number(item.quantity)}</td><td>${money(item.unit_price_minor, order.currency)}</td><td>${money(item.total_minor, order.currency)}</td></tr>`).join("");

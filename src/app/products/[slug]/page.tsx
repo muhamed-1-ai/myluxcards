@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { findActiveProductBySlug } from "@/lib/repositories/products";
+import { supabaseJson } from "@/lib/supabaseAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   let product: any = null;
   try {
-    product = await findActiveProductBySlug(slug);
+    const { data } = await supabaseJson(
+      `/rest/v1/products?slug=eq.${encodeURIComponent(slug)}&active=eq.true&archived_at=is.null&select=id,name,slug,description,product_type,price_minor,sale_price_minor,currency,stock,images&limit=1`,
+      {},
+      true,
+    );
+    product = data?.[0];
   } catch { /* Unconfigured product data is presented as not found. */ }
   if (!product) notFound();
   const price = product.sale_price_minor ?? product.price_minor;

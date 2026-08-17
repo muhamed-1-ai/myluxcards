@@ -18,38 +18,40 @@ export async function middleware(request: NextRequest) {
 
   const code = request.nextUrl.searchParams.get("ref")?.trim().toUpperCase();
   if (!code || !/^[A-Z0-9][A-Z0-9_-]{5,11}$/.test(code)) return NextResponse.next();
-  const signingSecret = process.env.AFFILIATE_COOKIE_SECRET || process.env.AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "default_secret";
+  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const signingSecret = process.env.AFFILIATE_COOKIE_SECRET || serviceKey;
+  if (!supabaseUrl || !serviceKey || !signingSecret) return NextResponse.next();
 
   try {
-    const visitorId = request.cookies.get(VISITOR_COOKIE)?.value || crypto.randomUUID();
-    const visitorHash = await sha256(`${signingSecret}:${visitorId}`);
+    const affiliateResponse = await fetch(
+      `${supabaseUrl}/rest/v1/affiliate_profiles?affiliate_code=eq.${encodeURIComponent(code)}&status=eq.APPROVED&select=id,partner_type&limit=1`,
+      { headers: serviceHeaders(serviceKey), cache: "no-store" },
+    );
+    const affiliate = (await affiliateResponse.json())?.[0];
+    if (!affiliate) return NextResponse.next();
+    const settingsResponse = await fetch(
+      `${supabaseUrl}/rest/v1/affiliate_settings?id=eq.true&select=attribution_window_days,business_lead_protection_days,program_enabled&limit=1`,
+      { headers: serviceHeaders(serviceKey), cache: "no-store" },
+    );
+    const settings = (await settingsResponse.json())?.[0];
+    if (settings?.program_enabled === false) return NextResponse.next();
+    const days = Math.min(365, Math.max(1, affiliate.partner_type === "BUSINESS_PARTNER"
+      ? Number(settings?.business_lead_protection_days) || 90
+      : Number(settings?.attribution_window_days) || 30));
     const campaign = sanitizeLabel(request.nextUrl.searchParams.get("campaign"));
     const source = sanitizeLabel(request.nextUrl.searchParams.get("source"));
-    const referrer = request.headers.get("referer");
-    let referrerHost: string | null = null;
-    try { referrerHost = referrer ? new URL(referrer).hostname.slice(0, 255) : null; } catch { /* invalid referer is ignored */ }
-
-    const trackRes = await fetch(new URL("/api/affiliate/track", request.url), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code,
-        campaign,
-        source,
-        visitorHash,
-        referrerHost,
-        destinationPath: `${request.nextUrl.pathname}${request.nextUrl.search}`.slice(0, 1000),
-      }),
-      cache: "no-store",
-    });
-
-    if (!trackRes.ok) return NextResponse.next();
-    const trackData = await trackRes.json().catch(() => null);
-    if (!trackData?.ok || !trackData.affiliateId) return NextResponse.next();
-
-    const days = Number(trackData.days) || 30;
+    let campaignId: string | null = null;
+    if (campaign) {
+      const campaignResponse = await fetch(
+        `${supabaseUrl}/rest/v1/affiliate_campaigns?affiliate_id=eq.${affiliate.id}&name=eq.${encodeURIComponent(campaign)}&active=eq.true&select=id&limit=1`,
+        { headers: serviceHeaders(serviceKey), cache: "no-store" },
+      );
+      campaignId = (await campaignResponse.json().catch(() => []))?.[0]?.id || null;
+      if (!campaignId) return NextResponse.next();
+    }
     const now = Date.now();
-    const payload = { affiliateId: trackData.affiliateId, ...(campaign ? { campaign } : {}), ...(source ? { source } : {}), issuedAt: now, expiresAt: now + days * 86_400_000 };
+    const payload = { affiliateId: affiliate.id, ...(campaign ? { campaign } : {}), ...(source ? { source } : {}), issuedAt: now, expiresAt: now + days * 86_400_000 };
     const response = NextResponse.next();
     response.cookies.set(REF_COOKIE, await signPayload(payload, signingSecret), {
       httpOnly: true,
@@ -59,6 +61,7 @@ export async function middleware(request: NextRequest) {
       maxAge: days * 86_400,
     });
 
+    const visitorId = request.cookies.get(VISITOR_COOKIE)?.value || crypto.randomUUID();
     if (!request.cookies.has(VISITOR_COOKIE)) {
       response.cookies.set(VISITOR_COOKIE, visitorId, {
         httpOnly: true,
@@ -68,7 +71,30 @@ export async function middleware(request: NextRequest) {
         maxAge: 365 * 86_400,
       });
     }
-
+    const visitorHash = await sha256(`${signingSecret}:${visitorId}`);
+    const visitorInsert = await fetch(`${supabaseUrl}/rest/v1/affiliate_visitors?on_conflict=affiliate_id,visitor_hash`, {
+      method: "POST",
+      headers: { ...serviceHeaders(serviceKey), Prefer: "resolution=ignore-duplicates,return=representation" },
+      body: JSON.stringify({ affiliate_id: affiliate.id, visitor_hash: visitorHash }),
+    });
+    const createdVisitor = visitorInsert.ok && ((await visitorInsert.json().catch(() => [])) as unknown[]).length > 0;
+    const referrer = request.headers.get("referer");
+    let referrerHost: string | null = null;
+    try { referrerHost = referrer ? new URL(referrer).hostname.slice(0, 255) : null; } catch { /* invalid referer is ignored */ }
+    await fetch(`${supabaseUrl}/rest/v1/affiliate_clicks`, {
+      method: "POST",
+      headers: serviceHeaders(serviceKey),
+      body: JSON.stringify({
+        affiliate_id: affiliate.id,
+        campaign_id: campaignId,
+        visitor_hash: visitorHash,
+        is_unique: createdVisitor,
+        destination_path: `${request.nextUrl.pathname}${request.nextUrl.search}`.slice(0, 1000),
+        campaign,
+        source,
+        referrer_host: referrerHost,
+      }),
+    });
     return response;
   } catch {
     // Tracking must never make the storefront unavailable.
@@ -88,6 +114,10 @@ function isAccountRoute(pathname: string) {
 function sanitizeLabel(value: string | null) {
   const clean = value?.trim().replace(/[^a-zA-Z0-9 _.-]/g, "").slice(0, 80);
   return clean || null;
+}
+
+function serviceHeaders(key: string) {
+  return { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 }
 
 async function signPayload(payload: object, secret: string) {

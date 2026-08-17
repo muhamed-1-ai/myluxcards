@@ -101,14 +101,6 @@ export async function audit(
     values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[actor.id,actor.role,action,entityType,entityId,JSON.stringify(scrub(before)),JSON.stringify(scrub(after)),context.ip,context.userAgent]);
 }
 
-export async function requireUser() {
-  return currentIdentity();
-}
-
-export async function requireSuperAdmin() {
-  return requireAdmin(true);
-}
-
 export function safeError(error: unknown) {
   console.error("Admin operation failed:", error);
   return Response.json({ message: "The request could not be completed." }, { status: 500 });

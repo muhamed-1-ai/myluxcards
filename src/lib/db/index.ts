@@ -5,17 +5,7 @@ import { databaseConfig } from "./config";
 const globalPool = globalThis as typeof globalThis & { __myluxcardsPool?: Pool };
 export const pool = globalPool.__myluxcardsPool ?? new Pool(databaseConfig());
 if (process.env.NODE_ENV !== "production") globalPool.__myluxcardsPool = pool;
-pool.on("error", error => console.error("[Database] Idle connection error", { name: error.name, code: (error as NodeJS.ErrnoException).code }));
-
-// Test connection on startup
-pool.connect()
-  .then(client => {
-    console.log("✅ PostgreSQL connection established.");
-    client.release();
-  })
-  .catch(err => {
-    console.error("❌ PostgreSQL connection failed:", err.message || err);
-  });
+pool.on("error", error => console.error("[Database] Idle connection error", { name:error.name, code:(error as NodeJS.ErrnoException).code }));
 
 export async function query<R extends QueryResultRow>(text: string, values: readonly unknown[] = []) {
   return pool.query<R>(text, [...values]);

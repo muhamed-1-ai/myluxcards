@@ -1,6 +1,6 @@
 import { getAffiliateForCurrentUser } from "@/lib/affiliate";
 import { safeError } from "@/lib/adminAuth";
-import { prisma } from "@/lib/db/prisma";
+import { supabaseJson } from "@/lib/supabaseAuth";
 
 export const runtime = "nodejs";
 
@@ -9,186 +9,41 @@ export async function GET() {
   if (!identity) return Response.json({ message: "Authentication required." }, { status: 401 });
   if (!affiliate) return Response.json({ profile: null });
   try {
-    const id = affiliate.id;
+    const id = encodeURIComponent(affiliate.id);
     const [clicks, orders, commissions, campaigns, payouts, settings, products, materials, credits, rewards] = await Promise.all([
-      prisma.affiliateClick.findMany({
-        where: { affiliateId: id },
-        select: { id: true, campaignId: true, isUnique: true, campaign: true, source: true, destinationPath: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 1000,
-      }),
-      prisma.order.findMany({
-        where: { affiliateId: id },
-        select: {
-          id: true, orderNumber: true, customerName: true, customerEmail: true, status: true, paymentStatus: true, currency: true, subtotalMinor: true, totalMinor: true, affiliateCampaignId: true, affiliateSource: true, affiliateCouponCode: true, createdAt: true,
-          orderItems: { select: { productName: true, quantity: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 500,
-      }),
-      prisma.affiliateCommission.findMany({
-        where: { affiliateId: id },
-        select: { id: true, orderId: true, commissionableMinor: true, commissionType: true, commissionValue: true, commissionMinor: true, currency: true, status: true, referralSource: true, campaign: true, risk: true, createdAt: true, approvedAt: true, payoutAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 500,
-      }),
-      prisma.affiliateCampaign.findMany({
-        where: { affiliateId: id },
-        select: { id: true, name: true, source: true, destinationPath: true, active: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      }),
-      prisma.affiliatePayout.findMany({
-        where: { affiliateId: id },
-        select: { id: true, amountMinor: true, currency: true, status: true, payoutMethod: true, transactionReference: true, rejectionReason: true, requestedAt: true, paidAt: true },
-        orderBy: { requestedAt: "desc" },
-        take: 100,
-      }),
-      prisma.affiliateSetting.findUnique({
-        where: { id: true },
-        select: { attributionWindowDays: true, minimumPayoutMinor: true, holdingPeriodDays: true, payoutSchedule: true, programTermsUrl: true },
-      }),
-      prisma.product.findMany({
-        where: { active: true, archivedAt: null },
-        select: { id: true, name: true, slug: true, productType: true, currency: true },
-        orderBy: { name: "asc" },
-        take: 200,
-      }),
-      prisma.affiliateMaterial.findMany({
-        where: { active: true },
-        select: { id: true, title: true, materialType: true, description: true, storageUrl: true, promotionalText: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      }),
-      prisma.affiliateStoreCredit.findMany({
-        where: { affiliateId: id },
-        select: { id: true, amountMinor: true, currency: true, status: true, expiresAt: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 500,
-      }),
-      prisma.affiliateReward.findMany({
-        where: { affiliateId: id },
-        select: {
-          id: true, status: true, createdAt: true, fulfilledAt: true,
-          rewardDefinition: { select: { name: true, description: true, requiredDeliveredOrders: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      }),
+      supabaseJson(`/rest/v1/affiliate_clicks?affiliate_id=eq.${id}&select=id,campaign_id,is_unique,campaign,source,destination_path,created_at&order=created_at.desc&limit=1000`, {}, true),
+      supabaseJson(`/rest/v1/orders?affiliate_id=eq.${id}&select=id,order_number,customer_name,customer_email,status,payment_status,currency,subtotal_minor,total_minor,affiliate_campaign_id,affiliate_source,affiliate_coupon_code,created_at,order_items(product_name,quantity)&order=created_at.desc&limit=500`, {}, true),
+      supabaseJson(`/rest/v1/affiliate_commissions?affiliate_id=eq.${id}&select=id,order_id,commissionable_minor,commission_type,commission_value,commission_minor,currency,status,referral_source,campaign,risk,created_at,approved_at,payout_at&order=created_at.desc&limit=500`, {}, true),
+      supabaseJson(`/rest/v1/affiliate_campaigns?affiliate_id=eq.${id}&select=id,name,source,destination_path,active,created_at&order=created_at.desc&limit=200`, {}, true),
+      supabaseJson(`/rest/v1/affiliate_payouts?affiliate_id=eq.${id}&select=id,amount_minor,currency,status,payout_method,transaction_reference,rejection_reason,requested_at,paid_at&order=requested_at.desc&limit=100`, {}, true),
+      supabaseJson("/rest/v1/affiliate_settings?id=eq.true&select=attribution_window_days,minimum_payout_minor,holding_period_days,payout_schedule,program_terms_url&limit=1", {}, true),
+      supabaseJson("/rest/v1/products?active=eq.true&archived_at=is.null&select=id,name,slug,product_type,currency&order=name.asc&limit=200", {}, true),
+      supabaseJson("/rest/v1/affiliate_materials?active=eq.true&select=id,title,material_type,description,storage_url,promotional_text,created_at&order=created_at.desc&limit=100", {}, true),
+      supabaseJson(`/rest/v1/affiliate_store_credits?affiliate_id=eq.${id}&select=id,amount_minor,currency,status,expires_at,created_at&order=created_at.desc&limit=500`, {}, true),
+      supabaseJson(`/rest/v1/affiliate_rewards?affiliate_id=eq.${id}&select=id,status,created_at,fulfilled_at,affiliate_reward_definitions(name,description,required_delivered_orders)&order=created_at.desc&limit=100`, {}, true),
     ]);
-
-    const formattedClicks = clicks.map(c => ({
-      id: c.id,
-      campaign_id: c.campaignId,
-      is_unique: c.isUnique,
-      campaign: c.campaign,
-      source: c.source,
-      destination_path: c.destinationPath,
-      created_at: c.createdAt,
+    const safeOrders = (orders.data || []).map((order: Record<string, unknown>) => ({
+      ...order,
+      customer_name: maskName(String(order.customer_name || "")),
+      customer_email: maskEmail(String(order.customer_email || "")),
     }));
-
-    const formattedOrders = orders.map(o => ({
-      id: o.id,
-      order_number: o.orderNumber,
-      customer_name: maskName(o.customerName),
-      customer_email: maskEmail(o.customerEmail),
-      status: o.status,
-      payment_status: o.paymentStatus,
-      currency: o.currency,
-      subtotal_minor: o.subtotalMinor,
-      total_minor: o.totalMinor,
-      affiliate_campaign_id: o.affiliateCampaignId,
-      affiliate_source: o.affiliateSource,
-      affiliate_coupon_code: o.affiliateCouponCode,
-      created_at: o.createdAt,
-      order_items: o.orderItems.map(i => ({ product_name: i.productName, quantity: i.quantity })),
-    }));
-
-    const formattedCommissions = commissions.map(c => ({
-      id: c.id,
-      order_id: c.orderId,
-      commissionable_minor: Number(c.commissionableMinor),
-      commission_type: c.commissionType,
-      commission_value: c.commissionValue,
-      commission_minor: Number(c.commissionMinor),
-      currency: c.currency,
-      status: c.status,
-      referral_source: c.referralSource,
-      campaign: c.campaign,
-      risk: c.risk,
-      created_at: c.createdAt,
-      approved_at: c.approvedAt,
-      payout_at: c.payoutAt,
-    }));
-
-    const formattedCampaigns = campaigns.map(c => {
-      const campClicks = clicks.filter(click => click.campaignId === c.id);
-      const campOrders = orders.filter(order => order.affiliateCampaignId === c.id);
-      return {
-        id: c.id,
-        name: c.name,
-        source: c.source,
-        destination_path: c.destinationPath,
-        active: c.active,
-        created_at: c.createdAt,
-        clicks: campClicks.length,
-        uniqueVisitors: campClicks.filter(click => click.isUnique).length,
-        conversions: campOrders.length,
-        revenueMinor: campOrders.filter(order => order.paymentStatus === "SUCCEEDED").reduce((sum, order) => sum + Number(order.totalMinor || 0), 0),
-      };
-    });
-
-    const formattedPayouts = payouts.map(p => ({
-      id: p.id,
-      amount_minor: Number(p.amountMinor),
-      currency: p.currency,
-      status: p.status,
-      payout_method: p.payoutMethod,
-      transaction_reference: p.transactionReference,
-      rejection_reason: p.rejectionReason,
-      requested_at: p.requestedAt,
-      paid_at: p.paidAt,
-    }));
-
-    const formattedSettings = settings ? {
-      attribution_window_days: settings.attributionWindowDays,
-      minimum_payout_minor: Number(settings.minimumPayoutMinor),
-      holding_period_days: settings.holdingPeriodDays,
-      payout_schedule: settings.payoutSchedule,
-      program_terms_url: settings.programTermsUrl,
-    } : {};
-
-    const formattedProducts = products.map(p => ({
-      id: p.id, name: p.name, slug: p.slug, product_type: p.productType, currency: p.currency,
-    }));
-
-    const formattedMaterials = materials.map(m => ({
-      id: m.id, title: m.title, material_type: m.materialType, description: m.description, storage_url: m.storageUrl, promotional_text: m.promotionalText, created_at: m.createdAt,
-    }));
-
-    const formattedCredits = credits.map(c => ({
-      id: c.id, amount_minor: Number(c.amountMinor), currency: c.currency, status: c.status, expires_at: c.expiresAt, created_at: c.createdAt,
-    }));
-
-    const formattedRewards = rewards.map(r => ({
-      id: r.id, status: r.status, created_at: r.createdAt, fulfilled_at: r.fulfilledAt,
-      affiliate_reward_definitions: r.rewardDefinition ? {
-        name: r.rewardDefinition.name, description: r.rewardDefinition.description, required_delivered_orders: r.rewardDefinition.requiredDeliveredOrders,
-      } : null,
-    }));
-
-    const currency = formattedCommissions[0]?.currency || formattedOrders[0]?.currency || "INR";
-
+    const currency = commissions.data?.[0]?.currency || orders.data?.[0]?.currency || "INR";
     return Response.json({
       profile: {
         id: affiliate.id, status: affiliate.status, affiliateCode: affiliate.affiliate_code,
         couponCode: affiliate.coupon_code, tier: affiliate.affiliate_tiers?.name || null, partnerType: affiliate.partner_type,
         rejectionReason: affiliate.rejection_reason,
       },
-      stats: summarize(formattedClicks, formattedOrders, formattedCommissions),
-      clicks: formattedClicks, orders: formattedOrders, commissions: formattedCommissions,
-      campaigns: formattedCampaigns, payouts: formattedPayouts, settings: formattedSettings,
-      products: formattedProducts, materials: formattedMaterials, credits: formattedCredits, rewards: formattedRewards, currency,
+      stats: summarize(clicks.data || [], orders.data || [], commissions.data || []),
+      clicks: clicks.data || [], orders: safeOrders, commissions: commissions.data || [],
+      campaigns: (campaigns.data || []).map((campaign:any)=>({
+        ...campaign,
+        clicks:(clicks.data||[]).filter((click:any)=>click.campaign_id===campaign.id).length,
+        uniqueVisitors:(clicks.data||[]).filter((click:any)=>click.campaign_id===campaign.id&&click.is_unique).length,
+        conversions:(orders.data||[]).filter((order:any)=>order.affiliate_campaign_id===campaign.id).length,
+        revenueMinor:(orders.data||[]).filter((order:any)=>order.affiliate_campaign_id===campaign.id&&order.payment_status==="SUCCEEDED").reduce((sum:number,order:any)=>sum+Number(order.total_minor||0),0),
+      })), payouts: payouts.data || [], settings: settings.data?.[0] || {},
+      products: products.data || [], materials: materials.data || [], credits: credits.data || [], rewards: rewards.data || [], currency,
       appUrl: process.env.APP_URL?.replace(/\/$/, "") || null,
       commerceReady: process.env.AFFILIATE_COMMERCE_LIVE === "true",
     });
@@ -218,7 +73,6 @@ function summarize(clicks: any[], orders: any[], commissions: any[]) {
     availablePayoutMinor: sum(byStatus("APPROVED"), "commission_minor"),
   };
 }
-
 function maskEmail(email: string) {
   const [local, domain] = email.split("@");
   if (!local || !domain) return "Customer";
