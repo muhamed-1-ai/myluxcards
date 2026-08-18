@@ -1,24 +1,25 @@
+import { getServerSession } from "next-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
-import { findUserById } from "./repositories/users";
 import { pool } from "./db";
+import { findUserById } from "./repositories/users";
 
-export type AppRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
+export type AdminRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
+
 export type AdminIdentity = {
   id: string;
   email: string;
   name: string;
-  role: AppRole;
+  role: AdminRole;
   disabled: boolean;
   mustChangePassword: boolean;
 };
 
 export async function currentIdentity(): Promise<AdminIdentity | null> {
-  const session=await getServerSession(authOptions);
-  if(!session?.user?.id||!Number.isInteger(session.user.sessionVersion))return null;
   try {
+    const session=await getServerSession(authOptions);
+    if(!session?.user?.id||!Number.isInteger(session.user.sessionVersion))return null;
     const profile=await findUserById(session.user.id);
     if(!profile||profile.disabled||profile.status!=="ACTIVE"||profile.session_version!==session.user.sessionVersion)return null;
     return {
@@ -29,7 +30,8 @@ export async function currentIdentity(): Promise<AdminIdentity | null> {
       disabled: profile.disabled,
       mustChangePassword: profile.must_change_password,
     };
-  } catch {
+  } catch (error) {
+    console.error("[Auth] currentIdentity error:", error);
     return null;
   }
 }
@@ -73,11 +75,15 @@ export async function requireAdminPage() {
 }
 
 export async function requestContext() {
-  const incoming = await headers();
-  return {
-    ip: (incoming.get("x-forwarded-for") || "").split(",")[0].trim().slice(0, 64) || null,
-    userAgent: incoming.get("user-agent")?.slice(0, 500) || null,
-  };
+  try {
+    const incoming = await headers();
+    return {
+      ip: (incoming.get("x-forwarded-for") || "").split(",")[0].trim().slice(0, 64) || null,
+      userAgent: incoming.get("user-agent")?.slice(0, 500) || null,
+    };
+  } catch {
+    return { ip: null, userAgent: null };
+  }
 }
 
 export async function audit(
