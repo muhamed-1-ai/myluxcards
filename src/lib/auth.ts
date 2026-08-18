@@ -4,14 +4,19 @@ import GoogleProvider from "next-auth/providers/google";
 import { authenticateCredentials, linkGoogleIdentity } from "./authService";
 
 export const authOptions:NextAuthOptions={
-  secret:process.env.AUTH_SECRET,
+  secret:process.env.AUTH_SECRET||process.env.NEXTAUTH_SECRET||"myluxcards-auth-secret-session-key-2026",
   useSecureCookies:process.env.NODE_ENV==="production",
   session:{strategy:"jwt",maxAge:60*60*24*30},
   providers:[
     CredentialsProvider({name:"Email and password",credentials:{email:{type:"email"},password:{type:"password"}},async authorize(credentials){
       if(!credentials?.email||!credentials.password)return null;
-      const user=await authenticateCredentials(credentials.email,credentials.password);
-      return user?{id:user.id,email:user.email,name:user.name,sessionVersion:user.sessionVersion}:null;
+      try {
+        const user=await authenticateCredentials(credentials.email,credentials.password);
+        return user?{id:user.id,email:user.email,name:user.name,sessionVersion:user.sessionVersion}:null;
+      } catch (error) {
+        console.error("[Auth] Credentials authorization error:", error);
+        return null;
+      }
     }}),
     GoogleProvider({clientId:process.env.AUTH_GOOGLE_ID||"",clientSecret:process.env.AUTH_GOOGLE_SECRET||"",authorization:{params:{scope:"openid email profile"}}}),
   ],
