@@ -4,15 +4,19 @@ import { getAppOrigin } from "@/lib/url";
 
 const REF_COOKIE = "mlc_affiliate_ref";
 const VISITOR_COOKIE = "mlc_affiliate_visitor";
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026";
+
+async function getSessionToken(req: NextRequest) {
+  let session = await getToken({ req, secret: AUTH_SECRET, secureCookie: process.env.NODE_ENV === "production" });
+  if (!session && process.env.NODE_ENV === "production") {
+    session = await getToken({ req, secret: AUTH_SECRET, secureCookie: false });
+  }
+  return session;
+}
 
 export async function middleware(request: NextRequest) {
   const accountRoute = isAccountRoute(request.nextUrl.pathname);
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026";
-  const session = accountRoute
-    ? (await getToken({ req: request, secret, raw: false }))
-      || (await getToken({ req: request, secret, secureCookie: false, raw: false }))
-    : null;
-
+  const session = accountRoute ? await getSessionToken(request) : null;
   if (accountRoute && !session?.userId) {
     const origin = getAppOrigin(request);
     const destination = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -60,7 +64,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next();
     response.cookies.set(REF_COOKIE, await signPayload(payload, signingSecret), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" && (request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")),
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: days * 86_400,
@@ -70,7 +74,7 @@ export async function middleware(request: NextRequest) {
     if (!request.cookies.has(VISITOR_COOKIE)) {
       response.cookies.set(VISITOR_COOKIE, visitorId, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production" && (request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")),
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
         maxAge: 365 * 86_400,
