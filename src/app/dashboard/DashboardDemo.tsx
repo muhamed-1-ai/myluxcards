@@ -107,12 +107,13 @@ const normalizeActivationCode = (value: string) => {
   return compact ? `MLC-${compact.match(/.{1,4}/g)?.join("-") || compact}` : "MLC-";
 };
 const fetchWithSessionRefresh = async (input: RequestInfo | URL, init?: RequestInit) => {
-  let response = await fetch(input, init);
+  const options: RequestInit = { credentials: "same-origin", ...init };
+  let response = await fetch(input, options);
   if (response.status !== 401) return response;
-  const refreshed = await fetch("/api/auth/refresh", { cache: "no-store" });
-  if (!refreshed.ok) return response;
-  response = await fetch(input, init);
-  return response;
+  const refreshed = await fetch("/api/auth/refresh", { credentials: "same-origin", cache: "no-store" });
+  const refreshData = refreshed.ok ? await refreshed.json().catch(() => ({})) : null;
+  if (!refreshData?.ok) return response;
+  return fetch(input, options);
 };
 const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight: number) => {
   if (!source.startsWith("data:image/") || source.length < 350_000) return source;
