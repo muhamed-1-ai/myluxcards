@@ -7,9 +7,12 @@ const VISITOR_COOKIE = "mlc_affiliate_visitor";
 
 export async function middleware(request: NextRequest) {
   const accountRoute = isAccountRoute(request.nextUrl.pathname);
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026";
   const session = accountRoute
-    ? await getToken({ req: request, secret: process.env.AUTH_SECRET, secureCookie: process.env.NODE_ENV === "production" })
+    ? (await getToken({ req: request, secret, raw: false }))
+      || (await getToken({ req: request, secret, secureCookie: false, raw: false }))
     : null;
+
   if (accountRoute && !session?.userId) {
     const origin = getAppOrigin(request);
     const destination = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -57,7 +60,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next();
     response.cookies.set(REF_COOKIE, await signPayload(payload, signingSecret), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" && (request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")),
       sameSite: "lax",
       path: "/",
       maxAge: days * 86_400,
@@ -67,7 +70,7 @@ export async function middleware(request: NextRequest) {
     if (!request.cookies.has(VISITOR_COOKIE)) {
       response.cookies.set(VISITOR_COOKIE, visitorId, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "production" && (request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")),
         sameSite: "lax",
         path: "/",
         maxAge: 365 * 86_400,
