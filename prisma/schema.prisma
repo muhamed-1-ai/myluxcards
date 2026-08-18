@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String   @unique
+  passwordHash       String?  @map("password_hash")
+  name               String?
+  role               String   @default("CUSTOMER")
+  disabled           Boolean  @default(false)
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  sessionVersion     Int      @default(1) @map("session_version")
+  status             String   @default("ACTIVE")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  digitalCards       DigitalCard[]
+  orders             Order[]
+  accounts           Account[]
+  profiles           Profile[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  refreshToken      String?  @map("refresh_token")
+  accessToken       String?  @map("access_token")
+  expiresAt         Int?     @map("expires_at")
+  tokenType         String?  @map("token_type")
+  scope             String?
+  idToken           String?  @map("id_token")
+  sessionState      String?  @map("session_state")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Profile {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  mobile    String?
+  country   String?
+  address   String?
+  city      String?
+  state     String?
+  pincode   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model DigitalCard {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String    @map("owner_id") @db.Uuid
+  slug               String    @unique
+  profile            Json      @default("{}")
+  design             Json      @default("{}")
+  active             Boolean   @default(true)
+  activationCodeHash String?   @map("activation_code_hash")
+  activatedAt        DateTime? @map("activated_at") @db.Timestamptz
+  expiresAt          DateTime? @map("expires_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  owner              User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  physicalCards      Card[]
+
+  @@map("digital_cards")
+}
+
+model Card {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  digitalCardId   String      @map("digital_card_id") @db.Uuid
+  status          String      @default("UNASSIGNED")
+  publicTokenHash String?     @map("public_token_hash")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime    @default(now()) @map("updated_at") @db.Timestamptz
+
+  digitalCard     DigitalCard @relation(fields: [digitalCardId], references: [id], onDelete: Cascade)
+
+  @@map("cards")
+}
+
+model Product {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String      @unique
+  title       String
+  description String?
+  priceMinor  Int         @map("price_minor")
+  currency    String      @default("INR")
+  badge       String?
+  active      Boolean     @default(true)
+  metadata    Json        @default("{}")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @default(now()) @map("updated_at") @db.Timestamptz
+
+  orderItems  OrderItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number          String      @unique
+  userId          String?     @map("user_id") @db.Uuid
+  customerName    String      @map("customer_name")
+  customerEmail   String      @map("customer_email")
+  customerMobile  String?     @map("customer_mobile")
+  shippingAddress Json        @map("shipping_address")
+  billingAddress  Json?       @map("billing_address")
+  currency        String      @default("INR")
+  subtotalMinor   Int         @map("subtotal_minor")
+  discountMinor   Int         @default(0) @map("discount_minor")
+  taxMinor        Int         @default(0) @map("tax_minor")
+  shippingMinor   Int         @default(0) @map("shipping_minor")
+  totalMinor      Int         @map("total_minor")
+  status          String      @default("PENDING")
+  paymentStatus   String      @default("UNPAID") @map("payment_status")
+  courier         String?
+  trackingNumber  String?     @map("tracking_number")
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime    @default(now()) @map("updated_at") @db.Timestamptz
+
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  payments        Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId       String   @map("order_id") @db.Uuid
+  productId     String?  @map("product_id") @db.Uuid
+  title         String
+  quantity      Int      @default(1)
+  unitPrice     Int      @map("unit_price")
+  totalPrice    Int      @map("total_price")
+  customization Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@map("order_items")
+}
+
+model Payment {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String   @map("order_id") @db.Uuid
+  provider          String   @default("RAZORPAY")
+  providerPaymentId String?  @unique @map("provider_payment_id")
+  providerOrderId   String?  @map("provider_order_id")
+  providerSignature String?  @map("provider_signature")
+  amountMinor       Int      @map("amount_minor")
+  currency          String   @default("INR")
+  status            String   @default("INITIATED")
+  rawResponse       Json     @default("{}") @map("raw_response")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model SupportTicket {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketNumber String   @unique @map("ticket_number")
+  name         String
+  email        String
+  subject      String
+  message      String
+  status       String   @default("OPEN")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("support_tickets")
+}
+
+model AdminAuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  target    String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("admin_audit_logs")
+}
