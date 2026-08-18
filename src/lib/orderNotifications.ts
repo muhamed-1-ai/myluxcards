@@ -1,4 +1,5 @@
 import { supabaseJson } from "./supabaseAuth";
+import { getAppOrigin } from "./url";
 
 type OrderNotification = {
   eventKey: string;
@@ -16,7 +17,7 @@ type OrderNotification = {
 /** Call only after a server-side checkout or verified provider webhook has persisted the order. */
 export async function notifySuperAdminsOfOrder(order: OrderNotification) {
   const recipient = process.env.SUPER_ADMIN_NOTIFICATION_EMAIL?.trim();
-  const appUrl = process.env.APP_URL?.replace(/\/$/, "");
+  const appUrl = getAppOrigin();
   const title = `New order ${order.orderNumber}`;
   const message = `${order.customerName} placed ${order.items.length} item line(s) for ${order.currency} ${(order.totalMinor / 100).toFixed(2)}.`;
 

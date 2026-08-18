@@ -1,10 +1,11 @@
 import { getAffiliateForCurrentUser } from "@/lib/affiliate";
 import { safeError } from "@/lib/adminAuth";
 import { supabaseJson } from "@/lib/supabaseAuth";
+import { getAppOrigin } from "@/lib/url";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { identity, affiliate } = await getAffiliateForCurrentUser();
   if (!identity) return Response.json({ message: "Authentication required." }, { status: 401 });
   if (!affiliate) return Response.json({ profile: null });
@@ -44,7 +45,7 @@ export async function GET() {
         revenueMinor:(orders.data||[]).filter((order:any)=>order.affiliate_campaign_id===campaign.id&&order.payment_status==="SUCCEEDED").reduce((sum:number,order:any)=>sum+Number(order.total_minor||0),0),
       })), payouts: payouts.data || [], settings: settings.data?.[0] || {},
       products: products.data || [], materials: materials.data || [], credits: credits.data || [], rewards: rewards.data || [], currency,
-      appUrl: process.env.APP_URL?.replace(/\/$/, "") || null,
+      appUrl: getAppOrigin(request),
       commerceReady: process.env.AFFILIATE_COMMERCE_LIVE === "true",
     });
   } catch (error) {

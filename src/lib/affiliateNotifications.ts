@@ -1,4 +1,5 @@
 import { supabaseJson } from "./supabaseAuth";
+import { getAppOrigin } from "./url";
 
 type AffiliateEmail = {
   eventKey: string;
@@ -29,7 +30,7 @@ export async function sendAffiliateEmail(input: AffiliateEmail) {
     throw error;
   }
 
-  const appUrl = process.env.APP_URL?.replace(/\/$/, "");
+  const appUrl = getAppOrigin();
   if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !appUrl) {
     return { created: true, email: "not-configured" as const };
   }

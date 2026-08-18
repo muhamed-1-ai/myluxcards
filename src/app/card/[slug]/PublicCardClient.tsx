@@ -182,7 +182,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     if (qrPngUrl) {
       const a = document.createElement("a");
       a.href = qrPngUrl;
-      a.download = `mylux-qr-${card.slug}.png`;
+      a.download = `mylux-qr-${slug}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -190,20 +190,33 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     }
     setQrDownloading(true);
     try {
-      const blob = await svgToPngBlob(qrSvg, 1024);
+      const blob = await svgToPngBlob(qrSvg, 1500);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `mylux-qr-${card.slug}.png`;
+      a.download = `mylux-qr-${slug}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setQrError("Could not prepare PNG download. Please try again.");
     } finally {
       setQrDownloading(false);
     }
+  };
+
+  const downloadSvg = () => {
+    if (!qrSvg) return;
+    const blob = new Blob([qrSvg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mylux-qr-${slug}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const svgToPngBlob = async (svg: string, size: number) => {
@@ -218,14 +231,29 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       });
       image.src = svgUrl;
       await loaded;
+
+      const viewBoxMatch = svg.match(/viewBox=["']\d+\s+\d+\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)["']/);
+      let naturalWidth = image.naturalWidth || 400;
+      let naturalHeight = image.naturalHeight || 460;
+      if (viewBoxMatch && viewBoxMatch[1] && viewBoxMatch[2]) {
+        naturalWidth = parseFloat(viewBoxMatch[1]);
+        naturalHeight = parseFloat(viewBoxMatch[2]);
+      }
+
+      const scale = size / Math.max(naturalWidth, naturalHeight);
+      const canvasWidth = Math.round(naturalWidth * scale);
+      const canvasHeight = Math.round(naturalHeight * scale);
+
       const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Unable to create canvas context");
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, size, size);
-      ctx.drawImage(image, 0, 0, size, size);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#050505";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.drawImage(image, 0, 0, canvasWidth, canvasHeight);
       const pngBlob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Failed to create PNG")), "image/png");
       });
@@ -270,19 +298,17 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                 <div className="pc-hero-logo-badge">
                   <img
                     src={card.logo}
-                    alt={card.business || card.name}
+                    alt={card.name || "Logo"}
                     style={{
-                      transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
-                      objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
+                      transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
+                      objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
                     }}
                   />
                 </div>
               )}
-              <div className="pc-hero-identity">
-                <h1 className="pc-hero-name">{card.name}</h1>
-                {card.title    && <p className="pc-hero-title">{card.title}</p>}
-                {card.business && <p className="pc-hero-biz">{card.business}</p>}
-              </div>
+              <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
+              {card.title && <p className="pc-hero-title">{card.title}</p>}
+              {card.business && <p className="pc-hero-biz">{card.business}</p>}
             </div>
           </div>
         </div>
@@ -327,7 +353,16 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             <p className="pc-qr-url">{typeof window !== "undefined" ? window.location.href : ""}</p>
             <div className="pc-qr-actions">
               {qrError && <button type="button" className="pc-qr-download" onClick={openQr} disabled={qrLoading}>Try again</button>}
-              {!qrError && <button type="button" className="pc-qr-download" onClick={downloadQr} disabled={!qrSvg || qrLoading || qrDownloading}>{qrDownloading ? "Downloading…" : "Download PNG"}</button>}
+              {!qrError && (
+                <>
+                  <button type="button" className="pc-qr-download" onClick={downloadQr} disabled={!qrSvg || qrLoading || qrDownloading}>
+                    {qrDownloading ? "Downloading…" : "Download PNG"}
+                  </button>
+                  <button type="button" className="pc-qr-download svg-btn" onClick={downloadSvg} disabled={!qrSvg || qrLoading}>
+                    Download SVG
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

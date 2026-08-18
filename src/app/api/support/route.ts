@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { requestContext, validMutationOrigin } from "@/lib/adminAuth";
 import { supabaseJson } from "@/lib/supabaseAuth";
+import { getAppOrigin } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
           headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": eventKey },
           body: JSON.stringify({
             from: process.env.EMAIL_FROM, to: [recipient], subject: title,
-            html: `<h1>${escapeHtml(title)}</h1><p><strong>Customer:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><strong>Best contact:</strong> ${escapeHtml(contactTime || "Not specified")}</p><p><strong>Message:</strong> ${escapeHtml(message)}</p><p><a href="${escapeHtml((process.env.APP_URL || "https://myluxcards.vercel.app").replace(/\/$/, ""))}/admin">Open Admin notifications</a></p>`,
+            html: `<h1>${escapeHtml(title)}</h1><p><strong>Customer:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><strong>Best contact:</strong> ${escapeHtml(contactTime || "Not specified")}</p><p><strong>Message:</strong> ${escapeHtml(message)}</p><p><a href="${escapeHtml(`${getAppOrigin(request)}/admin`)}">Open Admin notifications</a></p>`,
           }), cache: "no-store",
         });
         await supabaseJson(`/rest/v1/admin_notifications?event_key=eq.${encodeURIComponent(eventKey)}`, {

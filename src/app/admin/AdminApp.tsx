@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { getPublicCardUrl } from "@/lib/url";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
 type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
@@ -131,7 +132,25 @@ function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,err
     URL.revokeObjectURL(url);
   };
 
-  const cardUrl = qrSlug ? `${window.location.origin}/card/${qrSlug}` : "";
+  const downloadPng = async () => {
+    if (!qrSvg || !qrSlug) return;
+    try {
+      const { svgToHighResPngBlob } = await import("@/lib/premiumQr");
+      const blob = await svgToHighResPngBlob(qrSvg, 1500);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${qrSlug}-qr.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      alert("Could not generate PNG download.");
+    }
+  };
+
+  const cardUrl = qrSlug ? getPublicCardUrl(qrSlug) : "";
 
   return (
     <div className="admin-modal-back" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
@@ -192,7 +211,10 @@ function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,err
                   {qrLoading ? <span className="customer-qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="customer-qr-error">{qrError || "QR code unavailable."}</span>}
                 </div>
                 <div className="customer-qr-actions">
-                  {qrError ? <button type="button" className="small gold" onClick={() => { if (qrSlug) { openQr({ slug: qrSlug, profile: { name: qrTitle } } as Row); } }} disabled={qrLoading}>Try again</button> : <button type="button" className="small gold" onClick={downloadQr} disabled={!qrSvg || qrLoading}>Download SVG</button>}
+                  {qrError ? <button type="button" className="small gold" onClick={() => { if (qrSlug) { openQr({ slug: qrSlug, profile: { name: qrTitle } } as Row); } }} disabled={qrLoading}>Try again</button> : <>
+                    <button type="button" className="small gold" onClick={downloadPng} disabled={!qrSvg || qrLoading}>Download PNG</button>
+                    <button type="button" className="small gold" onClick={downloadQr} disabled={!qrSvg || qrLoading}>Download SVG</button>
+                  </>}
                   <a className="small" href={cardUrl} target="_blank" rel="noopener noreferrer">Open card</a>
                 </div>
               </div>

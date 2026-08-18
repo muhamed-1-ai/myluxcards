@@ -30,7 +30,7 @@ const commissions = [
 const demoData = {
   demo:true,
   commerceReady:true,
-  appUrl:"https://myluxcards.vercel.app",
+  appUrl:"https://myluxcards.com",
   currency:"INR",
   profile:{ id:"demo-partner",status:"APPROVED",affiliateCode:"DEMO2026",couponCode:"DEMO10",tier:"Gold",partnerType:"CREATOR",rejectionReason:null },
   settings:{ attribution_window_days:30,minimum_payout_minor:250000,holding_period_days:14,payout_schedule:"Twice monthly",program_terms_url:"/partners/terms" },

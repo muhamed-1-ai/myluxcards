@@ -206,8 +206,20 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           setCards([blank]);
           setSelectedId(blank.id);
           setDraft(blank);
-          lastSavedRef.current = JSON.stringify(blank);
+          lastSavedRef.current = "";
           cacheCards(user.id, [blank]);
+          fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(blank) }).then(async (res) => {
+            if (!res.ok) return;
+            const data = await res.json().catch(() => ({}));
+            if (data.card) {
+              const savedCard = normalizeCard(data.card, user);
+              setCards([savedCard]);
+              setSelectedId(savedCard.id);
+              setDraft(savedCard);
+              lastSavedRef.current = JSON.stringify(savedCard);
+              cacheCards(user.id, [savedCard]);
+            }
+          }).catch(() => {});
         }
       }).catch(() => { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); });
     } catch {
@@ -231,8 +243,9 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const update = (key: keyof Card, value: Card[keyof Card]) => { setSaveStatus("unsaved"); setDraft((old) => ({ ...old, [key]: value })); };
   const selectTab = (next: Tab) => { setTab(next); setSidebar(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const requestCardOpen = (card: Card) => {
-    if (!card.active) {
-      setSelectedId(card.id); return;
+    if (!card.slug) return;
+    if (saveStatus === "unsaved") {
+      void save("dashboard", undefined, true);
     }
     window.open(`/card/${card.slug}`, "_blank", "noopener,noreferrer");
   };
@@ -341,7 +354,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   };
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
-  const activeCards = cards.filter((card) => card.active && card.activatedAt).length;
+  const activeCards = cards.filter((card) => card.active).length;
   const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
   const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
   const filtered = useMemo(() => cards.filter((card) =>
@@ -594,6 +607,9 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
   const qrPngUrlRef = useRef<string | null>(null);
+  const displayHost = typeof window !== "undefined" && window.location?.host
+    ? (process.env.NODE_ENV === "production" && /localhost|127\.0\.0\.1/i.test(window.location.host) ? "myluxcards.com" : window.location.host)
+    : "myluxcards.com";
 
   useEffect(() => {
     setQrOpen(false);
@@ -649,7 +665,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
     }
     setQrDownloading(true);
     try {
-      const blob = await svgToPngBlob(qrSvg, 1024);
+      const blob = await svgToPngBlob(qrSvg, 1500);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -657,12 +673,25 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setQrError("Could not prepare PNG download. Please try again.");
     } finally {
       setQrDownloading(false);
     }
+  };
+
+  const downloadSvg = () => {
+    if (!qrSvg) return;
+    const blob = new Blob([qrSvg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mylux-qr-${card.slug}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const createPngFromSvg = async (svg: string) => {
@@ -673,7 +702,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
         URL.revokeObjectURL(qrPngUrlRef.current);
         qrPngUrlRef.current = null;
       }
-      const blob = await svgToPngBlob(svg, 1024);
+      const blob = await svgToPngBlob(svg, 1500);
       const url = URL.createObjectURL(blob);
       qrPngUrlRef.current = url;
       setQrPngUrl(url);
@@ -696,14 +725,29 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
       });
       image.src = svgUrl;
       await loaded;
+
+      const viewBoxMatch = svg.match(/viewBox=["']\d+\s+\d+\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)["']/);
+      let naturalWidth = image.naturalWidth || 400;
+      let naturalHeight = image.naturalHeight || 460;
+      if (viewBoxMatch && viewBoxMatch[1] && viewBoxMatch[2]) {
+        naturalWidth = parseFloat(viewBoxMatch[1]);
+        naturalHeight = parseFloat(viewBoxMatch[2]);
+      }
+
+      const scale = size / Math.max(naturalWidth, naturalHeight);
+      const canvasWidth = Math.round(naturalWidth * scale);
+      const canvasHeight = Math.round(naturalHeight * scale);
+
       const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Unable to create canvas context");
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, size, size);
-      ctx.drawImage(image, 0, 0, size, size);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#050505";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.drawImage(image, 0, 0, canvasWidth, canvasHeight);
       const pngBlob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Failed to create PNG")), "image/png");
       });
@@ -735,12 +779,23 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
             QR Code
           </div>
-          <p className="qr-modal-slug">myluxcards.com/card/{card.slug}</p>
+          <p className="qr-modal-slug">{displayHost}/card/{card.slug}</p>
           <div className="qr-modal-img">
             {qrLoading ? <span className="qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="qr-loading">{qrError || "QR code unavailable"}</span>}
           </div>
           <div className="qr-modal-actions">
-            {qrError ? <button type="button" className="qr-download-btn" onClick={openQr} disabled={qrLoading}>Try again</button> : <button type="button" className="qr-download-btn" onClick={downloadQr} disabled={!qrSvg || qrLoading || qrDownloading}>{qrDownloading ? "Downloading…" : "Download PNG"}</button>}
+            {qrError ? (
+              <button type="button" className="qr-download-btn" onClick={openQr} disabled={qrLoading}>Try again</button>
+            ) : (
+              <>
+                <button type="button" className="qr-download-btn" onClick={downloadQr} disabled={!qrSvg || qrLoading || qrDownloading}>
+                  {qrDownloading ? "Downloading…" : "Download PNG"}
+                </button>
+                <button type="button" className="qr-download-btn svg-btn" onClick={downloadSvg} disabled={!qrSvg || qrLoading}>
+                  Download SVG
+                </button>
+              </>
+            )}
             <a className="qr-open-link" href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">Open Card ↗</a>
           </div>
         </div>
@@ -752,9 +807,9 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
         <i aria-label="Card is live">LIVE</i>
       </div>
       <div className="url-card-controls">
-        <button className="public-url" type="button" onClick={()=>onOpen(card)} title={`Open myluxcards.com/card/${card.slug}`}>
+        <button className="public-url" type="button" onClick={()=>onOpen(card)} title={`Open ${displayHost}/card/${card.slug}`}>
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
-          <span>myluxcards.com/card/{card.slug}</span>
+          <span>{displayHost}/card/{card.slug}</span>
         </button>
         <div className="url-card-actions">
           <button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg> QR</button>

@@ -1,9 +1,10 @@
-import QRCode from "qrcode";
+import { buildPremiumQrSvg } from "@/lib/premiumQr";
 import { safeError } from "@/lib/adminAuth";
+import { getPublicCardUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
-/** GET /api/cards/qr?slug=... – returns an SVG QR code for the card URL. Public route. */
+/** GET /api/cards/qr?slug=... – returns a luxury SVG QR code for the card URL. Public route. */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -12,15 +13,9 @@ export async function GET(request: Request) {
       return Response.json({ message: "Invalid slug." }, { status: 400 });
     }
 
-    const appUrl = (process.env.APP_URL || "https://myluxcards.vercel.app").replace(/\/$/, "");
-    const cardUrl = `${appUrl}/card/${slug}`;
+    const cardUrl = getPublicCardUrl(slug, request);
 
-    const svg = await QRCode.toString(cardUrl, {
-      type: "svg",
-      errorCorrectionLevel: "M",
-      color: { dark: "#d4af37", light: "#000000" },
-      margin: 1,
-    });
+    const svg = buildPremiumQrSvg(cardUrl, { showLabel: true, label: "SCAN ME" });
 
     return new Response(svg, {
       headers: {

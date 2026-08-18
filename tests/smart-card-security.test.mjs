@@ -83,6 +83,6 @@ test("card QR generation is stable across loading and supports recovery", () => 
   assert.match(publicCardClient, /setQrError\("Could not generate the QR code\. Please try again\."\)/);
   assert.match(publicCardClient, />Try again<\/button>/);
   assert.match(dashboard, /setQrSvg\(null\);[\s\S]*\}, \[card\.slug\]\)/);
-  assert.match(cardQr, /QRCode\.toString\(cardUrl/);
+  assert.match(cardQr, /buildPremiumQrSvg\(cardUrl/);
   assert.match(cardQr, /Content-Type": "image\/svg\+xml"/);
 });
