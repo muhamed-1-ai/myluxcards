@@ -1328,11 +1328,15 @@ class LuxApp {
     document.getElementById('dashboard-nav-link')?.addEventListener('click', async (event) => {
       event.preventDefault();
       let session = await fetch('/api/auth/me', { cache: 'no-store' });
-      if (session.status === 401) {
+      let data = await session.json().catch(() => ({}));
+      if (!session.ok || !data?.user) {
         const refreshed = await fetch('/api/auth/refresh', { method: 'POST' });
-        if (refreshed.ok) session = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (refreshed.ok) {
+          session = await fetch('/api/auth/me', { cache: 'no-store' });
+          data = await session.json().catch(() => ({}));
+        }
       }
-      if (session.ok) {
+      if (session.ok && data?.user) {
         window.location.href = '/dashboard';
         return;
       }

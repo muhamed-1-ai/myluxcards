@@ -1821,7 +1821,8 @@ class LuxApp {
     } else if (loginFlag) {
       fetch('/api/auth/me', { cache: 'no-store' })
         .then(async (res) => {
-          if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.user) {
             localStorage.removeItem('myluxcards_current_user');
             const button = document.getElementById('login-trigger');
             if (button) {
@@ -1835,6 +1836,9 @@ class LuxApp {
             if (dropdown) dropdown.hidden = true;
             document.getElementById('login-modal')?.classList.add('open');
           } else {
+            localStorage.setItem('myluxcards_current_user', JSON.stringify(data.user));
+            this.updateAccountButton(data.user);
+            this.updateMobileAccountMenu(data.user);
             const destination = sessionStorage.getItem('myluxcards_auth_next') || '/dashboard';
             sessionStorage.removeItem('myluxcards_auth_next');
             window.location.replace(destination);
