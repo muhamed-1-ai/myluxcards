@@ -19,9 +19,9 @@ export type AdminIdentity = {
 export async function currentIdentity(): Promise<AdminIdentity | null> {
   try {
     const session=await getServerSession(authOptions);
-    if(!session?.user?.id||!Number.isInteger(session.user.sessionVersion))return null;
+    if(!session?.user?.id)return null;
     const profile=await findUserById(session.user.id);
-    if(!profile||profile.disabled||profile.status!=="ACTIVE"||profile.session_version!==session.user.sessionVersion)return null;
+    if(!profile||profile.disabled||profile.status!=="ACTIVE"||(Number.isInteger(session.user.sessionVersion)&&profile.session_version!==session.user.sessionVersion))return null;
     return {
       id: profile.id,
       email: profile.email,
