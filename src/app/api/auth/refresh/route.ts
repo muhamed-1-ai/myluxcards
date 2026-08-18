@@ -11,7 +11,7 @@ async function respond(request: Request, next?: string | null) {
     const target = user ? safe(next) : `/?login=1&next=${encodeURIComponent(safe(next))}`;
     return NextResponse.redirect(new URL(target, origin));
   }
-  return user ? Response.json({ ok: true }) : Response.json({ message: "Sign in required." }, { status: 401 });
+  return user ? Response.json({ ok: true, user }) : Response.json({ ok: false, message: "Sign in required." }, { status: 200 });
 }
 
 export async function GET(request: Request) {
