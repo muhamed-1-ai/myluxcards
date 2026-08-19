@@ -22,17 +22,23 @@ export async function POST(request: Request) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!matchesSignature(bytes, file.type)) return Response.json({ message: "The file contents do not match the selected file type." }, { status: 400 });
   const path = `${identity.id}/${kind}/${randomUUID()}.${extension}`;
-  const response = await fetch(`${config.url}/storage/v1/object/card-media/${path}`, {
-    method: "POST",
-    headers: { apikey: config.serviceRoleKey, Authorization: `Bearer ${config.serviceRoleKey}`, "Content-Type": file.type, "x-upsert": "false" },
-    body: bytes,
-  });
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    console.error("[Media API] Supabase storage upload failed:", response.status, errorText);
-    return Response.json({ message: "The file could not be saved to cloud storage." }, { status: 502 });
+  try {
+    const response = await fetch(`${config.url}/storage/v1/object/card-media/${path}`, {
+      method: "POST",
+      headers: { apikey: config.serviceRoleKey, Authorization: `Bearer ${config.serviceRoleKey}`, "Content-Type": file.type, "x-upsert": "false" },
+      body: bytes,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.error("[Media API] Supabase storage upload failed:", response.status, errorText);
+      return Response.json({ message: "The file could not be saved to cloud storage." }, { status: 502 });
+    }
+    return Response.json({ url: `${config.url}/storage/v1/object/public/card-media/${path}`, name: file.name });
+  } catch (error) {
+    console.error("[Media API] Supabase storage network error/timeout:", error);
+    return Response.json({ message: "Cloud media storage request timed out. Please try again." }, { status: 504 });
   }
-  return Response.json({ url: `${config.url}/storage/v1/object/public/card-media/${path}`, name: file.name });
 }
 
 function matchesSignature(bytes: Uint8Array, type: string) {

@@ -158,6 +158,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const [accountMenu, setAccountMenu] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [cloudReady, setCloudReady] = useState(false);
+  const [uploadingKind, setUploadingKind] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved"|"unsaved"|"saving"|"error">("saved");
   const lastSavedRef = useRef("");
@@ -329,6 +330,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       }
     }
     const form = new FormData(); form.append("file", file); form.append("kind", kind);
+    setUploadingKind(kind);
     notify("Uploading securely…");
     try {
       const response = await fetchWithSessionRefresh("/api/media", { method:"POST", body:form });
@@ -338,7 +340,10 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       else update(kind, payload.url);
       notify("Upload complete. Press Save & Finish to publish it.");
     } catch (error) { notify(error instanceof Error ? error.message : "Upload failed."); }
-    finally { event.target.value = ""; }
+    finally {
+      setUploadingKind(null);
+      event.target.value = "";
+    }
   };
   const clearCard = async (cardId:string) => {
     if (/^[0-9a-f-]{36}$/i.test(cardId)) {
@@ -432,7 +437,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
               {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
               {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
               {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
-              {tab === "appearance" && <AppearanceForm draft={draft} update={update} handleFile={handleFile} />}
+              {tab === "appearance" && <AppearanceForm draft={draft} update={update} handleFile={handleFile} uploadingKind={uploadingKind} />}
               {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
               <div className="form-actions">
                 <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
@@ -561,7 +566,7 @@ function CompanyForm({ draft, update, service, setService, notify }: any) {
     <div className="add-service"><input className="company-black-input" value={service} onChange={(e) => setService(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder="Type a service or product name..." /><button onClick={add} aria-label="Add service or product">＋</button></div>
     <div className="service-table"><div className="service-head"><span>Sr. No.</span><span>Name</span><span>Delete</span></div>{draft.services.length ? draft.services.map((name: string, index: number) => <div className="service-row" key={`${name}-${index}`}><span>{index + 1}</span><strong>{name}</strong><button className="delete-btn" onClick={() => update("services", draft.services.filter((_: string, i: number) => i !== index))}>Delete</button></div>) : <p className="empty">No services added yet.</p>}</div></>;
 }
-function AppearanceForm({ draft, update, handleFile }: any) {
+function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
   return <><div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
     <div className="profile-colours">
       <div><span className="step">01</span><h3>Profile colours</h3><p>Start with a professional theme, then customise any colour.</p>
@@ -590,9 +595,9 @@ function AppearanceForm({ draft, update, handleFile }: any) {
         >Reset to gold &amp; black</button>
       </div>
     </div>
-    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => handleFile(e, "logo")} />Select image</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{transform:`scale(${(draft.logoScale||100)/100}) rotate(${draft.logoRotation||0}deg)`,objectPosition:`${draft.logoX||50}% ${draft.logoY||50}%`}} /> : <span>YOUR<br />IMAGE</span>}</div></div>
+    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{transform:`scale(${(draft.logoScale||100)/100}) rotate(${draft.logoRotation||0}deg)`,objectPosition:`${draft.logoX||50}% ${draft.logoY||50}%`}} /> : <span>YOUR<br />IMAGE</span>}</div></div>
     {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale||100} onChange={event=>update("logoScale",Number(event.target.value))}/><output>{draft.logoScale||100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation||0} onChange={event=>update("logoRotation",Number(event.target.value))}/><output>{draft.logoRotation||0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX||50} onChange={event=>update("logoX",Number(event.target.value))}/></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY||50} onChange={event=>update("logoY",Number(event.target.value))}/></label><button type="button" onClick={()=>{update("logoScale",100);update("logoRotation",0);update("logoX",50);update("logoY",50);}}>Reset image</button></div>}
-    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => handleFile(e, "cover")} />Select background image</label></div><div className="cover-upload-preview">{draft.cover ? <img src={draft.cover} alt="Cover preview" style={{transform:`scale(${(draft.coverScale ?? 100)/100}) rotate(${draft.coverRotation ?? 0}deg)`,objectPosition:`${draft.coverX ?? 50}% ${draft.coverY ?? 50}%`}} /> : <span>Cover image preview</span>}</div></div>
+    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={draft.cover} alt="Cover preview" style={{transform:`scale(${(draft.coverScale ?? 100)/100}) rotate(${draft.coverRotation ?? 0}deg)`,objectPosition:`${draft.coverX ?? 50}% ${draft.coverY ?? 50}%`}} /> : <span>Cover image preview</span>}</div></div>
     {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event=>update("coverScale",Number(event.target.value))}/><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event=>update("coverRotation",Number(event.target.value))}/><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event=>update("coverX",Number(event.target.value))}/><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event=>update("coverY",Number(event.target.value))}/><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={()=>{update("coverScale",100);update("coverRotation",0);update("coverX",50);update("coverY",50);}}>Reset cover</button></div>}
   </>;
 }

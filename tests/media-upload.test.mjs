@@ -15,7 +15,7 @@ test("getSupabaseServiceConfig requires SUPABASE_SERVICE_ROLE_KEY", () => {
   assert.match(supabaseAuth, /process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
 });
 
-test("media API enforces security requirements and controlled config error", () => {
+test("media API enforces security requirements, timeout protection, and controlled config error", () => {
   assert.match(mediaRoute, /validMutationOrigin\(request\)/, "Origin verification required");
   assert.match(mediaRoute, /currentIdentity\(\)/, "Authentication required");
   assert.match(mediaRoute, /getSupabaseServiceConfig\(\)/, "Service config check required");
@@ -24,4 +24,6 @@ test("media API enforces security requirements and controlled config error", () 
   assert.match(mediaRoute, /status: 413/, "HTTP 413 required for oversized files");
   assert.match(mediaRoute, /matchesSignature/, "Magic byte signature check required");
   assert.match(mediaRoute, /card-media/, "Storage bucket must be card-media");
+  assert.match(mediaRoute, /AbortSignal\.timeout\(15000\)/, "Outbound storage fetch must include 15s timeout signal");
+  assert.match(mediaRoute, /status: 504/, "HTTP 504 required for storage timeout/network errors");
 });
