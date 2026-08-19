@@ -7,18 +7,11 @@
 export function getAppOrigin(request?: Request): string {
   const isProd = process.env.NODE_ENV === "production";
 
-  // 1. Environmental override (server or build-time client env)
-  const envUrl =
-    process.env.APP_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXTAUTH_URL;
-
-  if (envUrl) {
-    const cleaned = envUrl.trim().replace(/\/$/, "");
-    const isLocal = /localhost|127\.0\.0\.1/i.test(cleaned);
-    if (cleaned && /^https?:\/\//i.test(cleaned) && (!isProd || !isLocal)) {
-      return cleaned;
+  // 1. Browser runtime context (always accurate for client interactions)
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const isBrowserLocal = /localhost|127\.0\.0\.1/i.test(window.location.origin);
+    if (!isProd || !isBrowserLocal) {
+      return window.location.origin;
     }
   }
 
@@ -30,8 +23,8 @@ export function getAppOrigin(request?: Request): string {
       if (host) {
         const cleanHost = host.split(",")[0].trim();
         const isHostLocal = /localhost|127\.0\.0\.1/i.test(cleanHost);
-        if (!isProd || !isHostLocal) {
-          const proto = request.headers.get("x-forwarded-proto") || "https";
+        if (!isHostLocal || !isProd) {
+          const proto = request.headers.get("x-forwarded-proto") || (cleanHost.includes("localhost") ? "http" : "https");
           return `${proto}://${cleanHost}`;
         }
       }
@@ -40,11 +33,18 @@ export function getAppOrigin(request?: Request): string {
     }
   }
 
-  // 3. Browser runtime context
-  if (typeof window !== "undefined" && window.location?.origin) {
-    const isBrowserLocal = /localhost|127\.0\.0\.1/i.test(window.location.origin);
-    if (!isProd || !isBrowserLocal) {
-      return window.location.origin;
+  // 3. Environmental override (server or build-time client env)
+  const envUrl =
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXTAUTH_URL;
+
+  if (envUrl) {
+    const cleaned = envUrl.trim().replace(/\/$/, "");
+    const isLocal = /localhost|127\.0\.0\.1/i.test(cleaned);
+    if (cleaned && /^https?:\/\//i.test(cleaned) && (!isProd || !isLocal)) {
+      return cleaned;
     }
   }
 
