@@ -6,6 +6,12 @@ import { authenticateCredentials, linkGoogleIdentity } from "./authService";
 export const authOptions:NextAuthOptions={
   secret:process.env.AUTH_SECRET||process.env.NEXTAUTH_SECRET||"myluxcards-auth-secret-session-key-2026",
   useSecureCookies:process.env.NODE_ENV==="production",
+  cookies:{
+    sessionToken:{
+      name:process.env.NODE_ENV==="production"?"__Secure-next-auth.session-token":"next-auth.session-token",
+      options:{httpOnly:true,sameSite:"lax",path:"/",secure:process.env.NODE_ENV==="production"},
+    },
+  },
   session:{strategy:"jwt",maxAge:60*60*24*30},
   providers:[
     CredentialsProvider({name:"Email and password",credentials:{email:{type:"email"},password:{type:"password"}},async authorize(credentials){
