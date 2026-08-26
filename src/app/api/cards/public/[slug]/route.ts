@@ -55,7 +55,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     if (!card?.active) return Response.json({ message: "Card unavailable." }, { status: 404 });
 
     const type = String(body.type || "");
-    if (!["VIEW", "CONTACT_SAVE", "LINK_CLICK", "SHARE"].includes(type)) {
+    const allowedTypes = ["VIEW", "CONTACT_SAVE", "LINK_CLICK", "SHARE", "LEAD", "NOTIFY_OWNER", "EMERGENCY_CONTACT", "LOST_ITEM_FOUND"];
+    if (!allowedTypes.includes(type)) {
       return Response.json({ message: "Invalid event." }, { status: 400 });
     }
     const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0] || "";
@@ -67,12 +68,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const channel = ["NFC", "QR", "LINK", "PREVIEW"].includes(body.channel) ? body.channel : "LINK";
     const linkType = String(body.linkType || "").slice(0, 40) || null;
 
+    const eventTypeToStore = ["NOTIFY_OWNER", "EMERGENCY_CONTACT", "LOST_ITEM_FOUND"].includes(type) ? "LEAD" : type;
+
     await pool.query(
       `insert into card_events (card_id, event_type, channel, link_type, visitor_hash) values ($1, $2, $3, $4, $5)`,
-      [card.id, type, channel, linkType, visitorHash]
+      [card.id, eventTypeToStore, channel, linkType, visitorHash]
     ).catch(() => null);
 
-    return Response.json({ ok: true });
+    if (["LEAD", "NOTIFY_OWNER", "EMERGENCY_CONTACT", "LOST_ITEM_FOUND"].includes(type)) {
+      const name = String(body.name || (type === "NOTIFY_OWNER" ? "Vehicle Parking Alert Visitor" : type === "EMERGENCY_CONTACT" ? "Emergency Contact Visitor" : "Lost & Found Finder")).slice(0, 100);
+      const email = body.email ? String(body.email).slice(0, 254) : null;
+      const phone = body.phone ? String(body.phone).slice(0, 30) : null;
+      const message = String(body.message || (type === "NOTIFY_OWNER" ? "Parking notice alert triggered from Vehicle Connect." : type === "EMERGENCY_CONTACT" ? "Emergency alert triggered from Profile." : "Item found notification.")).slice(0, 2000);
+      const company = type;
+
+      await pool.query(
+        `insert into card_leads (card_id, name, email, phone, company, message, consent_at, status)
+         values ($1, $2, $3, $4, $5, $6, now(), 'NEW')`,
+        [card.id, name, email, phone, company, message]
+      ).catch(() => null);
+    }
+
+    return Response.json({ ok: true, message: "Action processed successfully." });
   } catch {
     return Response.json({ ok: false }, { status: 202 });
   }

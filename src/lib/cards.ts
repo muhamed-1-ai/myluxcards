@@ -5,13 +5,85 @@ export const CARD_FIELDS = [
   "state","stateCode","city","address","brochure","brochureData","social","about","services",
   "logo","cover","profileBackground","profileAccent","profileText","start","expiry",
   "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
+  "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
 ] as const;
+
+export type ProfileMode = "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+
+export interface EnabledFeatures {
+  digitalProfile: boolean;
+  vehicleConnect: boolean;
+  lostAndFound: boolean;
+}
+
+export interface VehicleConnectSettings {
+  vehicleMake: string;
+  vehicleModel: string;
+  vehicleColor: string;
+  licensePlate: string;
+  parkingNote: string;
+  allowDirectCall: boolean;
+  allowDirectMessage: boolean;
+  showEmergencyContact: boolean;
+}
+
+export interface EmergencyContactSettings {
+  name: string;
+  relationship: string;
+  phone: string;
+  notifyOnScan: boolean;
+}
+
+export interface LostAndFoundSettings {
+  itemName: string;
+  itemCategory: string;
+  rewardNote: string;
+  returnInstructions: string;
+  allowAnonymousMessage: boolean;
+}
+
+export const DEFAULT_ENABLED_FEATURES: EnabledFeatures = {
+  digitalProfile: true,
+  vehicleConnect: true,
+  lostAndFound: true,
+};
+
+export const DEFAULT_VEHICLE_CONNECT: VehicleConnectSettings = {
+  vehicleMake: "",
+  vehicleModel: "",
+  vehicleColor: "",
+  licensePlate: "",
+  parkingNote: "If my vehicle is blocking traffic or parked improperly, please tap below to notify me immediately.",
+  allowDirectCall: true,
+  allowDirectMessage: true,
+  showEmergencyContact: true,
+};
+
+export const DEFAULT_EMERGENCY_CONTACT: EmergencyContactSettings = {
+  name: "",
+  relationship: "",
+  phone: "",
+  notifyOnScan: false,
+};
+
+export const DEFAULT_LOST_AND_FOUND: LostAndFoundSettings = {
+  itemName: "",
+  itemCategory: "Other",
+  rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!",
+  returnInstructions: "Please contact me using the form below or drop this item off at building reception.",
+  allowAnonymousMessage: true,
+};
 
 const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
   state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
   logo:"", cover:"", profileBackground:"#020202", profileAccent:"#d4af37", profileText:"#ffffff", start:"", expiry:"",
   logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
+  profileMode: "DIGITAL_PROFILE",
+  enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
+  vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT },
+  emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT },
+  lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
 };
 
 export function cleanSlug(value: unknown) {
@@ -27,6 +99,46 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
     } else if (field === "services" && Array.isArray(value)) {
       output.services = value.slice(0, 30).map(item => String(item).trim().slice(0, 120)).filter(Boolean);
+    } else if (field === "profileMode") {
+      output.profileMode = ["DIGITAL_PROFILE", "VEHICLE_CONNECT", "LOST_AND_FOUND"].includes(String(value))
+        ? String(value)
+        : "DIGITAL_PROFILE";
+    } else if (field === "enabledFeatures" && value && typeof value === "object") {
+      const v = value as Record<string, unknown>;
+      output.enabledFeatures = {
+        digitalProfile: v.digitalProfile !== false,
+        vehicleConnect: v.vehicleConnect !== false,
+        lostAndFound: v.lostAndFound !== false,
+      };
+    } else if (field === "vehicleConnect" && value && typeof value === "object") {
+      const v = value as Record<string, unknown>;
+      output.vehicleConnect = {
+        vehicleMake: String(v.vehicleMake || "").trim().slice(0, 80),
+        vehicleModel: String(v.vehicleModel || "").trim().slice(0, 80),
+        vehicleColor: String(v.vehicleColor || "").trim().slice(0, 50),
+        licensePlate: String(v.licensePlate || "").trim().toUpperCase().slice(0, 30),
+        parkingNote: String(v.parkingNote || DEFAULT_VEHICLE_CONNECT.parkingNote).trim().slice(0, 1000),
+        allowDirectCall: v.allowDirectCall !== false,
+        allowDirectMessage: v.allowDirectMessage !== false,
+        showEmergencyContact: v.showEmergencyContact !== false,
+      };
+    } else if (field === "emergencyContact" && value && typeof value === "object") {
+      const v = value as Record<string, unknown>;
+      output.emergencyContact = {
+        name: String(v.name || "").trim().slice(0, 100),
+        relationship: String(v.relationship || "").trim().slice(0, 50),
+        phone: /^[0-9 ()+.-]{0,30}$/.test(String(v.phone || "").trim()) ? String(v.phone || "").trim() : "",
+        notifyOnScan: Boolean(v.notifyOnScan),
+      };
+    } else if (field === "lostAndFound" && value && typeof value === "object") {
+      const v = value as Record<string, unknown>;
+      output.lostAndFound = {
+        itemName: String(v.itemName || "").trim().slice(0, 120),
+        itemCategory: String(v.itemCategory || "Other").trim().slice(0, 50),
+        rewardNote: String(v.rewardNote || DEFAULT_LOST_AND_FOUND.rewardNote).trim().slice(0, 1000),
+        returnInstructions: String(v.returnInstructions || DEFAULT_LOST_AND_FOUND.returnInstructions).trim().slice(0, 1000),
+        allowAnonymousMessage: v.allowAnonymousMessage !== false,
+      };
     } else if (["logoScale","coverScale"].includes(field)) {
       output[field] = clamp(value, 25, 300, 100);
     } else if (["logoRotation","coverRotation"].includes(field)) {
@@ -56,6 +168,10 @@ export function completeCardProfile(input: unknown) {
     ...cleaned,
     social: cleaned.social && typeof cleaned.social === "object" ? cleaned.social : {},
     services: Array.isArray(cleaned.services) ? cleaned.services : [],
+    enabledFeatures: { ...DEFAULT_ENABLED_FEATURES, ...(cleaned.enabledFeatures as object) },
+    vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT, ...(cleaned.vehicleConnect as object) },
+    emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT, ...(cleaned.emergencyContact as object) },
+    lostAndFound: { ...DEFAULT_LOST_AND_FOUND, ...(cleaned.lostAndFound as object) },
   };
 }
 
@@ -82,10 +198,25 @@ export function hashActivationCode(code: string) {
 }
 
 export function safePublicCard(row: any) {
+  const profile = completeCardProfile(row.profile);
+  
+  // PUBLIC PRIVACY SANITIZATION:
+  // Never expose raw private emergency phone numbers to unauthenticated browser visitors.
+  // Instead, return boolean flags like hasEmergencyPhone and sanitized emergency metadata.
+  const emergencyContactObj = (profile.emergencyContact || {}) as EmergencyContactSettings;
+  const emergencyPhone = emergencyContactObj.phone || "";
+  const sanitizedEmergencyContact = {
+    name: emergencyContactObj.name || "",
+    relationship: emergencyContactObj.relationship || "",
+    hasPhone: Boolean(emergencyPhone),
+  };
+
   return {
     id: row.id,
     slug: row.slug,
     ...completeCardProfile(row.profile),
+    emergencyContact: sanitizedEmergencyContact,
+    hasEmergencyPhone: Boolean(emergencyPhone),
     active: Boolean(row.active),
   };
 }

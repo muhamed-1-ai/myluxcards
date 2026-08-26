@@ -2698,3 +2698,86 @@ th {
     font-size: 12px;
   }
 }
+
+/* ── Unified Profile Mode Editor Styles ── */
+.mode-card-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+
+.mode-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 14px;
+  border-radius: 14px;
+  background: var(--d-bg);
+  border: 2px solid var(--d-line);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-option-btn.active {
+  border-color: var(--d-gold);
+  background: color-mix(in srgb, var(--d-gold) 10%, #fff);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+}
+
+.mode-option-icon {
+  font-size: 28px;
+}
+
+.mode-option-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--d-navy);
+}
+
+.mode-option-desc {
+  font-size: 11px;
+  color: var(--d-muted);
+  line-height: 1.35;
+}
+
+.mode-settings-block {
+  background: #fff;
+  border: 1px solid var(--d-line);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mode-settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--d-navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px dashed var(--d-line);
+  padding-bottom: 10px;
+}
+
+.mode-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.mode-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-ink);
+  cursor: pointer;
+}
+

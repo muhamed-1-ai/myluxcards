@@ -2,6 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 
+type VehicleConnectSettings = {
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleColor?: string;
+  licensePlate?: string;
+  parkingNote?: string;
+  allowDirectCall?: boolean;
+  allowDirectMessage?: boolean;
+  showEmergencyContact?: boolean;
+};
+
+type EmergencyContactSettings = {
+  name?: string;
+  relationship?: string;
+  hasPhone?: boolean;
+};
+
+type LostAndFoundSettings = {
+  itemName?: string;
+  itemCategory?: string;
+  rewardNote?: string;
+  returnInstructions?: string;
+  allowAnonymousMessage?: boolean;
+};
+
 type Card = {
   id?: string;
   name: string; slug: string; title: string; business: string; countryCode: string; mobile: string;
@@ -12,6 +37,11 @@ type Card = {
   logoScale?: number; logoRotation?: number; logoX?: number; logoY?: number;
   coverScale?: number; coverRotation?: number; coverX?: number; coverY?: number;
   previewAuthorized?: boolean;
+  profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+  vehicleConnect?: VehicleConnectSettings;
+  emergencyContact?: EmergencyContactSettings;
+  lostAndFound?: LostAndFoundSettings;
+  hasEmergencyPhone?: boolean;
 };
 
 export default function PublicCardClient({ slug }: { slug: string }) {
@@ -27,6 +57,13 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
+
+  // Visitor interactive state for Vehicle Connect and Lost & Found
+  const [actionToast, setActionToast] = useState("");
+  const [submittingAction, setSubmittingAction] = useState(false);
+  const [finderName, setFinderName] = useState("");
+  const [finderContact, setFinderContact] = useState("");
+  const [finderMessage, setFinderMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +173,38 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     link.click();
     URL.revokeObjectURL(link.href);
     track("CONTACT_SAVE");
+  };
+
+  const sendVisitorAction = async (type: string, extra?: Record<string, string>) => {
+    setSubmittingAction(true);
+    setActionToast("");
+    try {
+      const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, channel: "QR", ...extra }),
+      });
+      if (res.ok) {
+        if (type === "NOTIFY_OWNER") {
+          setActionToast("✔ Parking alert sent to vehicle owner!");
+        } else if (type === "EMERGENCY_CONTACT") {
+          setActionToast("✔ Emergency contact notification triggered!");
+        } else if (type === "LOST_ITEM_FOUND") {
+          setActionToast("✔ Thank you! Your message has been sent to the item owner.");
+          setFinderName("");
+          setFinderContact("");
+          setFinderMessage("");
+        } else {
+          setActionToast("✔ Action delivered to owner!");
+        }
+      } else {
+        setActionToast("Could not send alert. Please try again.");
+      }
+    } catch {
+      setActionToast("Could not send alert. Please check your connection.");
+    } finally {
+      setSubmittingAction(false);
+    }
   };
 
   const openQr = async () => {
@@ -276,67 +345,343 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     Threads:           { subtitle: "Follow me",              icon: <ThreadsIcon />,     iconBg: "#000" },
   };
 
+  const mode = card.profileMode || "DIGITAL_PROFILE";
+
   return (
     <main className="pc-page" style={cssVars}>
 
-      {/* ── Hero Card ── */}
-      <div className="pc-hero">
-        <div className="pc-hero-cover">
-          {card.cover && <img
-            src={card.cover}
-            className="pc-hero-cover-image"
-            alt=""
-            style={{
-              transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
-              objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
-            }}
-          />}
-          {!card.cover && <span className="pc-hero-wordmark">MYLUX</span>}
-          <div className="pc-hero-overlay">
-            <div className="pc-hero-bottom">
-              {card.logo && (
-                <div className="pc-hero-logo-badge">
-                  <img
-                    src={card.logo}
-                    alt={card.name || "Logo"}
-                    style={{
-                      transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
-                      objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
-                    }}
-                  />
-                </div>
+      {/* ── Mode Pill Header ── */}
+      {mode !== "DIGITAL_PROFILE" && (
+        <div className="pc-mode-pill-header">
+          {mode === "VEHICLE_CONNECT" ? "🚘 MyLux Vehicle Connect" : "🏷️ MyLux Lost & Found Tag"}
+        </div>
+      )}
+
+      {/* ── Feedback Notification Banner ── */}
+      {actionToast && <div className="pc-toast-notice">{actionToast}</div>}
+
+      {/* ── RENDER MODE 1: VEHICLE CONNECT ── */}
+      {mode === "VEHICLE_CONNECT" && (
+        <div className="pc-vehicle-card">
+          <div className="pc-hero-name" style={{ textAlign: "center" }}>{card.name}</div>
+          
+          <div className="pc-vehicle-license-plate">
+            {card.vehicleConnect?.licensePlate || "MYLUX-CAR"}
+          </div>
+
+          <div className="pc-vehicle-specs">
+            {card.vehicleConnect?.vehicleMake && <span className="pc-vehicle-spec-chip">Make: {card.vehicleConnect.vehicleMake}</span>}
+            {card.vehicleConnect?.vehicleModel && <span className="pc-vehicle-spec-chip">Model: {card.vehicleConnect.vehicleModel}</span>}
+            {card.vehicleConnect?.vehicleColor && <span className="pc-vehicle-spec-chip">Color: {card.vehicleConnect.vehicleColor}</span>}
+          </div>
+
+          {card.vehicleConnect?.parkingNote && (
+            <div className="pc-parking-banner">
+              <strong>Notice from Owner:</strong>
+              <p>{card.vehicleConnect.parkingNote}</p>
+            </div>
+          )}
+
+          <div className="pc-vehicle-actions">
+            <button
+              className="pc-btn-primary-alert"
+              onClick={() => sendVisitorAction("NOTIFY_OWNER")}
+              disabled={submittingAction}
+            >
+              🔔 Notify Owner (Parking Alert)
+            </button>
+
+            <div className="pc-actions" style={{ marginTop: 8 }}>
+              {card.vehicleConnect?.allowDirectCall !== false && phone && (
+                <a href={`tel:${phone}`} className="pc-action-btn" onClick={() => track("LINK_CLICK", "phone")}>
+                  Call Owner
+                </a>
               )}
-              <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
-              {card.title && <p className="pc-hero-title">{card.title}</p>}
-              {card.business && <p className="pc-hero-biz">{card.business}</p>}
+              {card.vehicleConnect?.allowDirectMessage !== false && whatsapp && (
+                <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-action-btn" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
+                  WhatsApp Owner
+                </a>
+              )}
+              {card.vehicleConnect?.showEmergencyContact !== false && (card.hasEmergencyPhone || card.emergencyContact?.name) && (
+                <button
+                  className="pc-action-btn"
+                  onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
+                  disabled={submittingAction}
+                >
+                  Emergency Alert
+                </button>
+              )}
             </div>
           </div>
         </div>
+      )}
 
-        {/* Quick-dial icon buttons */}
-        <div className="pc-hero-icons">
-          {phone && (
-            <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
-              <PhoneIcon />
-            </a>
+      {/* ── RENDER MODE 2: LOST & FOUND ── */}
+      {mode === "LOST_AND_FOUND" && (
+        <div className="pc-lost-card">
+          <div className="pc-lost-item-header">
+            <h1 className="pc-lost-item-title">{card.lostAndFound?.itemName || `${card.name}'s Tagged Item`}</h1>
+            <span className="pc-lost-category-tag">Category: {card.lostAndFound?.itemCategory || "Personal Item"}</span>
+          </div>
+
+          {card.lostAndFound?.rewardNote && (
+            <div className="pc-reward-banner">
+              <div className="pc-reward-title">🎁 Reward Offered</div>
+              <div className="pc-reward-desc">{card.lostAndFound.rewardNote}</div>
+            </div>
           )}
-          {whatsapp && (
-            <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
-              <WhatsAppBrandIcon />
-            </a>
+
+          {card.lostAndFound?.returnInstructions && (
+            <div className="pc-parking-banner">
+              <strong>Return Instructions:</strong>
+              <p>{card.lostAndFound.returnInstructions}</p>
+            </div>
           )}
-          {card.email && (
-            <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
-              <MailIcon />
-            </a>
-          )}
-          {card.website && (
-            <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-              <WebIcon />
-            </a>
+
+          {card.lostAndFound?.allowAnonymousMessage !== false && (
+            <form
+              className="pc-finder-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendVisitorAction("LOST_ITEM_FOUND", {
+                  name: finderName,
+                  phone: finderContact,
+                  message: finderMessage,
+                });
+              }}
+            >
+              <div className="pc-form-title">Found this item? Notify Owner</div>
+              <input
+                type="text"
+                className="pc-input"
+                placeholder="Your Name (Optional)"
+                value={finderName}
+                onChange={(e) => setFinderName(e.target.value)}
+              />
+              <input
+                type="text"
+                className="pc-input"
+                placeholder="Your Phone / Email (Optional)"
+                value={finderContact}
+                onChange={(e) => setFinderContact(e.target.value)}
+              />
+              <textarea
+                className="pc-input pc-textarea"
+                placeholder="Message / Location where item was found..."
+                value={finderMessage}
+                onChange={(e) => setFinderMessage(e.target.value)}
+                required
+              />
+              <button
+                type="submit"
+                className="pc-btn-primary-alert"
+                disabled={submittingAction}
+              >
+                Send Notification to Owner
+              </button>
+            </form>
           )}
         </div>
-      </div>
+      )}
+
+      {/* ── RENDER MODE 3: DIGITAL PROFILE (STANDARD) ── */}
+      {mode === "DIGITAL_PROFILE" && (
+        <>
+          {/* Hero Card */}
+          <div className="pc-hero">
+            <div className="pc-hero-cover">
+              {card.cover && <img
+                src={card.cover}
+                className="pc-hero-cover-image"
+                alt=""
+                style={{
+                  transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
+                  objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
+                }}
+              />}
+              {!card.cover && <span className="pc-hero-wordmark">MYLUX</span>}
+              <div className="pc-hero-overlay">
+                <div className="pc-hero-bottom">
+                  {card.logo && (
+                    <div className="pc-hero-logo-badge">
+                      <img
+                        src={card.logo}
+                        alt={card.name || "Logo"}
+                        style={{
+                          transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
+                          objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                  <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
+                  {card.title && <p className="pc-hero-title">{card.title}</p>}
+                  {card.business && <p className="pc-hero-biz">{card.business}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick-dial icon buttons */}
+            <div className="pc-hero-icons">
+              {phone && (
+                <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
+                  <PhoneIcon />
+                </a>
+              )}
+              {whatsapp && (
+                <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
+                  <WhatsAppBrandIcon />
+                </a>
+              )}
+              {card.email && (
+                <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
+                  <MailIcon />
+                </a>
+              )}
+              {card.website && (
+                <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+                  <WebIcon />
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="pc-actions">
+            <button className="pc-action-btn" onClick={saveContact}>Save Contact</button>
+            <button className="pc-action-btn" onClick={() => { track("SHARE"); void share(); }}>Share</button>
+            <button className="pc-action-btn pc-action-qr" onClick={openQr}>
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{flexShrink:0,verticalAlign:"middle"}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
+              {" "}QR Code
+            </button>
+            {card.brochure && (
+              <a
+                className="pc-action-btn"
+                href={card.brochureData || "#"}
+                download={card.brochure}
+                onClick={(e) => { if (!card.brochureData) e.preventDefault(); }}
+              >Brochure</a>
+            )}
+          </div>
+
+          {/* About */}
+          {card.about && (
+            <div className="pc-card pc-about">
+              <h2 className="pc-card-heading">About {card.name.split(" ")[0]}</h2>
+              <p className="pc-about-text">{card.about}</p>
+            </div>
+          )}
+
+          {/* Contact details */}
+          {(card.email || card.website || location) && (
+            <div className="pc-links-group">
+              {card.email && (
+                <a href={`mailto:${card.email}`} className="pc-link-row" onClick={() => track("LINK_CLICK", "email")}>
+                  <span className="pc-link-icon" style={{ background: "#c0392b" }}><MailIcon /></span>
+                  <span className="pc-link-text">
+                    <span className="pc-link-name">Email</span>
+                    <span className="pc-link-sub">{card.email}</span>
+                  </span>
+                  <span className="pc-link-arrow">›</span>
+                </a>
+              )}
+              {card.website && (
+                <a href={card.website} className="pc-link-row" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+                  <span className="pc-link-icon" style={{ background: "#444" }}><WebIcon /></span>
+                  <span className="pc-link-text">
+                    <span className="pc-link-name">Website</span>
+                    <span className="pc-link-sub">{card.website.replace(/^https?:\/\//, "")}</span>
+                  </span>
+                  <span className="pc-link-arrow">›</span>
+                </a>
+              )}
+              {location && (
+                <div className="pc-link-row">
+                  <span className="pc-link-icon" style={{ background: "#c0392b" }}><LocationIcon /></span>
+                  <span className="pc-link-text">
+                    <span className="pc-link-name">Address</span>
+                    <span className="pc-link-sub">{location}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Social platform rows */}
+          {socials.length > 0 && (
+            <div className="pc-links-group">
+              {socials.map(([name, url]) => {
+                const cfg = SOCIAL[name] || {
+                  subtitle: "Visit",
+                  icon: <span className="pc-brand-letter">{name[0]}</span>,
+                  iconBg: "#555",
+                };
+                return (
+                  <a
+                    key={name}
+                    href={url}
+                    className="pc-link-row"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => track("LINK_CLICK", name.toLowerCase())}
+                  >
+                    <span className="pc-link-icon" style={{ background: cfg.iconBg }}>{cfg.icon}</span>
+                    <span className="pc-link-text">
+                      <span className="pc-link-name">{name}</span>
+                      <span className="pc-link-sub">{cfg.subtitle}</span>
+                    </span>
+                    <span className="pc-link-arrow">›</span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Services / Products */}
+          {card.services && card.services.length > 0 && (
+            <div className="pc-card pc-services">
+              <h2 className="pc-card-heading">Services / Products</h2>
+              <ul className="pc-services-list">
+                {card.services.map((s) => <li key={s}>{s}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* Contact / Call me block */}
+          {(phone || card.email) && (
+            <div className="pc-card pc-contact-card">
+              <div className="pc-contact-header">
+                {card.cover
+                  ? <img src={card.cover} className="pc-contact-thumb" alt={card.name} />
+                  : card.logo
+                    ? <img src={card.logo} className="pc-contact-thumb pc-contact-thumb--logo" alt={card.name} />
+                    : <div className="pc-contact-thumb pc-contact-initials">{initials}</div>
+                }
+                <span className="pc-contact-label">Contact</span>
+              </div>
+              <hr className="pc-dashed-rule" />
+              {phone && (
+                <div className="pc-contact-row">
+                  <span className="pc-contact-row-label">Call me</span>
+                  <a href={`tel:${phone}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "phone")}>{phone}</a>
+                </div>
+              )}
+              {whatsapp && whatsapp !== phone && (
+                <div className="pc-contact-row">
+                  <span className="pc-contact-row-label">WhatsApp</span>
+                  <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-contact-row-value" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>{whatsapp}</a>
+                </div>
+              )}
+              {card.email && (
+                <div className="pc-contact-row">
+                  <span className="pc-contact-row-label">Email me</span>
+                  <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
       {/* ── QR Code modal ── */}
       {qrOpen && (
@@ -365,141 +710,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ── Action buttons ── */}
-      <div className="pc-actions">
-        <button className="pc-action-btn" onClick={saveContact}>Save Contact</button>
-        <button className="pc-action-btn" onClick={() => { track("SHARE"); void share(); }}>Share</button>
-        <button className="pc-action-btn pc-action-qr" onClick={openQr}>
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{flexShrink:0,verticalAlign:"middle"}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
-          {" "}QR Code
-        </button>
-        {card.brochure && (
-          <a
-            className="pc-action-btn"
-            href={card.brochureData || "#"}
-            download={card.brochure}
-            onClick={(e) => { if (!card.brochureData) e.preventDefault(); }}
-          >Brochure</a>
-        )}
-      </div>
-
-      {/* ── About ── */}
-      {card.about && (
-        <div className="pc-card pc-about">
-          <h2 className="pc-card-heading">About {card.name.split(" ")[0]}</h2>
-          <p className="pc-about-text">{card.about}</p>
-        </div>
-      )}
-
-      {/* ── Contact details (email / website / address) ── */}
-      {(card.email || card.website || location) && (
-        <div className="pc-links-group">
-          {card.email && (
-            <a href={`mailto:${card.email}`} className="pc-link-row" onClick={() => track("LINK_CLICK", "email")}>
-              <span className="pc-link-icon" style={{ background: "#c0392b" }}><MailIcon /></span>
-              <span className="pc-link-text">
-                <span className="pc-link-name">Email</span>
-                <span className="pc-link-sub">{card.email}</span>
-              </span>
-              <span className="pc-link-arrow">›</span>
-            </a>
-          )}
-          {card.website && (
-            <a href={card.website} className="pc-link-row" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-              <span className="pc-link-icon" style={{ background: "#444" }}><WebIcon /></span>
-              <span className="pc-link-text">
-                <span className="pc-link-name">Website</span>
-                <span className="pc-link-sub">{card.website.replace(/^https?:\/\//, "")}</span>
-              </span>
-              <span className="pc-link-arrow">›</span>
-            </a>
-          )}
-          {location && (
-            <div className="pc-link-row">
-              <span className="pc-link-icon" style={{ background: "#c0392b" }}><LocationIcon /></span>
-              <span className="pc-link-text">
-                <span className="pc-link-name">Address</span>
-                <span className="pc-link-sub">{location}</span>
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Social platform rows ── */}
-      {socials.length > 0 && (
-        <div className="pc-links-group">
-          {socials.map(([name, url]) => {
-            const cfg = SOCIAL[name] || {
-              subtitle: "Visit",
-              icon: <span className="pc-brand-letter">{name[0]}</span>,
-              iconBg: "#555",
-            };
-            return (
-              <a
-                key={name}
-                href={url}
-                className="pc-link-row"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => track("LINK_CLICK", name.toLowerCase())}
-              >
-                <span className="pc-link-icon" style={{ background: cfg.iconBg }}>{cfg.icon}</span>
-                <span className="pc-link-text">
-                  <span className="pc-link-name">{name}</span>
-                  <span className="pc-link-sub">{cfg.subtitle}</span>
-                </span>
-                <span className="pc-link-arrow">›</span>
-              </a>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Services / Products ── */}
-      {card.services && card.services.length > 0 && (
-        <div className="pc-card pc-services">
-          <h2 className="pc-card-heading">Services / Products</h2>
-          <ul className="pc-services-list">
-            {card.services.map((s) => <li key={s}>{s}</li>)}
-          </ul>
-        </div>
-      )}
-
-      {/* ── Contact / Call me block ── */}
-      {(phone || card.email) && (
-        <div className="pc-card pc-contact-card">
-          <div className="pc-contact-header">
-            {card.cover
-              ? <img src={card.cover} className="pc-contact-thumb" alt={card.name} />
-              : card.logo
-                ? <img src={card.logo} className="pc-contact-thumb pc-contact-thumb--logo" alt={card.name} />
-                : <div className="pc-contact-thumb pc-contact-initials">{initials}</div>
-            }
-            <span className="pc-contact-label">Contact</span>
-          </div>
-          <hr className="pc-dashed-rule" />
-          {phone && (
-            <div className="pc-contact-row">
-              <span className="pc-contact-row-label">Call me</span>
-              <a href={`tel:${phone}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "phone")}>{phone}</a>
-            </div>
-          )}
-          {whatsapp && whatsapp !== phone && (
-            <div className="pc-contact-row">
-              <span className="pc-contact-row-label">WhatsApp</span>
-              <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-contact-row-value" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>{whatsapp}</a>
-            </div>
-          )}
-          {card.email && (
-            <div className="pc-contact-row">
-              <span className="pc-contact-row-label">Email me</span>
-              <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
-            </div>
-          )}
         </div>
       )}
 
@@ -549,7 +759,7 @@ function WebIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="10" />
       <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10z" />
     </svg>
   );
 }
@@ -592,7 +802,7 @@ function FacebookIcon() {
 function LinkedInIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 1 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
     </svg>
   );
 }

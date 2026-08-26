@@ -2,7 +2,17 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type Tab = "dashboard" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
+type Tab = "dashboard" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
+type VehicleConnectSettings = {
+  vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
+  allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
+};
+type EmergencyContactSettings = {
+  name?: string; relationship?: string; phone?: string; notifyOnScan?: boolean;
+};
+type LostAndFoundSettings = {
+  itemName?: string; itemCategory?: string; rewardNote?: string; returnInstructions?: string; allowAnonymousMessage?: boolean;
+};
 type Card = {
   id: string; ownerId: string; name: string; slug: string; title: string; business: string;
   countryCode: string; countryIso: string; mobile: string; whatsapp: string; email: string; website: string;
@@ -13,6 +23,11 @@ type Card = {
   coverScale: number; coverRotation: number; coverX: number; coverY: number;
   start: string; expiry: string; views: number; active: boolean; activatedAt?: string | null;
   analytics?: Record<string, number>;
+  profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+  enabledFeatures?: { digitalProfile: boolean; vehicleConnect: boolean; lostAndFound: boolean };
+  vehicleConnect?: VehicleConnectSettings;
+  emergencyContact?: EmergencyContactSettings;
+  lostAndFound?: LostAndFoundSettings;
 };
 type Lead = { id:string; card_id:string; name:string; email?:string; phone?:string; company?:string; message?:string; status:string; created_at:string };
 type CurrentUser = { id: string; name: string; email: string; role?: string };
@@ -80,6 +95,11 @@ const createBlankCard = (user: CurrentUser): Card => {
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
     views: 0, active: false,
+    profileMode: "DIGITAL_PROFILE",
+    enabledFeatures: { digitalProfile: true, vehicleConnect: true, lostAndFound: true },
+    vehicleConnect: { vehicleMake: "", vehicleModel: "", vehicleColor: "", licensePlate: "", parkingNote: "If my vehicle is blocking traffic or parked improperly, please tap below to notify me immediately.", allowDirectCall: true, allowDirectMessage: true, showEmergencyContact: true },
+    emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
+    lostAndFound: { itemName: "", itemCategory: "Other", rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!", returnInstructions: "Please contact me using the form below or drop this item off at building reception.", allowAnonymousMessage: true },
   };
 };
 const normalizeCard = (value: Partial<Card> | null | undefined, user: CurrentUser): Card => {
@@ -93,6 +113,15 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user: CurrentUse
     active: Boolean(card.active),
     activatedAt: typeof card.activatedAt === "string" ? card.activatedAt : null,
     analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
+    profileMode: card.profileMode || fallback.profileMode,
+    enabledFeatures: {
+      digitalProfile: card.enabledFeatures?.digitalProfile !== false,
+      vehicleConnect: card.enabledFeatures?.vehicleConnect !== false,
+      lostAndFound: card.enabledFeatures?.lostAndFound !== false,
+    },
+    vehicleConnect: { ...fallback.vehicleConnect, ...(card.vehicleConnect || {}) },
+    emergencyContact: { ...fallback.emergencyContact, ...(card.emergencyContact || {}) },
+    lostAndFound: { ...fallback.lostAndFound, ...(card.lostAndFound || {}) },
   };
 };
 const emptyCard = createBlankCard({ id: "", name: "", email: "" });
@@ -393,7 +422,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </div>
       </header>
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
+        {(["dashboard","modes","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="modes"?"Modes":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
       </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
@@ -401,9 +430,9 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           <button className={tab === "dashboard" ? "active" : ""} onClick={() => selectTab("dashboard")}><I>⌂</I> Dashboard</button>
           <div className="card-owner"><span><I>◆</I>{selected.name}</span><b>⌄</b></div>
           <div className="subnav">
-            {(["contact", "social", "company", "appearance"] as Tab[]).map((item) =>
+            {(["modes", "contact", "social", "company", "appearance"] as Tab[]).map((item) =>
               <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>
-                {item === "contact" ? "Contact Info" : item === "social" ? "Apps & Links" : item[0].toUpperCase() + item.slice(1)}
+                {item === "modes" ? "Profile Mode & Features" : item === "contact" ? "Contact Info" : item === "social" ? "Apps & Links" : item[0].toUpperCase() + item.slice(1)}
               </button>)}
             <small>{selected.active ? "Published until you switch it off" : "Currently switched off"} ({selected.id.replace("card-", "#")})</small>
           </div>
@@ -430,10 +459,11 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           </div>
         </section>}
 
-        {(["contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
-          <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
+        {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
+          <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
           <div className="edit-layout">
             <div className="form-card">
+              {tab === "modes" && <ModesForm draft={draft} update={update} />}
               {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
               {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
               {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
@@ -441,7 +471,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
               {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
               <div className="form-actions">
                 <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
-                {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
+                {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "modes" ? "contact" : tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
                 {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
               </div>
             </div>
@@ -463,6 +493,154 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       {toast && <div className="dash-toast">✓ {toast}</div>}
       {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Remove this card?</h2><p>This permanently removes only this card. Your other cards and account remain unchanged.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={()=>clearCard(deleteId)}>Remove card</button></div></div></div>}
     </div>
+  );
+}
+
+function ModesForm({ draft, update }: any) {
+  const currentMode = draft.profileMode || "DIGITAL_PROFILE";
+  const enabled = draft.enabledFeatures || { digitalProfile: true, vehicleConnect: true, lostAndFound: true };
+  const vehicle = draft.vehicleConnect || {};
+  const emergency = draft.emergencyContact || {};
+  const lost = draft.lostAndFound || {};
+
+  return (
+    <>
+      <div className="form-intro">
+        <h2>Profile Mode &amp; Features</h2>
+        <p>Choose which feature visitors see when scanning your single permanent QR code or visiting your URL.</p>
+      </div>
+
+      <div className="mode-settings-block">
+        <div className="mode-settings-title">🎯 Active Profile Mode</div>
+        <div className="mode-card-selector">
+          <button
+            type="button"
+            className={`mode-option-btn ${currentMode === "DIGITAL_PROFILE" ? "active" : ""}`}
+            onClick={() => update("profileMode", "DIGITAL_PROFILE")}
+          >
+            <span className="mode-option-icon">💼</span>
+            <span className="mode-option-title">Digital Profile</span>
+            <span className="mode-option-desc">Standard Digital Business Card &amp; VCard contact sharing</span>
+          </button>
+
+          <button
+            type="button"
+            className={`mode-option-btn ${currentMode === "VEHICLE_CONNECT" ? "active" : ""}`}
+            onClick={() => update("profileMode", "VEHICLE_CONNECT")}
+          >
+            <span className="mode-option-icon">🚘</span>
+            <span className="mode-option-title">Vehicle Connect</span>
+            <span className="mode-option-desc">Parking alerts, vehicle specs &amp; emergency contact for cars/bikes</span>
+          </button>
+
+          <button
+            type="button"
+            className={`mode-option-btn ${currentMode === "LOST_AND_FOUND" ? "active" : ""}`}
+            onClick={() => update("profileMode", "LOST_AND_FOUND")}
+          >
+            <span className="mode-option-icon">🏷️</span>
+            <span className="mode-option-title">Lost &amp; Found Tag</span>
+            <span className="mode-option-desc">Item recovery instructions &amp; safe finder contact form</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="mode-settings-block">
+        <div className="mode-settings-title">⚙️ Enabled Features</div>
+        <div className="mode-checkbox-grid">
+          <label className="mode-checkbox-label">
+            <input
+              type="checkbox"
+              checked={enabled.digitalProfile !== false}
+              onChange={(e) => update("enabledFeatures", { ...enabled, digitalProfile: e.target.checked })}
+            />
+            Digital Business Profile
+          </label>
+          <label className="mode-checkbox-label">
+            <input
+              type="checkbox"
+              checked={enabled.vehicleConnect !== false}
+              onChange={(e) => update("enabledFeatures", { ...enabled, vehicleConnect: e.target.checked })}
+            />
+            Vehicle Connect Mode
+          </label>
+          <label className="mode-checkbox-label">
+            <input
+              type="checkbox"
+              checked={enabled.lostAndFound !== false}
+              onChange={(e) => update("enabledFeatures", { ...enabled, lostAndFound: e.target.checked })}
+            />
+            Lost &amp; Found Mode
+          </label>
+        </div>
+      </div>
+
+      <div className="mode-settings-block">
+        <div className="mode-settings-title">🚘 Vehicle Connect Settings</div>
+        <div className="form-grid">
+          <Field label="Vehicle Make"><input value={vehicle.vehicleMake || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, vehicleMake: e.target.value })} placeholder="e.g. Toyota / BMW" /></Field>
+          <Field label="Vehicle Model"><input value={vehicle.vehicleModel || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, vehicleModel: e.target.value })} placeholder="e.g. Camry / M3" /></Field>
+          <Field label="Vehicle Color"><input value={vehicle.vehicleColor || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, vehicleColor: e.target.value })} placeholder="e.g. Black / Metallic Silver" /></Field>
+          <Field label="License Plate Number"><input value={vehicle.licensePlate || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, licensePlate: e.target.value.toUpperCase() })} placeholder="e.g. MH 02 AB 1234" /></Field>
+          <Field label="Parking Notice / Custom Note" wide><textarea rows={3} value={vehicle.parkingNote || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, parkingNote: e.target.value })} placeholder="e.g. If my vehicle is blocking, please tap below to notify me!" /></Field>
+        </div>
+        <div className="mode-checkbox-grid" style={{ marginTop: 10 }}>
+          <label className="mode-checkbox-label">
+            <input
+              type="checkbox"
+              checked={vehicle.allowDirectCall !== false}
+              onChange={(e) => update("vehicleConnect", { ...vehicle, allowDirectCall: e.target.checked })}
+            />
+            Allow Direct Phone Call Button
+          </label>
+          <label className="mode-checkbox-label">
+            <input
+              type="checkbox"
+              checked={vehicle.allowDirectMessage !== false}
+              onChange={(e) => update("vehicleConnect", { ...vehicle, allowDirectMessage: e.target.checked })}
+            />
+            Allow WhatsApp Message Button
+          </label>
+          <label className="mode-checkbox-label">
+            <input
+              type="checkbox"
+              checked={vehicle.showEmergencyContact !== false}
+              onChange={(e) => update("vehicleConnect", { ...vehicle, showEmergencyContact: e.target.checked })}
+            />
+            Show Emergency Contact Action
+          </label>
+        </div>
+      </div>
+
+      <div className="mode-settings-block">
+        <div className="mode-settings-title">🚨 Emergency Contact</div>
+        <div className="form-grid">
+          <Field label="Contact Name"><input value={emergency.name || ""} onChange={(e) => update("emergencyContact", { ...emergency, name: e.target.value })} placeholder="e.g. Jane Doe" /></Field>
+          <Field label="Relationship"><input value={emergency.relationship || ""} onChange={(e) => update("emergencyContact", { ...emergency, relationship: e.target.value })} placeholder="e.g. Spouse / Parent / Friend" /></Field>
+          <Field label="Emergency Phone Number (Server Protected)"><input value={emergency.phone || ""} onChange={(e) => update("emergencyContact", { ...emergency, phone: e.target.value })} placeholder="e.g. +91 9876543210" /></Field>
+        </div>
+      </div>
+
+      <div className="mode-settings-block">
+        <div className="mode-settings-title">🏷️ Lost &amp; Found Settings</div>
+        <div className="form-grid">
+          <Field label="Item Name"><input value={lost.itemName || ""} onChange={(e) => update("lostAndFound", { ...lost, itemName: e.target.value })} placeholder="e.g. Leather Wallet / MacBook Pro / Keys" /></Field>
+          <Field label="Item Category">
+            <select value={lost.itemCategory || "Other"} onChange={(e) => update("lostAndFound", { ...lost, itemCategory: e.target.value })}>
+              <option value="Keys">Keys</option>
+              <option value="Wallet">Wallet</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Pet">Pet Tag</option>
+              <option value="Bag">Bag / Backpack</option>
+              <option value="Luggage">Luggage</option>
+              <option value="Other">Other</option>
+            </select>
+          </Field>
+          <Field label="Reward Note" wide><textarea rows={2} value={lost.rewardNote || ""} onChange={(e) => update("lostAndFound", { ...lost, rewardNote: e.target.value })} placeholder="e.g. Reward offered upon safe return!" /></Field>
+          <Field label="Return Instructions" wide><textarea rows={2} value={lost.returnInstructions || ""} onChange={(e) => update("lostAndFound", { ...lost, returnInstructions: e.target.value })} placeholder="e.g. Please drop off at building reception or use message form below." /></Field>
+        </div>
+      </div>
+    </>
   );
 }
 
