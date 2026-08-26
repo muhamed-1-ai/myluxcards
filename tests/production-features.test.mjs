@@ -29,8 +29,8 @@ test("media uploads require identity, origin, allowlisted MIME types, and size l
 });
 
 test("orders and invoices are scoped to the signed-in customer", () => {
-  assert.match(orders, /customer_id=eq\.\$\{identity\.id\}/);
-  assert.match(invoice, /customer_id=eq\.\$\{identity\.id\}/);
+  assert.match(orders, /customer_id = \$1/);
+  assert.match(invoice, /customer_id = \$2/);
   assert.match(invoice, /Cache-Control.*private, no-store/);
 });
 

@@ -1,12 +1,126 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-const money = (minor: number, currency: string) => new Intl.NumberFormat("en-IN", { style:"currency", currency:currency || "INR" }).format((minor || 0) / 100);
+const money = (minor: number, currency: string) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: currency || "INR" }).format((minor || 0) / 100);
 
 export default function OrdersClient() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  useEffect(() => { const load=async()=>{let response=await fetch("/api/orders",{cache:"no-store"});if(response.status===401){const refreshed=await fetch("/api/auth/refresh",{method:"POST"});if(refreshed.ok)response=await fetch("/api/orders",{cache:"no-store"})}const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.message||"Orders could not be loaded.");setOrders(payload.data||[])};load().catch(error=>setError(error.message||"Orders could not be loaded.")).finally(()=>setLoading(false))}, []);
-  return <main className="orders-page"><header><a href="/dashboard">← Dashboard</a><span>MYLUXCARDS</span></header><section className="orders-hero"><p>YOUR ACCOUNT</p><h1>My orders</h1><span>Track purchases, payments, delivery, and invoices.</span></section>{loading ? <div className="orders-state">Loading your orders…</div> : error ? <div className="orders-state error">{error}</div> : !orders.length ? <section className="orders-state empty-orders"><div className="empty-orders-icon" aria-hidden><svg viewBox="0 0 48 48"><path d="M8 15 24 7l16 8-16 8-16-8Z"/><path d="M8 15v18l16 8 16-8V15M24 23v18"/></svg></div><p className="empty-orders-label">YOUR ORDER HISTORY</p><h2>No orders yet</h2><p className="empty-orders-copy">When you purchase a MyLuxCard, its payment, production, delivery, and invoice details will appear here.</p><a className="empty-orders-action" href="/#card-configurator">Design your first card <span aria-hidden>→</span></a></section> : <section className="orders-list">{orders.map(order => <article key={order.id}><div className="order-top"><div><small>ORDER</small><h2>{order.order_number}</h2><p>{new Date(order.created_at).toLocaleString()}</p></div><div className="badges"><b>{order.status}</b><b className={`payment ${order.payment_status?.toLowerCase()}`}>{order.payment_status}</b></div></div><div className="order-items">{order.order_items?.map((item:any) => <p key={item.id}><span>{item.product_name} × {item.quantity}</span><strong>{money(item.total_minor, order.currency)}</strong></p>)}</div><div className="order-bottom"><div><small>TOTAL</small><strong>{money(order.total_minor, order.currency)}</strong>{order.tracking_number && <span>{order.courier || "Courier"}: {order.tracking_number}</span>}</div><a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer">View invoice</a></div></article>)}</section>}</main>;
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      let response = await fetch("/api/orders", { cache: "no-store" });
+      if (response.status === 401) {
+        const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+        if (refreshed.ok) {
+          response = await fetch("/api/orders", { cache: "no-store" });
+        }
+      }
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || "Unable to load your orders.");
+      }
+      setOrders(payload.data || []);
+    } catch (err: any) {
+      setError(err.message || "Unable to load your orders. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchOrders();
+  }, [fetchOrders]);
+
+  return (
+    <main className="orders-page">
+      <header>
+        <a href="/dashboard">← Dashboard</a>
+        <span>MYLUXCARDS</span>
+      </header>
+      <section className="orders-hero">
+        <p>YOUR ACCOUNT</p>
+        <h1>My orders</h1>
+        <span>Track purchases, payments, delivery, and invoices.</span>
+      </section>
+      {loading ? (
+        <div className="orders-state">Loading your orders…</div>
+      ) : error ? (
+        <div className="orders-state error" style={{ textAlign: "center", padding: "40px 20px" }}>
+          <p style={{ marginBottom: "16px", color: "rgba(255,255,255,0.85)" }}>{error}</p>
+          <button
+            type="button"
+            className="empty-orders-action"
+            onClick={() => void fetchOrders()}
+            style={{ display: "inline-block", cursor: "pointer", border: "none" }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : !orders.length ? (
+        <section className="orders-state empty-orders">
+          <div className="empty-orders-icon" aria-hidden>
+            <svg viewBox="0 0 48 48">
+              <path d="M8 15 24 7l16 8-16 8-16-8Z" />
+              <path d="M8 15v18l16 8 16-8V15M24 23v18" />
+            </svg>
+          </div>
+          <p className="empty-orders-label">YOUR ORDER HISTORY</p>
+          <h2>No orders yet</h2>
+          <p className="empty-orders-copy">
+            When you purchase a MyLuxCard, its payment, production, delivery, and invoice details will appear here.
+          </p>
+          <a className="empty-orders-action" href="/#card-configurator">
+            Design your first card <span aria-hidden>→</span>
+          </a>
+        </section>
+      ) : (
+        <section className="orders-list">
+          {orders.map((order) => (
+            <article key={order.id}>
+              <div className="order-top">
+                <div>
+                  <small>ORDER</small>
+                  <h2>{order.order_number}</h2>
+                  <p>{new Date(order.created_at).toLocaleString()}</p>
+                </div>
+                <div className="badges">
+                  <b>{order.status}</b>
+                  <b className={`payment ${order.payment_status?.toLowerCase()}`}>{order.payment_status}</b>
+                </div>
+              </div>
+              <div className="order-items">
+                {order.order_items?.map((item: any) => (
+                  <p key={item.id}>
+                    <span>
+                      {item.product_name} × {item.quantity}
+                    </span>
+                    <strong>{money(item.total_minor, order.currency)}</strong>
+                  </p>
+                ))}
+              </div>
+              <div className="order-bottom">
+                <div>
+                  <small>TOTAL</small>
+                  <strong>{money(order.total_minor, order.currency)}</strong>
+                  {order.tracking_number && (
+                    <span>
+                      {order.courier || "Courier"}: {order.tracking_number}
+                    </span>
+                  )}
+                </div>
+                <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer">
+                  View invoice
+                </a>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+    </main>
+  );
 }
