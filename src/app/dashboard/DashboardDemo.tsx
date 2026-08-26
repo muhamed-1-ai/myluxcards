@@ -497,7 +497,6 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
 }
 
 function ModesForm({ draft, update }: any) {
-  const currentMode = draft.profileMode || "DIGITAL_PROFILE";
   const enabled = draft.enabledFeatures || { digitalProfile: true, vehicleConnect: true, lostAndFound: true };
   const vehicle = draft.vehicleConnect || {};
   const emergency = draft.emergencyContact || {};
@@ -507,46 +506,58 @@ function ModesForm({ draft, update }: any) {
     <>
       <div className="form-intro">
         <h2>Profile Mode &amp; Features</h2>
-        <p>Choose which feature visitors see when scanning your single permanent QR code or visiting your URL.</p>
+        <p>Enable features for your single permanent QR code and profile URL. All enabled features remain active simultaneously.</p>
       </div>
 
       <div className="mode-settings-block">
-        <div className="mode-settings-title">🎯 Active Profile Mode</div>
+        <div className="mode-settings-title">💎 Permanent Feature Entitlements</div>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>
+          You can enable all three features at the exact same time. Visitors who scan your QR code will be able to switch between all enabled views.
+        </p>
         <div className="mode-card-selector">
           <button
             type="button"
-            className={`mode-option-btn ${currentMode === "DIGITAL_PROFILE" ? "active" : ""}`}
-            onClick={() => update("profileMode", "DIGITAL_PROFILE")}
+            className={`mode-option-btn ${enabled.digitalProfile !== false ? "active" : ""}`}
+            onClick={() => update("enabledFeatures", { ...enabled, digitalProfile: enabled.digitalProfile === false })}
           >
             <span className="mode-option-icon">💼</span>
             <span className="mode-option-title">Digital Profile</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: enabled.digitalProfile !== false ? "#2ecc71" : "#e74c3c" }}>
+              {enabled.digitalProfile !== false ? "✓ ENABLED" : "✕ DISABLED"}
+            </span>
             <span className="mode-option-desc">Standard Digital Business Card &amp; VCard contact sharing</span>
           </button>
 
           <button
             type="button"
-            className={`mode-option-btn ${currentMode === "VEHICLE_CONNECT" ? "active" : ""}`}
-            onClick={() => update("profileMode", "VEHICLE_CONNECT")}
+            className={`mode-option-btn ${enabled.vehicleConnect !== false ? "active" : ""}`}
+            onClick={() => update("enabledFeatures", { ...enabled, vehicleConnect: enabled.vehicleConnect === false })}
           >
             <span className="mode-option-icon">🚘</span>
             <span className="mode-option-title">Vehicle Connect</span>
-            <span className="mode-option-desc">Parking alerts, vehicle specs &amp; emergency contact for cars/bikes</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: enabled.vehicleConnect !== false ? "#2ecc71" : "#e74c3c" }}>
+              {enabled.vehicleConnect !== false ? "✓ ENABLED" : "✕ DISABLED"}
+            </span>
+            <span className="mode-option-desc">Vehicle specs, parking owner contact &amp; emergency alert</span>
           </button>
 
           <button
             type="button"
-            className={`mode-option-btn ${currentMode === "LOST_AND_FOUND" ? "active" : ""}`}
-            onClick={() => update("profileMode", "LOST_AND_FOUND")}
+            className={`mode-option-btn ${enabled.lostAndFound !== false ? "active" : ""}`}
+            onClick={() => update("enabledFeatures", { ...enabled, lostAndFound: enabled.lostAndFound === false })}
           >
             <span className="mode-option-icon">🏷️</span>
             <span className="mode-option-title">Lost &amp; Found Tag</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: enabled.lostAndFound !== false ? "#2ecc71" : "#e74c3c" }}>
+              {enabled.lostAndFound !== false ? "✓ ENABLED" : "✕ DISABLED"}
+            </span>
             <span className="mode-option-desc">Item recovery instructions &amp; safe finder contact form</span>
           </button>
         </div>
       </div>
 
       <div className="mode-settings-block">
-        <div className="mode-settings-title">⚙️ Enabled Features</div>
+        <div className="mode-settings-title">⚙️ Enabled Feature Toggles</div>
         <div className="mode-checkbox-grid">
           <label className="mode-checkbox-label">
             <input

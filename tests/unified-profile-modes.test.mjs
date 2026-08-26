@@ -31,20 +31,20 @@ test("public API route supports visitor actions for NOTIFY_OWNER, EMERGENCY_CONT
   assert.match(publicCardRoute, /insert into card_leads/);
 });
 
-test("PublicCardClient renders dynamic layouts for VEHICLE_CONNECT and LOST_AND_FOUND modes", () => {
-  assert.match(publicCardClient, /VEHICLE_CONNECT/);
-  assert.match(publicCardClient, /LOST_AND_FOUND/);
+test("PublicCardClient renders dynamic activeView mode switcher and supports simultaneous features", () => {
+  assert.match(publicCardClient, /useState<PublicProfileView>\("profile"\)/);
+  assert.match(publicCardClient, /pc-mode-switcher-bar/);
+  assert.match(publicCardClient, /pc-mode-switch-btn/);
   assert.match(publicCardClient, /NOTIFY_OWNER/);
   assert.match(publicCardClient, /LOST_ITEM_FOUND/);
   assert.match(publicCardClient, /MyLux Vehicle Connect/);
-  assert.match(publicCardClient, /MyLux Lost & Found Tag/);
+  assert.match(publicCardClient, /MyLux Lost &(?:amp;)? Found Tag/);
 });
 
-test("DashboardDemo provides profile modes editor form and mode selection options", () => {
+test("DashboardDemo provides independent feature entitlements toggles", () => {
   assert.match(dashboardDemo, /ModesForm/);
-  assert.match(dashboardDemo, /Profile Mode &(?:amp;)? Features/);
-  assert.match(dashboardDemo, /VEHICLE_CONNECT/);
-  assert.match(dashboardDemo, /LOST_AND_FOUND/);
+  assert.match(dashboardDemo, /Permanent Feature Entitlements/);
+  assert.match(dashboardDemo, /enabledFeatures/);
   assert.match(dashboardDemo, /Vehicle Connect Settings/);
   assert.match(dashboardDemo, /Lost &(?:amp;)? Found Settings/);
 });

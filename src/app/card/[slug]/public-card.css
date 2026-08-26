@@ -838,3 +838,76 @@
 @media (max-width: 360px) {
   .pc-hero-cover { aspect-ratio: 1 / 1; }
 }
+
+/* ── Mode Switcher Bar ── */
+.pc-mode-switcher-bar {
+  width: 100%;
+  display: flex;
+  background: color-mix(in srgb, var(--pc-accent, #b8962e) 15%, rgba(0,0,0,0.85));
+  border: 1.5px solid color-mix(in srgb, var(--pc-accent, #b8962e) 35%, transparent);
+  border-radius: 50px;
+  padding: 4px;
+  gap: 4px;
+  margin: 12px 0 16px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+
+.pc-mode-switch-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  color: color-mix(in srgb, var(--pc-text, #fff) 75%, transparent);
+  border-radius: 50px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pc-mode-switch-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pc-mode-switch-btn.active {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pc-accent, #b8962e) 30%, #000), color-mix(in srgb, var(--pc-accent, #b8962e) 15%, #000));
+  border-color: var(--pc-accent, #b8962e);
+  color: var(--pc-accent, #d4af37);
+  font-weight: 700;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), inset 0 0 0 1px color-mix(in srgb, var(--pc-accent, #b8962e) 40%, transparent);
+}
+
+.pc-btn-emergency-alert {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 13px 20px;
+  border-radius: 50px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  transition: transform 0.15s, opacity 0.15s;
+}
+.pc-btn-emergency-alert:hover { transform: scale(1.02); opacity: 0.95; }
+.pc-btn-emergency-alert:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pc-section-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--pc-text, #fff) 65%, transparent);
+  text-align: center;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}

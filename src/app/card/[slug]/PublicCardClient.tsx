@@ -38,15 +38,19 @@ type Card = {
   coverScale?: number; coverRotation?: number; coverX?: number; coverY?: number;
   previewAuthorized?: boolean;
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+  enabledFeatures?: { digitalProfile: boolean; vehicleConnect: boolean; lostAndFound: boolean };
   vehicleConnect?: VehicleConnectSettings;
   emergencyContact?: EmergencyContactSettings;
   lostAndFound?: LostAndFoundSettings;
   hasEmergencyPhone?: boolean;
 };
 
+type PublicProfileView = "profile" | "vehicle" | "lost_found";
+
 export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [activeView, setActiveView] = useState<PublicProfileView>("profile");
   const [loadMessage, setLoadMessage] = useState("");
   const [loadReason, setLoadReason] = useState("");
   const [showStatusBubble, setShowStatusBubble] = useState(false);
@@ -345,35 +349,133 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     Threads:           { subtitle: "Follow me",              icon: <ThreadsIcon />,     iconBg: "#000" },
   };
 
-  const mode = card.profileMode || "DIGITAL_PROFILE";
+  const digitalEnabled = card.enabledFeatures?.digitalProfile !== false;
+  const vehicleEnabled = card.enabledFeatures?.vehicleConnect !== false;
+  const lostFoundEnabled = card.enabledFeatures?.lostAndFound !== false;
+  const availableModesCount = [digitalEnabled, vehicleEnabled, lostFoundEnabled].filter(Boolean).length;
 
   return (
     <main className="pc-page" style={cssVars}>
 
-      {/* ── Mode Pill Header ── */}
-      {mode !== "DIGITAL_PROFILE" && (
-        <div className="pc-mode-pill-header">
-          {mode === "VEHICLE_CONNECT" ? "🚘 MyLux Vehicle Connect" : "🏷️ MyLux Lost & Found Tag"}
-        </div>
-      )}
-
       {/* ── Feedback Notification Banner ── */}
       {actionToast && <div className="pc-toast-notice">{actionToast}</div>}
 
-      {/* ── RENDER MODE 1: VEHICLE CONNECT ── */}
-      {mode === "VEHICLE_CONNECT" && (
+      {/* ── HERO CARD (Unified Owner Identity) ── */}
+      <div className="pc-hero">
+        <div className="pc-hero-cover">
+          {card.cover && <img
+            src={card.cover}
+            className="pc-hero-cover-image"
+            alt=""
+            style={{
+              transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
+              objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
+            }}
+          />}
+          {!card.cover && <span className="pc-hero-wordmark">MYLUX</span>}
+          <div className="pc-hero-overlay">
+            <div className="pc-hero-bottom">
+              {card.logo && (
+                <div className="pc-hero-logo-badge">
+                  <img
+                    src={card.logo}
+                    alt={card.name || "Logo"}
+                    style={{
+                      transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
+                      objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
+                    }}
+                  />
+                </div>
+              )}
+              <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
+              {card.title && <p className="pc-hero-title">{card.title}</p>}
+              {card.business && <p className="pc-hero-biz">{card.business}</p>}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick-dial icon buttons */}
+        <div className="pc-hero-icons">
+          {phone && (
+            <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
+              <PhoneIcon />
+            </a>
+          )}
+          {whatsapp && (
+            <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
+              <WhatsAppBrandIcon />
+            </a>
+          )}
+          {card.email && (
+            <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
+              <MailIcon />
+            </a>
+          )}
+          {card.website && (
+            <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+              <WebIcon />
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* ── DYNAMIC MODE SWITCHER BAR (Visible across all views if > 1 feature enabled) ── */}
+      {availableModesCount > 1 && (
+        <div className="pc-mode-switcher-bar" role="tablist" aria-label="Profile views">
+          {digitalEnabled && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === "profile"}
+              className={`pc-mode-switch-btn ${activeView === "profile" ? "active" : ""}`}
+              onClick={() => setActiveView("profile")}
+            >
+              Profile
+            </button>
+          )}
+          {vehicleEnabled && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === "vehicle"}
+              className={`pc-mode-switch-btn ${activeView === "vehicle" ? "active" : ""}`}
+              onClick={() => setActiveView("vehicle")}
+            >
+              🚗 Vehicle
+            </button>
+          )}
+          {lostFoundEnabled && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === "lost_found"}
+              className={`pc-mode-switch-btn ${activeView === "lost_found" ? "active" : ""}`}
+              onClick={() => setActiveView("lost_found")}
+            >
+              🏷️ Lost &amp; Found
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── VIEW 1: VEHICLE CONNECT ── */}
+      {activeView === "vehicle" && (
         <div className="pc-vehicle-card">
-          <div className="pc-hero-name" style={{ textAlign: "center" }}>{card.name}</div>
-          
+          <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
+            🚘 MyLux Vehicle Connect
+          </div>
+
           <div className="pc-vehicle-license-plate">
             {card.vehicleConnect?.licensePlate || "MYLUX-CAR"}
           </div>
 
-          <div className="pc-vehicle-specs">
-            {card.vehicleConnect?.vehicleMake && <span className="pc-vehicle-spec-chip">Make: {card.vehicleConnect.vehicleMake}</span>}
-            {card.vehicleConnect?.vehicleModel && <span className="pc-vehicle-spec-chip">Model: {card.vehicleConnect.vehicleModel}</span>}
-            {card.vehicleConnect?.vehicleColor && <span className="pc-vehicle-spec-chip">Color: {card.vehicleConnect.vehicleColor}</span>}
-          </div>
+          {(card.vehicleConnect?.vehicleMake || card.vehicleConnect?.vehicleModel || card.vehicleConnect?.vehicleColor) && (
+            <div className="pc-vehicle-specs">
+              {card.vehicleConnect?.vehicleMake && <span className="pc-vehicle-spec-chip">{card.vehicleConnect.vehicleMake}</span>}
+              {card.vehicleConnect?.vehicleModel && <span className="pc-vehicle-spec-chip">{card.vehicleConnect.vehicleModel}</span>}
+              {card.vehicleConnect?.vehicleColor && <span className="pc-vehicle-spec-chip">{card.vehicleConnect.vehicleColor}</span>}
+            </div>
+          )}
 
           {card.vehicleConnect?.parkingNote && (
             <div className="pc-parking-banner">
@@ -383,18 +485,20 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           )}
 
           <div className="pc-vehicle-actions">
+            <div className="pc-section-subtitle">For parking or vehicle-related matters</div>
             <button
+              type="button"
               className="pc-btn-primary-alert"
               onClick={() => sendVisitorAction("NOTIFY_OWNER")}
               disabled={submittingAction}
             >
-              🔔 Notify Owner (Parking Alert)
+              📞 Contact Vehicle Owner
             </button>
 
             <div className="pc-actions" style={{ marginTop: 8 }}>
               {card.vehicleConnect?.allowDirectCall !== false && phone && (
                 <a href={`tel:${phone}`} className="pc-action-btn" onClick={() => track("LINK_CLICK", "phone")}>
-                  Call Owner
+                  Call {phone}
                 </a>
               )}
               {card.vehicleConnect?.allowDirectMessage !== false && whatsapp && (
@@ -402,26 +506,41 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                   WhatsApp Owner
                 </a>
               )}
-              {card.vehicleConnect?.showEmergencyContact !== false && (card.hasEmergencyPhone || card.emergencyContact?.name) && (
+            </div>
+
+            {card.vehicleConnect?.showEmergencyContact !== false && (card.hasEmergencyPhone || card.emergencyContact?.name) && (
+              <div style={{ borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: 16, marginTop: 12, width: "100%" }}>
+                <div className="pc-section-subtitle">For accidents or emergencies only</div>
                 <button
-                  className="pc-action-btn"
+                  type="button"
+                  className="pc-btn-emergency-alert"
                   onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
                   disabled={submittingAction}
                 >
-                  Emergency Alert
+                  🚨 Emergency Contact {card.emergencyContact?.name ? `(${card.emergencyContact.name})` : ""}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── RENDER MODE 2: LOST & FOUND ── */}
-      {mode === "LOST_AND_FOUND" && (
+      {/* ── VIEW 2: LOST & FOUND ── */}
+      {activeView === "lost_found" && (
         <div className="pc-lost-card">
           <div className="pc-lost-item-header">
+            <div className="pc-mode-pill-header" style={{ marginBottom: 12 }}>
+              🏷️ MyLux Lost &amp; Found Tag
+            </div>
             <h1 className="pc-lost-item-title">{card.lostAndFound?.itemName || `${card.name}'s Tagged Item`}</h1>
-            <span className="pc-lost-category-tag">Category: {card.lostAndFound?.itemCategory || "Personal Item"}</span>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 6, lineHeight: 1.5 }}>
+              You found an item belonging to this person. Please contact the owner so it can be returned safely.
+            </p>
+            {card.lostAndFound?.itemCategory && (
+              <span className="pc-lost-category-tag" style={{ marginTop: 8 }}>
+                Category: {card.lostAndFound.itemCategory}
+              </span>
+            )}
           </div>
 
           {card.lostAndFound?.rewardNote && (
@@ -450,7 +569,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                 });
               }}
             >
-              <div className="pc-form-title">Found this item? Notify Owner</div>
+              <div className="pc-form-title">✉️ Contact Owner</div>
               <input
                 type="text"
                 className="pc-input"
@@ -461,13 +580,14 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               <input
                 type="text"
                 className="pc-input"
-                placeholder="Your Phone / Email (Optional)"
+                placeholder="Your Phone / Contact Info"
                 value={finderContact}
                 onChange={(e) => setFinderContact(e.target.value)}
+                required
               />
               <textarea
                 className="pc-input pc-textarea"
-                placeholder="Message / Location where item was found..."
+                placeholder="Message / Where the item was found..."
                 value={finderMessage}
                 onChange={(e) => setFinderMessage(e.target.value)}
                 required
@@ -477,76 +597,17 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                 className="pc-btn-primary-alert"
                 disabled={submittingAction}
               >
-                Send Notification to Owner
+                Send Message to Owner
               </button>
             </form>
           )}
         </div>
       )}
 
-      {/* ── RENDER MODE 3: DIGITAL PROFILE (STANDARD) ── */}
-      {mode === "DIGITAL_PROFILE" && (
+      {/* ── VIEW 3: DIGITAL PROFILE (STANDARD) ── */}
+      {activeView === "profile" && (
         <>
-          {/* Hero Card */}
-          <div className="pc-hero">
-            <div className="pc-hero-cover">
-              {card.cover && <img
-                src={card.cover}
-                className="pc-hero-cover-image"
-                alt=""
-                style={{
-                  transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
-                  objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
-                }}
-              />}
-              {!card.cover && <span className="pc-hero-wordmark">MYLUX</span>}
-              <div className="pc-hero-overlay">
-                <div className="pc-hero-bottom">
-                  {card.logo && (
-                    <div className="pc-hero-logo-badge">
-                      <img
-                        src={card.logo}
-                        alt={card.name || "Logo"}
-                        style={{
-                          transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
-                          objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
-                        }}
-                      />
-                    </div>
-                  )}
-                  <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
-                  {card.title && <p className="pc-hero-title">{card.title}</p>}
-                  {card.business && <p className="pc-hero-biz">{card.business}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* Quick-dial icon buttons */}
-            <div className="pc-hero-icons">
-              {phone && (
-                <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
-                  <PhoneIcon />
-                </a>
-              )}
-              {whatsapp && (
-                <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
-                  <WhatsAppBrandIcon />
-                </a>
-              )}
-              {card.email && (
-                <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
-                  <MailIcon />
-                </a>
-              )}
-              {card.website && (
-                <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-                  <WebIcon />
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Action buttons */}
+          {/* Action buttons (Save Contact / Share / QR Code) */}
           <div className="pc-actions">
             <button className="pc-action-btn" onClick={saveContact}>Save Contact</button>
             <button className="pc-action-btn" onClick={() => { track("SHARE"); void share(); }}>Share</button>
@@ -674,7 +735,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               )}
               {card.email && (
                 <div className="pc-contact-row">
-                  <span className="pc-contact-row-label">Email me</span>
+                  <span className="pc-contact-row-label">Email</span>
                   <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
                 </div>
               )}
