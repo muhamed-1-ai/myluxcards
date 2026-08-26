@@ -498,15 +498,12 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
 
 function ModesForm({ draft, update }: any) {
   const enabled = draft.enabledFeatures || { digitalProfile: true, vehicleConnect: true, lostAndFound: true };
-  const vehicle = draft.vehicleConnect || {};
-  const emergency = draft.emergencyContact || {};
-  const lost = draft.lostAndFound || {};
 
   return (
     <>
       <div className="form-intro">
         <h2>Profile Mode &amp; Features</h2>
-        <p>Enable features for your single permanent QR code and profile URL. All enabled features remain active simultaneously.</p>
+        <p>Enable features for your single permanent QR code and profile URL. Manage multiple vehicles and tagged items under your account.</p>
       </div>
 
       <div className="mode-settings-block">
@@ -538,7 +535,7 @@ function ModesForm({ draft, update }: any) {
             <span style={{ fontSize: 11, fontWeight: 700, color: enabled.vehicleConnect !== false ? "#2ecc71" : "#e74c3c" }}>
               {enabled.vehicleConnect !== false ? "✓ ENABLED" : "✕ DISABLED"}
             </span>
-            <span className="mode-option-desc">Vehicle specs, parking owner contact &amp; emergency alert</span>
+            <span className="mode-option-desc">Multiple vehicles specs, parking owner contact &amp; emergency alert</span>
           </button>
 
           <button
@@ -551,107 +548,592 @@ function ModesForm({ draft, update }: any) {
             <span style={{ fontSize: 11, fontWeight: 700, color: enabled.lostAndFound !== false ? "#2ecc71" : "#e74c3c" }}>
               {enabled.lostAndFound !== false ? "✓ ENABLED" : "✕ DISABLED"}
             </span>
-            <span className="mode-option-desc">Item recovery instructions &amp; safe finder contact form</span>
+            <span className="mode-option-desc">Multiple item recovery instructions &amp; direct owner contact</span>
           </button>
         </div>
       </div>
 
+      {/* ── ACCOUNT DEFAULT CONTACTS ── */}
       <div className="mode-settings-block">
-        <div className="mode-settings-title">⚙️ Enabled Feature Toggles</div>
-        <div className="mode-checkbox-grid">
-          <label className="mode-checkbox-label">
-            <input
-              type="checkbox"
-              checked={enabled.digitalProfile !== false}
-              onChange={(e) => update("enabledFeatures", { ...enabled, digitalProfile: e.target.checked })}
-            />
-            Digital Business Profile
-          </label>
-          <label className="mode-checkbox-label">
-            <input
-              type="checkbox"
-              checked={enabled.vehicleConnect !== false}
-              onChange={(e) => update("enabledFeatures", { ...enabled, vehicleConnect: e.target.checked })}
-            />
-            Vehicle Connect Mode
-          </label>
-          <label className="mode-checkbox-label">
-            <input
-              type="checkbox"
-              checked={enabled.lostAndFound !== false}
-              onChange={(e) => update("enabledFeatures", { ...enabled, lostAndFound: e.target.checked })}
-            />
-            Lost &amp; Found Mode
-          </label>
-        </div>
-      </div>
-
-      <div className="mode-settings-block">
-        <div className="mode-settings-title">🚘 Vehicle Connect Settings</div>
+        <div className="mode-settings-title">📞 Account Default Contacts</div>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>
+          Set your account-level default contact numbers. Individual vehicles and Lost &amp; Found items can inherit these defaults automatically.
+        </p>
         <div className="form-grid">
-          <Field label="Vehicle Make"><input value={vehicle.vehicleMake || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, vehicleMake: e.target.value })} placeholder="e.g. Toyota / BMW" /></Field>
-          <Field label="Vehicle Model"><input value={vehicle.vehicleModel || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, vehicleModel: e.target.value })} placeholder="e.g. Camry / M3" /></Field>
-          <Field label="Vehicle Color"><input value={vehicle.vehicleColor || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, vehicleColor: e.target.value })} placeholder="e.g. Black / Metallic Silver" /></Field>
-          <Field label="License Plate Number"><input value={vehicle.licensePlate || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, licensePlate: e.target.value.toUpperCase() })} placeholder="e.g. MH 02 AB 1234" /></Field>
-          <Field label="Parking Notice / Custom Note" wide><textarea rows={3} value={vehicle.parkingNote || ""} onChange={(e) => update("vehicleConnect", { ...vehicle, parkingNote: e.target.value })} placeholder="e.g. If my vehicle is blocking, please tap below to notify me!" /></Field>
-        </div>
-        <div className="mode-checkbox-grid" style={{ marginTop: 10 }}>
-          <label className="mode-checkbox-label">
+          <Field label="Default Contact Phone Number">
             <input
-              type="checkbox"
-              checked={vehicle.allowDirectCall !== false}
-              onChange={(e) => update("vehicleConnect", { ...vehicle, allowDirectCall: e.target.checked })}
+              type="tel"
+              value={draft.defaultContactPhone || draft.mobile || draft.whatsapp || ""}
+              onChange={(e) => update("defaultContactPhone", e.target.value)}
+              placeholder="e.g. +91 98765 43210"
             />
-            Allow Direct Phone Call Button
-          </label>
-          <label className="mode-checkbox-label">
-            <input
-              type="checkbox"
-              checked={vehicle.allowDirectMessage !== false}
-              onChange={(e) => update("vehicleConnect", { ...vehicle, allowDirectMessage: e.target.checked })}
-            />
-            Allow WhatsApp Message Button
-          </label>
-          <label className="mode-checkbox-label">
-            <input
-              type="checkbox"
-              checked={vehicle.showEmergencyContact !== false}
-              onChange={(e) => update("vehicleConnect", { ...vehicle, showEmergencyContact: e.target.checked })}
-            />
-            Show Emergency Contact Action
-          </label>
-        </div>
-      </div>
-
-      <div className="mode-settings-block">
-        <div className="mode-settings-title">🚨 Emergency Contact</div>
-        <div className="form-grid">
-          <Field label="Contact Name"><input value={emergency.name || ""} onChange={(e) => update("emergencyContact", { ...emergency, name: e.target.value })} placeholder="e.g. Jane Doe" /></Field>
-          <Field label="Relationship"><input value={emergency.relationship || ""} onChange={(e) => update("emergencyContact", { ...emergency, relationship: e.target.value })} placeholder="e.g. Spouse / Parent / Friend" /></Field>
-          <Field label="Emergency Phone Number (Server Protected)"><input value={emergency.phone || ""} onChange={(e) => update("emergencyContact", { ...emergency, phone: e.target.value })} placeholder="e.g. +91 9876543210" /></Field>
-        </div>
-      </div>
-
-      <div className="mode-settings-block">
-        <div className="mode-settings-title">🏷️ Lost &amp; Found Settings</div>
-        <div className="form-grid">
-          <Field label="Item Name"><input value={lost.itemName || ""} onChange={(e) => update("lostAndFound", { ...lost, itemName: e.target.value })} placeholder="e.g. Leather Wallet / MacBook Pro / Keys" /></Field>
-          <Field label="Item Category">
-            <select value={lost.itemCategory || "Other"} onChange={(e) => update("lostAndFound", { ...lost, itemCategory: e.target.value })}>
-              <option value="Keys">Keys</option>
-              <option value="Wallet">Wallet</option>
-              <option value="Electronics">Electronics</option>
-              <option value="Pet">Pet Tag</option>
-              <option value="Bag">Bag / Backpack</option>
-              <option value="Luggage">Luggage</option>
-              <option value="Other">Other</option>
-            </select>
           </Field>
-          <Field label="Reward Note" wide><textarea rows={2} value={lost.rewardNote || ""} onChange={(e) => update("lostAndFound", { ...lost, rewardNote: e.target.value })} placeholder="e.g. Reward offered upon safe return!" /></Field>
-          <Field label="Return Instructions" wide><textarea rows={2} value={lost.returnInstructions || ""} onChange={(e) => update("lostAndFound", { ...lost, returnInstructions: e.target.value })} placeholder="e.g. Please drop off at building reception or use message form below." /></Field>
+          <Field label="Default Emergency Contact Name">
+            <input
+              value={draft.defaultEmergencyName || draft.emergencyContact?.name || ""}
+              onChange={(e) => update("defaultEmergencyName", e.target.value)}
+              placeholder="e.g. Ameen"
+            />
+          </Field>
+          <Field label="Default Emergency Relationship">
+            <input
+              value={draft.defaultEmergencyRelationship || draft.emergencyContact?.relationship || ""}
+              onChange={(e) => update("defaultEmergencyRelationship", e.target.value)}
+              placeholder="e.g. Brother / Spouse"
+            />
+          </Field>
+          <Field label="Default Emergency Phone Number">
+            <input
+              type="tel"
+              value={draft.defaultEmergencyPhone || draft.emergencyContact?.phone || ""}
+              onChange={(e) => update("defaultEmergencyPhone", e.target.value)}
+              placeholder="e.g. +91 99999 88888"
+            />
+          </Field>
         </div>
       </div>
+
+      {/* ── MULTI-VEHICLE MANAGEMENT ── */}
+      <VehiclesManager cardId={draft.id} defaultContact={draft.defaultContactPhone || draft.mobile || ""} defaultEmergencyName={draft.defaultEmergencyName || draft.emergencyContact?.name || ""} defaultEmergencyRel={draft.defaultEmergencyRelationship || ""} defaultEmergencyPhone={draft.defaultEmergencyPhone || draft.emergencyContact?.phone || ""} />
+
+      {/* ── MULTI-ITEM LOST & FOUND MANAGEMENT ── */}
+      <LostItemsManager cardId={draft.id} defaultContact={draft.defaultContactPhone || draft.mobile || ""} />
     </>
+  );
+}
+
+function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, defaultEmergencyRel, defaultEmergencyPhone }: any) {
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<any | null>(null);
+
+  const loadVehicles = async () => {
+    if (!cardId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/cards/vehicles?cardId=${encodeURIComponent(cardId)}`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.vehicles)) {
+        setVehicles(data.vehicles);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadVehicles();
+  }, [cardId]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVehicle) return;
+    try {
+      const isNew = !editingVehicle.id;
+      const url = "/api/cards/vehicles";
+      const method = isNew ? "POST" : "PUT";
+      const body = { ...editingVehicle, cardId };
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setEditingVehicle(null);
+        await loadVehicles();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this vehicle from your Vehicle Connect list? Your MyLux QR code will continue to work.")) return;
+    try {
+      const res = await fetch("/api/cards/vehicles", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        await loadVehicles();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <div className="mode-settings-block">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div className="mode-settings-title" style={{ margin: 0 }}>🚘 MY VEHICLES ({vehicles.length})</div>
+        <button
+          type="button"
+          className="asset-btn-primary"
+          onClick={() => setEditingVehicle({
+            cardId,
+            displayName: "",
+            make: "",
+            model: "",
+            color: "",
+            licensePlate: "",
+            contactPhone: "",
+            useDefaultContact: true,
+            emergencyName: "",
+            emergencyRelationship: "",
+            emergencyPhone: "",
+            useDefaultEmergency: true,
+            ownerNote: "",
+            enabled: true,
+          })}
+        >
+          + ADD VEHICLE
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 12px" }}>
+        Add all your cars, bikes, or fleets to your single MyLux QR code. If you have multiple vehicles, visitors will select which vehicle they are contacting about.
+      </p>
+
+      {vehicles.length === 0 && !editingVehicle && (
+        <div style={{ padding: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          No vehicles added yet. Click "+ ADD VEHICLE" above to register your first vehicle!
+        </div>
+      )}
+
+      <div className="asset-card-list">
+        {vehicles.map((v) => (
+          <div key={v.id} className="asset-item-card">
+            <div className="asset-item-info">
+              <div className="asset-item-title">
+                🚘 {v.displayName || `${v.make} ${v.model}` || "Vehicle"}
+                <span className={v.enabled ? "asset-badge-active" : "asset-badge-disabled"}>
+                  {v.enabled ? "Active" : "Disabled"}
+                </span>
+              </div>
+              <div className="asset-item-sub">
+                {[v.make, v.model, v.color].filter(Boolean).join(" • ")} {v.licensePlate ? `(${v.licensePlate})` : ""}
+              </div>
+            </div>
+            <div className="asset-item-actions">
+              <button type="button" className="edit-btn" onClick={() => setEditingVehicle(v)}>Edit</button>
+              <button type="button" className="delete-btn" onClick={() => handleDelete(v.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── EDIT / ADD VEHICLE MODAL ── */}
+      {editingVehicle && (
+        <div className="modal-back">
+          <form className="modal-card" onSubmit={handleSave} style={{ maxWidth: 540, width: "95%" }}>
+            <h3 style={{ margin: "0 0 12px", color: "#fff", fontSize: 18 }}>
+              {editingVehicle.id ? "Edit Vehicle" : "Add New Vehicle"}
+            </h3>
+
+            <div className="privacy-notice-box">
+              ⚠️ <strong>PRIVACY NOTICE:</strong> The phone numbers entered here will be publicly visible to anyone who scans your MyLux QR code and selects Vehicle Connect.
+            </div>
+
+            <div className="form-grid">
+              <Field label="Display Name (e.g. My BMW)">
+                <input
+                  value={editingVehicle.displayName || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, displayName: e.target.value })}
+                  placeholder="e.g. BMW M3"
+                  required
+                />
+              </Field>
+              <Field label="Make (Brand)">
+                <input
+                  value={editingVehicle.make || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, make: e.target.value })}
+                  placeholder="e.g. BMW / Toyota"
+                />
+              </Field>
+              <Field label="Model">
+                <input
+                  value={editingVehicle.model || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, model: e.target.value })}
+                  placeholder="e.g. M3 / Fortuner"
+                />
+              </Field>
+              <Field label="Color">
+                <input
+                  value={editingVehicle.color || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, color: e.target.value })}
+                  placeholder="e.g. Black / Metallic Silver"
+                />
+              </Field>
+              <Field label="License Plate / Registration">
+                <input
+                  value={editingVehicle.licensePlate || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, licensePlate: e.target.value.toUpperCase() })}
+                  placeholder="e.g. KL 10 AB 1234"
+                />
+              </Field>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", display: "block", marginBottom: 6 }}>
+                OWNER CONTACT NUMBER
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="vehContact"
+                    checked={editingVehicle.useDefaultContact !== false}
+                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: true })}
+                  />
+                  Use account default contact number {defaultContact ? `(${defaultContact})` : ""}
+                </label>
+                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="vehContact"
+                    checked={editingVehicle.useDefaultContact === false}
+                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: false })}
+                  />
+                  Use a custom number for this vehicle
+                </label>
+                {editingVehicle.useDefaultContact === false && (
+                  <input
+                    type="tel"
+                    style={{ marginTop: 4 }}
+                    value={editingVehicle.contactPhone || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, contactPhone: e.target.value })}
+                    placeholder="Enter phone number (e.g. +91 98765 43210)"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", display: "block", marginBottom: 6 }}>
+                EMERGENCY CONTACT
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="vehEmerg"
+                    checked={editingVehicle.useDefaultEmergency !== false}
+                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: true })}
+                  />
+                  Use account default emergency contact {defaultEmergencyName ? `(${defaultEmergencyName} - ${defaultEmergencyRel})` : ""}
+                </label>
+                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="vehEmerg"
+                    checked={editingVehicle.useDefaultEmergency === false}
+                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: false })}
+                  />
+                  Use custom emergency contact for this vehicle
+                </label>
+                {editingVehicle.useDefaultEmergency === false && (
+                  <div className="form-grid" style={{ marginTop: 6 }}>
+                    <input
+                      value={editingVehicle.emergencyName || ""}
+                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyName: e.target.value })}
+                      placeholder="Emergency Name (e.g. Ameen)"
+                    />
+                    <input
+                      value={editingVehicle.emergencyRelationship || ""}
+                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyRelationship: e.target.value })}
+                      placeholder="Relationship (e.g. Brother)"
+                    />
+                    <input
+                      type="tel"
+                      value={editingVehicle.emergencyPhone || ""}
+                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyPhone: e.target.value })}
+                      placeholder="Emergency Phone (e.g. +91 99999 88888)"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <Field label="Owner Note (Optional)">
+                <input
+                  value={editingVehicle.ownerNote || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, ownerNote: e.target.value })}
+                  placeholder="e.g. Please call if vehicle needs to be moved."
+                />
+              </Field>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={editingVehicle.enabled !== false}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, enabled: e.target.checked })}
+                />
+                Active (Show this vehicle publicly)
+              </label>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button type="button" className="btn-secondary" onClick={() => setEditingVehicle(null)}>Cancel</button>
+              <button type="submit" className="asset-btn-primary">Save Vehicle</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LostItemsManager({ cardId, defaultContact }: any) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+
+  const loadItems = async () => {
+    if (!cardId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/cards/lost-items?cardId=${encodeURIComponent(cardId)}`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.lostItems)) {
+        setItems(data.lostItems);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadItems();
+  }, [cardId]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    try {
+      const isNew = !editingItem.id;
+      const url = "/api/cards/lost-items";
+      const method = isNew ? "POST" : "PUT";
+      const body = { ...editingItem, cardId };
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setEditingItem(null);
+        await loadItems();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this item from your Lost & Found list? Your MyLux QR code will continue to work.")) return;
+    try {
+      const res = await fetch("/api/cards/lost-items", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        await loadItems();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <div className="mode-settings-block">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div className="mode-settings-title" style={{ margin: 0 }}>🏷️ MY LOST &amp; FOUND ITEMS ({items.length})</div>
+        <button
+          type="button"
+          className="asset-btn-primary"
+          onClick={() => setEditingItem({
+            cardId,
+            name: "",
+            category: "Keys",
+            description: "",
+            color: "",
+            contactPhone: "",
+            useDefaultContact: true,
+            rewardEnabled: false,
+            rewardText: "Reward available upon safe return.",
+            returnInstructions: "Please contact me to arrange collection.",
+            enabled: true,
+          })}
+        >
+          + ADD ITEM
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 12px" }}>
+        Add your keys, laptop, luggage, or wallet. If you have multiple tagged items, visitors will select which item they found.
+      </p>
+
+      {items.length === 0 && !editingItem && (
+        <div style={{ padding: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          No items added yet. Click "+ ADD ITEM" above to register your first tagged item!
+        </div>
+      )}
+
+      <div className="asset-card-list">
+        {items.map((item) => (
+          <div key={item.id} className="asset-item-card">
+            <div className="asset-item-info">
+              <div className="asset-item-title">
+                🏷️ {item.name || "Tagged Item"}
+                <span className={item.enabled ? "asset-badge-active" : "asset-badge-disabled"}>
+                  {item.enabled ? "Active" : "Disabled"}
+                </span>
+              </div>
+              <div className="asset-item-sub">
+                Category: {item.category} {item.color ? `• ${item.color}` : ""}
+              </div>
+            </div>
+            <div className="asset-item-actions">
+              <button type="button" className="edit-btn" onClick={() => setEditingItem(item)}>Edit</button>
+              <button type="button" className="delete-btn" onClick={() => handleDelete(item.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── EDIT / ADD ITEM MODAL ── */}
+      {editingItem && (
+        <div className="modal-back">
+          <form className="modal-card" onSubmit={handleSave} style={{ maxWidth: 540, width: "95%" }}>
+            <h3 style={{ margin: "0 0 12px", color: "#fff", fontSize: 18 }}>
+              {editingItem.id ? "Edit Item" : "Add Lost & Found Item"}
+            </h3>
+
+            <div className="privacy-notice-box">
+              ⚠️ <strong>PRIVACY NOTICE:</strong> The phone number entered here will be publicly visible to anyone who scans your MyLux QR code and opens Lost &amp; Found.
+            </div>
+
+            <div className="form-grid">
+              <Field label="Item Name (e.g. House Keys)">
+                <input
+                  value={editingItem.name || ""}
+                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  placeholder="e.g. House Keys / MacBook Pro"
+                  required
+                />
+              </Field>
+              <Field label="Category">
+                <select
+                  value={editingItem.category || "Keys"}
+                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                >
+                  <option value="Keys">Keys</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Luggage">Luggage</option>
+                  <option value="Wallet">Wallet / Purse</option>
+                  <option value="Pets">Pet Tag</option>
+                  <option value="Personal Item">Personal Item</option>
+                  <option value="Other">Other</option>
+                </select>
+              </Field>
+              <Field label="Color / Description">
+                <input
+                  value={editingItem.color || editingItem.description || ""}
+                  onChange={(e) => setEditingItem({ ...editingItem, color: e.target.value, description: e.target.value })}
+                  placeholder="e.g. Black leather case"
+                />
+              </Field>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", display: "block", marginBottom: 6 }}>
+                OWNER CONTACT NUMBER
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="itemContact"
+                    checked={editingItem.useDefaultContact !== false}
+                    onChange={() => setEditingItem({ ...editingItem, useDefaultContact: true })}
+                  />
+                  Use account default contact number {defaultContact ? `(${defaultContact})` : ""}
+                </label>
+                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="radio"
+                    name="itemContact"
+                    checked={editingItem.useDefaultContact === false}
+                    onChange={() => setEditingItem({ ...editingItem, useDefaultContact: false })}
+                  />
+                  Use a custom contact number for this item
+                </label>
+                {editingItem.useDefaultContact === false && (
+                  <input
+                    type="tel"
+                    style={{ marginTop: 4 }}
+                    value={editingItem.contactPhone || ""}
+                    onChange={(e) => setEditingItem({ ...editingItem, contactPhone: e.target.value })}
+                    placeholder="Enter phone number (e.g. +91 98765 43210)"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(editingItem.rewardEnabled)}
+                  onChange={(e) => setEditingItem({ ...editingItem, rewardEnabled: e.target.checked })}
+                />
+                Offer Reward for Safe Return
+              </label>
+              {editingItem.rewardEnabled && (
+                <input
+                  style={{ marginTop: 6 }}
+                  value={editingItem.rewardText || ""}
+                  onChange={(e) => setEditingItem({ ...editingItem, rewardText: e.target.value })}
+                  placeholder="e.g. Reward offered upon safe return!"
+                />
+              )}
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <Field label="Return Instructions (Optional)">
+                <input
+                  value={editingItem.returnInstructions || ""}
+                  onChange={(e) => setEditingItem({ ...editingItem, returnInstructions: e.target.value })}
+                  placeholder="e.g. Please call me or leave at building reception."
+                />
+              </Field>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={editingItem.enabled !== false}
+                  onChange={(e) => setEditingItem({ ...editingItem, enabled: e.target.checked })}
+                />
+                Active (Show this item publicly)
+              </label>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button type="button" className="btn-secondary" onClick={() => setEditingItem(null)}>Cancel</button>
+              <button type="submit" className="asset-btn-primary">Save Item</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -27,6 +27,34 @@ type LostAndFoundSettings = {
   allowAnonymousMessage?: boolean;
 };
 
+type CardVehicle = {
+  id: string;
+  displayName: string;
+  make: string;
+  model: string;
+  color: string;
+  licensePlate: string;
+  contactPhone: string;
+  emergencyName: string;
+  emergencyRelationship: string;
+  emergencyPhone: string;
+  ownerNote: string;
+  enabled: boolean;
+};
+
+type CardLostItem = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  color: string;
+  contactPhone: string;
+  rewardEnabled: boolean;
+  rewardText: string;
+  returnInstructions: string;
+  enabled: boolean;
+};
+
 type Card = {
   id?: string;
   name: string; slug: string; title: string; business: string; countryCode: string; mobile: string;
@@ -49,6 +77,10 @@ type PublicProfileView = "profile" | "vehicle" | "lost_found";
 
 export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
+  const [vehicles, setVehicles] = useState<CardVehicle[]>([]);
+  const [lostItems, setLostItems] = useState<CardLostItem[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [activeView, setActiveView] = useState<PublicProfileView>("profile");
   const [loadMessage, setLoadMessage] = useState("");
@@ -79,6 +111,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         if (response.ok) {
           if (!cancelled) {
             setCard(payload.card);
+            setVehicles(Array.isArray(payload.vehicles) ? payload.vehicles : []);
+            setLostItems(Array.isArray(payload.lostItems) ? payload.lostItems : []);
             setLoaded(true);
             void fetch(`/api/cards/public/${encodeURIComponent(slug)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VIEW", channel: new URLSearchParams(window.location.search).get("source")?.toUpperCase() || "LINK" }) });
           }
@@ -493,165 +527,281 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       )}
 
       {/* ── VIEW 1: VEHICLE CONNECT ── */}
-      {activeView === "vehicle" && (
-        <div className="pc-vehicle-card">
-          <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
-            🚗 MYLUX VEHICLE CONNECT
-          </div>
+      {activeView === "vehicle" && (() => {
+        const activeVehicles = vehicles.filter((v) => v.enabled !== false);
+        const currentVehicle = activeVehicles.length === 1
+          ? activeVehicles[0]
+          : activeVehicles.find((v) => v.id === selectedVehicleId) || null;
 
-          <div className="pc-vehicle-intro">
-            Need to contact someone about this vehicle?
-          </div>
+        return (
+          <div className="pc-vehicle-card">
+            <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
+              🚗 MYLUX VEHICLE CONNECT
+            </div>
 
-          {/* Compact Vehicle Info (Subtle, only if configured) */}
-          {(card.vehicleConnect?.vehicleMake || card.vehicleConnect?.vehicleModel || card.vehicleConnect?.vehicleColor || card.vehicleConnect?.licensePlate) && (
-            <div className="pc-vehicle-compact-info">
-              {(card.vehicleConnect?.vehicleMake || card.vehicleConnect?.vehicleModel || card.vehicleConnect?.vehicleColor) && (
-                <div className="pc-vehicle-title-row">
-                  {[card.vehicleConnect.vehicleMake, card.vehicleConnect.vehicleModel].filter(Boolean).join(" ")}
-                  {card.vehicleConnect.vehicleColor ? ` • ${card.vehicleConnect.vehicleColor}` : ""}
+            {activeVehicles.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
+                No active vehicles configured for this profile.
+              </div>
+            ) : !currentVehicle ? (
+              /* Multi-vehicle selection screen */
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                <p style={{ textAlign: "center", fontSize: 14, color: "#fff", fontWeight: 600, margin: "4px 0 10px" }}>
+                  Which vehicle are you contacting about?
+                </p>
+                {activeVehicles.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(212,175,55,0.3)",
+                      borderRadius: 12,
+                      padding: "14px 16px",
+                      color: "#fff",
+                      fontFamily: "inherit",
+                    }}
+                    onClick={() => setSelectedVehicleId(v.id)}
+                  >
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                        🚘 {v.displayName || [v.make, v.model].filter(Boolean).join(" ") || "Vehicle"}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
+                        {[v.make, v.model, v.color].filter(Boolean).join(" • ")} {v.licensePlate ? `(${v.licensePlate})` : ""}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 20, color: "#d4af37" }}>›</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Single/Selected Vehicle details screen */
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%" }}>
+                {activeVehicles.length > 1 && (
+                  <button
+                    type="button"
+                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 6px" }}
+                    onClick={() => setSelectedVehicleId(null)}
+                  >
+                    ← All Vehicles
+                  </button>
+                )}
+
+                <div className="pc-vehicle-compact-info">
+                  <div className="pc-vehicle-title-row">
+                    {currentVehicle.displayName || [currentVehicle.make, currentVehicle.model].filter(Boolean).join(" ") || "Vehicle"}
+                  </div>
+                  {(currentVehicle.make || currentVehicle.model || currentVehicle.color) && (
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+                      {[currentVehicle.make, currentVehicle.model, currentVehicle.color].filter(Boolean).join(" • ")}
+                    </div>
+                  )}
+                  {currentVehicle.licensePlate && (
+                    <div className="pc-vehicle-plate-subtle">
+                      {currentVehicle.licensePlate}
+                    </div>
+                  )}
                 </div>
-              )}
-              {card.vehicleConnect?.licensePlate && (
-                <div className="pc-vehicle-plate-subtle">
-                  {card.vehicleConnect.licensePlate}
+
+                {currentVehicle.ownerNote && (
+                  <div className="pc-subtle-note">
+                    <strong>Owner note:</strong> {currentVehicle.ownerNote}
+                  </div>
+                )}
+
+                <hr className="pc-dashed-rule" style={{ margin: "4px 0" }} />
+
+                {/* Owner contact details & call button */}
+                <div className="pc-vehicle-action-block">
+                  <div className="pc-section-subtitle">VEHICLE OWNER</div>
+                  {currentVehicle.contactPhone && (
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", margin: "2px 0 4px" }}>
+                      {currentVehicle.contactPhone}
+                    </div>
+                  )}
+                  {currentVehicle.contactPhone ? (
+                    <a
+                      href={`tel:${currentVehicle.contactPhone.replace(/\D/g, "")}`}
+                      className="pc-btn-primary-alert"
+                      style={{ textDecoration: "none" }}
+                      onClick={() => track("LINK_CLICK", "vehicle_owner_call")}
+                    >
+                      📞 CALL OWNER
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="pc-btn-primary-alert"
+                      onClick={() => sendVisitorAction("NOTIFY_OWNER")}
+                      disabled={submittingAction}
+                    >
+                      📞 CONTACT VEHICLE OWNER
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* Optional subtle owner note if present */}
-          {card.vehicleConnect?.parkingNote && (
-            <div className="pc-subtle-note">
-              <strong>Owner note:</strong> {card.vehicleConnect.parkingNote}
-            </div>
-          )}
-
-          {/* Primary Action 1: Contact Vehicle Owner */}
-          <div className="pc-vehicle-action-block">
-            <button
-              type="button"
-              className="pc-btn-primary-alert"
-              onClick={() => sendVisitorAction("NOTIFY_OWNER")}
-              disabled={submittingAction}
-            >
-              📞 CONTACT VEHICLE OWNER
-            </button>
-            <span className="pc-action-subtext">For parking or vehicle-related matters</span>
+                {/* Emergency contact details & call button */}
+                {(currentVehicle.emergencyPhone || currentVehicle.emergencyName) && (
+                  <div className="pc-vehicle-action-block" style={{ borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: 16 }}>
+                    <div className="pc-section-subtitle">EMERGENCY CONTACT</div>
+                    {(currentVehicle.emergencyName || currentVehicle.emergencyRelationship) && (
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                        {currentVehicle.emergencyName} {currentVehicle.emergencyRelationship ? `• ${currentVehicle.emergencyRelationship}` : ""}
+                      </div>
+                    )}
+                    {currentVehicle.emergencyPhone && (
+                      <div style={{ fontSize: 16, fontWeight: 800, color: "#e74c3c", margin: "2px 0 4px" }}>
+                        {currentVehicle.emergencyPhone}
+                      </div>
+                    )}
+                    {currentVehicle.emergencyPhone ? (
+                      <a
+                        href={`tel:${currentVehicle.emergencyPhone.replace(/\D/g, "")}`}
+                        className="pc-btn-emergency-alert"
+                        style={{ textDecoration: "none" }}
+                        onClick={() => track("LINK_CLICK", "emergency_call")}
+                      >
+                        🚨 CALL EMERGENCY CONTACT
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="pc-btn-emergency-alert"
+                        onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
+                        disabled={submittingAction}
+                      >
+                        🚨 EMERGENCY CONTACT
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
-          {/* Primary Action 2: Emergency Contact */}
-          {card.vehicleConnect?.showEmergencyContact !== false && (card.hasEmergencyPhone || card.emergencyContact?.name) && (
-            <div className="pc-vehicle-action-block" style={{ borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: 16, marginTop: 4 }}>
-              <button
-                type="button"
-                className="pc-btn-emergency-alert"
-                onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
-                disabled={submittingAction}
-              >
-                🚨 EMERGENCY CONTACT
-              </button>
-              <span className="pc-action-subtext">For accidents or emergencies only</span>
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── VIEW 2: LOST & FOUND ── */}
-      {activeView === "lost_found" && (
-        <div className="pc-lost-card">
-          <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
-            🏷️ MYLUX LOST &amp; FOUND
-          </div>
+      {activeView === "lost_found" && (() => {
+        const activeItems = lostItems.filter((i) => i.enabled !== false);
+        const currentItem = activeItems.length === 1
+          ? activeItems[0]
+          : activeItems.find((i) => i.id === selectedItemId) || null;
 
-          <div className="pc-lost-owner-name">{card.name}</div>
-
-          <p className="pc-lost-intro-text">
-            You found an item belonging to this person.<br />
-            Please leave your contact number so the owner can contact you and arrange its return.
-          </p>
-
-          {card.lostAndFound?.itemCategory && (
-            <div className="pc-lost-chip-subtle">
-              Category: {card.lostAndFound.itemCategory}
+        return (
+          <div className="pc-lost-card">
+            <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
+              🏷️ MYLUX LOST &amp; FOUND
             </div>
-          )}
 
-          {card.lostAndFound?.rewardNote && (
-            <div className="pc-reward-subtle">
-              🎁 Reward offered for safe return: <span>{card.lostAndFound.rewardNote}</span>
-            </div>
-          )}
-
-          {card.lostAndFound?.returnInstructions && (
-            <div className="pc-subtle-note">
-              <strong>Return instructions:</strong> {card.lostAndFound.returnInstructions}
-            </div>
-          )}
-
-          <hr className="pc-dashed-rule" style={{ margin: "12px 0" }} />
-
-          {finderSubmitted ? (
-            <div className="pc-finder-success" role="status">
-              <div className="pc-success-icon">✓</div>
-              <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Contact details sent</h3>
-              <p style={{ fontSize: 13, opacity: 0.9, margin: 0, lineHeight: 1.4 }}>
-                The owner has received your contact number. Thank you for helping return this item!
-              </p>
-            </div>
-          ) : (
-            <form
-              className="pc-finder-form-clean"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleFinderSubmit();
-              }}
-            >
-              <label className="pc-input-label">
-                <span>YOUR CONTACT NUMBER *</span>
-                <div className="pc-tel-wrapper">
-                  <span className="pc-country-prefix">+</span>
-                  <input
-                    type="tel"
-                    className="pc-tel-input"
-                    placeholder="Enter phone number (e.g. 98765 43210)"
-                    value={finderContact}
-                    onChange={(e) => {
-                      setFinderContactError("");
-                      setFinderContact(e.target.value);
+            {activeItems.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
+                No active Lost &amp; Found items configured for this profile.
+              </div>
+            ) : !currentItem ? (
+              /* Multi-item selection screen */
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                <p style={{ textAlign: "center", fontSize: 14, color: "#fff", fontWeight: 600, margin: "4px 0 10px" }}>
+                  Which item did you find?
+                </p>
+                {activeItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(212,175,55,0.3)",
+                      borderRadius: 12,
+                      padding: "14px 16px",
+                      color: "#fff",
+                      fontFamily: "inherit",
                     }}
-                    required
-                    inputMode="tel"
-                    autoComplete="tel"
-                  />
+                    onClick={() => setSelectedItemId(item.id)}
+                  >
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                        🏷️ {item.name || "Tagged Item"}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>
+                        Category: {item.category} {item.color ? `• ${item.color}` : ""}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 20, color: "#d4af37" }}>›</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Single/Selected Item details screen */
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+                {activeItems.length > 1 && (
+                  <button
+                    type="button"
+                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 6px" }}
+                    onClick={() => setSelectedItemId(null)}
+                  >
+                    ← All Lost &amp; Found Items
+                  </button>
+                )}
+
+                <div className="pc-lost-owner-name">{currentItem.name}</div>
+                <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.75)", margin: 0 }}>
+                  You found an item belonging to <strong>{card.name}</strong>.
+                </p>
+
+                {currentItem.category && (
+                  <div className="pc-lost-chip-subtle">
+                    Category: {currentItem.category} {currentItem.color ? `• ${currentItem.color}` : ""}
+                  </div>
+                )}
+
+                {currentItem.rewardEnabled && (
+                  <div className="pc-reward-subtle">
+                    🎁 Reward offered for safe return: <span>{currentItem.rewardText || "Reward available upon return!"}</span>
+                  </div>
+                )}
+
+                {currentItem.returnInstructions && (
+                  <div className="pc-subtle-note">
+                    <strong>Return instructions:</strong> {currentItem.returnInstructions}
+                  </div>
+                )}
+
+                <hr className="pc-dashed-rule" style={{ margin: "8px 0" }} />
+
+                <div className="pc-vehicle-action-block">
+                  <div className="pc-section-subtitle">OWNER CONTACT</div>
+                  {currentItem.contactPhone && (
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", margin: "2px 0 4px" }}>
+                      {currentItem.contactPhone}
+                    </div>
+                  )}
+                  <a
+                    href={`tel:${(currentItem.contactPhone || phone || "").replace(/\D/g, "")}`}
+                    className="pc-btn-primary-alert"
+                    style={{ textDecoration: "none" }}
+                    onClick={() => track("LINK_CLICK", "lost_owner_call")}
+                  >
+                    📞 CALL OWNER
+                  </a>
                 </div>
-                {finderContactError && <em className="pc-error-text">{finderContactError}</em>}
-              </label>
-
-              <label className="pc-input-label">
-                <span>YOUR NAME (OPTIONAL)</span>
-                <input
-                  type="text"
-                  className="pc-input-clean"
-                  placeholder="Your name"
-                  value={finderName}
-                  onChange={(e) => setFinderName(e.target.value)}
-                  autoComplete="name"
-                />
-              </label>
-
-              <button
-                type="submit"
-                className="pc-btn-primary-alert"
-                disabled={submittingAction}
-                style={{ marginTop: 6 }}
-              >
-                {submittingAction ? "Sending..." : "SEND CONTACT NUMBER TO OWNER"}
-              </button>
-            </form>
-          )}
-        </div>
-      )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── VIEW 3: DIGITAL PROFILE (STANDARD) ── */}
       {activeView === "profile" && (

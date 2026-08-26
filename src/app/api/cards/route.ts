@@ -20,7 +20,7 @@ export async function GET() {
       [identity.id]
     );
 
-    const [eventsRes, leadsRes] = await Promise.all([
+    const [eventsRes, leadsRes, vehiclesRes, lostItemsRes] = await Promise.all([
       pool.query<{ card_id: string; event_type: string }>(
         `select e.card_id, e.event_type from card_events e join digital_cards c on c.id = e.card_id where c.owner_id = $1 order by e.created_at desc limit 5000`,
         [identity.id]
@@ -38,6 +38,45 @@ export async function GET() {
         created_at: Date;
       }>(
         `select l.id, l.card_id, l.name, l.email, l.phone, l.company, l.message, l.status, l.consent_at, l.created_at from card_leads l join digital_cards c on c.id = l.card_id where c.owner_id = $1 order by l.created_at desc limit 500`,
+        [identity.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        card_id: string;
+        display_name: string;
+        make: string;
+        model: string;
+        color: string;
+        license_plate: string;
+        contact_phone: string;
+        use_default_contact: boolean;
+        emergency_name: string;
+        emergency_relationship: string;
+        emergency_phone: string;
+        use_default_emergency: boolean;
+        owner_note: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select v.* from card_vehicles v join digital_cards c on c.id = v.card_id where c.owner_id = $1 order by v.sort_order asc, v.created_at asc`,
+        [identity.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        card_id: string;
+        name: string;
+        category: string;
+        description: string;
+        color: string;
+        contact_phone: string;
+        use_default_contact: boolean;
+        reward_enabled: boolean;
+        reward_text: string;
+        return_instructions: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select i.* from card_lost_items i join digital_cards c on c.id = i.card_id where c.owner_id = $1 order by i.sort_order asc, i.created_at asc`,
         [identity.id]
       ).catch(() => ({ rows: [] })),
     ]);
@@ -58,6 +97,39 @@ export async function GET() {
         activatedAt: row.activated_at || new Date().toISOString(),
         expiry: row.expires_at ? row.expires_at.toISOString().slice(0, 10) : (row.profile as any)?.expiry || "",
         analytics: counts[row.id] || {},
+      })),
+      vehicles: vehiclesRes.rows.map((v) => ({
+        id: v.id,
+        cardId: v.card_id,
+        displayName: v.display_name,
+        make: v.make,
+        model: v.model,
+        color: v.color,
+        licensePlate: v.license_plate,
+        contactPhone: v.contact_phone,
+        useDefaultContact: v.use_default_contact,
+        emergencyName: v.emergency_name,
+        emergencyRelationship: v.emergency_relationship,
+        emergencyPhone: v.emergency_phone,
+        useDefaultEmergency: v.use_default_emergency,
+        ownerNote: v.owner_note,
+        enabled: v.enabled,
+        sortOrder: v.sort_order,
+      })),
+      lostItems: lostItemsRes.rows.map((i) => ({
+        id: i.id,
+        cardId: i.card_id,
+        name: i.name,
+        category: i.category,
+        description: i.description,
+        color: i.color,
+        contactPhone: i.contact_phone,
+        useDefaultContact: i.use_default_contact,
+        rewardEnabled: i.reward_enabled,
+        rewardText: i.reward_text,
+        returnInstructions: i.return_instructions,
+        enabled: i.enabled,
+        sortOrder: i.sort_order,
       })),
       leads: leadsRes.rows.map((lead) => ({
         id: lead.id,

@@ -33,25 +33,28 @@ test("public API route validates phone numbers and rate limits LOST_ITEM_FOUND s
   assert.match(publicCardRoute, /interval '30 seconds'/);
 });
 
-test("PublicCardClient renders ultra-clean Vehicle Connect and Lost & Found finder contact flow", () => {
-  assert.match(publicCardClient, /CONTACT VEHICLE OWNER/);
+test("PublicCardClient renders ultra-clean Vehicle Connect and Lost & Found direct owner contact flow", () => {
+  assert.match(publicCardClient, /CALL OWNER/);
   assert.match(publicCardClient, /EMERGENCY CONTACT/);
   assert.doesNotMatch(publicCardClient, /Emergency Alert \(/);
-  assert.match(publicCardClient, /SEND CONTACT NUMBER TO OWNER/);
-  assert.match(publicCardClient, /type="tel"/);
   assert.doesNotMatch(publicCardClient, /Message \/ Where the item was found/);
-  assert.match(publicCardClient, /Contact details sent/);
+  assert.match(publicCardClient, /MYLUX VEHICLE CONNECT/);
+  assert.match(publicCardClient, /MYLUX LOST &(?:amp;)? FOUND/);
 });
 
-test("DashboardDemo provides independent feature entitlements toggles", () => {
+test("DashboardDemo provides multi-vehicle and multi-item asset management", () => {
   assert.match(dashboardDemo, /ModesForm/);
   assert.match(dashboardDemo, /Permanent Feature Entitlements/);
   assert.match(dashboardDemo, /enabledFeatures/);
-  assert.match(dashboardDemo, /Vehicle Connect Settings/);
-  assert.match(dashboardDemo, /Lost &(?:amp;)? Found Settings/);
+  assert.match(dashboardDemo, /MY VEHICLES/);
+  assert.match(dashboardDemo, /MY LOST &(?:amp;)? FOUND ITEMS/);
+  assert.match(dashboardDemo, /PRIVACY NOTICE/);
 });
 
-test("Migration 0012 indexes profileMode for performance", () => {
+test("Migration 0012 & 0013 enforce unified profile modes and multi-asset collections", () => {
   assert.match(migration0012, /create index if not exists digital_cards_profile_mode_idx/);
   assert.match(migration0012, /profile->>'profileMode'/);
+  const migration0013 = readFileSync("db/migrations/0013_multi_asset_collections.sql", "utf8");
+  assert.match(migration0013, /create table if not exists card_vehicles/);
+  assert.match(migration0013, /create table if not exists card_lost_items/);
 });

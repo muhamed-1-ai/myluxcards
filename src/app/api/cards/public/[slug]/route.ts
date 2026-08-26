@@ -35,7 +35,128 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
         }, { status: 404 });
       }
     }
-    return Response.json({ card: { ...safePublicCard(row), previewAuthorized } });
+
+    const profileObj = (row.profile && typeof row.profile === "object" ? row.profile : {}) as Record<string, any>;
+    const safeCard = safePublicCard(row);
+    const defaultContactPhone = profileObj.defaultContactPhone || profileObj.mobile || profileObj.whatsapp || "";
+    const defaultEmergName = profileObj.defaultEmergencyName || profileObj.emergencyContact?.name || "";
+    const defaultEmergRel = profileObj.defaultEmergencyRelationship || profileObj.emergencyContact?.relationship || "";
+    const defaultEmergPhone = profileObj.defaultEmergencyPhone || profileObj.emergencyContact?.phone || "";
+
+    // Query active vehicles and lost items
+    const [vehiclesRes, lostItemsRes] = await Promise.all([
+      pool.query<{
+        id: string;
+        display_name: string;
+        make: string;
+        model: string;
+        color: string;
+        license_plate: string;
+        contact_phone: string;
+        use_default_contact: boolean;
+        emergency_name: string;
+        emergency_relationship: string;
+        emergency_phone: string;
+        use_default_emergency: boolean;
+        owner_note: string;
+        enabled: boolean;
+      }>(
+        `select id, display_name, make, model, color, license_plate, contact_phone,
+                use_default_contact, emergency_name, emergency_relationship,
+                emergency_phone, use_default_emergency, owner_note, enabled
+         from card_vehicles
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        name: string;
+        category: string;
+        description: string;
+        color: string;
+        contact_phone: string;
+        use_default_contact: boolean;
+        reward_enabled: boolean;
+        reward_text: string;
+        return_instructions: string;
+        enabled: boolean;
+      }>(
+        `select id, name, category, description, color, contact_phone,
+                use_default_contact, reward_enabled, reward_text, return_instructions, enabled
+         from card_lost_items
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+    ]);
+
+    let vehicles = vehiclesRes.rows.map((v) => ({
+      id: v.id,
+      displayName: v.display_name,
+      make: v.make,
+      model: v.model,
+      color: v.color,
+      licensePlate: v.license_plate,
+      contactPhone: v.use_default_contact || !v.contact_phone ? defaultContactPhone : v.contact_phone,
+      emergencyName: v.use_default_emergency || !v.emergency_name ? defaultEmergName : v.emergency_name,
+      emergencyRelationship: v.use_default_emergency || !v.emergency_relationship ? defaultEmergRel : v.emergency_relationship,
+      emergencyPhone: v.use_default_emergency || !v.emergency_phone ? defaultEmergPhone : v.emergency_phone,
+      ownerNote: v.owner_note,
+      enabled: v.enabled,
+    }));
+
+    let lostItems = lostItemsRes.rows.map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      description: item.description,
+      color: item.color,
+      contactPhone: item.use_default_contact || !item.contact_phone ? defaultContactPhone : item.contact_phone,
+      rewardEnabled: item.reward_enabled,
+      rewardText: item.reward_text,
+      returnInstructions: item.return_instructions,
+      enabled: item.enabled,
+    }));
+
+    // Auto-migration fallback for legacy single-item settings
+    if (vehicles.length === 0 && (safeCard.vehicleConnect?.licensePlate || safeCard.vehicleConnect?.vehicleMake)) {
+      vehicles = [{
+        id: "legacy-vehicle",
+        displayName: [safeCard.vehicleConnect.vehicleMake, safeCard.vehicleConnect.vehicleModel].filter(Boolean).join(" ") || "My Vehicle",
+        make: safeCard.vehicleConnect.vehicleMake || "",
+        model: safeCard.vehicleConnect.vehicleModel || "",
+        color: safeCard.vehicleConnect.vehicleColor || "",
+        licensePlate: safeCard.vehicleConnect.licensePlate || "",
+        contactPhone: defaultContactPhone,
+        emergencyName: defaultEmergName,
+        emergencyRelationship: defaultEmergRel,
+        emergencyPhone: defaultEmergPhone,
+        ownerNote: safeCard.vehicleConnect.parkingNote || "",
+        enabled: true,
+      }];
+    }
+
+    if (lostItems.length === 0 && (safeCard.lostAndFound?.itemName || safeCard.lostAndFound?.rewardNote)) {
+      lostItems = [{
+        id: "legacy-item",
+        name: safeCard.lostAndFound.itemName || `${profileObj.name || "Owner"}'s Item`,
+        category: safeCard.lostAndFound.itemCategory || "Other",
+        description: "",
+        color: "",
+        contactPhone: defaultContactPhone,
+        rewardEnabled: Boolean(safeCard.lostAndFound.rewardNote),
+        rewardText: safeCard.lostAndFound.rewardNote || "",
+        returnInstructions: safeCard.lostAndFound.returnInstructions || "",
+        enabled: true,
+      }];
+    }
+
+    return Response.json({
+      card: { ...safeCard, previewAuthorized },
+      vehicles,
+      lostItems,
+    });
   } catch {
     return Response.json({ message: "Card unavailable." }, { status: 503 });
   }

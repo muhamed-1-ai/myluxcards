@@ -6,6 +6,7 @@ export const CARD_FIELDS = [
   "logo","cover","profileBackground","profileAccent","profileText","start","expiry",
   "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
+  "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
 ] as const;
 
 export type ProfileMode = "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
@@ -14,6 +15,41 @@ export interface EnabledFeatures {
   digitalProfile: boolean;
   vehicleConnect: boolean;
   lostAndFound: boolean;
+}
+
+export interface CardVehicle {
+  id: string;
+  cardId: string;
+  displayName: string;
+  make: string;
+  model: string;
+  color: string;
+  licensePlate: string;
+  contactPhone: string;
+  useDefaultContact: boolean;
+  emergencyName: string;
+  emergencyRelationship: string;
+  emergencyPhone: string;
+  useDefaultEmergency: boolean;
+  ownerNote: string;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface CardLostItem {
+  id: string;
+  cardId: string;
+  name: string;
+  category: string;
+  description: string;
+  color: string;
+  contactPhone: string;
+  useDefaultContact: boolean;
+  rewardEnabled: boolean;
+  rewardText: string;
+  returnInstructions: string;
+  enabled: boolean;
+  sortOrder: number;
 }
 
 export interface VehicleConnectSettings {
@@ -149,7 +185,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       const trimmed = value.trim();
       if (field === "website") output[field] = cleanUrl(trimmed);
       else if (field === "email") output[field] = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed.toLowerCase().slice(0, 254) : "";
-      else if (["mobile","whatsapp"].includes(field)) output[field] = /^[0-9 ()+.-]{0,30}$/.test(trimmed) ? trimmed : "";
+      else if (["mobile","whatsapp","defaultContactPhone","defaultEmergencyPhone"].includes(field)) output[field] = /^[0-9 ()+.-]{0,30}$/.test(trimmed) ? trimmed : "";
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
       else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#d4af37" : "#ffffff";
       else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
