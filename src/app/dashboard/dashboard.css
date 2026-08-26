@@ -2699,11 +2699,11 @@ th {
   }
 }
 
-/* ── Unified Profile Mode Editor Styles ── */
+/* ── Unified Profile Mode Editor Styles (Black & Gold Theme) ── */
 .mode-card-selector {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 14px;
   margin: 16px 0 24px;
 }
 
@@ -2713,71 +2713,126 @@ th {
   align-items: center;
   text-align: center;
   gap: 8px;
-  padding: 18px 14px;
-  border-radius: 14px;
-  background: var(--d-bg);
-  border: 2px solid var(--d-line);
+  padding: 20px 16px;
+  border-radius: 16px;
+  background: rgba(10, 14, 20, 0.95);
+  border: 1.5px solid rgba(212, 175, 55, 0.2);
+  color: #fff;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+}
+
+.mode-option-btn:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+  background: rgba(212, 175, 55, 0.08);
+  transform: translateY(-2px);
 }
 
 .mode-option-btn.active {
-  border-color: var(--d-gold);
-  background: color-mix(in srgb, var(--d-gold) 10%, #fff);
-  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+  border-color: var(--d-gold, #d4af37);
+  background: linear-gradient(145deg, rgba(212, 175, 55, 0.18), rgba(15, 18, 25, 0.95));
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.22), inset 0 0 0 1px rgba(212, 175, 55, 0.4);
 }
 
 .mode-option-icon {
-  font-size: 28px;
+  font-size: 32px;
 }
 
 .mode-option-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--d-navy);
+  color: #fff;
+}
+
+.mode-option-btn.active .mode-option-title {
+  color: var(--d-gold, #d4af37);
 }
 
 .mode-option-desc {
-  font-size: 11px;
-  color: var(--d-muted);
-  line-height: 1.35;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
 }
 
 .mode-settings-block {
-  background: #fff;
-  border: 1px solid var(--d-line);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
+  background: rgba(10, 15, 22, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 22px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .mode-settings-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--d-navy);
+  color: #fff;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border-bottom: 1px dashed var(--d-line);
-  padding-bottom: 10px;
+  gap: 10px;
+  border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
+  padding-bottom: 12px;
 }
 
 .mode-checkbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .mode-checkbox-label {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--d-ink);
+  color: #e5dfd0;
   cursor: pointer;
+  user-select: none;
+}
+
+.mode-checkbox-label input[type="checkbox"] {
+  accent-color: var(--d-gold, #d4af37);
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+
+.mode-settings-block .field span {
+  color: #d4af37 !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  margin-bottom: 6px !important;
+}
+
+.mode-settings-block input[type="text"],
+.mode-settings-block input[type="email"],
+.mode-settings-block select,
+.mode-settings-block textarea {
+  background: rgba(4, 7, 12, 0.85) !important;
+  border: 1px solid rgba(212, 175, 55, 0.35) !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+  padding: 12px 14px !important;
+  font-size: 14px !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.mode-settings-block input[type="text"]::placeholder,
+.mode-settings-block input[type="email"]::placeholder,
+.mode-settings-block textarea::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.mode-settings-block input[type="text"]:focus,
+.mode-settings-block input[type="email"]:focus,
+.mode-settings-block select:focus,
+.mode-settings-block textarea:focus {
+  border-color: #d4af37 !important;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2) !important;
+  outline: none !important;
 }
 
