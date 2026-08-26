@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Tab = "dashboard" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
 type VehicleConnectSettings = {
@@ -31,6 +32,80 @@ type Card = {
 };
 type Lead = { id:string; card_id:string; name:string; email?:string; phone?:string; company?:string; message?:string; status:string; created_at:string };
 type CurrentUser = { id: string; name: string; email: string; role?: string };
+
+function MyLuxModal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  maxWidth = 680,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  maxWidth?: number;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
+    <div
+      className="mylux-modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mylux-modal-title"
+    >
+      <div className="mylux-modal-dialog" style={{ width: `min(${maxWidth}px, calc(100vw - 32px))` }}>
+        <div className="mylux-modal-header">
+          <div>
+            <h3 id="mylux-modal-title" className="mylux-modal-title">{title}</h3>
+            {subtitle && <p className="mylux-modal-subtitle">{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            className="mylux-modal-close"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="mylux-modal-body">{children}</div>
+        {footer && <div className="mylux-modal-footer">{footer}</div>}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
 const socialFields = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps"];
@@ -491,7 +566,23 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </section>}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
-      {deleteId && <div className="modal-back"><div className="confirm"><i>!</i><h2>Remove this card?</h2><p>This permanently removes only this card. Your other cards and account remain unchanged.</p><div><button onClick={() => setDeleteId(null)}>Cancel</button><button className="delete-btn" onClick={()=>clearCard(deleteId)}>Remove card</button></div></div></div>}
+      <MyLuxModal
+        isOpen={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        title="Remove this card?"
+        subtitle="This permanently removes only this card. Your other cards and account remain unchanged."
+        maxWidth={480}
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)}>Cancel</button>
+            <button type="button" style={{ background: "#e74c3c", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 700, cursor: "pointer" }} onClick={() => deleteId && clearCard(deleteId)}>Remove card</button>
+          </>
+        }
+      >
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
+          Are you sure you want to remove this digital card? All configuration and settings for this card will be permanently removed from your account.
+        </div>
+      </MyLuxModal>
     </div>
   );
 }
@@ -605,6 +696,8 @@ function ModesForm({ draft, update }: any) {
 function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, defaultEmergencyRel, defaultEmergencyPhone }: any) {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null);
 
   const loadVehicles = async () => {
@@ -629,7 +722,9 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingVehicle) return;
+    if (!editingVehicle || saving) return;
+    setSaving(true);
+    setSaveError("");
     try {
       const isNew = !editingVehicle.id;
       const url = "/api/cards/vehicles";
@@ -640,12 +735,17 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const resData = await res.json().catch(() => ({}));
       if (res.ok) {
         setEditingVehicle(null);
         await loadVehicles();
+      } else {
+        setSaveError(resData.message || "Failed to save vehicle. Please try again.");
       }
     } catch {
-      // ignore
+      setSaveError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -672,22 +772,25 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
         <button
           type="button"
           className="asset-btn-primary"
-          onClick={() => setEditingVehicle({
-            cardId,
-            displayName: "",
-            make: "",
-            model: "",
-            color: "",
-            licensePlate: "",
-            contactPhone: "",
-            useDefaultContact: true,
-            emergencyName: "",
-            emergencyRelationship: "",
-            emergencyPhone: "",
-            useDefaultEmergency: true,
-            ownerNote: "",
-            enabled: true,
-          })}
+          onClick={() => {
+            setSaveError("");
+            setEditingVehicle({
+              cardId,
+              displayName: "",
+              make: "",
+              model: "",
+              color: "",
+              licensePlate: "",
+              contactPhone: "",
+              useDefaultContact: true,
+              emergencyName: "",
+              emergencyRelationship: "",
+              emergencyPhone: "",
+              useDefaultEmergency: true,
+              ownerNote: "",
+              enabled: true,
+            });
+          }}
         >
           + ADD VEHICLE
         </button>
@@ -717,7 +820,7 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
               </div>
             </div>
             <div className="asset-item-actions">
-              <button type="button" className="edit-btn" onClick={() => setEditingVehicle(v)}>Edit</button>
+              <button type="button" className="edit-btn" onClick={() => { setSaveError(""); setEditingVehicle(v); }}>Edit</button>
               <button type="button" className="delete-btn" onClick={() => handleDelete(v.id)}>Delete</button>
             </div>
           </div>
@@ -725,165 +828,244 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
       </div>
 
       {/* ── EDIT / ADD VEHICLE MODAL ── */}
-      {editingVehicle && (
-        <div className="modal-back">
-          <form className="modal-card" onSubmit={handleSave} style={{ maxWidth: 540, width: "95%" }}>
-            <h3 style={{ margin: "0 0 12px", color: "#fff", fontSize: 18 }}>
-              {editingVehicle.id ? "Edit Vehicle" : "Add New Vehicle"}
-            </h3>
+      <MyLuxModal
+        isOpen={Boolean(editingVehicle)}
+        onClose={() => setEditingVehicle(null)}
+        title={editingVehicle?.id ? "Edit Vehicle" : "Add Vehicle"}
+        subtitle="Add a vehicle to your MyLux Vehicle Connect profile."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setEditingVehicle(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-submit" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Vehicle"}
+            </button>
+          </>
+        }
+      >
+        {editingVehicle && (
+          <form id="vehicle-form" onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {saveError && (
+              <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13 }}>
+                ⚠️ {saveError}
+              </div>
+            )}
 
-            <div className="privacy-notice-box">
-              ⚠️ <strong>PRIVACY NOTICE:</strong> The phone numbers entered here will be publicly visible to anyone who scans your MyLux QR code and selects Vehicle Connect.
+            {/* Privacy Alert */}
+            <div className="mylux-privacy-alert">
+              <span style={{ fontSize: 16 }}>⚠️</span>
+              <div>
+                <strong>Public contact information</strong>
+                <div style={{ opacity: 0.9, marginTop: 2 }}>
+                  Phone numbers you choose for this vehicle can be visible to people who scan your MyLux QR and open Vehicle Connect.
+                </div>
+              </div>
             </div>
 
-            <div className="form-grid">
-              <Field label="Display Name (e.g. My BMW)">
+            {/* Section 1: Vehicle Details */}
+            <div className="mylux-form-section">
+              <div className="mylux-form-section-title">VEHICLE DETAILS</div>
+              <div className="mylux-form-grid-2">
+                <div className="mylux-field">
+                  <label className="mylux-field-label">Display Name *</label>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    value={editingVehicle.displayName || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, displayName: e.target.value })}
+                    placeholder="e.g. My BMW"
+                    required
+                  />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">Make (Brand)</label>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    value={editingVehicle.make || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, make: e.target.value })}
+                    placeholder="e.g. BMW"
+                  />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">Model</label>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    value={editingVehicle.model || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, model: e.target.value })}
+                    placeholder="e.g. M3"
+                  />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">Colour</label>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    value={editingVehicle.color || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, color: e.target.value })}
+                    placeholder="e.g. Black"
+                  />
+                </div>
+              </div>
+              <div className="mylux-field" style={{ marginTop: 4 }}>
+                <label className="mylux-field-label">Registration / License Plate</label>
                 <input
-                  value={editingVehicle.displayName || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, displayName: e.target.value })}
-                  placeholder="e.g. BMW M3"
-                  required
-                />
-              </Field>
-              <Field label="Make (Brand)">
-                <input
-                  value={editingVehicle.make || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, make: e.target.value })}
-                  placeholder="e.g. BMW / Toyota"
-                />
-              </Field>
-              <Field label="Model">
-                <input
-                  value={editingVehicle.model || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, model: e.target.value })}
-                  placeholder="e.g. M3 / Fortuner"
-                />
-              </Field>
-              <Field label="Color">
-                <input
-                  value={editingVehicle.color || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, color: e.target.value })}
-                  placeholder="e.g. Black / Metallic Silver"
-                />
-              </Field>
-              <Field label="License Plate / Registration">
-                <input
+                  type="text"
+                  className="mylux-input"
                   value={editingVehicle.licensePlate || ""}
                   onChange={(e) => setEditingVehicle({ ...editingVehicle, licensePlate: e.target.value.toUpperCase() })}
                   placeholder="e.g. KL 10 AB 1234"
                 />
-              </Field>
+              </div>
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", display: "block", marginBottom: 6 }}>
-                OWNER CONTACT NUMBER
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    name="vehContact"
-                    checked={editingVehicle.useDefaultContact !== false}
-                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: true })}
-                  />
-                  Use account default contact number {defaultContact ? `(${defaultContact})` : ""}
-                </label>
-                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    name="vehContact"
-                    checked={editingVehicle.useDefaultContact === false}
-                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: false })}
-                  />
-                  Use a custom number for this vehicle
-                </label>
-                {editingVehicle.useDefaultContact === false && (
+            {/* Section 2: Owner Contact */}
+            <div className="mylux-form-section">
+              <div className="mylux-form-section-title">OWNER CONTACT</div>
+              <div className="mylux-radio-group">
+                <div
+                  className={`mylux-radio-card ${editingVehicle.useDefaultContact !== false ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: true })}
+                >
+                  <div className="mylux-radio-indicator">
+                    {editingVehicle.useDefaultContact !== false && <div className="mylux-radio-dot" />}
+                  </div>
+                  <div>
+                    <div className="mylux-radio-label-text">Use my default contact number</div>
+                    {defaultContact && <div className="mylux-radio-subtext">{defaultContact}</div>}
+                  </div>
+                </div>
+
+                <div
+                  className={`mylux-radio-card ${editingVehicle.useDefaultContact === false ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: false })}
+                >
+                  <div className="mylux-radio-indicator">
+                    {editingVehicle.useDefaultContact === false && <div className="mylux-radio-dot" />}
+                  </div>
+                  <div>
+                    <div className="mylux-radio-label-text">Use a custom number for this vehicle</div>
+                  </div>
+                </div>
+              </div>
+
+              {editingVehicle.useDefaultContact === false && (
+                <div className="mylux-field" style={{ marginTop: 8 }}>
+                  <label className="mylux-field-label">Vehicle Contact Number *</label>
                   <input
                     type="tel"
-                    style={{ marginTop: 4 }}
+                    className="mylux-input"
                     value={editingVehicle.contactPhone || ""}
                     onChange={(e) => setEditingVehicle({ ...editingVehicle, contactPhone: e.target.value })}
                     placeholder="Enter phone number (e.g. +91 98765 43210)"
+                    required
                   />
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", display: "block", marginBottom: 6 }}>
-                EMERGENCY CONTACT
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    name="vehEmerg"
-                    checked={editingVehicle.useDefaultEmergency !== false}
-                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: true })}
-                  />
-                  Use account default emergency contact {defaultEmergencyName ? `(${defaultEmergencyName} - ${defaultEmergencyRel})` : ""}
-                </label>
-                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    name="vehEmerg"
-                    checked={editingVehicle.useDefaultEmergency === false}
-                    onChange={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: false })}
-                  />
-                  Use custom emergency contact for this vehicle
-                </label>
-                {editingVehicle.useDefaultEmergency === false && (
-                  <div className="form-grid" style={{ marginTop: 6 }}>
+            {/* Section 3: Emergency Contact */}
+            <div className="mylux-form-section">
+              <div className="mylux-form-section-title">EMERGENCY CONTACT</div>
+              <div className="mylux-radio-group">
+                <div
+                  className={`mylux-radio-card ${editingVehicle.useDefaultEmergency !== false ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: true })}
+                >
+                  <div className="mylux-radio-indicator">
+                    {editingVehicle.useDefaultEmergency !== false && <div className="mylux-radio-dot" />}
+                  </div>
+                  <div>
+                    <div className="mylux-radio-label-text">Use my default emergency contact</div>
+                    {defaultEmergencyName && (
+                      <div className="mylux-radio-subtext">
+                        {[defaultEmergencyName, defaultEmergencyRel, defaultEmergencyPhone].filter(Boolean).join(" • ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className={`mylux-radio-card ${editingVehicle.useDefaultEmergency === false ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: false })}
+                >
+                  <div className="mylux-radio-indicator">
+                    {editingVehicle.useDefaultEmergency === false && <div className="mylux-radio-dot" />}
+                  </div>
+                  <div>
+                    <div className="mylux-radio-label-text">Use a custom emergency contact for this vehicle</div>
+                  </div>
+                </div>
+              </div>
+
+              {editingVehicle.useDefaultEmergency === false && (
+                <div className="mylux-form-grid-2" style={{ marginTop: 8 }}>
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">Emergency Name</label>
                     <input
+                      type="text"
+                      className="mylux-input"
                       value={editingVehicle.emergencyName || ""}
                       onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyName: e.target.value })}
-                      placeholder="Emergency Name (e.g. Ameen)"
-                    />
-                    <input
-                      value={editingVehicle.emergencyRelationship || ""}
-                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyRelationship: e.target.value })}
-                      placeholder="Relationship (e.g. Brother)"
-                    />
-                    <input
-                      type="tel"
-                      value={editingVehicle.emergencyPhone || ""}
-                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyPhone: e.target.value })}
-                      placeholder="Emergency Phone (e.g. +91 99999 88888)"
+                      placeholder="e.g. Ameen"
                     />
                   </div>
-                )}
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">Relationship</label>
+                    <input
+                      type="text"
+                      className="mylux-input"
+                      value={editingVehicle.emergencyRelationship || ""}
+                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyRelationship: e.target.value })}
+                      placeholder="e.g. Brother"
+                    />
+                  </div>
+                  <div className="mylux-field" style={{ gridColumn: "1 / -1" }}>
+                    <label className="mylux-field-label">Emergency Phone Number</label>
+                    <input
+                      type="tel"
+                      className="mylux-input"
+                      value={editingVehicle.emergencyPhone || ""}
+                      onChange={(e) => setEditingVehicle({ ...editingVehicle, emergencyPhone: e.target.value })}
+                      placeholder="e.g. +91 99999 88888"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Section 4: Owner Note */}
+            <div className="mylux-form-section">
+              <div className="mylux-field">
+                <label className="mylux-field-label">Owner Note (Optional)</label>
+                <input
+                  type="text"
+                  className="mylux-input"
+                  value={editingVehicle.ownerNote || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, ownerNote: e.target.value })}
+                  placeholder="e.g. Please call if the vehicle needs to be moved."
+                />
               </div>
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <Field label="Owner Note (Optional)">
-                <input
-                  value={editingVehicle.ownerNote || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, ownerNote: e.target.value })}
-                  placeholder="e.g. Please call if vehicle needs to be moved."
-                />
-              </Field>
-            </div>
-
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={editingVehicle.enabled !== false}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, enabled: e.target.checked })}
-                />
-                Active (Show this vehicle publicly)
-              </label>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button type="button" className="btn-secondary" onClick={() => setEditingVehicle(null)}>Cancel</button>
-              <button type="submit" className="asset-btn-primary">Save Vehicle</button>
+            {/* Section 5: Active Setting Toggle */}
+            <div className="mylux-toggle-row">
+              <div>
+                <div className="mylux-radio-label-text">Show vehicle publicly</div>
+                <div className="mylux-radio-subtext">When disabled, this vehicle will not appear in Vehicle Connect.</div>
+              </div>
+              <div
+                className={`mylux-toggle-switch ${editingVehicle.enabled !== false ? "active" : ""}`}
+                onClick={() => setEditingVehicle({ ...editingVehicle, enabled: editingVehicle.enabled === false })}
+              >
+                <div className="mylux-toggle-knob" />
+              </div>
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </MyLuxModal>
     </div>
   );
 }
@@ -891,6 +1073,8 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
 function LostItemsManager({ cardId, defaultContact }: any) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
   const loadItems = async () => {
@@ -915,7 +1099,9 @@ function LostItemsManager({ cardId, defaultContact }: any) {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingItem) return;
+    if (!editingItem || saving) return;
+    setSaving(true);
+    setSaveError("");
     try {
       const isNew = !editingItem.id;
       const url = "/api/cards/lost-items";
@@ -926,12 +1112,17 @@ function LostItemsManager({ cardId, defaultContact }: any) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      const resData = await res.json().catch(() => ({}));
       if (res.ok) {
         setEditingItem(null);
         await loadItems();
+      } else {
+        setSaveError(resData.message || "Failed to save item. Please try again.");
       }
     } catch {
-      // ignore
+      setSaveError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -958,19 +1149,22 @@ function LostItemsManager({ cardId, defaultContact }: any) {
         <button
           type="button"
           className="asset-btn-primary"
-          onClick={() => setEditingItem({
-            cardId,
-            name: "",
-            category: "Keys",
-            description: "",
-            color: "",
-            contactPhone: "",
-            useDefaultContact: true,
-            rewardEnabled: false,
-            rewardText: "Reward available upon safe return.",
-            returnInstructions: "Please contact me to arrange collection.",
-            enabled: true,
-          })}
+          onClick={() => {
+            setSaveError("");
+            setEditingItem({
+              cardId,
+              name: "",
+              category: "Keys",
+              description: "",
+              color: "",
+              contactPhone: "",
+              useDefaultContact: true,
+              rewardEnabled: false,
+              rewardText: "Reward available upon safe return.",
+              returnInstructions: "Please contact me to arrange collection.",
+              enabled: true,
+            });
+          }}
         >
           + ADD ITEM
         </button>
@@ -1000,7 +1194,7 @@ function LostItemsManager({ cardId, defaultContact }: any) {
               </div>
             </div>
             <div className="asset-item-actions">
-              <button type="button" className="edit-btn" onClick={() => setEditingItem(item)}>Edit</button>
+              <button type="button" className="edit-btn" onClick={() => { setSaveError(""); setEditingItem(item); }}>Edit</button>
               <button type="button" className="delete-btn" onClick={() => handleDelete(item.id)}>Delete</button>
             </div>
           </div>
@@ -1008,131 +1202,189 @@ function LostItemsManager({ cardId, defaultContact }: any) {
       </div>
 
       {/* ── EDIT / ADD ITEM MODAL ── */}
-      {editingItem && (
-        <div className="modal-back">
-          <form className="modal-card" onSubmit={handleSave} style={{ maxWidth: 540, width: "95%" }}>
-            <h3 style={{ margin: "0 0 12px", color: "#fff", fontSize: 18 }}>
-              {editingItem.id ? "Edit Item" : "Add Lost & Found Item"}
-            </h3>
+      <MyLuxModal
+        isOpen={Boolean(editingItem)}
+        onClose={() => setEditingItem(null)}
+        title={editingItem?.id ? "Edit Item" : "Add Lost & Found Item"}
+        subtitle="Add a tagged item to your MyLux Lost & Found profile."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setEditingItem(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-submit" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Item"}
+            </button>
+          </>
+        }
+      >
+        {editingItem && (
+          <form id="item-form" onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {saveError && (
+              <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13 }}>
+                ⚠️ {saveError}
+              </div>
+            )}
 
-            <div className="privacy-notice-box">
-              ⚠️ <strong>PRIVACY NOTICE:</strong> The phone number entered here will be publicly visible to anyone who scans your MyLux QR code and opens Lost &amp; Found.
+            {/* Privacy Alert */}
+            <div className="mylux-privacy-alert">
+              <span style={{ fontSize: 16 }}>⚠️</span>
+              <div>
+                <strong>Public contact information</strong>
+                <div style={{ opacity: 0.9, marginTop: 2 }}>
+                  The phone number you choose for this item will be publicly visible to anyone who scans your MyLux QR and opens Lost &amp; Found.
+                </div>
+              </div>
             </div>
 
-            <div className="form-grid">
-              <Field label="Item Name (e.g. House Keys)">
+            {/* Section 1: Item Details */}
+            <div className="mylux-form-section">
+              <div className="mylux-form-section-title">ITEM DETAILS</div>
+              <div className="mylux-form-grid-2">
+                <div className="mylux-field">
+                  <label className="mylux-field-label">Item Name *</label>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    value={editingItem.name || ""}
+                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                    placeholder="e.g. House Keys"
+                    required
+                  />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">Category</label>
+                  <select
+                    className="mylux-select"
+                    value={editingItem.category || "Keys"}
+                    onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                  >
+                    <option value="Keys">Keys</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Luggage">Luggage</option>
+                    <option value="Wallet">Wallet / Purse</option>
+                    <option value="Pets">Pet Tag</option>
+                    <option value="Personal Item">Personal Item</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mylux-field" style={{ marginTop: 4 }}>
+                <label className="mylux-field-label">Colour / Description</label>
                 <input
-                  value={editingItem.name || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  placeholder="e.g. House Keys / MacBook Pro"
-                  required
-                />
-              </Field>
-              <Field label="Category">
-                <select
-                  value={editingItem.category || "Keys"}
-                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
-                >
-                  <option value="Keys">Keys</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Luggage">Luggage</option>
-                  <option value="Wallet">Wallet / Purse</option>
-                  <option value="Pets">Pet Tag</option>
-                  <option value="Personal Item">Personal Item</option>
-                  <option value="Other">Other</option>
-                </select>
-              </Field>
-              <Field label="Color / Description">
-                <input
+                  type="text"
+                  className="mylux-input"
                   value={editingItem.color || editingItem.description || ""}
                   onChange={(e) => setEditingItem({ ...editingItem, color: e.target.value, description: e.target.value })}
                   placeholder="e.g. Black leather case"
                 />
-              </Field>
-            </div>
-
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", display: "block", marginBottom: 6 }}>
-                OWNER CONTACT NUMBER
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    name="itemContact"
-                    checked={editingItem.useDefaultContact !== false}
-                    onChange={() => setEditingItem({ ...editingItem, useDefaultContact: true })}
-                  />
-                  Use account default contact number {defaultContact ? `(${defaultContact})` : ""}
-                </label>
-                <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="radio"
-                    name="itemContact"
-                    checked={editingItem.useDefaultContact === false}
-                    onChange={() => setEditingItem({ ...editingItem, useDefaultContact: false })}
-                  />
-                  Use a custom contact number for this item
-                </label>
-                {editingItem.useDefaultContact === false && (
-                  <input
-                    type="tel"
-                    style={{ marginTop: 4 }}
-                    value={editingItem.contactPhone || ""}
-                    onChange={(e) => setEditingItem({ ...editingItem, contactPhone: e.target.value })}
-                    placeholder="Enter phone number (e.g. +91 98765 43210)"
-                  />
-                )}
               </div>
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(editingItem.rewardEnabled)}
-                  onChange={(e) => setEditingItem({ ...editingItem, rewardEnabled: e.target.checked })}
-                />
-                Offer Reward for Safe Return
-              </label>
-              {editingItem.rewardEnabled && (
-                <input
-                  style={{ marginTop: 6 }}
-                  value={editingItem.rewardText || ""}
-                  onChange={(e) => setEditingItem({ ...editingItem, rewardText: e.target.value })}
-                  placeholder="e.g. Reward offered upon safe return!"
-                />
+            {/* Section 2: Owner Contact */}
+            <div className="mylux-form-section">
+              <div className="mylux-form-section-title">OWNER CONTACT</div>
+              <div className="mylux-radio-group">
+                <div
+                  className={`mylux-radio-card ${editingItem.useDefaultContact !== false ? "selected" : ""}`}
+                  onClick={() => setEditingItem({ ...editingItem, useDefaultContact: true })}
+                >
+                  <div className="mylux-radio-indicator">
+                    {editingItem.useDefaultContact !== false && <div className="mylux-radio-dot" />}
+                  </div>
+                  <div>
+                    <div className="mylux-radio-label-text">Use my default contact number</div>
+                    {defaultContact && <div className="mylux-radio-subtext">{defaultContact}</div>}
+                  </div>
+                </div>
+
+                <div
+                  className={`mylux-radio-card ${editingItem.useDefaultContact === false ? "selected" : ""}`}
+                  onClick={() => setEditingItem({ ...editingItem, useDefaultContact: false })}
+                >
+                  <div className="mylux-radio-indicator">
+                    {editingItem.useDefaultContact === false && <div className="mylux-radio-dot" />}
+                  </div>
+                  <div>
+                    <div className="mylux-radio-label-text">Use a custom number for this item</div>
+                  </div>
+                </div>
+              </div>
+
+              {editingItem.useDefaultContact === false && (
+                <div className="mylux-field" style={{ marginTop: 8 }}>
+                  <label className="mylux-field-label">Item Contact Number *</label>
+                  <input
+                    type="tel"
+                    className="mylux-input"
+                    value={editingItem.contactPhone || ""}
+                    onChange={(e) => setEditingItem({ ...editingItem, contactPhone: e.target.value })}
+                    placeholder="Enter phone number (e.g. +91 98765 43210)"
+                    required
+                  />
+                </div>
               )}
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <Field label="Return Instructions (Optional)">
+            {/* Section 3: Reward Offered */}
+            <div className="mylux-form-section">
+              <div className="mylux-toggle-row">
+                <div>
+                  <div className="mylux-radio-label-text">Offer Reward for Safe Return</div>
+                  <div className="mylux-radio-subtext">Display a reward notification to the finder.</div>
+                </div>
+                <div
+                  className={`mylux-toggle-switch ${Boolean(editingItem.rewardEnabled) ? "active" : ""}`}
+                  onClick={() => setEditingItem({ ...editingItem, rewardEnabled: !editingItem.rewardEnabled })}
+                >
+                  <div className="mylux-toggle-knob" />
+                </div>
+              </div>
+
+              {editingItem.rewardEnabled && (
+                <div className="mylux-field" style={{ marginTop: 8 }}>
+                  <label className="mylux-field-label">Reward Note</label>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    value={editingItem.rewardText || ""}
+                    onChange={(e) => setEditingItem({ ...editingItem, rewardText: e.target.value })}
+                    placeholder="e.g. Reward offered upon safe return!"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Section 4: Return Instructions */}
+            <div className="mylux-form-section">
+              <div className="mylux-field">
+                <label className="mylux-field-label">Return Instructions (Optional)</label>
                 <input
+                  type="text"
+                  className="mylux-input"
                   value={editingItem.returnInstructions || ""}
                   onChange={(e) => setEditingItem({ ...editingItem, returnInstructions: e.target.value })}
                   placeholder="e.g. Please call me or leave at building reception."
                 />
-              </Field>
+              </div>
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 13, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={editingItem.enabled !== false}
-                  onChange={(e) => setEditingItem({ ...editingItem, enabled: e.target.checked })}
-                />
-                Active (Show this item publicly)
-              </label>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button type="button" className="btn-secondary" onClick={() => setEditingItem(null)}>Cancel</button>
-              <button type="submit" className="asset-btn-primary">Save Item</button>
+            {/* Section 5: Active Setting Toggle */}
+            <div className="mylux-toggle-row">
+              <div>
+                <div className="mylux-radio-label-text">Show item publicly</div>
+                <div className="mylux-radio-subtext">When disabled, this item will not appear in Lost &amp; Found.</div>
+              </div>
+              <div
+                className={`mylux-toggle-switch ${editingItem.enabled !== false ? "active" : ""}`}
+                onClick={() => setEditingItem({ ...editingItem, enabled: editingItem.enabled === false })}
+              >
+                <div className="mylux-toggle-knob" />
+              </div>
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </MyLuxModal>
     </div>
   );
 }

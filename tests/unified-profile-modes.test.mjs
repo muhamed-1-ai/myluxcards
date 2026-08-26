@@ -48,7 +48,7 @@ test("DashboardDemo provides multi-vehicle and multi-item asset management", () 
   assert.match(dashboardDemo, /enabledFeatures/);
   assert.match(dashboardDemo, /MY VEHICLES/);
   assert.match(dashboardDemo, /MY LOST &(?:amp;)? FOUND ITEMS/);
-  assert.match(dashboardDemo, /PRIVACY NOTICE/);
+  assert.match(dashboardDemo, /Public contact information/);
 });
 
 test("Migration 0012 & 0013 enforce unified profile modes and multi-asset collections", () => {
