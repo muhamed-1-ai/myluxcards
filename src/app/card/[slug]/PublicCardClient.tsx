@@ -67,7 +67,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [submittingAction, setSubmittingAction] = useState(false);
   const [finderName, setFinderName] = useState("");
   const [finderContact, setFinderContact] = useState("");
-  const [finderMessage, setFinderMessage] = useState("");
+  const [finderContactError, setFinderContactError] = useState("");
+  const [finderSubmitted, setFinderSubmitted] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,10 +195,9 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         } else if (type === "EMERGENCY_CONTACT") {
           setActionToast("✔ Emergency contact notification triggered!");
         } else if (type === "LOST_ITEM_FOUND") {
-          setActionToast("✔ Thank you! Your message has been sent to the item owner.");
+          setActionToast("✔ Thank you! Your contact number has been sent to the owner.");
           setFinderName("");
           setFinderContact("");
-          setFinderMessage("");
         } else {
           setActionToast("✔ Action delivered to owner!");
         }
@@ -206,6 +206,40 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       }
     } catch {
       setActionToast("Could not send alert. Please check your connection.");
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const handleFinderSubmit = async () => {
+    const digitsOnly = finderContact.replace(/\D/g, "");
+    if (digitsOnly.length < 7) {
+      setFinderContactError("Please enter a valid phone number (at least 7 digits).");
+      return;
+    }
+
+    setSubmittingAction(true);
+    setFinderContactError("");
+    try {
+      const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "LOST_ITEM_FOUND",
+          channel: "QR",
+          phone: finderContact,
+          name: finderName,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setFinderSubmitted(true);
+        setActionToast("✔ Contact details sent to owner!");
+      } else {
+        setFinderContactError(payload.message || "Could not send contact details. Please try again.");
+      }
+    } catch {
+      setFinderContactError("Network error. Please check your connection and try again.");
     } finally {
       setSubmittingAction(false);
     }
@@ -461,143 +495,158 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {/* ── VIEW 1: VEHICLE CONNECT ── */}
       {activeView === "vehicle" && (
         <div className="pc-vehicle-card">
-          <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
-            🚘 MyLux Vehicle Connect
+          <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
+            🚗 MYLUX VEHICLE CONNECT
           </div>
 
-          <div className="pc-vehicle-license-plate">
-            {card.vehicleConnect?.licensePlate || "MYLUX-CAR"}
+          <div className="pc-vehicle-intro">
+            Need to contact someone about this vehicle?
           </div>
 
-          {(card.vehicleConnect?.vehicleMake || card.vehicleConnect?.vehicleModel || card.vehicleConnect?.vehicleColor) && (
-            <div className="pc-vehicle-specs">
-              {card.vehicleConnect?.vehicleMake && <span className="pc-vehicle-spec-chip">{card.vehicleConnect.vehicleMake}</span>}
-              {card.vehicleConnect?.vehicleModel && <span className="pc-vehicle-spec-chip">{card.vehicleConnect.vehicleModel}</span>}
-              {card.vehicleConnect?.vehicleColor && <span className="pc-vehicle-spec-chip">{card.vehicleConnect.vehicleColor}</span>}
+          {/* Compact Vehicle Info (Subtle, only if configured) */}
+          {(card.vehicleConnect?.vehicleMake || card.vehicleConnect?.vehicleModel || card.vehicleConnect?.vehicleColor || card.vehicleConnect?.licensePlate) && (
+            <div className="pc-vehicle-compact-info">
+              {(card.vehicleConnect?.vehicleMake || card.vehicleConnect?.vehicleModel || card.vehicleConnect?.vehicleColor) && (
+                <div className="pc-vehicle-title-row">
+                  {[card.vehicleConnect.vehicleMake, card.vehicleConnect.vehicleModel].filter(Boolean).join(" ")}
+                  {card.vehicleConnect.vehicleColor ? ` • ${card.vehicleConnect.vehicleColor}` : ""}
+                </div>
+              )}
+              {card.vehicleConnect?.licensePlate && (
+                <div className="pc-vehicle-plate-subtle">
+                  {card.vehicleConnect.licensePlate}
+                </div>
+              )}
             </div>
           )}
 
+          {/* Optional subtle owner note if present */}
           {card.vehicleConnect?.parkingNote && (
-            <div className="pc-parking-banner">
-              <strong>Notice from Owner:</strong>
-              <p>{card.vehicleConnect.parkingNote}</p>
+            <div className="pc-subtle-note">
+              <strong>Owner note:</strong> {card.vehicleConnect.parkingNote}
             </div>
           )}
 
-          <div className="pc-vehicle-actions">
-            <div className="pc-section-subtitle">For parking or vehicle-related matters</div>
+          {/* Primary Action 1: Contact Vehicle Owner */}
+          <div className="pc-vehicle-action-block">
             <button
               type="button"
               className="pc-btn-primary-alert"
               onClick={() => sendVisitorAction("NOTIFY_OWNER")}
               disabled={submittingAction}
             >
-              📞 Contact Vehicle Owner
+              📞 CONTACT VEHICLE OWNER
             </button>
-
-            <div className="pc-actions" style={{ marginTop: 8 }}>
-              {card.vehicleConnect?.allowDirectCall !== false && phone && (
-                <a href={`tel:${phone}`} className="pc-action-btn" onClick={() => track("LINK_CLICK", "phone")}>
-                  Call {phone}
-                </a>
-              )}
-              {card.vehicleConnect?.allowDirectMessage !== false && whatsapp && (
-                <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-action-btn" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
-                  WhatsApp Owner
-                </a>
-              )}
-            </div>
-
-            {card.vehicleConnect?.showEmergencyContact !== false && (card.hasEmergencyPhone || card.emergencyContact?.name) && (
-              <div style={{ borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: 16, marginTop: 12, width: "100%" }}>
-                <div className="pc-section-subtitle">For accidents or emergencies only</div>
-                <button
-                  type="button"
-                  className="pc-btn-emergency-alert"
-                  onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
-                  disabled={submittingAction}
-                >
-                  🚨 Emergency Contact {card.emergencyContact?.name ? `(${card.emergencyContact.name})` : ""}
-                </button>
-              </div>
-            )}
+            <span className="pc-action-subtext">For parking or vehicle-related matters</span>
           </div>
+
+          {/* Primary Action 2: Emergency Contact */}
+          {card.vehicleConnect?.showEmergencyContact !== false && (card.hasEmergencyPhone || card.emergencyContact?.name) && (
+            <div className="pc-vehicle-action-block" style={{ borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: 16, marginTop: 4 }}>
+              <button
+                type="button"
+                className="pc-btn-emergency-alert"
+                onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
+                disabled={submittingAction}
+              >
+                🚨 EMERGENCY CONTACT
+              </button>
+              <span className="pc-action-subtext">For accidents or emergencies only</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── VIEW 2: LOST & FOUND ── */}
       {activeView === "lost_found" && (
         <div className="pc-lost-card">
-          <div className="pc-lost-item-header">
-            <div className="pc-mode-pill-header" style={{ marginBottom: 12 }}>
-              🏷️ MyLux Lost &amp; Found Tag
-            </div>
-            <h1 className="pc-lost-item-title">{card.lostAndFound?.itemName || `${card.name}'s Tagged Item`}</h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 6, lineHeight: 1.5 }}>
-              You found an item belonging to this person. Please contact the owner so it can be returned safely.
-            </p>
-            {card.lostAndFound?.itemCategory && (
-              <span className="pc-lost-category-tag" style={{ marginTop: 8 }}>
-                Category: {card.lostAndFound.itemCategory}
-              </span>
-            )}
+          <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
+            🏷️ MYLUX LOST &amp; FOUND
           </div>
 
+          <div className="pc-lost-owner-name">{card.name}</div>
+
+          <p className="pc-lost-intro-text">
+            You found an item belonging to this person.<br />
+            Please leave your contact number so the owner can contact you and arrange its return.
+          </p>
+
+          {card.lostAndFound?.itemCategory && (
+            <div className="pc-lost-chip-subtle">
+              Category: {card.lostAndFound.itemCategory}
+            </div>
+          )}
+
           {card.lostAndFound?.rewardNote && (
-            <div className="pc-reward-banner">
-              <div className="pc-reward-title">🎁 Reward Offered</div>
-              <div className="pc-reward-desc">{card.lostAndFound.rewardNote}</div>
+            <div className="pc-reward-subtle">
+              🎁 Reward offered for safe return: <span>{card.lostAndFound.rewardNote}</span>
             </div>
           )}
 
           {card.lostAndFound?.returnInstructions && (
-            <div className="pc-parking-banner">
-              <strong>Return Instructions:</strong>
-              <p>{card.lostAndFound.returnInstructions}</p>
+            <div className="pc-subtle-note">
+              <strong>Return instructions:</strong> {card.lostAndFound.returnInstructions}
             </div>
           )}
 
-          {card.lostAndFound?.allowAnonymousMessage !== false && (
+          <hr className="pc-dashed-rule" style={{ margin: "12px 0" }} />
+
+          {finderSubmitted ? (
+            <div className="pc-finder-success" role="status">
+              <div className="pc-success-icon">✓</div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Contact details sent</h3>
+              <p style={{ fontSize: 13, opacity: 0.9, margin: 0, lineHeight: 1.4 }}>
+                The owner has received your contact number. Thank you for helping return this item!
+              </p>
+            </div>
+          ) : (
             <form
-              className="pc-finder-form"
+              className="pc-finder-form-clean"
               onSubmit={(e) => {
                 e.preventDefault();
-                sendVisitorAction("LOST_ITEM_FOUND", {
-                  name: finderName,
-                  phone: finderContact,
-                  message: finderMessage,
-                });
+                handleFinderSubmit();
               }}
             >
-              <div className="pc-form-title">✉️ Contact Owner</div>
-              <input
-                type="text"
-                className="pc-input"
-                placeholder="Your Name (Optional)"
-                value={finderName}
-                onChange={(e) => setFinderName(e.target.value)}
-              />
-              <input
-                type="text"
-                className="pc-input"
-                placeholder="Your Phone / Contact Info"
-                value={finderContact}
-                onChange={(e) => setFinderContact(e.target.value)}
-                required
-              />
-              <textarea
-                className="pc-input pc-textarea"
-                placeholder="Message / Where the item was found..."
-                value={finderMessage}
-                onChange={(e) => setFinderMessage(e.target.value)}
-                required
-              />
+              <label className="pc-input-label">
+                <span>YOUR CONTACT NUMBER *</span>
+                <div className="pc-tel-wrapper">
+                  <span className="pc-country-prefix">+</span>
+                  <input
+                    type="tel"
+                    className="pc-tel-input"
+                    placeholder="Enter phone number (e.g. 98765 43210)"
+                    value={finderContact}
+                    onChange={(e) => {
+                      setFinderContactError("");
+                      setFinderContact(e.target.value);
+                    }}
+                    required
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </div>
+                {finderContactError && <em className="pc-error-text">{finderContactError}</em>}
+              </label>
+
+              <label className="pc-input-label">
+                <span>YOUR NAME (OPTIONAL)</span>
+                <input
+                  type="text"
+                  className="pc-input-clean"
+                  placeholder="Your name"
+                  value={finderName}
+                  onChange={(e) => setFinderName(e.target.value)}
+                  autoComplete="name"
+                />
+              </label>
+
               <button
                 type="submit"
                 className="pc-btn-primary-alert"
                 disabled={submittingAction}
+                style={{ marginTop: 6 }}
               >
-                Send Message to Owner
+                {submittingAction ? "Sending..." : "SEND CONTACT NUMBER TO OWNER"}
               </button>
             </form>
           )}

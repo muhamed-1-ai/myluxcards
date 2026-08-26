@@ -911,3 +911,190 @@
   margin-bottom: 6px;
   letter-spacing: 0.02em;
 }
+
+/* ── Refined Vehicle Connect Styles ── */
+.pc-vehicle-intro {
+  font-size: 15px;
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+  margin: 4px 0 10px;
+}
+
+.pc-vehicle-compact-info {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid color-mix(in srgb, var(--pc-accent, #b8962e) 25%, transparent);
+  border-radius: 14px;
+  padding: 12px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc-vehicle-title-row {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pc-vehicle-plate-subtle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--pc-accent, #d4af37);
+  letter-spacing: 0.08em;
+}
+
+.pc-subtle-note {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--pc-text, #fff) 75%, transparent);
+  background: color-mix(in srgb, var(--pc-accent, #b8962e) 10%, transparent);
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-left: 3px solid var(--pc-accent, #d4af37);
+  line-height: 1.4;
+}
+
+.pc-vehicle-action-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.pc-action-subtext {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--pc-text, #fff) 65%, transparent);
+  text-align: center;
+  font-weight: 500;
+}
+
+/* ── Refined Lost & Found Finder Contact Flow ── */
+.pc-lost-owner-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+}
+
+.pc-lost-intro-text {
+  font-size: 14px;
+  color: color-mix(in srgb, var(--pc-text, #fff) 80%, transparent);
+  text-align: center;
+  line-height: 1.5;
+  margin: 4px 0 10px;
+}
+
+.pc-lost-chip-subtle {
+  align-self: center;
+  background: color-mix(in srgb, var(--pc-accent, #b8962e) 20%, transparent);
+  color: var(--pc-accent, #d4af37);
+  padding: 4px 14px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pc-reward-subtle {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(184, 150, 46, 0.08));
+  border: 1px solid color-mix(in srgb, var(--pc-accent, #d4af37) 40%, transparent);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pc-accent, #d4af37);
+  text-align: center;
+}
+
+.pc-finder-form-clean {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.pc-input-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--pc-accent, #d4af37);
+  letter-spacing: 0.04em;
+}
+
+.pc-tel-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--pc-accent, #b8962e) 40%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.pc-country-prefix {
+  padding: 0 14px;
+  color: var(--pc-accent, #d4af37);
+  font-weight: 800;
+  font-size: 15px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  user-select: none;
+}
+
+.pc-tel-input,
+.pc-input-clean {
+  width: 100%;
+  padding: 13px 14px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+}
+
+.pc-input-clean {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--pc-accent, #b8962e) 40%, transparent);
+  border-radius: 12px;
+}
+
+.pc-tel-input:focus,
+.pc-input-clean:focus {
+  border-color: var(--pc-accent, #d4af37);
+}
+
+.pc-finder-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 22px 18px;
+  background: rgba(46, 204, 113, 0.12);
+  border: 1px solid #2ecc71;
+  border-radius: 18px;
+  color: #2ecc71;
+  animation: pcQrIn 0.3s ease;
+}
+
+.pc-success-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #2ecc71;
+  color: #000;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.pc-error-text {
+  color: #e74c3c;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  margin-top: 4px;
+}

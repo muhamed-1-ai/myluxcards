@@ -24,21 +24,23 @@ test("safePublicCard enforces visitor privacy by sanitizing raw emergency phone 
   assert.match(cardLibrary, /emergencyContact: sanitizedEmergencyContact/);
 });
 
-test("public API route supports visitor actions for NOTIFY_OWNER, EMERGENCY_CONTACT, and LOST_ITEM_FOUND", () => {
+test("public API route validates phone numbers and rate limits LOST_ITEM_FOUND submissions", () => {
   assert.match(publicCardRoute, /NOTIFY_OWNER/);
   assert.match(publicCardRoute, /EMERGENCY_CONTACT/);
   assert.match(publicCardRoute, /LOST_ITEM_FOUND/);
   assert.match(publicCardRoute, /insert into card_leads/);
+  assert.match(publicCardRoute, /Please enter a valid phone number/);
+  assert.match(publicCardRoute, /interval '30 seconds'/);
 });
 
-test("PublicCardClient renders dynamic activeView mode switcher and supports simultaneous features", () => {
-  assert.match(publicCardClient, /useState<PublicProfileView>\("profile"\)/);
-  assert.match(publicCardClient, /pc-mode-switcher-bar/);
-  assert.match(publicCardClient, /pc-mode-switch-btn/);
-  assert.match(publicCardClient, /NOTIFY_OWNER/);
-  assert.match(publicCardClient, /LOST_ITEM_FOUND/);
-  assert.match(publicCardClient, /MyLux Vehicle Connect/);
-  assert.match(publicCardClient, /MyLux Lost &(?:amp;)? Found Tag/);
+test("PublicCardClient renders ultra-clean Vehicle Connect and Lost & Found finder contact flow", () => {
+  assert.match(publicCardClient, /CONTACT VEHICLE OWNER/);
+  assert.match(publicCardClient, /EMERGENCY CONTACT/);
+  assert.doesNotMatch(publicCardClient, /Emergency Alert \(/);
+  assert.match(publicCardClient, /SEND CONTACT NUMBER TO OWNER/);
+  assert.match(publicCardClient, /type="tel"/);
+  assert.doesNotMatch(publicCardClient, /Message \/ Where the item was found/);
+  assert.match(publicCardClient, /Contact details sent/);
 });
 
 test("DashboardDemo provides independent feature entitlements toggles", () => {

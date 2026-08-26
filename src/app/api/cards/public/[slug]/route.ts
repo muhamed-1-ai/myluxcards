@@ -76,17 +76,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     ).catch(() => null);
 
     if (["LEAD", "NOTIFY_OWNER", "EMERGENCY_CONTACT", "LOST_ITEM_FOUND"].includes(type)) {
-      const name = String(body.name || (type === "NOTIFY_OWNER" ? "Vehicle Parking Alert Visitor" : type === "EMERGENCY_CONTACT" ? "Emergency Contact Visitor" : "Lost & Found Finder")).slice(0, 100);
-      const email = body.email ? String(body.email).slice(0, 254) : null;
-      const phone = body.phone ? String(body.phone).slice(0, 30) : null;
-      const message = String(body.message || (type === "NOTIFY_OWNER" ? "Parking notice alert triggered from Vehicle Connect." : type === "EMERGENCY_CONTACT" ? "Emergency alert triggered from Profile." : "Item found notification.")).slice(0, 2000);
+      const name = String(body.name || (type === "NOTIFY_OWNER" ? "Vehicle Parking Alert Visitor" : type === "EMERGENCY_CONTACT" ? "Emergency Contact Visitor" : "Item Finder")).trim().slice(0, 100);
+      const email = body.email ? String(body.email).trim().slice(0, 254) : null;
+      const rawPhone = String(body.phone || "").trim().slice(0, 30);
+
+      // Server-side validation for finder contact submission
+      if (type === "LOST_ITEM_FOUND" && !/^[0-9 ()+.-]{7,30}$/.test(rawPhone)) {
+        return Response.json({ message: "Please enter a valid phone number (at least 7 digits)." }, { status: 400 });
+      }
+
+      const phone = rawPhone || null;
+      const message = String(body.message || (type === "NOTIFY_OWNER" ? "Parking notice alert triggered from Vehicle Connect." : type === "EMERGENCY_CONTACT" ? "Emergency alert triggered from Profile." : "Finder contact number submitted for item.")).trim().slice(0, 2000);
       const company = type;
 
-      await pool.query(
-        `insert into card_leads (card_id, name, email, phone, company, message, consent_at, status)
-         values ($1, $2, $3, $4, $5, $6, now(), 'NEW')`,
-        [card.id, name, email, phone, company, message]
-      ).catch(() => null);
+      // Rate limiting: check for duplicate submission from same visitor in last 30s
+      const recent = await pool.query<{ id: string }>(
+        `select id from card_leads where card_id = $1 and phone = $2 and created_at > now() - interval '30 seconds'`,
+        [card.id, phone]
+      ).catch(() => ({ rows: [] }));
+
+      if (recent.rows.length === 0) {
+        await pool.query(
+          `insert into card_leads (card_id, name, email, phone, company, message, consent_at, status)
+           values ($1, $2, $3, $4, $5, $6, now(), 'NEW')`,
+          [card.id, name, email, phone, company, message]
+        );
+      }
     }
 
     return Response.json({ ok: true, message: "Action processed successfully." });
