@@ -20,7 +20,7 @@ export async function GET() {
       [identity.id]
     );
 
-    const [eventsRes, leadsRes, vehiclesRes, lostItemsRes] = await Promise.all([
+    const [eventsRes, leadsRes, vehiclesRes, lostItemsRes, contactNumbersRes, emergencyContactsRes, emergencyNumbersRes] = await Promise.all([
       pool.query<{ card_id: string; event_type: string }>(
         `select e.card_id, e.event_type from card_events e join digital_cards c on c.id = e.card_id where c.owner_id = $1 order by e.created_at desc limit 5000`,
         [identity.id]
@@ -79,12 +79,59 @@ export async function GET() {
         `select i.* from card_lost_items i join digital_cards c on c.id = i.card_id where c.owner_id = $1 order by i.sort_order asc, i.created_at asc`,
         [identity.id]
       ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        user_id: string;
+        label: string;
+        country_code: string;
+        phone_number: string;
+        is_primary: boolean;
+        enabled: boolean;
+      }>(
+        `select id, user_id, label, country_code, phone_number, is_primary, enabled from account_contact_numbers where user_id = $1 order by is_primary desc, sort_order asc, created_at asc`,
+        [identity.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        user_id: string;
+        name: string;
+        relationship: string;
+        is_primary: boolean;
+        enabled: boolean;
+      }>(
+        `select id, user_id, name, relationship, is_primary, enabled from emergency_contacts where user_id = $1 order by is_primary desc, sort_order asc, created_at asc`,
+        [identity.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        emergency_contact_id: string;
+        label: string;
+        country_code: string;
+        phone_number: string;
+        is_primary: boolean;
+      }>(
+        `select n.id, n.emergency_contact_id, n.label, n.country_code, n.phone_number, n.is_primary from emergency_contact_numbers n join emergency_contacts c on c.id = n.emergency_contact_id where c.user_id = $1 order by n.is_primary desc, n.sort_order asc, n.created_at asc`,
+        [identity.id]
+      ).catch(() => ({ rows: [] })),
     ]);
 
     const counts: Record<string, Record<string, number>> = {};
     for (const event of eventsRes.rows) {
       counts[event.card_id] ||= {};
       counts[event.card_id][event.event_type] = (counts[event.card_id][event.event_type] || 0) + 1;
+    }
+
+    const emergNumsByContactId: Record<string, any[]> = {};
+    for (const num of emergencyNumbersRes.rows) {
+      emergNumsByContactId[num.emergency_contact_id] ||= [];
+      emergNumsByContactId[num.emergency_contact_id].push({
+        id: num.id,
+        emergencyContactId: num.emergency_contact_id,
+        label: num.label,
+        countryCode: num.country_code,
+        phoneNumber: num.phone_number,
+        isPrimary: num.is_primary,
+      });
     }
 
     return Response.json({
@@ -130,6 +177,24 @@ export async function GET() {
         returnInstructions: i.return_instructions,
         enabled: i.enabled,
         sortOrder: i.sort_order,
+      })),
+      contactNumbers: contactNumbersRes.rows.map((cn) => ({
+        id: cn.id,
+        userId: cn.user_id,
+        label: cn.label,
+        countryCode: cn.country_code,
+        phoneNumber: cn.phone_number,
+        isPrimary: cn.is_primary,
+        enabled: cn.enabled,
+      })),
+      emergencyContacts: emergencyContactsRes.rows.map((ec) => ({
+        id: ec.id,
+        userId: ec.user_id,
+        name: ec.name,
+        relationship: ec.relationship,
+        isPrimary: ec.is_primary,
+        enabled: ec.enabled,
+        numbers: emergNumsByContactId[ec.id] || [],
       })),
       leads: leadsRes.rows.map((lead) => ({
         id: lead.id,

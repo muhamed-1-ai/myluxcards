@@ -1098,3 +1098,190 @@
   font-weight: 600;
   margin-top: 4px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   REFINED VEHICLE CONNECT & LOST AND FOUND STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.pc-vehicle-identity-clean,
+.pc-item-identity-clean {
+  text-align: center;
+  padding: 16px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc-vehicle-main-title,
+.pc-item-main-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.pc-vehicle-sub-meta,
+.pc-item-sub-meta {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.pc-subtle-note-panel {
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid #d4af37;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc-note-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #d4af37;
+}
+
+.pc-note-body {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.45;
+}
+
+.pc-contact-section,
+.pc-emergency-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pc-section-header-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #d4af37;
+  text-transform: uppercase;
+}
+
+.pc-section-header-title-emergency {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #e74c3c;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pc-contact-owner-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.pc-numbers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pc-number-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pc-number-label {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pc-number-val-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pc-phone-link {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: color 0.2s ease;
+}
+
+.pc-phone-link:hover {
+  color: #d4af37;
+}
+
+.pc-copy-icon-btn {
+  background: transparent;
+  border: none;
+  color: rgba(212, 175, 55, 0.8);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.pc-copy-icon-btn:hover {
+  background: rgba(212, 175, 55, 0.15);
+  color: #d4af37;
+}
+
+.pc-emergency-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pc-emergency-contact-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pc-ec-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pc-ec-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.pc-ec-rel {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 500;
+}
+
+.pc-empty-contact {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}

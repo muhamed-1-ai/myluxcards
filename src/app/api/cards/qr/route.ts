@@ -1,6 +1,6 @@
 import { buildPremiumQrSvg } from "@/lib/premiumQr";
 import { safeError } from "@/lib/adminAuth";
-import { getPublicCardUrl } from "@/lib/url";
+import { getPublicCardQrUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       return Response.json({ message: "Invalid slug." }, { status: 400 });
     }
 
-    const cardUrl = getPublicCardUrl(slug, request);
+    const cardUrl = getPublicCardQrUrl(slug, request);
 
     const svg = buildPremiumQrSvg(cardUrl, { showLabel: true, label: "SCAN ME" });
 

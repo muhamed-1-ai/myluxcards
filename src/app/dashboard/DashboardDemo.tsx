@@ -1,9 +1,9 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-type Tab = "dashboard" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
+type Tab = "dashboard" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -261,11 +261,26 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const [page, setPage] = useState(1);
   const [accountMenu, setAccountMenu] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [contactNumbers, setContactNumbers] = useState<any[]>([]);
+  const [emergencyContacts, setEmergencyContacts] = useState<any[]>([]);
   const [cloudReady, setCloudReady] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved"|"unsaved"|"saving"|"error">("saved");
   const lastSavedRef = useRef("");
+
+  const reloadContactsData = async () => {
+    try {
+      const res = await fetchWithSessionRefresh("/api/cards", { cache: "no-store" });
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (Array.isArray(payload.contactNumbers)) setContactNumbers(payload.contactNumbers);
+        if (Array.isArray(payload.emergencyContacts)) setEmergencyContacts(payload.emergencyContacts);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     try {
@@ -300,6 +315,8 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         const payload = await response.json();
         const cloudCards = Array.isArray(payload.cards) ? payload.cards.map((card:Partial<Card>) => normalizeCard(card, user)) : [];
         setLeads(Array.isArray(payload.leads) ? payload.leads : []);
+        if (Array.isArray(payload.contactNumbers)) setContactNumbers(payload.contactNumbers);
+        if (Array.isArray(payload.emergencyContacts)) setEmergencyContacts(payload.emergencyContacts);
         setCloudReady(true);
         if (cloudCards.length) {
           setCards(cloudCards);
@@ -462,8 +479,37 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     cacheCards(identity.id, nextCards);
     setDeleteId(null); setSaveStatus("saved"); notify("Card removed.");
   };
+  const [overviewAnalytics, setOverviewAnalytics] = useState<{ totalOpens: number; nfcTaps: number; qrScans: number; otherOpens: number } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const loadOverviewAnalytics = async () => {
+      try {
+        const res = await fetch(`/api/analytics?period=30d`, { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        if (active && res.ok && json?.summary) {
+          setOverviewAnalytics({
+            totalOpens: Number(json.summary.totalOpens || 0),
+            nfcTaps: Number(json.summary.nfcTaps || 0),
+            qrScans: Number(json.summary.qrScans || 0),
+            otherOpens: Number(json.summary.otherOpens || 0),
+          });
+        }
+      } catch {
+        /* fail silently */
+      }
+    };
+    void loadOverviewAnalytics();
+    return () => { active = false; };
+  }, [cards]);
+
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
+  const serverTotalOpens = overviewAnalytics?.totalOpens ?? totalViews;
+  const serverNfcTaps = overviewAnalytics?.nfcTaps ?? 0;
+  const serverQrScans = overviewAnalytics?.qrScans ?? 0;
+  const serverOtherOpens = overviewAnalytics?.otherOpens ?? 0;
+
   const activeCards = cards.filter((card) => card.active).length;
   const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
   const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
@@ -497,12 +543,13 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </div>
       </header>
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard","modes","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="modes"?"Modes":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
+        {(["dashboard","analytics","modes","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="analytics"?"QR Activity":item==="modes"?"Modes":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
       </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <nav>
           <button className={tab === "dashboard" ? "active" : ""} onClick={() => selectTab("dashboard")}><I>⌂</I> Dashboard</button>
+          <button className={tab === "analytics" ? "active" : ""} onClick={() => selectTab("analytics")}><I>📊</I> QR Activity</button>
           <div className="card-owner"><span><I>◆</I>{selected.name}</span><b>⌄</b></div>
           <div className="subnav">
             {(["modes", "contact", "social", "company", "appearance"] as Tab[]).map((item) =>
@@ -521,16 +568,16 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       </aside>
       <main className="dash-main">
         {tab === "dashboard" && <section>
-          <div className="page-heading"><div><p>OVERVIEW</p><h1>Welcome, {currentUser.name.split(" ")[0]}</h1><span>Manage your card and review the activity available in this browser.</span></div><button className="primary" onClick={() => selectTab("cards")}>Manage cards</button></div>
+          <div className="page-heading"><div><p>OVERVIEW</p><h1>Welcome, {currentUser.name.split(" ")[0]}</h1><span>Manage your card and review real visitor activity.</span></div><button className="primary" onClick={() => selectTab("cards")}>Manage cards</button></div>
           <div className="stats">
             <article className="blue"><div><strong>{cards.length}</strong><span>My Cards</span></div><i>▣</i></article>
-            <article className="orange"><div><strong>{totalViews.toLocaleString()}</strong><span>Browser-recorded views</span></div><i>↗</i></article>
+            <article className="orange"><div><strong>{serverTotalOpens.toLocaleString()}</strong><span>Total Profile Opens</span></div><i>↗</i></article>
             <article className="green"><div><strong>{activeCards}</strong><span>Active cards</span></div><i>✓</i></article>
           </div>
-          <div className="analytics-disclosure"><strong>Connection analytics</strong><p>{cloudReady ? `${cards.reduce((n,c)=>n+(c.analytics?.CONTACT_SAVE||0),0)} contact saves · ${cards.reduce((n,c)=>n+(c.analytics?.LINK_CLICK||0),0)} link clicks.` : "Connect cloud storage to collect privacy-conscious NFC, QR, save, and link activity."}</p></div>
+          <div className="analytics-disclosure"><strong>Connection analytics</strong><p>{cloudReady ? `Entry breakdown: ${serverNfcTaps} NFC taps · ${serverQrScans} QR scans · ${serverOtherOpens} other opens.` : "Connect cloud storage to collect privacy-conscious NFC, QR, save, and link activity."}</p></div>
           <div className="welcome-panel">
             <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Complete your profile so visitors have the details they need to connect with you.</p><div className="completion"><span><b>Profile completion</b><strong>{profileCompletion}%</strong></span><i><b style={{width:`${profileCompletion}%`}} /></i></div><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
-            <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{selected.views} views</b></div>
+            <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{serverTotalOpens} opens</b></div>
           </div>
         </section>}
 
@@ -538,7 +585,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
           <div className="edit-layout">
             <div className="form-card">
-              {tab === "modes" && <ModesForm draft={draft} update={update} />}
+              {tab === "modes" && <ModesForm draft={draft} update={update} contactNumbers={contactNumbers} emergencyContacts={emergencyContacts} onContactsRefresh={reloadContactsData} />}
               {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
               {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
               {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
@@ -564,6 +611,8 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
+
+        {tab === "analytics" && <AnalyticsTab selectedCardId={selected?.id || ""} />}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       <MyLuxModal
@@ -587,14 +636,316 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   );
 }
 
-function ModesForm({ draft, update }: any) {
+function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
+  const [period, setPeriod] = useState<"today" | "7d" | "30d">("30d");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<{
+    summary: { totalOpens: number; nfcTaps: number; qrScans: number; otherOpens: number; profileViews: number; vehicleViews: number; lostFoundViews: number; contactTaps: number; locationsShared: number };
+    modes: { profile: number; vehicle: number; lostFound: number };
+    vehicles: Array<{ id: string; displayName: string; make: string; model: string; totalViews: number; ownerTaps: number; emergencyTaps: number }>;
+    lostItems: Array<{ id: string; name: string; category: string; totalViews: number; ownerTaps: number; locationsShared: number }>;
+    recentActivity: Array<{ id: string; createdAt: string; eventType: string; mode: "profile" | "vehicle" | "lost_found"; assetName?: string; context?: string; hasLocation: boolean; locationLabel?: string }>;
+  } | null>(null);
+
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/analytics?cardId=${encodeURIComponent(selectedCardId)}&period=${period}`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setData(json);
+      } else {
+        setError(json.message || "Unable to load QR activity. Please try again.");
+      }
+    } catch {
+      setError("Unable to load QR activity due to a network connection issue.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCardId, period]);
+
+  useEffect(() => {
+    void fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  const summary = data?.summary || { totalOpens: 0, nfcTaps: 0, qrScans: 0, otherOpens: 0, profileViews: 0, vehicleViews: 0, lostFoundViews: 0, contactTaps: 0, locationsShared: 0 };
+  const modes = data?.modes || { profile: 0, vehicle: 0, lostFound: 0 };
+  const vehicles = data?.vehicles || [];
+  const lostItems = data?.lostItems || [];
+  const recent = data?.recentActivity || [];
+
+  const maxModeViews = Math.max(modes.profile, modes.vehicle, modes.lostFound, 1);
+
+  return (
+    <section>
+      <div className="page-heading">
+        <div>
+          <p>QR ACTIVITY &amp; ANALYTICS</p>
+          <h1>Scan History &amp; Activity</h1>
+          <span>Privacy-safe activity analytics for your MyLux QR identity. No visitor personal data is collected.</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.06)", padding: 4, borderRadius: 10, border: "1px solid rgba(212,175,55,0.2)" }}>
+          {(["today", "7d", "30d"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              style={{
+                background: period === p ? "#d4af37" : "transparent",
+                color: period === p ? "#000" : "#fff",
+                border: "none",
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onClick={() => setPeriod(p)}
+            >
+              {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ padding: 30, textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 16, border: "1px dashed rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
+            ⏳ Loading activity analytics…
+          </div>
+        </div>
+      ) : error ? (
+        <div style={{ padding: 36, textAlign: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 16 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+          <h3 style={{ color: "#e74c3c", fontSize: 18, margin: "0 0 6px" }}>Unable to load QR activity</h3>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, maxWidth: 420, margin: "0 auto 18px", lineHeight: 1.5 }}>
+            {error}
+          </p>
+          <button
+            type="button"
+            style={{ background: "#d4af37", color: "#000", border: "none", padding: "10px 22px", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            onClick={() => void fetchAnalytics()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Row 1: Profile Entry Sources */}
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(212,175,55,0.9)", letterSpacing: "0.05em", margin: "0 0 10px" }}>Profile Entry Sources</h4>
+            <div className="stats">
+              <article className="orange">
+                <div>
+                  <strong>{summary.totalOpens}</strong>
+                  <span>TOTAL PROFILE OPENS</span>
+                </div>
+                <i>📊</i>
+              </article>
+              <article className="blue">
+                <div>
+                  <strong>{summary.nfcTaps}</strong>
+                  <span>NFC CARD TAPS</span>
+                </div>
+                <i>📱</i>
+              </article>
+              <article className="green">
+                <div>
+                  <strong>{summary.qrScans}</strong>
+                  <span>QR SCANS</span>
+                </div>
+                <i>📷</i>
+              </article>
+              <article className="orange">
+                <div>
+                  <strong>{summary.otherOpens}</strong>
+                  <span>OTHER / DIRECT OPENS</span>
+                </div>
+                <i>🔗</i>
+              </article>
+            </div>
+          </div>
+
+          {/* Row 2: Visitor Feature Interactions */}
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,0.6)", letterSpacing: "0.05em", margin: "10px 0 10px" }}>Visitor Feature Interactions</h4>
+            <div className="stats">
+              <article className="green">
+                <div>
+                  <strong>{summary.vehicleViews}</strong>
+                  <span>VEHICLE CONNECT VIEWS</span>
+                </div>
+                <i>🚗</i>
+              </article>
+              <article className="orange">
+                <div>
+                  <strong>{summary.lostFoundViews}</strong>
+                  <span>LOST &amp; FOUND VIEWS</span>
+                </div>
+                <i>🏷️</i>
+              </article>
+              <article className="blue">
+                <div>
+                  <strong>{summary.contactTaps}</strong>
+                  <span>CONTACT TAPS</span>
+                </div>
+                <i>📞</i>
+              </article>
+            </div>
+          </div>
+
+          {/* Activity by Mode */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 16px" }}>Activity by Mode</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
+                  <span>Digital Profile</span>
+                  <strong>{modes.profile} views</strong>
+                </div>
+                <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(modes.profile / maxModeViews) * 100}%`, background: "#d4af37", borderRadius: 4 }} />
+                </div>
+              </div>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
+                  <span>Vehicle Connect</span>
+                  <strong>{modes.vehicle} views</strong>
+                </div>
+                <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(modes.vehicle / maxModeViews) * 100}%`, background: "#3498db", borderRadius: 4 }} />
+                </div>
+              </div>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
+                  <span>Lost &amp; Found</span>
+                  <strong>{modes.lostFound} views</strong>
+                </div>
+                <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(modes.lostFound / maxModeViews) * 100}%`, background: "#e67e22", borderRadius: 4 }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vehicle Activity Breakdown */}
+          {vehicles.length > 0 && (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>🚗 Vehicle Activity</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {vehicles.map((v) => (
+                  <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 16px" }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{v.displayName || [v.make, v.model].filter(Boolean).join(" ") || "Vehicle"}</div>
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>{[v.make, v.model].filter(Boolean).join(" • ")}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 14, textAlign: "right" }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#d4af37" }}>{v.totalViews}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>views</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{v.ownerTaps}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>owner taps</div>
+                      </div>
+                      {v.emergencyTaps > 0 && (
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: "#e74c3c" }}>{v.emergencyTaps}</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>emergency taps</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lost & Found Activity Breakdown */}
+          {lostItems.length > 0 && (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>🏷️ Lost &amp; Found Activity</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {lostItems.map((item) => (
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 16px" }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{item.name || "Tagged Item"}</div>
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>Category: {item.category}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 14, textAlign: "right" }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#d4af37" }}>{item.totalViews}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>views</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{item.ownerTaps}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>owner taps</div>
+                      </div>
+                      {item.locationsShared > 0 && (
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: "#2ecc71" }}>{item.locationsShared}</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>locations shared</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Privacy-Safe Recent Activity Feed */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>Privacy-Safe Recent Activity Log</h3>
+            {recent.length === 0 ? (
+              <div style={{ padding: 24, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
+                No activity recorded yet for this timeframe. When visitors open your MyLux card, activity events will appear here.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {recent.map((ev) => (
+                  <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)", borderRadius: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#fff" }}>
+                        {ev.eventType === "PROFILE_OPENED" || ev.eventType === "VIEW" ? "Profile viewed" :
+                          ev.eventType === "VEHICLE_MODE_OPENED" ? "Vehicle Connect opened" :
+                          ev.eventType === "VEHICLE_SELECTED" ? `Vehicle selected: ${ev.assetName || "Vehicle"}` :
+                          ev.eventType === "LOST_FOUND_MODE_OPENED" ? "Lost & Found opened" :
+                          ev.eventType === "LOST_FOUND_ITEM_SELECTED" ? `Lost & Found item viewed: ${ev.assetName || "Item"}` :
+                          ev.eventType === "PHONE_NUMBER_TAPPED" ? `Contact number tapped ${ev.assetName ? `(${ev.assetName})` : ""}` :
+                          ev.eventType === "LOCATION_SHARED" ? `📍 Location voluntarily shared for ${ev.assetName || "Item"}` :
+                          "Activity recorded"}
+                      </div>
+                      {ev.hasLocation && (
+                        <div style={{ fontSize: 12, color: "#2ecc71", marginTop: 2 }}>
+                          📍 Voluntary finder location received
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
+                      {new Date(ev.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [], onContactsRefresh }: any) {
   const enabled = draft.enabledFeatures || { digitalProfile: true, vehicleConnect: true, lostAndFound: true };
 
   return (
     <>
       <div className="form-intro">
         <h2>Profile Mode &amp; Features</h2>
-        <p>Enable features for your single permanent QR code and profile URL. Manage multiple vehicles and tagged items under your account.</p>
+        <p>Enable features for your single permanent QR code and profile URL. Manage multiple vehicles, tagged items, and contact numbers under your account.</p>
       </div>
 
       <div className="mode-settings-block">
@@ -644,61 +995,541 @@ function ModesForm({ draft, update }: any) {
         </div>
       </div>
 
-      {/* ── ACCOUNT DEFAULT CONTACTS ── */}
-      <div className="mode-settings-block">
-        <div className="mode-settings-title">📞 Account Default Contacts</div>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>
-          Set your account-level default contact numbers. Individual vehicles and Lost &amp; Found items can inherit these defaults automatically.
-        </p>
-        <div className="form-grid">
-          <Field label="Default Contact Phone Number">
-            <input
-              type="tel"
-              value={draft.defaultContactPhone || draft.mobile || draft.whatsapp || ""}
-              onChange={(e) => update("defaultContactPhone", e.target.value)}
-              placeholder="e.g. +91 98765 43210"
-            />
-          </Field>
-          <Field label="Default Emergency Contact Name">
-            <input
-              value={draft.defaultEmergencyName || draft.emergencyContact?.name || ""}
-              onChange={(e) => update("defaultEmergencyName", e.target.value)}
-              placeholder="e.g. Ameen"
-            />
-          </Field>
-          <Field label="Default Emergency Relationship">
-            <input
-              value={draft.defaultEmergencyRelationship || draft.emergencyContact?.relationship || ""}
-              onChange={(e) => update("defaultEmergencyRelationship", e.target.value)}
-              placeholder="e.g. Brother / Spouse"
-            />
-          </Field>
-          <Field label="Default Emergency Phone Number">
-            <input
-              type="tel"
-              value={draft.defaultEmergencyPhone || draft.emergencyContact?.phone || ""}
-              onChange={(e) => update("defaultEmergencyPhone", e.target.value)}
-              placeholder="e.g. +91 99999 88888"
-            />
-          </Field>
-        </div>
-      </div>
+      {/* ── ACCOUNT CONTACT NUMBERS MANAGER ── */}
+      <AccountContactNumbersManager contactNumbers={contactNumbers} onRefresh={onContactsRefresh} />
+
+      {/* ── EMERGENCY CONTACTS MANAGER ── */}
+      <EmergencyContactsManager emergencyContacts={emergencyContacts} onRefresh={onContactsRefresh} />
 
       {/* ── MULTI-VEHICLE MANAGEMENT ── */}
-      <VehiclesManager cardId={draft.id} defaultContact={draft.defaultContactPhone || draft.mobile || ""} defaultEmergencyName={draft.defaultEmergencyName || draft.emergencyContact?.name || ""} defaultEmergencyRel={draft.defaultEmergencyRelationship || ""} defaultEmergencyPhone={draft.defaultEmergencyPhone || draft.emergencyContact?.phone || ""} />
+      <VehiclesManager cardId={draft.id} contactNumbers={contactNumbers} emergencyContacts={emergencyContacts} />
 
       {/* ── MULTI-ITEM LOST & FOUND MANAGEMENT ── */}
-      <LostItemsManager cardId={draft.id} defaultContact={draft.defaultContactPhone || draft.mobile || ""} />
+      <LostItemsManager cardId={draft.id} contactNumbers={contactNumbers} />
     </>
   );
 }
 
-function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, defaultEmergencyRel, defaultEmergencyPhone }: any) {
+function AccountContactNumbersManager({ contactNumbers, onRefresh }: { contactNumbers: any[]; onRefresh: () => void }) {
+  const [editingNumber, setEditingNumber] = useState<any | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingNumber || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      const isNew = !editingNumber.id;
+      const url = "/api/contacts/numbers";
+      const method = isNew ? "POST" : "PUT";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingNumber),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEditingNumber(null);
+        onRefresh();
+      } else {
+        setSaveError(data.message || "Failed to save contact number.");
+      }
+    } catch {
+      setSaveError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/contacts/numbers", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteId }),
+      });
+      if (res.ok) {
+        setDeleteId(null);
+        onRefresh();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedDeleteNumber = contactNumbers.find((cn) => cn.id === deleteId);
+
+  return (
+    <div className="mode-settings-block">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div className="mode-settings-title" style={{ margin: 0 }}>☎ ACCOUNT CONTACT NUMBERS ({contactNumbers.length})</div>
+        <button
+          type="button"
+          className="asset-btn-primary"
+          onClick={() => {
+            setSaveError("");
+            setEditingNumber({
+              label: "Personal",
+              countryCode: "+91",
+              phoneNumber: "",
+              isPrimary: contactNumbers.length === 0,
+              enabled: true,
+            });
+          }}
+        >
+          + ADD PHONE NUMBER
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 12px" }}>
+        Your contact numbers can be reused across vehicles and Lost &amp; Found items. One number is designated as Primary.
+      </p>
+
+      {contactNumbers.length === 0 && !editingNumber && (
+        <div style={{ padding: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          No contact numbers added yet. Click "+ ADD PHONE NUMBER" above to add your first number!
+        </div>
+      )}
+
+      <div className="asset-card-list">
+        {contactNumbers.map((cn) => (
+          <div key={cn.id} className="asset-item-card">
+            <div className="asset-item-info">
+              <div className="asset-item-title">
+                📞 {cn.countryCode ? `${cn.countryCode} ` : ""}{cn.phoneNumber}
+                {cn.isPrimary && <span className="asset-badge-active" style={{ background: "rgba(212,175,55,0.2)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>PRIMARY</span>}
+              </div>
+              <div className="asset-item-sub">
+                Label: <strong>{cn.label}</strong>
+              </div>
+            </div>
+            <div className="asset-item-actions">
+              <button type="button" className="edit-btn" onClick={() => { setSaveError(""); setEditingNumber(cn); }}>Edit</button>
+              <button type="button" className="delete-btn" onClick={() => setDeleteId(cn.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── ADD / EDIT NUMBER MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(editingNumber)}
+        onClose={() => setEditingNumber(null)}
+        title={editingNumber?.id ? "Edit Phone Number" : "Add Phone Number"}
+        subtitle="Configure an account contact number."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setEditingNumber(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-submit" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Number"}
+            </button>
+          </>
+        }
+      >
+        {editingNumber && (
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {saveError && (
+              <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13 }}>
+                ⚠️ {saveError}
+              </div>
+            )}
+
+            <div className="mylux-field">
+              <label className="mylux-field-label">Label (e.g. Personal / Work / UAE)</label>
+              <select
+                className="mylux-select"
+                value={["Personal", "Mobile", "Work", "Office", "WhatsApp", "India", "UAE", "Other"].includes(editingNumber.label) ? editingNumber.label : "Custom"}
+                onChange={(e) => {
+                  if (e.target.value !== "Custom") {
+                    setEditingNumber({ ...editingNumber, label: e.target.value });
+                  }
+                }}
+              >
+                <option value="Personal">Personal</option>
+                <option value="Mobile">Mobile</option>
+                <option value="Work">Work</option>
+                <option value="Office">Office</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="India">India</option>
+                <option value="UAE">UAE</option>
+                <option value="Other">Other</option>
+                <option value="Custom">Custom Label...</option>
+              </select>
+              {(!["Personal", "Mobile", "Work", "Office", "WhatsApp", "India", "UAE", "Other"].includes(editingNumber.label) || editingNumber.isCustomLabel) && (
+                <input
+                  type="text"
+                  className="mylux-input"
+                  style={{ marginTop: 6 }}
+                  value={editingNumber.label || ""}
+                  onChange={(e) => setEditingNumber({ ...editingNumber, label: e.target.value, isCustomLabel: true })}
+                  placeholder="Enter custom label (e.g. Dubai SIM)"
+                />
+              )}
+            </div>
+
+            <div className="mylux-form-grid-2">
+              <div className="mylux-field">
+                <label className="mylux-field-label">Country Code</label>
+                <input
+                  type="text"
+                  className="mylux-input"
+                  value={editingNumber.countryCode || ""}
+                  onChange={(e) => setEditingNumber({ ...editingNumber, countryCode: e.target.value })}
+                  placeholder="e.g. +91 / +971"
+                />
+              </div>
+              <div className="mylux-field">
+                <label className="mylux-field-label">Phone Number *</label>
+                <input
+                  type="tel"
+                  className="mylux-input"
+                  value={editingNumber.phoneNumber || ""}
+                  onChange={(e) => setEditingNumber({ ...editingNumber, phoneNumber: e.target.value })}
+                  placeholder="e.g. 98765 43210"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="mylux-toggle-row">
+              <div>
+                <div className="mylux-radio-label-text">Set as Primary Number</div>
+                <div className="mylux-radio-subtext">Primary number is used by default for Vehicle Connect and Lost &amp; Found.</div>
+              </div>
+              <div
+                className={`mylux-toggle-switch ${editingNumber.isPrimary ? "active" : ""}`}
+                onClick={() => setEditingNumber({ ...editingNumber, isPrimary: !editingNumber.isPrimary })}
+              >
+                <div className="mylux-toggle-knob" />
+              </div>
+            </div>
+          </form>
+        )}
+      </MyLuxModal>
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        title="Remove this phone number?"
+        subtitle={selectedDeleteNumber ? `${selectedDeleteNumber.countryCode || ""} ${selectedDeleteNumber.phoneNumber} (${selectedDeleteNumber.label})` : ""}
+        maxWidth={460}
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              style={{ background: "#e74c3c", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}
+              onClick={handleDelete}
+              disabled={saving}
+            >
+              {saving ? "Deleting..." : "Remove"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
+          Are you sure you want to remove this phone number from your account? This change will persist permanently.
+        </div>
+      </MyLuxModal>
+    </div>
+  );
+}
+
+function EmergencyContactsManager({ emergencyContacts, onRefresh }: { emergencyContacts: any[]; onRefresh: () => void }) {
+  const [editingContact, setEditingContact] = useState<any | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingContact || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      const isNew = !editingContact.id;
+      const url = "/api/contacts/emergency";
+      const method = isNew ? "POST" : "PUT";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingContact),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEditingContact(null);
+        onRefresh();
+      } else {
+        setSaveError(data.message || "Failed to save emergency contact.");
+      }
+    } catch {
+      setSaveError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/contacts/emergency", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteId }),
+      });
+      if (res.ok) {
+        setDeleteId(null);
+        onRefresh();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedDeleteContact = emergencyContacts.find((ec) => ec.id === deleteId);
+
+  return (
+    <div className="mode-settings-block">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div className="mode-settings-title" style={{ margin: 0 }}>🚨 EMERGENCY CONTACTS ({emergencyContacts.length})</div>
+        <button
+          type="button"
+          className="asset-btn-primary"
+          onClick={() => {
+            setSaveError("");
+            setEditingContact({
+              name: "",
+              relationship: "",
+              isPrimary: emergencyContacts.length === 0,
+              enabled: true,
+              numbers: [{ label: "Mobile", countryCode: "+91", phoneNumber: "" }],
+            });
+          }}
+        >
+          + ADD EMERGENCY CONTACT
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 12px" }}>
+        Register emergency contacts who can be reached if your vehicle needs to be moved or in an urgent situation.
+      </p>
+
+      {emergencyContacts.length === 0 && !editingContact && (
+        <div style={{ padding: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          No emergency contacts added yet. Click "+ ADD EMERGENCY CONTACT" above to register your first emergency contact!
+        </div>
+      )}
+
+      <div className="asset-card-list">
+        {emergencyContacts.map((ec) => (
+          <div key={ec.id} className="asset-item-card">
+            <div className="asset-item-info">
+              <div className="asset-item-title">
+                🚨 {ec.name} {ec.relationship ? `(${ec.relationship})` : ""}
+                {ec.isPrimary && <span className="asset-badge-active" style={{ background: "rgba(212,175,55,0.2)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>PRIMARY</span>}
+              </div>
+              <div className="asset-item-sub">
+                {Array.isArray(ec.numbers) && ec.numbers.length > 0 ? (
+                  ec.numbers.map((n: any) => `${n.label}: ${n.countryCode ? n.countryCode + " " : ""}${n.phoneNumber}`).join(" • ")
+                ) : (
+                  "No phone numbers recorded"
+                )}
+              </div>
+            </div>
+            <div className="asset-item-actions">
+              <button type="button" className="edit-btn" onClick={() => { setSaveError(""); setEditingContact(ec); }}>Edit</button>
+              <button type="button" className="delete-btn" onClick={() => setDeleteId(ec.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── ADD / EDIT EMERGENCY CONTACT MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(editingContact)}
+        onClose={() => setEditingContact(null)}
+        title={editingContact?.id ? "Edit Emergency Contact" : "Add Emergency Contact"}
+        subtitle="Register emergency contact details and phone numbers."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setEditingContact(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-submit" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save Emergency Contact"}
+            </button>
+          </>
+        }
+      >
+        {editingContact && (
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {saveError && (
+              <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13 }}>
+                ⚠️ {saveError}
+              </div>
+            )}
+
+            <div className="mylux-form-grid-2">
+              <div className="mylux-field">
+                <label className="mylux-field-label">Name *</label>
+                <input
+                  type="text"
+                  className="mylux-input"
+                  value={editingContact.name || ""}
+                  onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
+                  placeholder="e.g. Dad / Ameen"
+                  required
+                />
+              </div>
+              <div className="mylux-field">
+                <label className="mylux-field-label">Relationship</label>
+                <input
+                  type="text"
+                  className="mylux-input"
+                  value={editingContact.relationship || ""}
+                  onChange={(e) => setEditingContact({ ...editingContact, relationship: e.target.value })}
+                  placeholder="e.g. Father / Brother"
+                />
+              </div>
+            </div>
+
+            <div className="mylux-form-section">
+              <div className="mylux-form-section-title">PHONE NUMBERS</div>
+              {(editingContact.numbers || []).map((num: any, idx: number) => (
+                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    style={{ width: 110 }}
+                    value={num.label || ""}
+                    onChange={(e) => {
+                      const updated = [...editingContact.numbers];
+                      updated[idx] = { ...updated[idx], label: e.target.value };
+                      setEditingContact({ ...editingContact, numbers: updated });
+                    }}
+                    placeholder="Label (Mobile)"
+                  />
+                  <input
+                    type="text"
+                    className="mylux-input"
+                    style={{ width: 80 }}
+                    value={num.countryCode || ""}
+                    onChange={(e) => {
+                      const updated = [...editingContact.numbers];
+                      updated[idx] = { ...updated[idx], countryCode: e.target.value };
+                      setEditingContact({ ...editingContact, numbers: updated });
+                    }}
+                    placeholder="+91"
+                  />
+                  <input
+                    type="tel"
+                    className="mylux-input"
+                    style={{ flex: 1 }}
+                    value={num.phoneNumber || ""}
+                    onChange={(e) => {
+                      const updated = [...editingContact.numbers];
+                      updated[idx] = { ...updated[idx], phoneNumber: e.target.value };
+                      setEditingContact({ ...editingContact, numbers: updated });
+                    }}
+                    placeholder="Phone number"
+                  />
+                  {editingContact.numbers.length > 1 && (
+                    <button
+                      type="button"
+                      style={{ background: "transparent", border: "none", color: "#e74c3c", cursor: "pointer", fontSize: 16 }}
+                      onClick={() => {
+                        const updated = editingContact.numbers.filter((_: any, i: number) => i !== idx);
+                        setEditingContact({ ...editingContact, numbers: updated });
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.2)", color: "#d4af37", padding: "8px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start", marginTop: 4 }}
+                onClick={() => {
+                  setEditingContact({
+                    ...editingContact,
+                    numbers: [...(editingContact.numbers || []), { label: "Other", countryCode: "", phoneNumber: "" }],
+                  });
+                }}
+              >
+                + Add another number
+              </button>
+            </div>
+
+            <div className="mylux-toggle-row">
+              <div>
+                <div className="mylux-radio-label-text">Set as Primary Emergency Contact</div>
+                <div className="mylux-radio-subtext">Primary emergency contact is used by default for Vehicle Connect.</div>
+              </div>
+              <div
+                className={`mylux-toggle-switch ${editingContact.isPrimary ? "active" : ""}`}
+                onClick={() => setEditingContact({ ...editingContact, isPrimary: !editingContact.isPrimary })}
+              >
+                <div className="mylux-toggle-knob" />
+              </div>
+            </div>
+          </form>
+        )}
+      </MyLuxModal>
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        title="Remove emergency contact?"
+        subtitle={selectedDeleteContact ? `${selectedDeleteContact.name} (${selectedDeleteContact.relationship})` : ""}
+        maxWidth={460}
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              style={{ background: "#e74c3c", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}
+              onClick={handleDelete}
+              disabled={saving}
+            >
+              {saving ? "Deleting..." : "Remove"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
+          Are you sure you want to remove this emergency contact? This change will persist permanently.
+        </div>
+      </MyLuxModal>
+    </div>
+  );
+}
+
+function VehiclesManager({ cardId, contactNumbers = [], emergencyContacts = [] }: any) {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null);
+
+  const primaryContact = contactNumbers.find((c: any) => c.isPrimary) || contactNumbers[0];
+  const primaryEmergency = emergencyContacts.find((ec: any) => ec.isPrimary) || emergencyContacts[0];
 
   const loadVehicles = async () => {
     if (!cardId) return;
@@ -783,10 +1614,12 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
               licensePlate: "",
               contactPhone: "",
               useDefaultContact: true,
+              contactMode: "primary",
               emergencyName: "",
               emergencyRelationship: "",
               emergencyPhone: "",
               useDefaultEmergency: true,
+              emergencyMode: "default",
               ownerNote: "",
               enabled: true,
             });
@@ -921,29 +1754,62 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
               </div>
             </div>
 
-            {/* Section 2: Owner Contact */}
+            {/* Section 2: Owner Contact Selection */}
             <div className="mylux-form-section">
               <div className="mylux-form-section-title">OWNER CONTACT</div>
               <div className="mylux-radio-group">
                 <div
-                  className={`mylux-radio-card ${editingVehicle.useDefaultContact !== false ? "selected" : ""}`}
-                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: true })}
+                  className={`mylux-radio-card ${editingVehicle.useDefaultContact !== false && editingVehicle.contactMode !== "select" && editingVehicle.contactMode !== "custom" ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: true, contactMode: "primary", contactPhone: "" })}
                 >
                   <div className="mylux-radio-indicator">
-                    {editingVehicle.useDefaultContact !== false && <div className="mylux-radio-dot" />}
+                    {editingVehicle.useDefaultContact !== false && editingVehicle.contactMode !== "select" && editingVehicle.contactMode !== "custom" && <div className="mylux-radio-dot" />}
                   </div>
                   <div>
-                    <div className="mylux-radio-label-text">Use my default contact number</div>
-                    {defaultContact && <div className="mylux-radio-subtext">{defaultContact}</div>}
+                    <div className="mylux-radio-label-text">Use Primary Account Number</div>
+                    {primaryContact && (
+                      <div className="mylux-radio-subtext">
+                        {primaryContact.countryCode ? primaryContact.countryCode + " " : ""}{primaryContact.phoneNumber} ({primaryContact.label})
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {contactNumbers.length > 0 && (
+                  <div
+                    className={`mylux-radio-card ${editingVehicle.contactMode === "select" ? "selected" : ""}`}
+                    onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: false, contactMode: "select" })}
+                  >
+                    <div className="mylux-radio-indicator">
+                      {editingVehicle.contactMode === "select" && <div className="mylux-radio-dot" />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="mylux-radio-label-text">Select Account Contact Number</div>
+                      {editingVehicle.contactMode === "select" && (
+                        <select
+                          className="mylux-select"
+                          style={{ marginTop: 6 }}
+                          value={editingVehicle.contactPhone || ""}
+                          onChange={(e) => setEditingVehicle({ ...editingVehicle, contactPhone: e.target.value, useDefaultContact: false })}
+                        >
+                          <option value="">-- Choose Account Number --</option>
+                          {contactNumbers.map((cn: any) => (
+                            <option key={cn.id} value={`${cn.countryCode ? cn.countryCode + " " : ""}${cn.phoneNumber}`}>
+                              {cn.label} — {cn.countryCode ? cn.countryCode + " " : ""}{cn.phoneNumber} {cn.isPrimary ? "(Primary)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div
-                  className={`mylux-radio-card ${editingVehicle.useDefaultContact === false ? "selected" : ""}`}
-                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: false })}
+                  className={`mylux-radio-card ${editingVehicle.useDefaultContact === false && editingVehicle.contactMode === "custom" ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultContact: false, contactMode: "custom" })}
                 >
                   <div className="mylux-radio-indicator">
-                    {editingVehicle.useDefaultContact === false && <div className="mylux-radio-dot" />}
+                    {editingVehicle.useDefaultContact === false && editingVehicle.contactMode === "custom" && <div className="mylux-radio-dot" />}
                   </div>
                   <div>
                     <div className="mylux-radio-label-text">Use a custom number for this vehicle</div>
@@ -951,7 +1817,7 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
                 </div>
               </div>
 
-              {editingVehicle.useDefaultContact === false && (
+              {editingVehicle.useDefaultContact === false && editingVehicle.contactMode === "custom" && (
                 <div className="mylux-field" style={{ marginTop: 8 }}>
                   <label className="mylux-field-label">Vehicle Contact Number *</label>
                   <input
@@ -966,41 +1832,80 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
               )}
             </div>
 
-            {/* Section 3: Emergency Contact */}
+            {/* Section 3: Emergency Contact Selection */}
             <div className="mylux-form-section">
               <div className="mylux-form-section-title">EMERGENCY CONTACT</div>
               <div className="mylux-radio-group">
                 <div
-                  className={`mylux-radio-card ${editingVehicle.useDefaultEmergency !== false ? "selected" : ""}`}
-                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: true })}
+                  className={`mylux-radio-card ${editingVehicle.useDefaultEmergency !== false && editingVehicle.emergencyMode !== "select" && editingVehicle.emergencyMode !== "custom" ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: true, emergencyMode: "default" })}
                 >
                   <div className="mylux-radio-indicator">
-                    {editingVehicle.useDefaultEmergency !== false && <div className="mylux-radio-dot" />}
+                    {editingVehicle.useDefaultEmergency !== false && editingVehicle.emergencyMode !== "select" && editingVehicle.emergencyMode !== "custom" && <div className="mylux-radio-dot" />}
                   </div>
                   <div>
-                    <div className="mylux-radio-label-text">Use my default emergency contact</div>
-                    {defaultEmergencyName && (
+                    <div className="mylux-radio-label-text">Use Primary Emergency Contact</div>
+                    {primaryEmergency && (
                       <div className="mylux-radio-subtext">
-                        {[defaultEmergencyName, defaultEmergencyRel, defaultEmergencyPhone].filter(Boolean).join(" • ")}
+                        {primaryEmergency.name} ({primaryEmergency.relationship || "Emergency"})
                       </div>
                     )}
                   </div>
                 </div>
 
+                {emergencyContacts.length > 0 && (
+                  <div
+                    className={`mylux-radio-card ${editingVehicle.emergencyMode === "select" ? "selected" : ""}`}
+                    onClick={() => setEditingVehicle({ ...editingVehicle, emergencyMode: "select" })}
+                  >
+                    <div className="mylux-radio-indicator">
+                      {editingVehicle.emergencyMode === "select" && <div className="mylux-radio-dot" />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="mylux-radio-label-text">Select Emergency Contact</div>
+                      {editingVehicle.emergencyMode === "select" && (
+                        <select
+                          className="mylux-select"
+                          style={{ marginTop: 6 }}
+                          value={editingVehicle.emergencyName || ""}
+                          onChange={(e) => {
+                            const selectedEc = emergencyContacts.find((ec: any) => ec.name === e.target.value);
+                            const firstNum = selectedEc?.numbers?.[0];
+                            setEditingVehicle({
+                              ...editingVehicle,
+                              useDefaultEmergency: false,
+                              emergencyName: selectedEc ? selectedEc.name : "",
+                              emergencyRelationship: selectedEc ? selectedEc.relationship : "",
+                              emergencyPhone: firstNum ? `${firstNum.countryCode ? firstNum.countryCode + " " : ""}${firstNum.phoneNumber}` : "",
+                            });
+                          }}
+                        >
+                          <option value="">-- Choose Emergency Contact --</option>
+                          {emergencyContacts.map((ec: any) => (
+                            <option key={ec.id} value={ec.name}>
+                              {ec.name} — {ec.relationship || "Emergency"} {ec.isPrimary ? "(Primary)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div
-                  className={`mylux-radio-card ${editingVehicle.useDefaultEmergency === false ? "selected" : ""}`}
-                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: false })}
+                  className={`mylux-radio-card ${editingVehicle.useDefaultEmergency === false && editingVehicle.emergencyMode === "custom" ? "selected" : ""}`}
+                  onClick={() => setEditingVehicle({ ...editingVehicle, useDefaultEmergency: false, emergencyMode: "custom" })}
                 >
                   <div className="mylux-radio-indicator">
-                    {editingVehicle.useDefaultEmergency === false && <div className="mylux-radio-dot" />}
+                    {editingVehicle.useDefaultEmergency === false && editingVehicle.emergencyMode === "custom" && <div className="mylux-radio-dot" />}
                   </div>
                   <div>
-                    <div className="mylux-radio-label-text">Use a custom emergency contact for this vehicle</div>
+                    <div className="mylux-radio-label-text">Use custom emergency contact for this vehicle</div>
                   </div>
                 </div>
               </div>
 
-              {editingVehicle.useDefaultEmergency === false && (
+              {editingVehicle.useDefaultEmergency === false && editingVehicle.emergencyMode === "custom" && (
                 <div className="mylux-form-grid-2" style={{ marginTop: 8 }}>
                   <div className="mylux-field">
                     <label className="mylux-field-label">Emergency Name</label>
@@ -1070,12 +1975,14 @@ function VehiclesManager({ cardId, defaultContact, defaultEmergencyName, default
   );
 }
 
-function LostItemsManager({ cardId, defaultContact }: any) {
+function LostItemsManager({ cardId, contactNumbers = [] }: any) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [editingItem, setEditingItem] = useState<any | null>(null);
+
+  const primaryContact = contactNumbers.find((c: any) => c.isPrimary) || contactNumbers[0];
 
   const loadItems = async () => {
     if (!cardId) return;
@@ -1159,6 +2066,7 @@ function LostItemsManager({ cardId, defaultContact }: any) {
               color: "",
               contactPhone: "",
               useDefaultContact: true,
+              contactMode: "primary",
               rewardEnabled: false,
               rewardText: "Reward available upon safe return.",
               returnInstructions: "Please contact me to arrange collection.",
@@ -1286,24 +2194,57 @@ function LostItemsManager({ cardId, defaultContact }: any) {
               <div className="mylux-form-section-title">OWNER CONTACT</div>
               <div className="mylux-radio-group">
                 <div
-                  className={`mylux-radio-card ${editingItem.useDefaultContact !== false ? "selected" : ""}`}
-                  onClick={() => setEditingItem({ ...editingItem, useDefaultContact: true })}
+                  className={`mylux-radio-card ${editingItem.useDefaultContact !== false && editingItem.contactMode !== "select" && editingItem.contactMode !== "custom" ? "selected" : ""}`}
+                  onClick={() => setEditingItem({ ...editingItem, useDefaultContact: true, contactMode: "primary", contactPhone: "" })}
                 >
                   <div className="mylux-radio-indicator">
-                    {editingItem.useDefaultContact !== false && <div className="mylux-radio-dot" />}
+                    {editingItem.useDefaultContact !== false && editingItem.contactMode !== "select" && editingItem.contactMode !== "custom" && <div className="mylux-radio-dot" />}
                   </div>
                   <div>
-                    <div className="mylux-radio-label-text">Use my default contact number</div>
-                    {defaultContact && <div className="mylux-radio-subtext">{defaultContact}</div>}
+                    <div className="mylux-radio-label-text">Use Primary Account Number</div>
+                    {primaryContact && (
+                      <div className="mylux-radio-subtext">
+                        {primaryContact.countryCode ? primaryContact.countryCode + " " : ""}{primaryContact.phoneNumber} ({primaryContact.label})
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {contactNumbers.length > 0 && (
+                  <div
+                    className={`mylux-radio-card ${editingItem.contactMode === "select" ? "selected" : ""}`}
+                    onClick={() => setEditingItem({ ...editingItem, useDefaultContact: false, contactMode: "select" })}
+                  >
+                    <div className="mylux-radio-indicator">
+                      {editingItem.contactMode === "select" && <div className="mylux-radio-dot" />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="mylux-radio-label-text">Select Account Contact Number</div>
+                      {editingItem.contactMode === "select" && (
+                        <select
+                          className="mylux-select"
+                          style={{ marginTop: 6 }}
+                          value={editingItem.contactPhone || ""}
+                          onChange={(e) => setEditingItem({ ...editingItem, contactPhone: e.target.value, useDefaultContact: false })}
+                        >
+                          <option value="">-- Choose Account Number --</option>
+                          {contactNumbers.map((cn: any) => (
+                            <option key={cn.id} value={`${cn.countryCode ? cn.countryCode + " " : ""}${cn.phoneNumber}`}>
+                              {cn.label} — {cn.countryCode ? cn.countryCode + " " : ""}{cn.phoneNumber} {cn.isPrimary ? "(Primary)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div
-                  className={`mylux-radio-card ${editingItem.useDefaultContact === false ? "selected" : ""}`}
-                  onClick={() => setEditingItem({ ...editingItem, useDefaultContact: false })}
+                  className={`mylux-radio-card ${editingItem.useDefaultContact === false && editingItem.contactMode === "custom" ? "selected" : ""}`}
+                  onClick={() => setEditingItem({ ...editingItem, useDefaultContact: false, contactMode: "custom" })}
                 >
                   <div className="mylux-radio-indicator">
-                    {editingItem.useDefaultContact === false && <div className="mylux-radio-dot" />}
+                    {editingItem.useDefaultContact === false && editingItem.contactMode === "custom" && <div className="mylux-radio-dot" />}
                   </div>
                   <div>
                     <div className="mylux-radio-label-text">Use a custom number for this item</div>
@@ -1311,7 +2252,7 @@ function LostItemsManager({ cardId, defaultContact }: any) {
                 </div>
               </div>
 
-              {editingItem.useDefaultContact === false && (
+              {editingItem.useDefaultContact === false && editingItem.contactMode === "custom" && (
                 <div className="mylux-field" style={{ marginTop: 8 }}>
                   <label className="mylux-field-label">Item Contact Number *</label>
                   <input

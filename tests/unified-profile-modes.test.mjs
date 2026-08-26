@@ -33,28 +33,45 @@ test("public API route validates phone numbers and rate limits LOST_ITEM_FOUND s
   assert.match(publicCardRoute, /interval '30 seconds'/);
 });
 
-test("PublicCardClient renders ultra-clean Vehicle Connect and Lost & Found direct owner contact flow", () => {
-  assert.match(publicCardClient, /CALL OWNER/);
-  assert.match(publicCardClient, /EMERGENCY CONTACT/);
-  assert.doesNotMatch(publicCardClient, /Emergency Alert \(/);
+test("public API route returns normalized ownerContacts and emergencyContacts arrays", () => {
+  assert.match(publicCardRoute, /account_contact_numbers/);
+  assert.match(publicCardRoute, /emergency_contacts/);
+  assert.match(publicCardRoute, /emergency_contact_numbers/);
+  assert.match(publicCardRoute, /ownerContacts/);
+  assert.match(publicCardRoute, /emergencyContacts/);
+});
+
+test("PublicCardClient renders clean Vehicle Connect and Lost & Found direct contact lists without giant call buttons", () => {
+  assert.match(publicCardClient, /pc-contact-section/);
+  assert.match(publicCardClient, /pc-emergency-section/);
+  assert.match(publicCardClient, /pc-number-card/);
+  assert.match(publicCardClient, /pc-copy-icon-btn/);
+  assert.doesNotMatch(publicCardClient, /CALL OWNER/);
+  assert.doesNotMatch(publicCardClient, /CALL EMERGENCY CONTACT/);
   assert.doesNotMatch(publicCardClient, /Message \/ Where the item was found/);
   assert.match(publicCardClient, /MYLUX VEHICLE CONNECT/);
   assert.match(publicCardClient, /MYLUX LOST &(?:amp;)? FOUND/);
 });
 
-test("DashboardDemo provides multi-vehicle and multi-item asset management", () => {
+test("DashboardDemo provides multi-vehicle, multi-item, and normalized contact management", () => {
   assert.match(dashboardDemo, /ModesForm/);
   assert.match(dashboardDemo, /Permanent Feature Entitlements/);
   assert.match(dashboardDemo, /enabledFeatures/);
   assert.match(dashboardDemo, /MY VEHICLES/);
   assert.match(dashboardDemo, /MY LOST &(?:amp;)? FOUND ITEMS/);
+  assert.match(dashboardDemo, /ACCOUNT CONTACT NUMBERS/);
+  assert.match(dashboardDemo, /EMERGENCY CONTACTS/);
   assert.match(dashboardDemo, /Public contact information/);
 });
 
-test("Migration 0012 & 0013 enforce unified profile modes and multi-asset collections", () => {
+test("Migration 0012, 0013 & 0014 enforce unified profile modes and multi-contact collections", () => {
   assert.match(migration0012, /create index if not exists digital_cards_profile_mode_idx/);
   assert.match(migration0012, /profile->>'profileMode'/);
   const migration0013 = readFileSync("db/migrations/0013_multi_asset_collections.sql", "utf8");
   assert.match(migration0013, /create table if not exists card_vehicles/);
   assert.match(migration0013, /create table if not exists card_lost_items/);
+  const migration0014 = readFileSync("db/migrations/0014_multi_contact_numbers.sql", "utf8");
+  assert.match(migration0014, /create table if not exists account_contact_numbers/);
+  assert.match(migration0014, /create table if not exists emergency_contacts/);
+  assert.match(migration0014, /create table if not exists emergency_contact_numbers/);
 });

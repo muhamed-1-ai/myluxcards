@@ -27,6 +27,22 @@ type LostAndFoundSettings = {
   allowAnonymousMessage?: boolean;
 };
 
+type ContactNumberItem = {
+  id?: string;
+  label: string;
+  countryCode?: string;
+  phoneNumber: string;
+  isPrimary?: boolean;
+};
+
+type EmergencyContactItem = {
+  id?: string;
+  name: string;
+  relationship: string;
+  isPrimary?: boolean;
+  numbers: ContactNumberItem[];
+};
+
 type CardVehicle = {
   id: string;
   displayName: string;
@@ -34,10 +50,12 @@ type CardVehicle = {
   model: string;
   color: string;
   licensePlate: string;
-  contactPhone: string;
-  emergencyName: string;
-  emergencyRelationship: string;
-  emergencyPhone: string;
+  contactPhone?: string;
+  emergencyName?: string;
+  emergencyRelationship?: string;
+  emergencyPhone?: string;
+  ownerContacts?: ContactNumberItem[];
+  emergencyContacts?: EmergencyContactItem[];
   ownerNote: string;
   enabled: boolean;
 };
@@ -48,7 +66,8 @@ type CardLostItem = {
   category: string;
   description: string;
   color: string;
-  contactPhone: string;
+  contactPhone?: string;
+  ownerContacts?: ContactNumberItem[];
   rewardEnabled: boolean;
   rewardText: string;
   returnInstructions: string;
@@ -99,8 +118,105 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [submittingAction, setSubmittingAction] = useState(false);
   const [finderName, setFinderName] = useState("");
   const [finderContact, setFinderContact] = useState("");
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(text);
+      setActionToast("Phone number copied!");
+      setTimeout(() => setActionToast(""), 2500);
+    }
+  };
   const [finderContactError, setFinderContactError] = useState("");
   const [finderSubmitted, setFinderSubmitted] = useState(false);
+
+  const recordedEventsRef = useRef<Set<string>>(new Set());
+
+  const trackActivity = (type: string, details?: {
+    assetType?: "profile" | "vehicle" | "lost_found_item";
+    vehicleId?: string;
+    lostItemId?: string;
+    context?: string;
+    linkType?: string;
+    location?: { latitude: number; longitude: number; label?: string };
+  }) => {
+    if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const rawSrc = (searchParams.get("src") || searchParams.get("source") || "").toLowerCase();
+    
+    let channel = "LINK";
+    if (rawSrc === "nfc") channel = "NFC";
+    else if (rawSrc === "qr") channel = "QR";
+    else if (rawSrc === "share") channel = "SHARE";
+    else if (rawSrc === "preview" || searchParams.get("preview") === "1" || (card && (card as any).previewAuthorized)) channel = "PREVIEW";
+
+    // Suppress analytics tracking entirely if page is rendered inside dashboard preview / editor
+    if (channel === "PREVIEW" || (card && (card as any).previewAuthorized)) {
+      return;
+    }
+
+    let visitId = "";
+    try {
+      visitId = window.sessionStorage.getItem(`mylux_visit_${slug}`) || "";
+      if (!visitId) {
+        visitId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        window.sessionStorage.setItem(`mylux_visit_${slug}`, visitId);
+      }
+    } catch {
+      visitId = "anon-" + Date.now().toString(36);
+    }
+
+    const eventKey = `${visitId}:${type}:${details?.vehicleId || ""}:${details?.lostItemId || ""}:${details?.context || ""}`;
+    if (recordedEventsRef.current.has(eventKey) && !["PHONE_NUMBER_TAPPED", "LOCATION_SHARED"].includes(type)) {
+      return;
+    }
+    recordedEventsRef.current.add(eventKey);
+
+    void fetch(`/api/cards/public/${encodeURIComponent(slug)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type,
+        channel,
+        visitId,
+        linkType: details?.linkType,
+        assetType: details?.assetType,
+        vehicleId: details?.vehicleId,
+        lostItemId: details?.lostItemId,
+        context: details?.context,
+        location: details?.location,
+      }),
+    }).catch(() => null);
+  };
+
+  const handleShareLocation = (itemId?: string) => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setActionToast("Geolocation is not supported by your browser.");
+      setTimeout(() => setActionToast(""), 3000);
+      return;
+    }
+    if (!confirm("Share your current location with the item owner to help them recover this item? Your location will be sent directly to the owner.")) {
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        trackActivity("LOCATION_SHARED", {
+          assetType: "lost_found_item",
+          lostItemId: itemId,
+          location: {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            label: "Finder Location Shared",
+          },
+        });
+        setActionToast("Location shared with owner successfully!");
+        setTimeout(() => setActionToast(""), 3500);
+      },
+      () => {
+        setActionToast("Location access was denied or unavailable.");
+        setTimeout(() => setActionToast(""), 3000);
+      }
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +230,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             setVehicles(Array.isArray(payload.vehicles) ? payload.vehicles : []);
             setLostItems(Array.isArray(payload.lostItems) ? payload.lostItems : []);
             setLoaded(true);
-            void fetch(`/api/cards/public/${encodeURIComponent(slug)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VIEW", channel: new URLSearchParams(window.location.search).get("source")?.toUpperCase() || "LINK" }) });
+            trackActivity("PROFILE_OPENED", { assetType: "profile" });
           }
           return;
         }
@@ -195,7 +311,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     else await navigator.clipboard.writeText(window.location.href);
   };
   const track = (type: string, linkType?: string) => {
-    void fetch(`/api/cards/public/${encodeURIComponent(slug)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, linkType, channel: "LINK" }) });
+    trackActivity(type, { linkType });
   };
   const saveContact = () => {
     const vcard = ["BEGIN:VCARD", "VERSION:3.0", `FN:${card.name}`,
@@ -496,7 +612,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               role="tab"
               aria-selected={activeView === "profile"}
               className={`pc-mode-switch-btn ${activeView === "profile" ? "active" : ""}`}
-              onClick={() => setActiveView("profile")}
+              onClick={() => {
+                setActiveView("profile");
+                trackActivity("PROFILE_OPENED", { assetType: "profile" });
+              }}
             >
               Profile
             </button>
@@ -507,7 +626,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               role="tab"
               aria-selected={activeView === "vehicle"}
               className={`pc-mode-switch-btn ${activeView === "vehicle" ? "active" : ""}`}
-              onClick={() => setActiveView("vehicle")}
+              onClick={() => {
+                setActiveView("vehicle");
+                trackActivity("VEHICLE_MODE_OPENED", { assetType: "vehicle" });
+              }}
             >
               🚗 Vehicle
             </button>
@@ -518,7 +640,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               role="tab"
               aria-selected={activeView === "lost_found"}
               className={`pc-mode-switch-btn ${activeView === "lost_found" ? "active" : ""}`}
-              onClick={() => setActiveView("lost_found")}
+              onClick={() => {
+                setActiveView("lost_found");
+                trackActivity("LOST_FOUND_MODE_OPENED", { assetType: "lost_found_item" });
+              }}
             >
               🏷️ Lost &amp; Found
             </button>
@@ -535,7 +660,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
         return (
           <div className="pc-vehicle-card">
-            <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
+            <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
               🚗 MYLUX VEHICLE CONNECT
             </div>
 
@@ -567,7 +692,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                       color: "#fff",
                       fontFamily: "inherit",
                     }}
-                    onClick={() => setSelectedVehicleId(v.id)}
+                    onClick={() => {
+                      setSelectedVehicleId(v.id);
+                      trackActivity("VEHICLE_SELECTED", { assetType: "vehicle", vehicleId: v.id });
+                    }}
                   >
                     <div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>
@@ -583,105 +711,127 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               </div>
             ) : (
               /* Single/Selected Vehicle details screen */
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
                 {activeVehicles.length > 1 && (
                   <button
                     type="button"
-                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 6px" }}
+                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 4px" }}
                     onClick={() => setSelectedVehicleId(null)}
                   >
                     ← All Vehicles
                   </button>
                 )}
 
-                <div className="pc-vehicle-compact-info">
-                  <div className="pc-vehicle-title-row">
+                {/* Vehicle Identity */}
+                <div className="pc-vehicle-identity-clean">
+                  <div className="pc-vehicle-main-title">
                     {currentVehicle.displayName || [currentVehicle.make, currentVehicle.model].filter(Boolean).join(" ") || "Vehicle"}
                   </div>
-                  {(currentVehicle.make || currentVehicle.model || currentVehicle.color) && (
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
-                      {[currentVehicle.make, currentVehicle.model, currentVehicle.color].filter(Boolean).join(" • ")}
-                    </div>
-                  )}
-                  {currentVehicle.licensePlate && (
-                    <div className="pc-vehicle-plate-subtle">
-                      {currentVehicle.licensePlate}
-                    </div>
-                  )}
+                  <div className="pc-vehicle-sub-meta">
+                    {[currentVehicle.color, currentVehicle.licensePlate].filter(Boolean).join(" • ")}
+                  </div>
                 </div>
 
+                {/* Owner Note */}
                 {currentVehicle.ownerNote && (
-                  <div className="pc-subtle-note">
-                    <strong>Owner note:</strong> {currentVehicle.ownerNote}
+                  <div className="pc-subtle-note-panel">
+                    <div className="pc-note-title">Owner note</div>
+                    <div className="pc-note-body">{currentVehicle.ownerNote}</div>
                   </div>
                 )}
 
-                <hr className="pc-dashed-rule" style={{ margin: "4px 0" }} />
-
-                {/* Owner contact details & call button */}
-                <div className="pc-vehicle-action-block">
-                  <div className="pc-section-subtitle">VEHICLE OWNER</div>
-                  {currentVehicle.contactPhone && (
-                    <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", margin: "2px 0 4px" }}>
-                      {currentVehicle.contactPhone}
+                {/* CONTACT Section */}
+                <div className="pc-contact-section">
+                  <div className="pc-section-header-title">CONTACT</div>
+                  <div className="pc-contact-owner-label">Vehicle Owner</div>
+                  {Array.isArray(currentVehicle.ownerContacts) && currentVehicle.ownerContacts.length > 0 ? (
+                    <div className="pc-numbers-list">
+                      {currentVehicle.ownerContacts.map((num, idx) => (
+                        <div key={idx} className="pc-number-card">
+                          <div className="pc-number-label">{num.label || "Personal"}</div>
+                          <div className="pc-number-val-row">
+                            <a
+                              href={`tel:${(num.countryCode ? num.countryCode + num.phoneNumber : num.phoneNumber).replace(/\D/g, "")}`}
+                              className="pc-phone-link"
+                              onClick={() => {
+                                trackActivity("PHONE_NUMBER_TAPPED", {
+                                  assetType: "vehicle",
+                                  vehicleId: currentVehicle.id,
+                                  context: "vehicle_owner",
+                                });
+                              }}
+                            >
+                              {num.countryCode ? `${num.countryCode} ` : ""}{num.phoneNumber}
+                            </a>
+                            <button
+                              type="button"
+                              className="pc-copy-icon-btn"
+                              title="Copy phone number"
+                              onClick={() => copyToClipboard(num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber)}
+                            >
+                              ⧉
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                  {currentVehicle.contactPhone ? (
-                    <a
-                      href={`tel:${currentVehicle.contactPhone.replace(/\D/g, "")}`}
-                      className="pc-btn-primary-alert"
-                      style={{ textDecoration: "none" }}
-                      onClick={() => track("LINK_CLICK", "vehicle_owner_call")}
-                    >
-                      📞 CALL OWNER
-                    </a>
                   ) : (
-                    <button
-                      type="button"
-                      className="pc-btn-primary-alert"
-                      onClick={() => sendVisitorAction("NOTIFY_OWNER")}
-                      disabled={submittingAction}
-                    >
-                      📞 CONTACT VEHICLE OWNER
-                    </button>
+                    <div className="pc-empty-contact">No contact number has been provided.</div>
                   )}
                 </div>
 
-                {/* Emergency contact details & call button */}
-                {(currentVehicle.emergencyPhone || currentVehicle.emergencyName) && (
-                  <div className="pc-vehicle-action-block" style={{ borderTop: "1px dashed rgba(255,255,255,0.15)", paddingTop: 16 }}>
-                    <div className="pc-section-subtitle">EMERGENCY CONTACT</div>
-                    {(currentVehicle.emergencyName || currentVehicle.emergencyRelationship) && (
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
-                        {currentVehicle.emergencyName} {currentVehicle.emergencyRelationship ? `• ${currentVehicle.emergencyRelationship}` : ""}
-                      </div>
-                    )}
-                    {currentVehicle.emergencyPhone && (
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#e74c3c", margin: "2px 0 4px" }}>
-                        {currentVehicle.emergencyPhone}
-                      </div>
-                    )}
-                    {currentVehicle.emergencyPhone ? (
-                      <a
-                        href={`tel:${currentVehicle.emergencyPhone.replace(/\D/g, "")}`}
-                        className="pc-btn-emergency-alert"
-                        style={{ textDecoration: "none" }}
-                        onClick={() => track("LINK_CLICK", "emergency_call")}
-                      >
-                        🚨 CALL EMERGENCY CONTACT
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        className="pc-btn-emergency-alert"
-                        onClick={() => sendVisitorAction("EMERGENCY_CONTACT")}
-                        disabled={submittingAction}
-                      >
-                        🚨 EMERGENCY CONTACT
-                      </button>
-                    )}
-                  </div>
-                )}
+                {/* EMERGENCY CONTACTS Section */}
+                <div className="pc-emergency-section">
+                  <div className="pc-section-header-title-emergency">🚨 EMERGENCY CONTACTS</div>
+                  {Array.isArray(currentVehicle.emergencyContacts) && currentVehicle.emergencyContacts.length > 0 ? (
+                    <div className="pc-emergency-list">
+                      {currentVehicle.emergencyContacts.map((ec, idx) => (
+                        <div key={idx} className="pc-emergency-contact-card">
+                          <div className="pc-ec-header">
+                            <div className="pc-ec-name">{ec.name}</div>
+                            {ec.relationship && <div className="pc-ec-rel">{ec.relationship}</div>}
+                          </div>
+                          <div className="pc-numbers-list" style={{ marginTop: 8 }}>
+                            {Array.isArray(ec.numbers) && ec.numbers.length > 0 ? (
+                              ec.numbers.map((num, nIdx) => (
+                                <div key={nIdx} className="pc-number-card">
+                                  <div className="pc-number-label">{num.label || "Mobile"}</div>
+                                  <div className="pc-number-val-row">
+                                    <a
+                                      href={`tel:${(num.countryCode ? num.countryCode + num.phoneNumber : num.phoneNumber).replace(/\D/g, "")}`}
+                                      className="pc-phone-link"
+                                      onClick={() => {
+                                        trackActivity("PHONE_NUMBER_TAPPED", {
+                                          assetType: "vehicle",
+                                          vehicleId: currentVehicle.id,
+                                          context: "vehicle_emergency",
+                                        });
+                                      }}
+                                    >
+                                      {num.countryCode ? `${num.countryCode} ` : ""}{num.phoneNumber}
+                                    </a>
+                                    <button
+                                      type="button"
+                                      className="pc-copy-icon-btn"
+                                      title="Copy phone number"
+                                      onClick={() => copyToClipboard(num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber)}
+                                    >
+                                      ⧉
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="pc-empty-contact" style={{ padding: "4px 0" }}>No phone numbers listed.</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="pc-empty-contact">No emergency contacts have been added.</div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -697,7 +847,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
         return (
           <div className="pc-lost-card">
-            <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 6 }}>
+            <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
               🏷️ MYLUX LOST &amp; FOUND
             </div>
 
@@ -729,7 +879,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                       color: "#fff",
                       fontFamily: "inherit",
                     }}
-                    onClick={() => setSelectedItemId(item.id)}
+                    onClick={() => {
+                      setSelectedItemId(item.id);
+                      trackActivity("LOST_FOUND_ITEM_SELECTED", { assetType: "lost_found_item", lostItemId: item.id });
+                    }}
                   >
                     <div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>
@@ -745,57 +898,105 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               </div>
             ) : (
               /* Single/Selected Item details screen */
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
                 {activeItems.length > 1 && (
                   <button
                     type="button"
-                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 6px" }}
+                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 4px" }}
                     onClick={() => setSelectedItemId(null)}
                   >
                     ← All Lost &amp; Found Items
                   </button>
                 )}
 
-                <div className="pc-lost-owner-name">{currentItem.name}</div>
+                {/* Item Identity */}
+                <div className="pc-item-identity-clean">
+                  <div className="pc-item-main-title">{currentItem.name}</div>
+                  <div className="pc-item-sub-meta">
+                    {[currentItem.category, currentItem.color || currentItem.description].filter(Boolean).join(" • ")}
+                  </div>
+                </div>
+
                 <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.75)", margin: 0 }}>
                   You found an item belonging to <strong>{card.name}</strong>.
                 </p>
 
-                {currentItem.category && (
-                  <div className="pc-lost-chip-subtle">
-                    Category: {currentItem.category} {currentItem.color ? `• ${currentItem.color}` : ""}
-                  </div>
-                )}
-
+                {/* Reward Offered */}
                 {currentItem.rewardEnabled && (
                   <div className="pc-reward-subtle">
                     🎁 Reward offered for safe return: <span>{currentItem.rewardText || "Reward available upon return!"}</span>
                   </div>
                 )}
 
+                {/* Return Instructions */}
                 {currentItem.returnInstructions && (
-                  <div className="pc-subtle-note">
-                    <strong>Return instructions:</strong> {currentItem.returnInstructions}
+                  <div className="pc-subtle-note-panel">
+                    <div className="pc-note-title">Return instructions</div>
+                    <div className="pc-note-body">{currentItem.returnInstructions}</div>
                   </div>
                 )}
 
-                <hr className="pc-dashed-rule" style={{ margin: "8px 0" }} />
-
-                <div className="pc-vehicle-action-block">
-                  <div className="pc-section-subtitle">OWNER CONTACT</div>
-                  {currentItem.contactPhone && (
-                    <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", margin: "2px 0 4px" }}>
-                      {currentItem.contactPhone}
-                    </div>
-                  )}
-                  <a
-                    href={`tel:${(currentItem.contactPhone || phone || "").replace(/\D/g, "")}`}
-                    className="pc-btn-primary-alert"
-                    style={{ textDecoration: "none" }}
-                    onClick={() => track("LINK_CLICK", "lost_owner_call")}
+                {/* Voluntary Location Sharing */}
+                <div style={{ textAlign: "center" }}>
+                  <button
+                    type="button"
+                    style={{
+                      background: "rgba(212,175,55,0.12)",
+                      border: "1px solid rgba(212,175,55,0.4)",
+                      color: "#d4af37",
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                    onClick={() => handleShareLocation(currentItem.id)}
                   >
-                    📞 CALL OWNER
-                  </a>
+                    📍 Share location where item was found with owner
+                  </button>
+                </div>
+
+                {/* CONTACT Section */}
+                <div className="pc-contact-section">
+                  <div className="pc-section-header-title">CONTACT</div>
+                  <div className="pc-contact-owner-label">Item Owner</div>
+                  {Array.isArray(currentItem.ownerContacts) && currentItem.ownerContacts.length > 0 ? (
+                    <div className="pc-numbers-list">
+                      {currentItem.ownerContacts.map((num, idx) => (
+                        <div key={idx} className="pc-number-card">
+                          <div className="pc-number-label">{num.label || "Personal"}</div>
+                          <div className="pc-number-val-row">
+                            <a
+                              href={`tel:${(num.countryCode ? num.countryCode + num.phoneNumber : num.phoneNumber).replace(/\D/g, "")}`}
+                              className="pc-phone-link"
+                              onClick={() => {
+                                trackActivity("PHONE_NUMBER_TAPPED", {
+                                  assetType: "lost_found_item",
+                                  lostItemId: currentItem.id,
+                                  context: "lost_found_owner",
+                                });
+                              }}
+                            >
+                              {num.countryCode ? `${num.countryCode} ` : ""}{num.phoneNumber}
+                            </a>
+                            <button
+                              type="button"
+                              className="pc-copy-icon-btn"
+                              title="Copy phone number"
+                              onClick={() => copyToClipboard(num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber)}
+                            >
+                              ⧉
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="pc-empty-contact">No contact number has been provided.</div>
+                  )}
                 </div>
               </div>
             )}

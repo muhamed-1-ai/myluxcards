@@ -63,6 +63,14 @@ export function getPublicCardUrl(slug: string, request?: Request): string {
   return `${origin}/card/${cleanSlug}`;
 }
 
+export function getPublicCardQrUrl(slug: string, request?: Request): string {
+  return `${getPublicCardUrl(slug, request)}?src=qr`;
+}
+
+export function getPublicCardNfcUrl(slug: string, request?: Request): string {
+  return `${getPublicCardUrl(slug, request)}?src=nfc`;
+}
+
 export function getRelativeCardUrl(slug: string): string {
   const cleanSlug = String(slug || "")
     .trim()
