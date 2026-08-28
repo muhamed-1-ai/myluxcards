@@ -3613,4 +3613,102 @@ th {
   cursor: not-allowed;
 }
 
+/* ══════════════════════════════════════════════
+   WHATSAPP INTEGRATION STYLES (BLACK & GOLD)
+══════════════════════════════════════════════ */
+.wa-panel {
+  background: #0B0B0B;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.wa-metric-card {
+  background: #0B0B0B;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wa-metric-card strong {
+  font-size: 24px;
+  font-weight: 800;
+  color: #D4AF37;
+}
+
+.wa-metric-card span {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.wa-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wa-status-pill.connected {
+  background: rgba(46, 204, 113, 0.12);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+}
+
+.wa-status-pill.disconnected {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.35);
+}
+
+.wa-template-card {
+  background: #111111;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.wa-template-card:hover {
+  border-color: #D4AF37;
+}
+
+.wa-msg-bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 85%;
+}
+
+.wa-msg-bubble.outbound {
+  background: #1A180E;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #FFFFFF;
+  align-self: flex-end;
+}
+
+.wa-msg-bubble.inbound {
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  align-self: flex-start;
+}
+
+
 

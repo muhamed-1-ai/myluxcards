@@ -126,6 +126,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [leadCountryCode, setLeadCountryCode] = useState("+91");
   const [leadPhone, setLeadPhone] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
+  const [leadWhatsAppOptIn, setLeadWhatsAppOptIn] = useState(true);
   const [leadHoneypot, setLeadHoneypot] = useState("");
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadError, setLeadError] = useState("");
@@ -169,6 +170,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           company: leadCompany.trim(),
           phone: fullPhone.trim(),
           email: leadEmail.trim() || undefined,
+          whatsapp_opt_in: leadWhatsAppOptIn,
           website_url_hp: leadHoneypot,
           channel,
         }),
@@ -1403,6 +1405,18 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                     onChange={(e) => setLeadEmail(e.target.value)}
                     placeholder="name@company.com"
                   />
+                </div>
+
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10, margin: "6px 0 12px", cursor: "pointer" }} onClick={() => setLeadWhatsAppOptIn(!leadWhatsAppOptIn)}>
+                  <input
+                    type="checkbox"
+                    checked={leadWhatsAppOptIn}
+                    onChange={(e) => setLeadWhatsAppOptIn(e.target.checked)}
+                    style={{ accentColor: "#D4AF37", width: 16, height: 16, marginTop: 2, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 12.5, color: "rgba(255, 255, 255, 0.85)", lineHeight: 1.4 }}>
+                    I agree to receive WhatsApp updates and follow-ups from this business.
+                  </span>
                 </div>
 
                 <p className="pc-lead-privacy-note">

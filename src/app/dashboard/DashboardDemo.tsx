@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-type Tab = "dashboard" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads";
+type Tab = "dashboard" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads" | "whatsapp";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -543,7 +543,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </div>
       </header>
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard","analytics","modes","contact","social","company","appearance","cards","leads"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="analytics"?"QR Activity":item==="modes"?"Modes":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":"Leads"}</button>)}
+        {(["dashboard","analytics","modes","contact","social","company","appearance","cards","leads","whatsapp"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="analytics"?"QR Activity":item==="modes"?"Modes":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":item==="leads"?"Leads":"WhatsApp"}</button>)}
       </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
@@ -560,6 +560,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
           <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>👥</I> Leads</button>
+          <button className={tab === "whatsapp" ? "active" : ""} onClick={() => selectTab("whatsapp")}><I>💬</I> WhatsApp</button>
           <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
           {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
             <a className="side-link" href="/admin" style={{ color: "#d4af37", fontWeight: 600 }}><I>⚙</I> Admin Portal</a>
@@ -625,6 +626,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
 
         {tab === "analytics" && <AnalyticsTab selectedCardId={selected?.id || ""} />}
         {tab === "leads" && <LeadsTab />}
+        {tab === "whatsapp" && <WhatsAppTab />}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       <MyLuxModal
@@ -1174,6 +1176,16 @@ function LeadsTab() {
               <div className="crm-drawer-section-title">Source &amp; Lead Details</div>
               <div style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6, color: "rgba(255,255,255,0.8)" }}>
                 <div><strong>Phone:</strong> {selectedLead.phone || "—"}</div>
+                <div>
+                  <strong>WhatsApp Consent:</strong>{" "}
+                  {selectedLead.whatsapp_opt_out_at ? (
+                    <span className="wa-status-pill disconnected" style={{ fontSize: 10, padding: "2px 6px" }}>🚫 Opted Out</span>
+                  ) : selectedLead.whatsapp_opt_in ? (
+                    <span className="wa-status-pill connected" style={{ fontSize: 10, padding: "2px 6px" }}>✓ Opted In</span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: "#f39c12", fontWeight: 600 }}>⚠️ Consent Missing</span>
+                  )}
+                </div>
                 {selectedLead.email && <div><strong>Email:</strong> {selectedLead.email}</div>}
                 <div>
                   <strong>Captured via:</strong>{" "}
@@ -1206,6 +1218,587 @@ function LeadsTab() {
             >
               Archive Lead
             </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WhatsAppTab() {
+  const [subTab, setSubTab] = useState<"connection" | "templates" | "broadcasts">("connection");
+  const [connection, setConnection] = useState<any | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [loadingConn, setLoadingConn] = useState(true);
+
+  // Connection form state
+  const [wabaId, setWabaId] = useState("");
+  const [phoneNumberId, setPhoneNumberId] = useState("");
+  const [accessToken, setAccessToken] = useState("");
+  const [displayPhone, setDisplayPhone] = useState("");
+  const [verifiedName, setVerifiedName] = useState("");
+  const [savingConn, setSavingConn] = useState(false);
+
+  // Templates state
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [syncingTemplates, setSyncingTemplates] = useState(false);
+
+  // Broadcasts state
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+
+  // New Broadcast Modal state
+  const [newBroadcastOpen, setNewBroadcastOpen] = useState(false);
+  const [broadcastName, setBroadcastName] = useState("");
+  const [selectedTemplateName, setSelectedTemplateName] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [sourceFilter, setSourceFilter] = useState("ALL");
+  const [submittingBroadcast, setSubmittingBroadcast] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+
+  const [toast, setToast] = useState("");
+  const notify = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2800); };
+
+  const fetchConnection = useCallback(async () => {
+    setLoadingConn(true);
+    try {
+      const res = await fetch("/api/whatsapp/connection", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.connection) {
+        setConnection(data.connection);
+        setConnected(data.connected);
+        setWabaId(data.connection.waba_id || "");
+        setPhoneNumberId(data.connection.phone_number_id || "");
+        setDisplayPhone(data.connection.display_phone_number || "");
+        setVerifiedName(data.connection.verified_name || "");
+      } else {
+        setConnection(null);
+        setConnected(false);
+      }
+    } catch {
+      setConnection(null);
+      setConnected(false);
+    } finally {
+      setLoadingConn(false);
+    }
+  }, []);
+
+  const fetchTemplates = useCallback(async (sync = false) => {
+    if (sync) setSyncingTemplates(true);
+    try {
+      const res = await fetch(`/api/whatsapp/templates${sync ? "?sync=true" : ""}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setTemplates(data.templates || []);
+        if (sync) notify("Meta templates synchronized successfully.");
+      }
+    } catch {
+      if (sync) notify("Failed to sync Meta templates.");
+    } finally {
+      setSyncingTemplates(false);
+    }
+  }, []);
+
+  const fetchCampaigns = useCallback(async () => {
+    setLoadingCampaigns(true);
+    try {
+      const res = await fetch("/api/whatsapp/broadcasts", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCampaigns(data.campaigns || []);
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingCampaigns(false); }
+  }, []);
+
+  useEffect(() => {
+    void fetchConnection();
+    void fetchTemplates(false);
+    void fetchCampaigns();
+  }, [fetchConnection, fetchTemplates, fetchCampaigns]);
+
+  const handleSaveConnection = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!wabaId.trim() || !phoneNumberId.trim() || !accessToken.trim()) {
+      notify("Please fill in WABA ID, Phone Number ID, and Access Token.");
+      return;
+    }
+
+    setSavingConn(true);
+    try {
+      const res = await fetch("/api/whatsapp/connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          waba_id: wabaId.trim(),
+          phone_number_id: phoneNumberId.trim(),
+          access_token: accessToken.trim(),
+          display_phone_number: displayPhone.trim(),
+          verified_name: verifiedName.trim(),
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        notify("✓ WhatsApp Business account connected!");
+        void fetchConnection();
+        void fetchTemplates(true);
+      } else {
+        notify(data.message || "Could not save connection.");
+      }
+    } catch {
+      notify("Network error saving connection.");
+    } finally {
+      setSavingConn(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!confirm("Are you sure you want to disconnect your WhatsApp Business Account?")) return;
+    try {
+      const res = await fetch("/api/whatsapp/connection", { method: "DELETE" });
+      if (res.ok) {
+        notify("WhatsApp Business Account disconnected.");
+        setConnection(null);
+        setConnected(false);
+        setAccessToken("");
+      }
+    } catch {
+      notify("Failed to disconnect.");
+    }
+  };
+
+  const handleCreateBroadcast = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!broadcastName.trim() || !selectedTemplateName) {
+      notify("Please enter a campaign name and select an approved template.");
+      return;
+    }
+
+    setSubmittingBroadcast(true);
+    setBroadcastMessage("");
+    try {
+      const res = await fetch("/api/whatsapp/broadcasts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: broadcastName.trim(),
+          template_name: selectedTemplateName,
+          status_filter: statusFilter,
+          source_filter: sourceFilter,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        notify("✓ Broadcast campaign created and queued!");
+        setNewBroadcastOpen(false);
+        setBroadcastName("");
+        setSelectedTemplateName("");
+        void fetchCampaigns();
+      } else {
+        setBroadcastMessage(data.message || "Failed to create broadcast.");
+      }
+    } catch {
+      setBroadcastMessage("Network error creating broadcast.");
+    } finally {
+      setSubmittingBroadcast(false);
+    }
+  };
+
+  const totalBroadcastSent = campaigns.reduce((acc, c) => acc + Number(c.sent_count || 0), 0);
+  const totalBroadcastDelivered = campaigns.reduce((acc, c) => acc + Number(c.delivered_count || 0), 0);
+  const totalBroadcastRead = campaigns.reduce((acc, c) => acc + Number(c.read_count || 0), 0);
+  const totalBroadcastReplies = campaigns.reduce((acc, c) => acc + Number(c.reply_count || 0), 0);
+
+  return (
+    <section>
+      {toast && <div className="dash-toast">✓ {toast}</div>}
+
+      <div className="page-heading">
+        <div>
+          <p>INTEGRATIONS</p>
+          <h1>WhatsApp Business Platform</h1>
+          <span>Message, follow up, and broadcast approved templates to your MyLux leads.</span>
+        </div>
+      </div>
+
+      {/* Sub-nav Bar */}
+      <div className="crm-pills-row" style={{ marginBottom: 20 }}>
+        <button
+          type="button"
+          className={`crm-pill-btn ${subTab === "connection" ? "active" : ""}`}
+          onClick={() => setSubTab("connection")}
+        >
+          ⚙ Connection
+        </button>
+        <button
+          type="button"
+          className={`crm-pill-btn ${subTab === "templates" ? "active" : ""}`}
+          onClick={() => setSubTab("templates")}
+        >
+          📄 Meta Templates ({templates.length})
+        </button>
+        <button
+          type="button"
+          className={`crm-pill-btn ${subTab === "broadcasts" ? "active" : ""}`}
+          onClick={() => setSubTab("broadcasts")}
+        >
+          🚀 Broadcasts ({campaigns.length})
+        </button>
+      </div>
+
+      {/* ── SUB TAB 1: CONNECTION ── */}
+      {subTab === "connection" && (
+        <div className="wa-panel">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#fff" }}>WhatsApp Business Connection</h3>
+              <p style={{ fontSize: 13, color: "#B7B7B7", margin: "2px 0 0" }}>
+                Connect your official Meta WhatsApp Business Account (WABA) to send direct messages &amp; templates.
+              </p>
+            </div>
+            <span className={`wa-status-pill ${connected ? "connected" : "disconnected"}`}>
+              {connected ? "✓ Connected" : "Not Connected"}
+            </span>
+          </div>
+
+          {loadingConn ? (
+            <div style={{ color: "#777777", fontSize: 13.5 }}>Checking connection status…</div>
+          ) : connected && connection ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ background: "#111111", border: "1px solid rgba(212,175,55,0.3)", borderRadius: 12, padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>Verified Business</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 }}>{connection.verified_name || "Business Account"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>Display Phone</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 }}>{connection.display_phone_number || "—"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>WABA ID</div>
+                  <div style={{ fontSize: 13, color: "#B7B7B7", marginTop: 2, fontFamily: "monospace" }}>{connection.waba_id}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>Phone Number ID</div>
+                  <div style={{ fontSize: 13, color: "#B7B7B7", marginTop: 2, fontFamily: "monospace" }}>{connection.phone_number_id}</div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  className="crm-pagination-btn"
+                  onClick={() => fetchTemplates(true)}
+                  disabled={syncingTemplates}
+                >
+                  {syncingTemplates ? "Syncing Templates…" : "🔄 Sync Meta Templates"}
+                </button>
+                <button
+                  type="button"
+                  style={{ background: "rgba(231, 76, 60, 0.15)", color: "#e74c3c", border: "1px solid rgba(231, 76, 60, 0.4)", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  onClick={handleDisconnect}
+                >
+                  Disconnect WABA
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveConnection} style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 540 }}>
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">WhatsApp Business Account (WABA) ID *</label>
+                <input
+                  type="text"
+                  className="pc-lead-input"
+                  value={wabaId}
+                  onChange={(e) => setWabaId(e.target.value)}
+                  placeholder="e.g. 104928475839201"
+                  required
+                />
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Phone Number ID *</label>
+                <input
+                  type="text"
+                  className="pc-lead-input"
+                  value={phoneNumberId}
+                  onChange={(e) => setPhoneNumberId(e.target.value)}
+                  placeholder="e.g. 109283746501928"
+                  required
+                />
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Permanent Meta System Access Token *</label>
+                <input
+                  type="password"
+                  className="pc-lead-input"
+                  value={accessToken}
+                  onChange={(e) => setAccessToken(e.target.value)}
+                  placeholder="EAAG..."
+                  required
+                />
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Verified Business Name (Optional)</label>
+                <input
+                  type="text"
+                  className="pc-lead-input"
+                  value={verifiedName}
+                  onChange={(e) => setVerifiedName(e.target.value)}
+                  placeholder="e.g. ABC Builders"
+                />
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Display Phone Number (Optional)</label>
+                <input
+                  type="text"
+                  className="pc-lead-input"
+                  value={displayPhone}
+                  onChange={(e) => setDisplayPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                />
+              </div>
+
+              <button type="submit" className="mylux-btn-submit" disabled={savingConn} style={{ marginTop: 8 }}>
+                {savingConn ? "Connecting WABA..." : "CONNECT WHATSAPP BUSINESS"}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* ── SUB TAB 2: TEMPLATES ── */}
+      {subTab === "templates" && (
+        <div className="wa-panel">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#fff" }}>Approved Meta Message Templates</h3>
+              <p style={{ fontSize: 13, color: "#B7B7B7", margin: "2px 0 0" }}>
+                Approved templates synced directly from your Meta WABA account.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="crm-pagination-btn"
+              onClick={() => fetchTemplates(true)}
+              disabled={syncingTemplates}
+            >
+              {syncingTemplates ? "Syncing..." : "🔄 Sync Templates"}
+            </button>
+          </div>
+
+          {templates.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: "#777777", fontSize: 13.5 }}>
+              No templates loaded yet. Click <strong>Sync Templates</strong> to fetch your approved Meta templates.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+              {templates.map((tpl) => (
+                <div key={tpl.id} className="wa-template-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{tpl.name}</span>
+                    <span className="wa-status-pill connected" style={{ padding: "2px 8px", fontSize: 10 }}>
+                      {tpl.status}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "#D4AF37", fontWeight: 600 }}>
+                    {tpl.category} · {tpl.language}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "#B7B7B7", fontStyle: "italic", background: "#080808", padding: "8px 10px", borderRadius: 8 }}>
+                    {Array.isArray(tpl.components) && tpl.components.find((c: any) => c.type === "BODY")?.text || "Body template components..."}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SUB TAB 3: BROADCASTS ── */}
+      {subTab === "broadcasts" && (
+        <div>
+          {/* Top Metrics Row */}
+          <div className="stats" style={{ marginBottom: 20 }}>
+            <div className="wa-metric-card">
+              <strong>{totalBroadcastSent}</strong>
+              <span>MESSAGES SENT</span>
+            </div>
+            <div className="wa-metric-card">
+              <strong>{totalBroadcastDelivered}</strong>
+              <span>DELIVERED</span>
+            </div>
+            <div className="wa-metric-card">
+              <strong>{totalBroadcastRead}</strong>
+              <span>READ</span>
+            </div>
+            <div className="wa-metric-card">
+              <strong>{totalBroadcastReplies}</strong>
+              <span>REPLIES</span>
+            </div>
+          </div>
+
+          <div className="wa-panel">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#fff" }}>WhatsApp Broadcast Campaigns</h3>
+                <p style={{ fontSize: 13, color: "#B7B7B7", margin: "2px 0 0" }}>
+                  Send approved template broadcasts to consent-verified leads.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="mylux-btn-submit"
+                onClick={() => setNewBroadcastOpen(true)}
+              >
+                + NEW BROADCAST
+              </button>
+            </div>
+
+            {loadingCampaigns ? (
+              <div style={{ padding: 30, textAlign: "center", color: "#777777", fontSize: 13.5 }}>Loading campaigns…</div>
+            ) : campaigns.length === 0 ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#777777", fontSize: 13.5 }}>
+                No broadcast campaigns sent yet. Click <strong>+ NEW BROADCAST</strong> to send your first template campaign.
+              </div>
+            ) : (
+              <div className="crm-table-wrapper">
+                <table className="crm-table">
+                  <thead>
+                    <tr>
+                      <th>Campaign Name</th>
+                      <th>Template</th>
+                      <th>Status</th>
+                      <th>Eligible</th>
+                      <th>Sent</th>
+                      <th>Delivered</th>
+                      <th>Read</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaigns.map((c) => (
+                      <tr key={c.id} className="crm-row">
+                        <td style={{ fontWeight: 700, color: "#FFFFFF" }}>{c.name}</td>
+                        <td style={{ color: "#D4AF37", fontSize: 12.5 }}>{c.template_name} ({c.template_language})</td>
+                        <td>
+                          <span className="wa-status-pill connected" style={{ fontSize: 10, padding: "2px 8px" }}>
+                            {c.status}
+                          </span>
+                        </td>
+                        <td>{c.eligible_recipients} / {c.total_recipients}</td>
+                        <td style={{ color: "#FFFFFF", fontWeight: 600 }}>{c.sent_count}</td>
+                        <td style={{ color: "#2ecc71", fontWeight: 600 }}>{c.delivered_count}</td>
+                        <td style={{ color: "#3498db", fontWeight: 600 }}>{c.read_count}</td>
+                        <td style={{ fontSize: 12, color: "#777777" }}>
+                          {new Date(c.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── NEW BROADCAST MODAL ── */}
+      {newBroadcastOpen && (
+        <div className="crm-drawer-overlay" onClick={(e) => { if (e.target === e.currentTarget) setNewBroadcastOpen(false); }}>
+          <div className="crm-drawer" style={{ maxWidth: 540 }}>
+            <div className="crm-drawer-header">
+              <div>
+                <div className="crm-drawer-title">Create WhatsApp Broadcast</div>
+                <div className="crm-drawer-subtitle">Target consent-verified MyLux leads</div>
+              </div>
+              <button type="button" className="pc-lead-modal-close" onClick={() => setNewBroadcastOpen(false)}>✕</button>
+            </div>
+
+            <form onSubmit={handleCreateBroadcast} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {broadcastMessage && (
+                <div style={{ background: "rgba(231, 76, 60, 0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px", borderRadius: 8, fontSize: 13 }}>
+                  ⚠️ {broadcastMessage}
+                </div>
+              )}
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Campaign Name *</label>
+                <input
+                  type="text"
+                  className="pc-lead-input"
+                  value={broadcastName}
+                  onChange={(e) => setBroadcastName(e.target.value)}
+                  placeholder="e.g. August Catalogue Launch"
+                  required
+                />
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Approved Meta Template *</label>
+                <select
+                  className="crm-select-dark"
+                  value={selectedTemplateName}
+                  onChange={(e) => setSelectedTemplateName(e.target.value)}
+                  style={{ width: "100%", padding: "10px" }}
+                  required
+                >
+                  <option value="">-- Select Approved Template --</option>
+                  {templates.filter((t) => t.status === "APPROVED").map((t) => (
+                    <option key={t.id} value={t.name}>{t.name} ({t.category})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Target Lead Status Filter</label>
+                <select
+                  className="crm-select-dark"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{ width: "100%", padding: "10px" }}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="NEW">New Leads</option>
+                  <option value="CONTACTED">Contacted</option>
+                  <option value="INTERESTED">Interested</option>
+                  <option value="FOLLOW_UP">Follow-up</option>
+                  <option value="WON">Won</option>
+                </select>
+              </div>
+
+              <div className="pc-lead-field-group">
+                <label className="pc-lead-label">Target Lead Source Filter</label>
+                <select
+                  className="crm-select-dark"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  style={{ width: "100%", padding: "10px" }}
+                >
+                  <option value="ALL">All Sources (NFC, QR, Share, Direct)</option>
+                  <option value="NFC">📱 NFC Taps</option>
+                  <option value="QR">📷 QR Code Scans</option>
+                  <option value="SHARE">🔗 Profile Share</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#111111", border: "1px solid rgba(212,175,55,0.3)", borderRadius: 10, padding: 12, fontSize: 12.5, color: "#B7B7B7" }}>
+                🔒 <strong>Consent Verification</strong>: Messages will be queued only for leads who checked <em>"I agree to receive WhatsApp updates"</em> and have not opted out.
+              </div>
+
+              <button
+                type="submit"
+                className="mylux-btn-submit"
+                disabled={submittingBroadcast}
+                style={{ marginTop: 8 }}
+              >
+                {submittingBroadcast ? "Creating Broadcast Queue..." : "QUEUE & SEND BROADCAST"}
+              </button>
+            </form>
           </div>
         </div>
       )}

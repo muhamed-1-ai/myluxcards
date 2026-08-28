@@ -37,6 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     const { name, company, phone, email } = validation.data;
     const phoneNormalized = normalizePhoneNumber(phone);
+    const whatsappOptIn = Boolean(body.whatsapp_opt_in !== false);
 
     // Resolve channel source (NFC / QR / SHARE / DIRECT)
     const rawChannel = String(body.channel || body.src || "").toUpperCase();
@@ -62,20 +63,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
          set name = $1,
              company = $2,
              email = $3,
+             whatsapp_opt_in = case when $5 = true then true else whatsapp_opt_in end,
+             whatsapp_opt_in_at = case when $5 = true then now() else whatsapp_opt_in_at end,
+             whatsapp_opt_in_source = case when $5 = true then 'mylux_profile' else whatsapp_opt_in_source end,
              submission_count = submission_count + 1,
              last_seen_at = now(),
              updated_at = now()
          where id = $4`,
-        [updatedName, updatedCompany, updatedEmail, existingLead.id]
+        [updatedName, updatedCompany, updatedEmail, existingLead.id, whatsappOptIn]
       );
     } else {
       // New lead creation
       await pool.query(
         `insert into card_leads (
           card_id, owner_user_id, name, company, phone, phone_normalized, email,
-          status, source, consent_at, last_seen_at, submission_count
-        ) values ($1, $2, $3, $4, $5, $6, $7, 'NEW', $8, now(), now(), 1)`,
-        [card.id, card.owner_id, name, company, phone, phoneNormalized, email, source]
+          status, source, consent_at, whatsapp_opt_in, whatsapp_opt_in_at, whatsapp_opt_in_source, last_seen_at, submission_count
+        ) values ($1, $2, $3, $4, $5, $6, $7, 'NEW', $8, now(), $9, $10, $11, now(), 1)`,
+        [
+          card.id, card.owner_id, name, company, phone, phoneNormalized, email, source,
+          whatsappOptIn, whatsappOptIn ? new Date() : null, whatsappOptIn ? "mylux_profile" : null
+        ]
       );
     }
 
