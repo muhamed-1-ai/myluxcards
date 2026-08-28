@@ -559,6 +559,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <small>{selected.active ? "Published until you switch it off" : "Currently switched off"} ({selected.id.replace("card-", "#")})</small>
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
+          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>👥</I> Leads</button>
           <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
           {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
             <a className="side-link" href="/admin" style={{ color: "#d4af37", fontWeight: 600 }}><I>⚙</I> Admin Portal</a>
@@ -578,6 +579,16 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           <div className="welcome-panel">
             <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Complete your profile so visitors have the details they need to connect with you.</p><div className="completion"><span><b>Profile completion</b><strong>{profileCompletion}%</strong></span><i><b style={{width:`${profileCompletion}%`}} /></i></div><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
             <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{serverTotalOpens} opens</b></div>
+          </div>
+          <div style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: 20, marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span className="eyebrow" style={{ color: "#D4AF37", fontWeight: 700, fontSize: 11 }}>MINI CRM LEADS</span>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "2px 0 4px", color: "#FFFFFF" }}>Captured Visitor Leads</h3>
+              <p style={{ fontSize: 13, color: "#B7B7B7", margin: 0 }}>
+                {overviewAnalytics ? "Manage business connections shared by visitors who scanned or tapped your card." : "Share your MyLux digital profile QR/NFC to start capturing business leads."}
+              </p>
+            </div>
+            <button className="primary" onClick={() => selectTab("leads")}>View Leads →</button>
           </div>
         </section>}
 
@@ -613,6 +624,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </section>}
 
         {tab === "analytics" && <AnalyticsTab selectedCardId={selected?.id || ""} />}
+        {tab === "leads" && <LeadsTab />}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       <MyLuxModal
@@ -633,6 +645,571 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         </div>
       </MyLuxModal>
     </div>
+  );
+}
+
+function LeadsTab() {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [summary, setSummary] = useState({ total: 0, newCount: 0, followUpCount: 0, wonCount: 0 });
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [leadNotes, setLeadNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const notify = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
+
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/leads?status=${statusFilter}&search=${encodeURIComponent(search)}&sort=${sort}&page=${page}&limit=25`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setLeads(data.leads || []);
+        if (data.summary) setSummary(data.summary);
+        if (data.pagination) setTotalPages(data.pagination.totalPages || 1);
+      } else {
+        setError(data.message || "Failed to load leads.");
+      }
+    } catch {
+      setError("Network error loading leads.");
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, search, sort, page]);
+
+  useEffect(() => {
+    void fetchLeads();
+  }, [fetchLeads]);
+
+  const fetchLeadNotes = async (leadId: string) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}/notes`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setLeadNotes(data.notes || []);
+    } catch { /* fail silently */ }
+  };
+
+  const openLeadDrawer = (lead: any) => {
+    setSelectedLead(lead);
+    setNewNote("");
+    void fetchLeadNotes(lead.id);
+  };
+
+  const handleStatusChange = async (leadId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        notify(data.message || "Could not update status.");
+        return;
+      }
+      notify(`Status updated to ${newStatus.replace('_', '-')}`);
+      if (selectedLead && selectedLead.id === leadId) {
+        setSelectedLead({ ...selectedLead, status: newStatus });
+      }
+      void fetchLeads();
+    } catch {
+      notify("Network error updating status.");
+    }
+  };
+
+  const handleFollowUpChange = async (leadId: string, dateStr: string) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ next_follow_up_at: dateStr || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        notify(data.message || "Could not update follow-up date.");
+        return;
+      }
+      notify("Follow-up date updated.");
+      if (selectedLead && selectedLead.id === leadId) {
+        setSelectedLead({ ...selectedLead, next_follow_up_at: dateStr });
+      }
+      void fetchLeads();
+    } catch {
+      notify("Network error updating follow-up date.");
+    }
+  };
+
+  const handleAddNote = async (leadId: string) => {
+    if (!newNote.trim() || addingNote) return;
+    setAddingNote(true);
+    try {
+      const res = await fetch(`/api/leads/${leadId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: newNote.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        notify(data.message || "Could not add note.");
+        return;
+      }
+      notify("Note added to timeline.");
+      setNewNote("");
+      if (data.note) {
+        setLeadNotes([data.note, ...leadNotes]);
+      }
+    } catch {
+      notify("Network error adding note.");
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  const handleArchiveLead = async (leadId: string) => {
+    if (!confirm("Are you sure you want to archive this lead?")) return;
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
+      if (res.ok) {
+        notify("Lead archived.");
+        setSelectedLead(null);
+        void fetchLeads();
+      }
+    } catch {
+      notify("Failed to archive lead.");
+    }
+  };
+
+  const formatFollowUpBadge = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const target = new Date(date);
+    target.setHours(0,0,0,0);
+
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    if (diffDays < 0) {
+      return <span style={{ background: "rgba(231, 76, 60, 0.15)", color: "#e74c3c", border: "1px solid rgba(231, 76, 60, 0.4)", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>OVERDUE</span>;
+    } else if (diffDays === 0) {
+      return <span style={{ background: "rgba(230, 126, 34, 0.15)", color: "#e67e22", border: "1px solid rgba(230, 126, 34, 0.4)", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>Due Today</span>;
+    } else if (diffDays === 1) {
+      return <span style={{ background: "rgba(241, 196, 15, 0.15)", color: "#f39c12", border: "1px solid rgba(241, 196, 15, 0.4)", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>Due Tomorrow</span>;
+    }
+    return <span style={{ color: "var(--d-muted)", fontSize: 12 }}>Due {date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>;
+  };
+
+  const STATUS_BADGES: Record<string, { label: string; bg: string; color: string; border: string }> = {
+    NEW: { label: "NEW", bg: "rgba(52, 152, 219, 0.12)", color: "#3498db", border: "rgba(52, 152, 219, 0.35)" },
+    CONTACTED: { label: "CONTACTED", bg: "rgba(212, 175, 55, 0.12)", color: "#d4af37", border: "rgba(212, 175, 55, 0.35)" },
+    INTERESTED: { label: "INTERESTED", bg: "rgba(155, 89, 182, 0.12)", color: "#a569bd", border: "rgba(155, 89, 182, 0.35)" },
+    FOLLOW_UP: { label: "FOLLOW-UP", bg: "rgba(230, 126, 34, 0.12)", color: "#e67e22", border: "rgba(230, 126, 34, 0.35)" },
+    WON: { label: "WON", bg: "rgba(46, 204, 113, 0.12)", color: "#2ecc71", border: "rgba(46, 204, 113, 0.35)" },
+    LOST: { label: "LOST", bg: "rgba(231, 76, 60, 0.12)", color: "#e74c3c", border: "rgba(231, 76, 60, 0.35)" },
+    ARCHIVED: { label: "ARCHIVED", bg: "rgba(149, 165, 166, 0.12)", color: "#95a5a6", border: "rgba(149, 165, 166, 0.35)" },
+  };
+
+  return (
+    <section>
+      {toast && <div className="dash-toast">✓ {toast}</div>}
+      <div className="page-heading">
+        <div>
+          <p>MINI CRM</p>
+          <h1>Leads</h1>
+          <span>All the people who shared their details through your MyLux profile.</span>
+        </div>
+      </div>
+
+      {/* Top Summary Cards */}
+      <div className="stats" style={{ marginBottom: 20 }}>
+        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
+          <div>
+            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.total}</strong>
+            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>TOTAL LEADS</span>
+          </div>
+          <i style={{ color: "#D4AF37" }}>👥</i>
+        </article>
+        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
+          <div>
+            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.newCount}</strong>
+            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>NEW LEADS</span>
+          </div>
+          <i style={{ color: "#D4AF37" }}>✨</i>
+        </article>
+        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
+          <div>
+            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.followUpCount}</strong>
+            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>FOLLOW-UP</span>
+          </div>
+          <i style={{ color: "#D4AF37" }}>📅</i>
+        </article>
+        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
+          <div>
+            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.wonCount}</strong>
+            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>WON</span>
+          </div>
+          <i style={{ color: "#D4AF37" }}>🏆</i>
+        </article>
+      </div>
+
+      {/* Filter / Search Header Bar */}
+      <div className="crm-header-bar">
+        <div className="crm-pills-row">
+          {["ALL", "NEW", "CONTACTED", "INTERESTED", "FOLLOW_UP", "WON", "LOST"].map((st) => (
+            <button
+              key={st}
+              type="button"
+              className={`crm-pill-btn ${statusFilter === st ? "active" : ""}`}
+              onClick={() => { setStatusFilter(st); setPage(1); }}
+            >
+              {st === "ALL" ? "All" : st === "FOLLOW_UP" ? "Follow-up" : st[0] + st.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="crm-search-box">
+            <span>⌕</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search leads..."
+            />
+          </div>
+          <select
+            className="crm-select-dark"
+            value={sort}
+            onChange={(e) => { setSort(e.target.value); setPage(1); }}
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="follow_up">Follow-up Date</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--d-muted)", fontSize: 14 }}>
+          ⏳ Loading leads…
+        </div>
+      ) : error ? (
+        <div style={{ padding: 30, textAlign: "center", color: "#e74c3c" }}>
+          ⚠️ {error}
+        </div>
+      ) : leads.length === 0 ? (
+        <div style={{ padding: 50, textAlign: "center", background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, color: "#B7B7B7" }}>
+          <div style={{ fontSize: 36, marginBottom: 8, color: "#D4AF37" }}>🤝</div>
+          <h3 style={{ fontSize: 16, color: "#FFFFFF", margin: "0 0 6px", fontWeight: 700 }}>No leads captured yet</h3>
+          <p style={{ fontSize: 13.5, margin: 0, color: "#777777" }}>
+            {search || statusFilter !== "ALL"
+              ? "No leads match your current search or filter."
+              : "When visitors tap your NFC card or scan your QR code and press 'Share Your Details', their contacts will appear here."}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="crm-table-wrapper">
+            <table className="crm-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Company</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Follow-up</th>
+                  <th>Added</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leads.map((lead) => {
+                  const badge = STATUS_BADGES[lead.status] || STATUS_BADGES.NEW;
+                  const cleanPhone = (lead.phone || "").replace(/\D/g, "");
+                  return (
+                    <tr key={lead.id} className="crm-row" onClick={() => openLeadDrawer(lead)}>
+                      <td style={{ fontWeight: 600, color: "#FFFFFF" }}>
+                        {lead.name}
+                        {lead.submission_count > 1 && (
+                          <span style={{ fontSize: 11, background: "rgba(212, 175, 55, 0.15)", border: "1px solid rgba(212, 175, 55, 0.3)", color: "#D4AF37", padding: "1px 6px", borderRadius: 10, marginLeft: 6 }}>
+                            ×{lead.submission_count}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ color: "#C9C9C9" }}>{lead.company || "—"}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ color: "#FFFFFF" }}>{lead.phone || "—"}</span>
+                          {cleanPhone && (
+                            <a
+                              href={`https://wa.me/${cleanPhone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="crm-action-link whatsapp"
+                              style={{ padding: "2px 6px", fontSize: 11 }}
+                              onClick={(e) => e.stopPropagation()}
+                              title="Chat on WhatsApp"
+                            >
+                              WA
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="crm-status-badge" style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border || badge.color}` }}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="crm-source-tag">
+                          {lead.source === "NFC" ? "📱 NFC" : lead.source === "QR" ? "📷 QR" : lead.source === "SHARE" ? "🔗 Share" : "Direct"}
+                        </span>
+                      </td>
+                      <td>{formatFollowUpBadge(lead.next_follow_up_at) || "—"}</td>
+                      <td style={{ fontSize: 12.5, color: "#777777" }}>
+                        {new Date(lead.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="crm-cards-list">
+            {leads.map((lead) => {
+              const badge = STATUS_BADGES[lead.status] || STATUS_BADGES.NEW;
+              const cleanPhone = (lead.phone || "").replace(/\D/g, "");
+              return (
+                <div key={lead.id} className="crm-mobile-card" onClick={() => openLeadDrawer(lead)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--d-ink)" }}>{lead.name}</div>
+                      <div style={{ fontSize: 13, color: "var(--d-muted)" }}>{lead.company || "No company"}</div>
+                    </div>
+                    <span className="crm-status-badge" style={{ background: badge.bg, color: badge.color }}>
+                      {badge.label}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--d-ink)" }}>
+                    {lead.phone || "No phone number"}
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, borderTop: "1px solid var(--d-line)" }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span className="crm-source-tag">
+                        {lead.source === "NFC" ? "📱 NFC" : lead.source === "QR" ? "📷 QR" : "Direct"}
+                      </span>
+                      {formatFollowUpBadge(lead.next_follow_up_at)}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                      {lead.phone && (
+                        <a href={`tel:${lead.phone}`} className="crm-action-link call">
+                          Call
+                        </a>
+                      )}
+                      {cleanPhone && (
+                        <a href={`https://wa.me/${cleanPhone}`} target="_blank" rel="noopener noreferrer" className="crm-action-link whatsapp">
+                          WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
+          <div className="crm-pagination-bar">
+            <span>Showing Page {page} of {totalPages}</span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="crm-pagination-btn" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button>
+              <button className="crm-pagination-btn active">{page}</button>
+              <button className="crm-pagination-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Lead Detail Drawer / Modal */}
+      {selectedLead && (
+        <div
+          className="crm-drawer-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedLead(null);
+          }}
+        >
+          <div className="crm-drawer">
+            <div className="crm-drawer-header">
+              <div>
+                <div className="crm-drawer-title">{selectedLead.name}</div>
+                <div className="crm-drawer-subtitle">{selectedLead.company || "No Company Specified"}</div>
+              </div>
+              <button
+                type="button"
+                className="pc-lead-modal-close"
+                onClick={() => setSelectedLead(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Contact Actions */}
+            <div style={{ display: "flex", gap: 10 }}>
+              {selectedLead.phone && (
+                <a
+                  href={`tel:${selectedLead.phone}`}
+                  className="crm-action-link call"
+                  style={{ flex: 1, justifyContent: "center", padding: "10px" }}
+                >
+                  📞 Call Lead
+                </a>
+              )}
+              {selectedLead.phone && (
+                <a
+                  href={`https://wa.me/${selectedLead.phone.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="crm-action-link whatsapp"
+                  style={{ flex: 1, justifyContent: "center", padding: "10px" }}
+                >
+                  💬 WhatsApp
+                </a>
+              )}
+            </div>
+
+            {/* Section 1: Lead Status */}
+            <div className="crm-drawer-section">
+              <div className="crm-drawer-section-title">CRM Pipeline Status</div>
+              <select
+                className="crm-select-dark"
+                value={selectedLead.status}
+                onChange={(e) => handleStatusChange(selectedLead.id, e.target.value)}
+                style={{ width: "100%", padding: "10px 12px" }}
+              >
+                <option value="NEW">NEW — Recently captured</option>
+                <option value="CONTACTED">CONTACTED — Reached out to lead</option>
+                <option value="INTERESTED">INTERESTED — Sales prospect</option>
+                <option value="FOLLOW_UP">FOLLOW-UP — Action required later</option>
+                <option value="WON">WON — Successfully converted</option>
+                <option value="LOST">LOST — Did not convert</option>
+              </select>
+            </div>
+
+            {/* Section 2: Follow-up Date */}
+            <div className="crm-drawer-section">
+              <div className="crm-drawer-section-title">Schedule Next Follow-up</div>
+              <input
+                type="date"
+                className="crm-select-dark"
+                value={selectedLead.next_follow_up_at ? new Date(selectedLead.next_follow_up_at).toISOString().slice(0, 10) : ""}
+                onChange={(e) => handleFollowUpChange(selectedLead.id, e.target.value)}
+                style={{ width: "100%", padding: "10px 12px" }}
+              />
+              {selectedLead.next_follow_up_at && (
+                <div style={{ marginTop: 4 }}>
+                  {formatFollowUpBadge(selectedLead.next_follow_up_at)}
+                </div>
+              )}
+            </div>
+
+            {/* Section 3: Notes & Timeline */}
+            <div className="crm-drawer-section">
+              <div className="crm-drawer-section-title">Notes &amp; Timeline</div>
+              <div className="crm-notes-list">
+                {leadNotes.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: "#777777", fontStyle: "italic" }}>
+                    No notes recorded yet. Add your first note below.
+                  </div>
+                ) : (
+                  leadNotes.map((n) => (
+                    <div key={n.id} className="crm-note-item">
+                      <div className="crm-note-date">
+                        {new Date(n.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      <div style={{ color: "#ffffff", whiteSpace: "pre-wrap" }}>{n.note}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                <textarea
+                  rows={2}
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Type a new note (e.g. Sent pricing catalogue)..."
+                  style={{ background: "#080808", color: "#ffffff", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 10, padding: "10px", fontSize: 13, outline: "none", resize: "vertical" }}
+                />
+                <button
+                  type="button"
+                  className="mylux-btn-submit"
+                  style={{ alignSelf: "flex-end" }}
+                  onClick={() => handleAddNote(selectedLead.id)}
+                  disabled={addingNote || !newNote.trim()}
+                >
+                  {addingNote ? "Adding..." : "Add Note"}
+                </button>
+              </div>
+            </div>
+
+            {/* Section 4: Details & Source Metadata */}
+            <div className="crm-drawer-section">
+              <div className="crm-drawer-section-title">Source &amp; Lead Details</div>
+              <div style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6, color: "rgba(255,255,255,0.8)" }}>
+                <div><strong>Phone:</strong> {selectedLead.phone || "—"}</div>
+                {selectedLead.email && <div><strong>Email:</strong> {selectedLead.email}</div>}
+                <div>
+                  <strong>Captured via:</strong>{" "}
+                  <span className="crm-source-tag">
+                    {selectedLead.source === "NFC" ? "📱 NFC Card Tap" : selectedLead.source === "QR" ? "📷 QR Code Scan" : "Direct Link"}
+                  </span>
+                </div>
+                <div><strong>First Submitted:</strong> {new Date(selectedLead.created_at).toLocaleString()}</div>
+                <div><strong>Last Seen / Updated:</strong> {new Date(selectedLead.updated_at || selectedLead.last_seen_at).toLocaleString()}</div>
+                {selectedLead.submission_count > 1 && (
+                  <div><strong>Total Form Submissions:</strong> {selectedLead.submission_count} times</div>
+                )}
+              </div>
+            </div>
+
+            {/* Archive / Delete Action */}
+            <button
+              type="button"
+              style={{
+                background: "rgba(231, 76, 60, 0.15)",
+                color: "#e74c3c",
+                border: "1px solid rgba(231, 76, 60, 0.4)",
+                padding: "12px",
+                borderRadius: 10,
+                fontWeight: 700,
+                cursor: "pointer",
+                marginTop: "auto",
+              }}
+              onClick={() => handleArchiveLead(selectedLead.id)}
+            >
+              Archive Lead
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -119,6 +119,76 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [finderName, setFinderName] = useState("");
   const [finderContact, setFinderContact] = useState("");
 
+  // Lead Capture state
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [leadName, setLeadName] = useState("");
+  const [leadCompany, setLeadCompany] = useState("");
+  const [leadCountryCode, setLeadCountryCode] = useState("+91");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadHoneypot, setLeadHoneypot] = useState("");
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
+  const [leadError, setLeadError] = useState("");
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (leadSubmitting) return;
+    setLeadError("");
+
+    if (leadName.trim().length < 2) {
+      setLeadError("Please enter your name (at least 2 characters).");
+      return;
+    }
+    if (leadCompany.trim().length < 1) {
+      setLeadError("Please enter your company name.");
+      return;
+    }
+    const digits = leadPhone.replace(/\D/g, "");
+    if (digits.length < 7) {
+      setLeadError("Please enter a valid phone number (at least 7 digits).");
+      return;
+    }
+
+    setLeadSubmitting(true);
+    const fullPhone = leadCountryCode ? `${leadCountryCode} ${leadPhone}` : leadPhone;
+
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const rawSrc = (searchParams.get("src") || searchParams.get("source") || "").toLowerCase();
+      let channel = "DIRECT";
+      if (rawSrc === "nfc") channel = "NFC";
+      else if (rawSrc === "qr") channel = "QR";
+      else if (rawSrc === "share") channel = "SHARE";
+
+      const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}/leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: leadName.trim(),
+          company: leadCompany.trim(),
+          phone: fullPhone.trim(),
+          email: leadEmail.trim() || undefined,
+          website_url_hp: leadHoneypot,
+          channel,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLeadError(data.message || "Could not share details. Please try again.");
+        setLeadSubmitting(false);
+        return;
+      }
+
+      setLeadSubmitted(true);
+    } catch {
+      setLeadError("Network error. Please check your connection and try again.");
+    } finally {
+      setLeadSubmitting(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(text);
@@ -1007,6 +1077,22 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {/* ── VIEW 3: DIGITAL PROFILE (STANDARD) ── */}
       {activeView === "profile" && (
         <>
+          {/* Prominent Share Details CTA button */}
+          {!card.previewAuthorized && (
+            <div style={{ width: "100%" }}>
+              <button
+                type="button"
+                className="pc-lead-cta-btn"
+                onClick={() => {
+                  setLeadModalOpen(true);
+                  trackActivity("LEAD_MODAL_OPENED", { assetType: "profile" });
+                }}
+              >
+                🤝 SHARE YOUR DETAILS
+              </button>
+            </div>
+          )}
+
           {/* Action buttons (Save Contact / Share / QR Code) */}
           <div className="pc-actions">
             <button className="pc-action-btn" onClick={saveContact}>Save Contact</button>
@@ -1182,14 +1268,158 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         </a>
       </footer>
 
-      {/* ── Status help bubble (card-off notice) ── */}
-      {showStatusBubble && (
-        <aside className="status-help-bubble" role="status">
-          <button onClick={() => setShowStatusBubble(false)} aria-label="Dismiss">×</button>
-          <strong>Your card is currently off</strong>
-          <p>Go to <b>My Cards</b> in your dashboard and press the Status switch to turn it back on.</p>
-          <a href="/dashboard?tab=cards">Open My Cards</a>
-        </aside>
+      {/* ── LEAD CAPTURE MODAL ── */}
+      {leadModalOpen && (
+        <div
+          className="pc-lead-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !leadSubmitting) setLeadModalOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="pc-lead-modal-dialog">
+            <div className="pc-lead-modal-header">
+              <div>
+                <h3 className="pc-lead-modal-title">SHARE YOUR DETAILS</h3>
+                <p className="pc-lead-modal-subtitle">Let's stay connected with {card.name || "profile owner"}.</p>
+              </div>
+              <button
+                type="button"
+                className="pc-lead-modal-close"
+                onClick={() => setLeadModalOpen(false)}
+                aria-label="Close"
+                disabled={leadSubmitting}
+              >
+                ✕
+              </button>
+            </div>
+
+            {leadSubmitted ? (
+              <div className="pc-lead-success-box">
+                <div className="pc-lead-success-icon">✓</div>
+                <h4 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>Details Shared</h4>
+                <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.75)", margin: 0, lineHeight: 1.5 }}>
+                  Your contact information has been shared successfully with {card.name}.
+                  <br />Thank you for connecting!
+                </p>
+                <button
+                  type="button"
+                  className="pc-lead-submit-btn"
+                  style={{ marginTop: 12 }}
+                  onClick={() => {
+                    setLeadModalOpen(false);
+                    setLeadSubmitted(false);
+                    setLeadName("");
+                    setLeadCompany("");
+                    setLeadPhone("");
+                    setLeadEmail("");
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleLeadSubmit} className="pc-lead-form">
+                {leadError && (
+                  <div style={{ background: "rgba(231, 76, 60, 0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 12px", borderRadius: 8, fontSize: 13 }}>
+                    ⚠️ {leadError}
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  name="website_url_hp"
+                  value={leadHoneypot}
+                  onChange={(e) => setLeadHoneypot(e.target.value)}
+                  style={{ display: "none" }}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+
+                <div className="pc-lead-field-group">
+                  <label className="pc-lead-label">Your Name *</label>
+                  <input
+                    type="text"
+                    className="pc-lead-input"
+                    value={leadName}
+                    onChange={(e) => setLeadName(e.target.value)}
+                    placeholder="e.g. Rahul Nair"
+                    required
+                  />
+                </div>
+
+                <div className="pc-lead-field-group">
+                  <label className="pc-lead-label">Company Name *</label>
+                  <input
+                    type="text"
+                    className="pc-lead-input"
+                    value={leadCompany}
+                    onChange={(e) => setLeadCompany(e.target.value)}
+                    placeholder="e.g. ABC Technologies"
+                    required
+                  />
+                </div>
+
+                <div className="pc-lead-field-group">
+                  <label className="pc-lead-label">Phone Number *</label>
+                  <div className="pc-lead-phone-row">
+                    <select
+                      className="pc-lead-country-select"
+                      value={leadCountryCode}
+                      onChange={(e) => setLeadCountryCode(e.target.value)}
+                    >
+                      <option value="+91">🇮🇳 +91</option>
+                      <option value="+971">🇦🇪 +971</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+966">🇸🇦 +966</option>
+                      <option value="+974">🇶🇦 +974</option>
+                      <option value="+968">🇴🇲 +968</option>
+                      <option value="+965">🇰🇼 +965</option>
+                      <option value="+65">🇸🇬 +65</option>
+                      <option value="+60">🇲🇾 +60</option>
+                      <option value="+61">🇦🇺 +61</option>
+                      <option value="+49">🇩🇪 +49</option>
+                    </select>
+                    <input
+                      type="tel"
+                      className="pc-lead-input"
+                      value={leadPhone}
+                      onChange={(e) => setLeadPhone(e.target.value.replace(/[^\d\s-+()]/g, ""))}
+                      placeholder="98765 43210"
+                      inputMode="tel"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="pc-lead-field-group">
+                  <label className="pc-lead-label">Email Address (Optional)</label>
+                  <input
+                    type="email"
+                    className="pc-lead-input"
+                    value={leadEmail}
+                    onChange={(e) => setLeadEmail(e.target.value)}
+                    placeholder="name@company.com"
+                  />
+                </div>
+
+                <p className="pc-lead-privacy-note">
+                  By sharing your details, you agree that this MyLux profile owner may contact you regarding this connection.
+                </p>
+
+                <button
+                  type="submit"
+                  className="pc-lead-submit-btn"
+                  disabled={leadSubmitting}
+                >
+                  {leadSubmitting ? "Sharing Details..." : "SHARE DETAILS"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
     </main>
