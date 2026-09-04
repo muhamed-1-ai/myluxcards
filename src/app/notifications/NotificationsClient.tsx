@@ -309,8 +309,11 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
 
   const hasActiveFilters = filter !== "ALL" || typeFilter !== "ALL" || search !== "";
 
-  const logout = () => {
-    window.location.href = "/api/auth/logout";
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    localStorage.removeItem("myluxcards_current_user");
+    sessionStorage.removeItem("myluxcards_auth_next");
+    window.location.replace("/");
   };
 
   return (

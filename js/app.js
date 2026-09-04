@@ -31,7 +31,18 @@ class LuxApp {
 
   updateAccountButton(user) {
     const button = document.getElementById('login-trigger');
-    if (!button || !user) return;
+    if (!button) return;
+    if (!user) {
+      button.textContent = 'Login';
+      button.removeAttribute('title');
+      button.removeAttribute('data-authenticated');
+      button.setAttribute('aria-label', 'Login');
+      button.setAttribute('aria-expanded', 'false');
+      const dropdown = document.getElementById('account-dropdown');
+      if (dropdown) dropdown.hidden = true;
+      this.updateMobileAccountMenu(null);
+      return;
+    }
     button.textContent = user.name?.split(' ')[0] || 'Account';
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
@@ -69,6 +80,9 @@ class LuxApp {
     } finally {
       localStorage.removeItem('myluxcards_current_user');
       sessionStorage.removeItem('myluxcards_auth_next');
+      this.updateAccountButton(null);
+      const dropdown = document.getElementById('account-dropdown');
+      if (dropdown) dropdown.hidden = true;
       window.location.replace('/');
     }
   }
@@ -1283,7 +1297,7 @@ class LuxApp {
       });
     });
 
-    // Trigger login modal
+    // Trigger login modal or route
     document.getElementById('login-trigger')?.addEventListener('click', (event) => {
       const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
       if (currentUser) {
@@ -1295,7 +1309,12 @@ class LuxApp {
         button.setAttribute('aria-expanded', String(opening));
         return;
       }
-      document.getElementById('login-modal')?.classList.add('open');
+      const modal = document.getElementById('login-modal');
+      if (modal) {
+        modal.classList.add('open');
+      } else {
+        window.location.assign('/login');
+      }
     });
 
     document.getElementById('account-logout')?.addEventListener('click', () => this.logout());
@@ -1480,7 +1499,19 @@ class LuxApp {
 
     const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
     this.updateMobileAccountMenu(currentUser);
-    if (currentUser) this.updateAccountButton(currentUser);
+    this.updateAccountButton(currentUser);
+
+    if (currentUser) {
+      fetch('/api/auth/me', { cache: 'no-store' })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.user) {
+            localStorage.removeItem('myluxcards_current_user');
+            this.updateAccountButton(null);
+          }
+        })
+        .catch(() => {});
+    }
 
     const urlParams = new URLSearchParams(window.location.search);
     const loginFlag = urlParams.get('login') === '1';

@@ -31,7 +31,18 @@ class LuxApp {
 
   updateAccountButton(user) {
     const button = document.getElementById('login-trigger');
-    if (!button || !user) return;
+    if (!button) return;
+    if (!user) {
+      button.textContent = 'Login';
+      button.removeAttribute('title');
+      button.removeAttribute('data-authenticated');
+      button.setAttribute('aria-label', 'Login');
+      button.setAttribute('aria-expanded', 'false');
+      const dropdown = document.getElementById('account-dropdown');
+      if (dropdown) dropdown.hidden = true;
+      this.updateMobileAccountMenu(null);
+      return;
+    }
     const fullName = String(user.name || '').trim();
     const normalizedName = fullName.toLowerCase().replace(/[^a-z]/g, '');
     const firstName = normalizedName.startsWith('muhammed')
@@ -41,6 +52,7 @@ class LuxApp {
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
     button.setAttribute('aria-label', `Open account menu for ${user.name || user.email}`);
+    button.setAttribute('aria-expanded', 'false');
     this.updateMobileAccountMenu(user);
   }
 
@@ -1499,7 +1511,12 @@ class LuxApp {
         accountButton.setAttribute('aria-expanded', String(opening));
         return;
       }
-      document.getElementById('login-modal')?.classList.add('open');
+      const modal = document.getElementById('login-modal');
+      if (modal) {
+        modal.classList.add('open');
+      } else {
+        window.location.assign('/login');
+      }
     });
     [['account-dashboard', '/dashboard'], ['account-orders', '/orders']].forEach(([id, destination]) => {
       document.getElementById(id)?.addEventListener('click', event => {
@@ -1515,6 +1532,7 @@ class LuxApp {
       try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (_) { /* Local session is still cleared below. */ }
       localStorage.removeItem('myluxcards_current_user');
       sessionStorage.removeItem('myluxcards_auth_next');
+      this.updateAccountButton(null);
       closeAccountMenu();
       window.location.replace('/');
     });
@@ -1797,7 +1815,19 @@ class LuxApp {
 
     const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
     this.updateMobileAccountMenu(currentUser);
-    if (currentUser) this.updateAccountButton(currentUser);
+    this.updateAccountButton(currentUser);
+
+    if (currentUser) {
+      fetch('/api/auth/me', { cache: 'no-store' })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.user) {
+            localStorage.removeItem('myluxcards_current_user');
+            this.updateAccountButton(null);
+          }
+        })
+        .catch(() => {});
+    }
 
     const urlParams = new URLSearchParams(window.location.search);
     const loginFlag = urlParams.get('login') === '1';
@@ -1817,16 +1847,7 @@ class LuxApp {
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data?.user) {
             localStorage.removeItem('myluxcards_current_user');
-            const button = document.getElementById('login-trigger');
-            if (button) {
-              button.textContent = 'Login';
-              button.removeAttribute('title');
-              button.removeAttribute('data-authenticated');
-              button.setAttribute('aria-label', 'Login');
-            }
-            this.updateMobileAccountMenu(null);
-            const dropdown = document.getElementById('account-dropdown');
-            if (dropdown) dropdown.hidden = true;
+            this.updateAccountButton(null);
             document.getElementById('login-modal')?.classList.add('open');
           } else {
             localStorage.setItem('myluxcards_current_user', JSON.stringify(data.user));
@@ -1838,6 +1859,7 @@ class LuxApp {
           }
         })
         .catch(() => {
+          this.updateAccountButton(null);
           document.getElementById('login-modal')?.classList.add('open');
         });
     }
