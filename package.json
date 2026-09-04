@@ -25,6 +25,7 @@
     "bcryptjs": "^3.0.3",
     "country-state-city": "^3.2.1",
     "lucide": "^1.28.0",
+    "lucide-react": "^1.35.0",
     "next": "^15.5.22",
     "next-auth": "^4.24.15",
     "pg": "^8.16.3",

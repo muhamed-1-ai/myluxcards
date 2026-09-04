@@ -62,7 +62,7 @@ export default function ResetPasswordPage() {
   return (
     <main className="reset-shell">
       <section className="reset-card">
-        <Link href="/" className="reset-brand">MyLuxCards</Link>
+        <Link href="/" className="reset-brand">Zappit</Link>
         {complete ? (
           <>
             <h1>Password changed</h1>
@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
         ) : (
           <>
             <h1>Choose a new password</h1>
-            <p>Enter a new password for your MyLuxCards account.</p>
+            <p>Enter a new password for your Zappit account.</p>
             <form onSubmit={submit}>
               <label>
                 New password

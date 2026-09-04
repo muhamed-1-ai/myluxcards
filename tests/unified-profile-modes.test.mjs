@@ -24,13 +24,12 @@ test("safePublicCard enforces visitor privacy by sanitizing raw emergency phone 
   assert.match(cardLibrary, /emergencyContact: sanitizedEmergencyContact/);
 });
 
-test("public API route validates phone numbers and rate limits LOST_ITEM_FOUND submissions", () => {
+test("public API route validates event types and rate limits LOST_ITEM_FOUND submissions", () => {
   assert.match(publicCardRoute, /NOTIFY_OWNER/);
   assert.match(publicCardRoute, /EMERGENCY_CONTACT/);
   assert.match(publicCardRoute, /LOST_ITEM_FOUND/);
-  assert.match(publicCardRoute, /insert into card_leads/);
-  assert.match(publicCardRoute, /Please enter a valid phone number/);
-  assert.match(publicCardRoute, /interval '30 seconds'/);
+  assert.match(publicCardRoute, /insert into card_events/);
+  assert.match(publicCardRoute, /interval '10 seconds'/);
 });
 
 test("public API route returns normalized ownerContacts and emergencyContacts arrays", () => {

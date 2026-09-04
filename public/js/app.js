@@ -66,27 +66,20 @@ class LuxApp {
   }
 
   init() {
-    // 1. Loader dismissal
+    // 1. Instant Loader dismissal
     const hideLoader = () => {
       const loader = document.getElementById('page-loader');
       if (!loader) return;
-      loader.style.transition = 'opacity 0.4s ease';
+      loader.classList.add('is-hidden');
       loader.style.opacity = '0';
-      setTimeout(() => loader.style.display = 'none', 500);
+      setTimeout(() => loader.style.display = 'none', 300);
     };
 
+    hideLoader();
     window.addEventListener('load', hideLoader);
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       hideLoader();
     }
-
-    // Fallback: ensure loader hides even if load events are delayed or blocked
-    setTimeout(() => {
-      const loader = document.getElementById('page-loader');
-      if (loader && loader.style.display !== 'none') {
-        hideLoader();
-      }
-    }, 3000);
 
     // 3. Render Initial Catalog Grid
     this.renderCatalog();
@@ -197,7 +190,7 @@ class LuxApp {
         logoPlacement: document.getElementById('logo-placement')?.value || 'Top left',
         qrPlacement: document.getElementById('qr-placement')?.value || 'Back of card',
         color: activeSwatch.dataset.color || '#0E0E10',
-        accent: activeSwatch.dataset.accent || '#D4AF37',
+        accent: activeSwatch.dataset.accent || '#0066FF',
         colorName: activeSwatch.title || 'Custom'
       };
       const customCard = {
@@ -244,9 +237,9 @@ class LuxApp {
       font: $('card-font')?.value || 'classic', logoPlacement: $('logo-placement')?.value || 'Top left',
       qrPlacement: $('qr-placement')?.value || 'Back centre', nfcSymbol: $('nfc-symbol-toggle')?.checked !== false,
       color: bg?.value || '#090909',
-      accent: ink?.value || '#d4af37',
-      borderColor: document.querySelector('.colour-preset.active')?.dataset.border || ink?.value || '#d4af37',
-      secondaryColor: document.querySelector('.colour-preset.active')?.dataset.accent || ink?.value || '#d4af37',
+      accent: ink?.value || '#0066FF',
+      borderColor: document.querySelector('.colour-preset.active')?.dataset.border || ink?.value || '#0066FF',
+      secondaryColor: document.querySelector('.colour-preset.active')?.dataset.accent || ink?.value || '#0066FF',
       nameColor: $('quick-name-text')?.value || ink?.value, titleColor: $('quick-title-text')?.value || ink?.value,
       companyColor: $('quick-company-text')?.value || ink?.value,
       logoColor: $('quick-logo-colour')?.value || ink?.value,
@@ -735,7 +728,7 @@ class LuxApp {
         name: 'MyLuxCards',
         description: `Order ${order.orderNumber}`,
         prefill: { name: customer.name, email: customer.email, contact: customer.phone },
-        theme: { color: '#d4af37' },
+        theme: { color: '#0066FF' },
         modal: { ondismiss: () => { if (!completed) reject(new Error(`Payment was not completed. Order ${order.orderNumber} remains pending.`)); } },
         handler: async payment => {
           completed = true;
@@ -1950,7 +1943,7 @@ class LuxApp {
     const container = document.getElementById('particles-container');
     if (!container) return;
 
-    const colors = ['#D4AF37', '#AA7C11', '#FFDF73', '#FFEBA0'];
+    const colors = ['#0066FF', '#AA7C11', '#FFDF73', '#FFEBA0'];
     const particleCount = 20;
 
     for (let i = 0; i < particleCount; i++) {

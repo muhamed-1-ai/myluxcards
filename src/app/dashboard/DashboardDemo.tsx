@@ -2,8 +2,55 @@
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
+import { NotificationBell } from "@/components/NotificationBell";
+import {
+  DashboardLayoutType,
+  DashboardLayoutSelectorModal,
+  CompactDashboardLayoutDropdown,
+} from "@/components/dashboard/DashboardLayoutSelector";
+import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDashboard";
+import { LeadSourcesConfig } from "@/components/dashboard/config/LeadSourcesConfig";
+import { ProductsConfig } from "@/components/dashboard/config/ProductsConfig";
+import { LeadStagesConfig } from "@/components/dashboard/config/LeadStagesConfig";
+import { CalendarConfig } from "@/components/dashboard/config/CalendarConfig";
+import { LobReasonsConfig } from "@/components/dashboard/config/LobReasonsConfig";
+import {
+  BusinessKpiGrid,
+  DigitalCardKpiGrid,
+  CompactTodayCard,
+  NeedsAttentionWidget,
+  PerformanceAnalyticsWidget,
+  ProfileCompletionWidget,
+  ActiveCardBanner,
+  QuickActionsGrid,
+} from "@/components/dashboard/DashboardWidgets";
+import {
+  Users,
+  Sparkles,
+  Phone,
+  TrendingUp,
+  CalendarClock,
+  Trophy,
+  CheckCircle,
+  Flame,
+  Filter,
+  Search,
+  Download,
+  Trash2,
+  Calendar,
+  MessageSquare,
+  Check,
+  X,
+  ShieldAlert,
+  ArrowUpRight,
+  Clock,
+  Plus,
+  AlertCircle,
+  SlidersHorizontal,
+} from "lucide-react";
 
-type Tab = "dashboard" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "leads" | "whatsapp";
+type Tab = "dashboard" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -30,7 +77,7 @@ type Card = {
   emergencyContact?: EmergencyContactSettings;
   lostAndFound?: LostAndFoundSettings;
 };
-type Lead = { id:string; card_id:string; name:string; email?:string; phone?:string; company?:string; message?:string; status:string; created_at:string };
+type Lead = { id: string; card_id: string; name: string; email?: string; phone?: string; company?: string; message?: string; status: string; created_at: string };
 type CurrentUser = { id: string; name: string; email: string; role?: string };
 
 function MyLuxModal({
@@ -118,7 +165,7 @@ type LocationApi = {
 };
 const blankSocial = Object.fromEntries(socialFields.map((x) => [x, ""]));
 const profileThemes = [
-  { name: "MyLux Gold", background: "#020202", accent: "#d4af37", text: "#ffffff" },
+  { name: "MyLux Gold", background: "#020202", accent: "#0066FF", text: "#ffffff" },
   { name: "Minimal White", background: "#f7f5ef", accent: "#171717", text: "#171717" },
   { name: "Midnight Blue", background: "#071523", accent: "#5ca9e6", text: "#f5f9ff" },
   { name: "Burgundy", background: "#18070d", accent: "#a83d5b", text: "#fff4f6" },
@@ -165,7 +212,7 @@ const createBlankCard = (user: CurrentUser): Card => {
     id: `card-${suffix}`, ownerId: user.email.toLowerCase(), name: user.name, slug: `${slugify(user.name)}-${suffix}`,
     title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: "", website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
-    logo: "", cover: "", profileBackground: "#020202", profileAccent: "#d4af37", profileText: "#ffffff",
+    logo: "", cover: "", profileBackground: "#020202", profileAccent: "#0066FF", profileText: "#ffffff",
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
@@ -222,7 +269,7 @@ const fetchWithSessionRefresh = async (input: RequestInfo | URL, init?: RequestI
 const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight: number) => {
   if (!source.startsWith("data:image/") || source.length < 350_000) return source;
   return new Promise<string>((resolve) => {
-    const image = new Image();
+    const image = new window.Image();
     image.onload = () => {
       const ratio = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
       const canvas = document.createElement("canvas");
@@ -243,7 +290,7 @@ const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight:
     image.src = source;
   });
 };
-export default function DashboardDemo({identity}:{identity:CurrentUser}) {
+export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
@@ -266,7 +313,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const [cloudReady, setCloudReady] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"saved"|"unsaved"|"saving"|"error">("saved");
+  const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const lastSavedRef = useRef("");
 
   const reloadContactsData = async () => {
@@ -313,7 +360,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
         }
         if (!response.ok) { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); return; }
         const payload = await response.json();
-        const cloudCards = Array.isArray(payload.cards) ? payload.cards.map((card:Partial<Card>) => normalizeCard(card, user)) : [];
+        const cloudCards = Array.isArray(payload.cards) ? payload.cards.map((card: Partial<Card>) => normalizeCard(card, user)) : [];
         setLeads(Array.isArray(payload.leads) ? payload.leads : []);
         if (Array.isArray(payload.contactNumbers)) setContactNumbers(payload.contactNumbers);
         if (Array.isArray(payload.emergencyContacts)) setEmergencyContacts(payload.emergencyContacts);
@@ -342,7 +389,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
               lastSavedRef.current = JSON.stringify(savedCard);
               cacheCards(user.id, [savedCard]);
             }
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }).catch(() => { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); });
     } catch {
@@ -384,12 +431,12 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     });
     setErrors(next); return Object.keys(next).length === 0;
   };
-  const save = async (section: Tab, next?: Tab, silent=false) => {
+  const save = async (section: Tab, next?: Tab, silent = false) => {
     if (saving) return;
-    if (!validate(section)) { setSaveStatus("error"); if(!silent) notify("Please fix the highlighted fields."); return; }
+    if (!validate(section)) { setSaveStatus("error"); if (!silent) notify("Please fix the highlighted fields."); return; }
     setSaving(true);
     setSaveStatus("saving");
-    if(!silent) notify("Saving your card…");
+    if (!silent) notify("Saving your card…");
     const optimizedDraft = {
       ...draft,
       logo: await optimizeProfileImage(draft.logo, 800, 800),
@@ -399,7 +446,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     setCards(saved);
     if (currentUser) cacheCards(currentUser.id, saved);
     try {
-      const response = await fetchWithSessionRefresh("/api/cards", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(optimizedDraft) });
+      const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(optimizedDraft) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); setSaving(false); return; }
@@ -412,8 +459,8 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       setCloudReady(true);
       lastSavedRef.current = JSON.stringify({ ...optimizedDraft, ...cloudCard });
       setSaveStatus("saved");
-      if(!silent) notify("Card saved securely.");
-    } catch (error) { setSaveStatus("error"); if(!silent) notify(error instanceof Error ? error.message : "Saved in this browser, but cloud save failed. Try again."); }
+      if (!silent) notify("Card saved securely.");
+    } catch (error) { setSaveStatus("error"); if (!silent) notify(error instanceof Error ? error.message : "Saved in this browser, but cloud save failed. Try again."); }
     finally { setSaving(false); }
     if (next) selectTab(next);
   };
@@ -425,7 +472,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   }, [draft, authReady, currentUser]);
   const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
   const logout = async () => {
-    await fetch("/api/auth/logout", { method:"POST" }).catch(()=>null);
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     localStorage.removeItem("myluxcards_current_user");
     window.location.replace("/");
   };
@@ -454,10 +501,10 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     setUploadingKind(kind);
     notify("Uploading securely…");
     try {
-      const response = await fetchWithSessionRefresh("/api/media", { method:"POST", body:form });
+      const response = await fetchWithSessionRefresh("/api/media", { method: "POST", body: form });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.message || "Upload failed.");
-      if (kind === "brochure") setDraft(old => ({ ...old, brochure:file.name, brochureData:payload.url }));
+      if (kind === "brochure") setDraft(old => ({ ...old, brochure: file.name, brochureData: payload.url }));
       else update(kind, payload.url);
       notify("Upload complete. Press Save & Finish to publish it.");
     } catch (error) { notify(error instanceof Error ? error.message : "Upload failed."); }
@@ -466,13 +513,13 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
       event.target.value = "";
     }
   };
-  const clearCard = async (cardId:string) => {
+  const clearCard = async (cardId: string) => {
     if (/^[0-9a-f-]{36}$/i.test(cardId)) {
-      const response = await fetchWithSessionRefresh("/api/cards", { method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:cardId}) });
-      const payload = await response.json().catch(()=>({}));
+      const response = await fetchWithSessionRefresh("/api/cards", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: cardId }) });
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) { notify(payload.message || "Card could not be removed."); return; }
     }
-    const remaining = cards.filter(card=>card.id!==cardId);
+    const remaining = cards.filter(card => card.id !== cardId);
     const next = remaining[0] || createBlankCard(identity);
     const nextCards = remaining.length ? remaining : [next];
     setCards(nextCards); setDraft(next); setSelectedId(next.id);
@@ -480,12 +527,81 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     setDeleteId(null); setSaveStatus("saved"); notify("Card removed.");
   };
   const [overviewAnalytics, setOverviewAnalytics] = useState<{ totalOpens: number; nfcTaps: number; qrScans: number; otherOpens: number } | null>(null);
+  const [dashboardLayout, setDashboardLayout] = useState<DashboardLayoutType>("business");
+  const [layoutModalOpen, setLayoutModalOpen] = useState(false);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<"7d" | "30d" | "90d">("30d");
+  const [whatsappConnected, setWhatsappConnected] = useState(true);
+  const [masterConfigOpen, setMasterConfigOpen] = useState(true);
+
+  // Load user dashboard layout preference
+  useEffect(() => {
+    let active = true;
+    const fetchLayoutPref = async () => {
+      try {
+        const res = await fetch("/api/user/dashboard-layout", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (active && data.layout) {
+            setDashboardLayout(data.layout as DashboardLayoutType);
+          }
+        }
+      } catch {
+        /* fallback to default 'business' */
+      }
+    };
+    void fetchLayoutPref();
+    return () => { active = false; };
+  }, []);
+
+  // Load WhatsApp connection status
+  useEffect(() => {
+    let active = true;
+    const checkWa = async () => {
+      try {
+        const res = await fetch("/api/whatsapp/connection", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json().catch(() => ({}));
+          if (active) setWhatsappConnected(Boolean(json?.connected === true));
+        } else {
+          if (active) setWhatsappConnected(false);
+        }
+      } catch {
+        console.log("WhatsApp connection unavailable");
+        if (active) setWhatsappConnected(false);
+      }
+    };
+    void checkWa();
+    return () => { active = false; };
+  }, []);
+
+
+  // Handler for layout changes
+  const handleSelectDashboardLayout = async (newLayout: DashboardLayoutType) => {
+    const previous = dashboardLayout;
+    setDashboardLayout(newLayout);
+    notify("Dashboard updated.");
+
+    try {
+      const res = await fetch("/api/user/dashboard-layout", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ layout: newLayout }),
+      });
+      if (!res.ok) {
+        setDashboardLayout(previous);
+        notify("Could not save layout preference.");
+      }
+    } catch {
+      setDashboardLayout(previous);
+      notify("Failed to save layout preference.");
+    }
+  };
 
   useEffect(() => {
     let active = true;
     const loadOverviewAnalytics = async () => {
       try {
-        const res = await fetch(`/api/analytics?period=30d`, { cache: "no-store" });
+        const res = await fetch(`/api/analytics?period=${analyticsPeriod}`, { cache: "no-store" });
         const json = await res.json().catch(() => ({}));
         if (active && res.ok && json?.summary) {
           setOverviewAnalytics({
@@ -501,7 +617,7 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     };
     void loadOverviewAnalytics();
     return () => { active = false; };
-  }, [cards]);
+  }, [cards, analyticsPeriod]);
 
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
@@ -509,6 +625,19 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   const serverNfcTaps = overviewAnalytics?.nfcTaps ?? 0;
   const serverQrScans = overviewAnalytics?.qrScans ?? 0;
   const serverOtherOpens = overviewAnalytics?.otherOpens ?? 0;
+
+  const overviewUnreadRepliesCount = useMemo(() => {
+    return leads.filter((l: any) => l.hasNewReply || l.has_new_reply).length;
+  }, [leads]);
+
+  const overviewFollowUpsCount = useMemo(() => {
+    const now = new Date();
+    return leads.filter((l: any) => {
+      if (!l.nextFollowUpAt && !l.next_follow_up_at) return false;
+      const d = new Date(l.nextFollowUpAt || l.next_follow_up_at);
+      return d.getTime() <= now.getTime() + 24 * 60 * 60 * 1000;
+    }).length;
+  }, [leads]);
 
   const activeCards = cards.filter((card) => card.active).length;
   const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
@@ -528,28 +657,111 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
     <div className="dash-shell">
       <header className="dash-top">
         <button className="hamb" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">☰</button>
-        <a className="dash-brand" href="/"><img src="/assets/logo-premium.png" alt="MyLuxCards" /></a>
-        <span className="crumb">/ &nbsp;{tab === "cards" ? "My Cards" : tab === "dashboard" ? "Dashboard" : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}</span><span className={`save-state ${saveStatus}`}>{saveStatus==="saving"?"Saving…":saveStatus==="unsaved"?"Changes pending":saveStatus==="error"?"Cloud save failed":"Saved"}</span>
-        <div className="account-menu">
-          <button className="avatar" title={currentUser.email} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>{currentUser.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "ML"}</button>
-          {accountMenu && <div className="account-popover">
-            <strong>{currentUser.name}</strong>
-            <span>{currentUser.email}</span>
-            {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
-              <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#d4af37", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
-            )}
-            <button onClick={logout}>Log out</button>
-          </div>}
+        <a className="dash-brand" href="/">
+          <Image
+            src="/assets/logo.svg"
+            alt="Zappit logo"
+            width={240}
+            height={120}
+            priority
+            style={{
+              width: "auto",
+              height: "auto",
+            }}
+          />
+        </a>
+        <span className="crumb">/ &nbsp;{tab === "cards" ? "My Cards" : tab === "dashboard" ? "Dashboard" : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}</span><span className={`save-state ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <NotificationBell onSelectEntity={(entityType, entityId, actionUrl) => {
+            if (actionUrl) {
+              window.location.href = actionUrl;
+            }
+          }} />
+          <div className="account-menu">
+            <button className="avatar" title={currentUser.email} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>{currentUser.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "ML"}</button>
+            {accountMenu && <div className="account-popover">
+              <strong>{currentUser.name}</strong>
+              <span>{currentUser.email}</span>
+              {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
+                <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
+              )}
+              <button onClick={logout}>Log out</button>
+            </div>}
+          </div>
         </div>
       </header>
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard","analytics","modes","contact","social","company","appearance","cards","leads","whatsapp"] as Tab[]).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>selectTab(item)}>{item==="dashboard"?"Home":item==="analytics"?"QR Activity":item==="modes"?"Modes":item==="contact"?"Contact":item==="social"?"Links":item==="company"?"Company":item==="appearance"?"Design":item==="cards"?"My Cards":item==="leads"?"Leads":"WhatsApp"}</button>)}
+        {(["dashboard", "analytics", "modes", "contact", "social", "company", "appearance", "cards"] as Tab[]).map(item => <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>{item === "dashboard" ? "Home" : item === "analytics" ? "QR Activity" : item === "modes" ? "Modes" : item === "contact" ? "Contact" : item === "social" ? "Links" : item === "company" ? "Company" : item === "appearance" ? "Design" : "My Cards"}</button>)}
       </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <nav>
           <button className={tab === "dashboard" ? "active" : ""} onClick={() => selectTab("dashboard")}><I>⌂</I> Dashboard</button>
           <button className={tab === "analytics" ? "active" : ""} onClick={() => selectTab("analytics")}><I>📊</I> QR Activity</button>
+
+          {/* Master Configuration Sidebar Accordion */}
+          <div className="side-config-group">
+            <button
+              type="button"
+              className={`side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons"].includes(tab) ? "active" : ""}`}
+              onClick={() => setMasterConfigOpen((prev) => !prev)}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <I>⚙</I> Master Configuration
+              </span>
+              <b style={{ fontSize: 10 }}>{masterConfigOpen ? "▲" : "▼"}</b>
+            </button>
+
+            {masterConfigOpen && (
+              <div className="side-config-subnav">
+                <button
+                  type="button"
+                  className={`side-config-subitem ${tab === "config-sources" ? "active" : ""}`}
+                  onClick={() => selectTab("config-sources" as Tab)}
+                >
+                  Lead Sources
+                  {tab === "config-sources" && <span className="side-config-subitem-dot" />}
+                </button>
+
+                <button
+                  type="button"
+                  className={`side-config-subitem ${tab === "config-products" ? "active" : ""}`}
+                  onClick={() => selectTab("config-products" as Tab)}
+                >
+                  Products
+                  {tab === "config-products" && <span className="side-config-subitem-dot" />}
+                </button>
+
+                <button
+                  type="button"
+                  className={`side-config-subitem ${tab === "config-stages" ? "active" : ""}`}
+                  onClick={() => selectTab("config-stages" as Tab)}
+                >
+                  Lead Stages
+                  {tab === "config-stages" && <span className="side-config-subitem-dot" />}
+                </button>
+
+                <button
+                  type="button"
+                  className={`side-config-subitem ${tab === "config-calendar" ? "active" : ""}`}
+                  onClick={() => selectTab("config-calendar" as Tab)}
+                >
+                  Calendar
+                  {tab === "config-calendar" && <span className="side-config-subitem-dot" />}
+                </button>
+
+                <button
+                  type="button"
+                  className={`side-config-subitem ${tab === "config-reasons" ? "active" : ""}`}
+                  onClick={() => selectTab("config-reasons" as Tab)}
+                >
+                  LOB Reasons
+                  {tab === "config-reasons" && <span className="side-config-subitem-dot" />}
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="card-owner"><span><I>◆</I>{selected.name}</span><b>⌄</b></div>
           <div className="subnav">
             {(["modes", "contact", "social", "company", "appearance"] as Tab[]).map((item) =>
@@ -559,39 +771,37 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
             <small>{selected.active ? "Published until you switch it off" : "Currently switched off"} ({selected.id.replace("card-", "#")})</small>
           </div>
           <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
-          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>👥</I> Leads</button>
-          <button className={tab === "whatsapp" ? "active" : ""} onClick={() => selectTab("whatsapp")}><I>💬</I> WhatsApp</button>
+          <a className="side-link" href="/notifications"><I>🔔</I> Notifications</a>
           <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
           {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
-            <a className="side-link" href="/admin" style={{ color: "#d4af37", fontWeight: 600 }}><I>⚙</I> Admin Portal</a>
+            <a className="side-link" href="/admin" style={{ color: "#0066FF", fontWeight: 600 }}><I>⚙</I> Admin Portal</a>
           )}
         </nav>
         <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
       </aside>
       <main className="dash-main">
-        {tab === "dashboard" && <section>
-          <div className="page-heading"><div><p>OVERVIEW</p><h1>Welcome, {currentUser.name.split(" ")[0]}</h1><span>Manage your card and review real visitor activity.</span></div><button className="primary" onClick={() => selectTab("cards")}>Manage cards</button></div>
-          <div className="stats">
-            <article className="blue"><div><strong>{cards.length}</strong><span>My Cards</span></div><i>▣</i></article>
-            <article className="orange"><div><strong>{serverTotalOpens.toLocaleString()}</strong><span>Total Profile Opens</span></div><i>↗</i></article>
-            <article className="green"><div><strong>{activeCards}</strong><span>Active cards</span></div><i>✓</i></article>
-          </div>
-          <div className="analytics-disclosure"><strong>Connection analytics</strong><p>{cloudReady ? `Entry breakdown: ${serverNfcTaps} NFC taps · ${serverQrScans} QR scans · ${serverOtherOpens} other opens.` : "Connect cloud storage to collect privacy-conscious NFC, QR, save, and link activity."}</p></div>
-          <div className="welcome-panel">
-            <div><span className="eyebrow">MYLUX SMART HUB</span><h2>Make every introduction count.</h2><p>Complete your profile so visitors have the details they need to connect with you.</p><div className="completion"><span><b>Profile completion</b><strong>{profileCompletion}%</strong></span><i><b style={{width:`${profileCompletion}%`}} /></i></div><button className="secondary" onClick={() => selectTab("contact")}>Edit your card →</button></div>
-            <div className="mini-card"><span>ACTIVE CARD</span><h3>{selected.name}</h3><p>{selected.title} · {selected.business}</p><b>{serverTotalOpens} opens</b></div>
-          </div>
-          <div style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: 20, marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <span className="eyebrow" style={{ color: "#D4AF37", fontWeight: 700, fontSize: 11 }}>MINI CRM LEADS</span>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "2px 0 4px", color: "#FFFFFF" }}>Captured Visitor Leads</h3>
-              <p style={{ fontSize: 13, color: "#B7B7B7", margin: 0 }}>
-                {overviewAnalytics ? "Manage business connections shared by visitors who scanned or tapped your card." : "Share your MyLux digital profile QR/NFC to start capturing business leads."}
-              </p>
-            </div>
-            <button className="primary" onClick={() => selectTab("leads")}>View Leads →</button>
-          </div>
-        </section>}
+        {tab === "dashboard" && (
+          <section>
+            <LeadManagementDashboard
+              userName={currentUser.name}
+              onNavigateTab={(t) => selectTab(t as Tab)}
+            />
+          </section>
+        )}
+
+        {/* Master Configuration Page Views */}
+        {tab === "config-sources" && <section><LeadSourcesConfig /></section>}
+        {tab === "config-products" && <section><ProductsConfig /></section>}
+        {tab === "config-stages" && <section><LeadStagesConfig /></section>}
+        {tab === "config-calendar" && <section><CalendarConfig /></section>}
+        {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
+
+        <DashboardLayoutSelectorModal
+          currentLayout={dashboardLayout}
+          onSelectLayout={handleSelectDashboardLayout}
+          isOpen={layoutModalOpen}
+          onClose={() => setLayoutModalOpen(false)}
+        />
 
         {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
           <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
@@ -618,15 +828,13 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
           <div className="table-card">
             <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
             <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
-              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={()=>requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response=await fetchWithSessionRefresh("/api/cards",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:card.id,slug:card.slug,toggleActive:true})});const payload=await response.json().catch(()=>({}));if(!response.ok){notify(payload.message||"Status could not be changed.");return;}const confirmed={...card,...payload.card};lastSavedRef.current=JSON.stringify(confirmed);setCards(current=>current.map(item=>item.id===card.id?confirmed:item));if(selectedId===card.id)setDraft(confirmed);setSaveStatus("saved");notify(confirmed.active?"Card published.":"Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
+              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={() => requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: card.id, slug: card.slug, toggleActive: true }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { notify(payload.message || "Status could not be changed."); return; } const confirmed = { ...card, ...payload.card }; lastSavedRef.current = JSON.stringify(confirmed); setCards(current => current.map(item => item.id === card.id ? confirmed : item)); if (selectedId === card.id) setDraft(confirmed); setSaveStatus("saved"); notify(confirmed.active ? "Card published." : "Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
             </table></div>
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
 
         {tab === "analytics" && <AnalyticsTab selectedCardId={selected?.id || ""} />}
-        {tab === "leads" && <LeadsTab />}
-        {tab === "whatsapp" && <WhatsAppTab />}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       <MyLuxModal
@@ -650,1163 +858,9 @@ export default function DashboardDemo({identity}:{identity:CurrentUser}) {
   );
 }
 
-function LeadsTab() {
-  const [leads, setLeads] = useState<any[]>([]);
-  const [summary, setSummary] = useState({ total: 0, newCount: 0, followUpCount: 0, wonCount: 0 });
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("newest");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const [selectedLead, setSelectedLead] = useState<any | null>(null);
-  const [leadNotes, setLeadNotes] = useState<any[]>([]);
-  const [newNote, setNewNote] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
-  const [toast, setToast] = useState("");
 
-  const notify = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  };
-
-  const fetchLeads = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/leads?status=${statusFilter}&search=${encodeURIComponent(search)}&sort=${sort}&page=${page}&limit=25`, { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setLeads(data.leads || []);
-        if (data.summary) setSummary(data.summary);
-        if (data.pagination) setTotalPages(data.pagination.totalPages || 1);
-      } else {
-        setError(data.message || "Failed to load leads.");
-      }
-    } catch {
-      setError("Network error loading leads.");
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, search, sort, page]);
-
-  useEffect(() => {
-    void fetchLeads();
-  }, [fetchLeads]);
-
-  const fetchLeadNotes = async (leadId: string) => {
-    try {
-      const res = await fetch(`/api/leads/${leadId}/notes`, { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) setLeadNotes(data.notes || []);
-    } catch { /* fail silently */ }
-  };
-
-  const openLeadDrawer = (lead: any) => {
-    setSelectedLead(lead);
-    setNewNote("");
-    void fetchLeadNotes(lead.id);
-  };
-
-  const handleStatusChange = async (leadId: string, newStatus: string) => {
-    try {
-      const res = await fetch(`/api/leads/${leadId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        notify(data.message || "Could not update status.");
-        return;
-      }
-      notify(`Status updated to ${newStatus.replace('_', '-')}`);
-      if (selectedLead && selectedLead.id === leadId) {
-        setSelectedLead({ ...selectedLead, status: newStatus });
-      }
-      void fetchLeads();
-    } catch {
-      notify("Network error updating status.");
-    }
-  };
-
-  const handleFollowUpChange = async (leadId: string, dateStr: string) => {
-    try {
-      const res = await fetch(`/api/leads/${leadId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ next_follow_up_at: dateStr || null }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        notify(data.message || "Could not update follow-up date.");
-        return;
-      }
-      notify("Follow-up date updated.");
-      if (selectedLead && selectedLead.id === leadId) {
-        setSelectedLead({ ...selectedLead, next_follow_up_at: dateStr });
-      }
-      void fetchLeads();
-    } catch {
-      notify("Network error updating follow-up date.");
-    }
-  };
-
-  const handleAddNote = async (leadId: string) => {
-    if (!newNote.trim() || addingNote) return;
-    setAddingNote(true);
-    try {
-      const res = await fetch(`/api/leads/${leadId}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: newNote.trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        notify(data.message || "Could not add note.");
-        return;
-      }
-      notify("Note added to timeline.");
-      setNewNote("");
-      if (data.note) {
-        setLeadNotes([data.note, ...leadNotes]);
-      }
-    } catch {
-      notify("Network error adding note.");
-    } finally {
-      setAddingNote(false);
-    }
-  };
-
-  const handleArchiveLead = async (leadId: string) => {
-    if (!confirm("Are you sure you want to archive this lead?")) return;
-    try {
-      const res = await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
-      if (res.ok) {
-        notify("Lead archived.");
-        setSelectedLead(null);
-        void fetchLeads();
-      }
-    } catch {
-      notify("Failed to archive lead.");
-    }
-  };
-
-  const formatFollowUpBadge = (dateStr?: string | null) => {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const target = new Date(date);
-    target.setHours(0,0,0,0);
-
-    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 3600 * 24));
-    if (diffDays < 0) {
-      return <span style={{ background: "rgba(231, 76, 60, 0.15)", color: "#e74c3c", border: "1px solid rgba(231, 76, 60, 0.4)", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>OVERDUE</span>;
-    } else if (diffDays === 0) {
-      return <span style={{ background: "rgba(230, 126, 34, 0.15)", color: "#e67e22", border: "1px solid rgba(230, 126, 34, 0.4)", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>Due Today</span>;
-    } else if (diffDays === 1) {
-      return <span style={{ background: "rgba(241, 196, 15, 0.15)", color: "#f39c12", border: "1px solid rgba(241, 196, 15, 0.4)", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>Due Tomorrow</span>;
-    }
-    return <span style={{ color: "var(--d-muted)", fontSize: 12 }}>Due {date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>;
-  };
-
-  const STATUS_BADGES: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    NEW: { label: "NEW", bg: "rgba(52, 152, 219, 0.12)", color: "#3498db", border: "rgba(52, 152, 219, 0.35)" },
-    CONTACTED: { label: "CONTACTED", bg: "rgba(212, 175, 55, 0.12)", color: "#d4af37", border: "rgba(212, 175, 55, 0.35)" },
-    INTERESTED: { label: "INTERESTED", bg: "rgba(155, 89, 182, 0.12)", color: "#a569bd", border: "rgba(155, 89, 182, 0.35)" },
-    FOLLOW_UP: { label: "FOLLOW-UP", bg: "rgba(230, 126, 34, 0.12)", color: "#e67e22", border: "rgba(230, 126, 34, 0.35)" },
-    WON: { label: "WON", bg: "rgba(46, 204, 113, 0.12)", color: "#2ecc71", border: "rgba(46, 204, 113, 0.35)" },
-    LOST: { label: "LOST", bg: "rgba(231, 76, 60, 0.12)", color: "#e74c3c", border: "rgba(231, 76, 60, 0.35)" },
-    ARCHIVED: { label: "ARCHIVED", bg: "rgba(149, 165, 166, 0.12)", color: "#95a5a6", border: "rgba(149, 165, 166, 0.35)" },
-  };
-
-  return (
-    <section>
-      {toast && <div className="dash-toast">✓ {toast}</div>}
-      <div className="page-heading">
-        <div>
-          <p>MINI CRM</p>
-          <h1>Leads</h1>
-          <span>All the people who shared their details through your MyLux profile.</span>
-        </div>
-      </div>
-
-      {/* Top Summary Cards */}
-      <div className="stats" style={{ marginBottom: 20 }}>
-        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
-          <div>
-            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.total}</strong>
-            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>TOTAL LEADS</span>
-          </div>
-          <i style={{ color: "#D4AF37" }}>👥</i>
-        </article>
-        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
-          <div>
-            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.newCount}</strong>
-            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>NEW LEADS</span>
-          </div>
-          <i style={{ color: "#D4AF37" }}>✨</i>
-        </article>
-        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
-          <div>
-            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.followUpCount}</strong>
-            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>FOLLOW-UP</span>
-          </div>
-          <i style={{ color: "#D4AF37" }}>📅</i>
-        </article>
-        <article style={{ background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, padding: "18px 20px" }}>
-          <div>
-            <strong style={{ color: "#D4AF37", fontSize: 24, fontWeight: 800 }}>{summary.wonCount}</strong>
-            <span style={{ color: "#FFFFFF", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em" }}>WON</span>
-          </div>
-          <i style={{ color: "#D4AF37" }}>🏆</i>
-        </article>
-      </div>
-
-      {/* Filter / Search Header Bar */}
-      <div className="crm-header-bar">
-        <div className="crm-pills-row">
-          {["ALL", "NEW", "CONTACTED", "INTERESTED", "FOLLOW_UP", "WON", "LOST"].map((st) => (
-            <button
-              key={st}
-              type="button"
-              className={`crm-pill-btn ${statusFilter === st ? "active" : ""}`}
-              onClick={() => { setStatusFilter(st); setPage(1); }}
-            >
-              {st === "ALL" ? "All" : st === "FOLLOW_UP" ? "Follow-up" : st[0] + st.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div className="crm-search-box">
-            <span>⌕</span>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search leads..."
-            />
-          </div>
-          <select
-            className="crm-select-dark"
-            value={sort}
-            onChange={(e) => { setSort(e.target.value); setPage(1); }}
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="follow_up">Follow-up Date</option>
-          </select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--d-muted)", fontSize: 14 }}>
-          ⏳ Loading leads…
-        </div>
-      ) : error ? (
-        <div style={{ padding: 30, textAlign: "center", color: "#e74c3c" }}>
-          ⚠️ {error}
-        </div>
-      ) : leads.length === 0 ? (
-        <div style={{ padding: 50, textAlign: "center", background: "#0B0B0B", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 16, color: "#B7B7B7" }}>
-          <div style={{ fontSize: 36, marginBottom: 8, color: "#D4AF37" }}>🤝</div>
-          <h3 style={{ fontSize: 16, color: "#FFFFFF", margin: "0 0 6px", fontWeight: 700 }}>No leads captured yet</h3>
-          <p style={{ fontSize: 13.5, margin: 0, color: "#777777" }}>
-            {search || statusFilter !== "ALL"
-              ? "No leads match your current search or filter."
-              : "When visitors tap your NFC card or scan your QR code and press 'Share Your Details', their contacts will appear here."}
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Desktop Table View */}
-          <div className="crm-table-wrapper">
-            <table className="crm-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Company</th>
-                  <th>Phone</th>
-                  <th>Status</th>
-                  <th>Source</th>
-                  <th>Follow-up</th>
-                  <th>Added</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((lead) => {
-                  const badge = STATUS_BADGES[lead.status] || STATUS_BADGES.NEW;
-                  const cleanPhone = (lead.phone || "").replace(/\D/g, "");
-                  return (
-                    <tr key={lead.id} className="crm-row" onClick={() => openLeadDrawer(lead)}>
-                      <td style={{ fontWeight: 600, color: "#FFFFFF" }}>
-                        {lead.name}
-                        {lead.submission_count > 1 && (
-                          <span style={{ fontSize: 11, background: "rgba(212, 175, 55, 0.15)", border: "1px solid rgba(212, 175, 55, 0.3)", color: "#D4AF37", padding: "1px 6px", borderRadius: 10, marginLeft: 6 }}>
-                            ×{lead.submission_count}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ color: "#C9C9C9" }}>{lead.company || "—"}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <span style={{ color: "#FFFFFF" }}>{lead.phone || "—"}</span>
-                          {cleanPhone && (
-                            <a
-                              href={`https://wa.me/${cleanPhone}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="crm-action-link whatsapp"
-                              style={{ padding: "2px 6px", fontSize: 11 }}
-                              onClick={(e) => e.stopPropagation()}
-                              title="Chat on WhatsApp"
-                            >
-                              WA
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="crm-status-badge" style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border || badge.color}` }}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="crm-source-tag">
-                          {lead.source === "NFC" ? "📱 NFC" : lead.source === "QR" ? "📷 QR" : lead.source === "SHARE" ? "🔗 Share" : "Direct"}
-                        </span>
-                      </td>
-                      <td>{formatFollowUpBadge(lead.next_follow_up_at) || "—"}</td>
-                      <td style={{ fontSize: 12.5, color: "#777777" }}>
-                        {new Date(lead.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Card List View */}
-          <div className="crm-cards-list">
-            {leads.map((lead) => {
-              const badge = STATUS_BADGES[lead.status] || STATUS_BADGES.NEW;
-              const cleanPhone = (lead.phone || "").replace(/\D/g, "");
-              return (
-                <div key={lead.id} className="crm-mobile-card" onClick={() => openLeadDrawer(lead)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--d-ink)" }}>{lead.name}</div>
-                      <div style={{ fontSize: 13, color: "var(--d-muted)" }}>{lead.company || "No company"}</div>
-                    </div>
-                    <span className="crm-status-badge" style={{ background: badge.bg, color: badge.color }}>
-                      {badge.label}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--d-ink)" }}>
-                    {lead.phone || "No phone number"}
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, borderTop: "1px solid var(--d-line)" }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span className="crm-source-tag">
-                        {lead.source === "NFC" ? "📱 NFC" : lead.source === "QR" ? "📷 QR" : "Direct"}
-                      </span>
-                      {formatFollowUpBadge(lead.next_follow_up_at)}
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
-                      {lead.phone && (
-                        <a href={`tel:${lead.phone}`} className="crm-action-link call">
-                          Call
-                        </a>
-                      )}
-                      {cleanPhone && (
-                        <a href={`https://wa.me/${cleanPhone}`} target="_blank" rel="noopener noreferrer" className="crm-action-link whatsapp">
-                          WhatsApp
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pagination */}
-          <div className="crm-pagination-bar">
-            <span>Showing Page {page} of {totalPages}</span>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="crm-pagination-btn" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button>
-              <button className="crm-pagination-btn active">{page}</button>
-              <button className="crm-pagination-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Lead Detail Drawer / Modal */}
-      {selectedLead && (
-        <div
-          className="crm-drawer-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedLead(null);
-          }}
-        >
-          <div className="crm-drawer">
-            <div className="crm-drawer-header">
-              <div>
-                <div className="crm-drawer-title">{selectedLead.name}</div>
-                <div className="crm-drawer-subtitle">{selectedLead.company || "No Company Specified"}</div>
-              </div>
-              <button
-                type="button"
-                className="pc-lead-modal-close"
-                onClick={() => setSelectedLead(null)}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Quick Contact Actions */}
-            <div style={{ display: "flex", gap: 10 }}>
-              {selectedLead.phone && (
-                <a
-                  href={`tel:${selectedLead.phone}`}
-                  className="crm-action-link call"
-                  style={{ flex: 1, justifyContent: "center", padding: "10px" }}
-                >
-                  📞 Call Lead
-                </a>
-              )}
-              {selectedLead.phone && (
-                <a
-                  href={`https://wa.me/${selectedLead.phone.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="crm-action-link whatsapp"
-                  style={{ flex: 1, justifyContent: "center", padding: "10px" }}
-                >
-                  💬 WhatsApp
-                </a>
-              )}
-            </div>
-
-            {/* Section 1: Lead Status */}
-            <div className="crm-drawer-section">
-              <div className="crm-drawer-section-title">CRM Pipeline Status</div>
-              <select
-                className="crm-select-dark"
-                value={selectedLead.status}
-                onChange={(e) => handleStatusChange(selectedLead.id, e.target.value)}
-                style={{ width: "100%", padding: "10px 12px" }}
-              >
-                <option value="NEW">NEW — Recently captured</option>
-                <option value="CONTACTED">CONTACTED — Reached out to lead</option>
-                <option value="INTERESTED">INTERESTED — Sales prospect</option>
-                <option value="FOLLOW_UP">FOLLOW-UP — Action required later</option>
-                <option value="WON">WON — Successfully converted</option>
-                <option value="LOST">LOST — Did not convert</option>
-              </select>
-            </div>
-
-            {/* Section 2: Follow-up Date */}
-            <div className="crm-drawer-section">
-              <div className="crm-drawer-section-title">Schedule Next Follow-up</div>
-              <input
-                type="date"
-                className="crm-select-dark"
-                value={selectedLead.next_follow_up_at ? new Date(selectedLead.next_follow_up_at).toISOString().slice(0, 10) : ""}
-                onChange={(e) => handleFollowUpChange(selectedLead.id, e.target.value)}
-                style={{ width: "100%", padding: "10px 12px" }}
-              />
-              {selectedLead.next_follow_up_at && (
-                <div style={{ marginTop: 4 }}>
-                  {formatFollowUpBadge(selectedLead.next_follow_up_at)}
-                </div>
-              )}
-            </div>
-
-            {/* Section 3: Notes & Timeline */}
-            <div className="crm-drawer-section">
-              <div className="crm-drawer-section-title">Notes &amp; Timeline</div>
-              <div className="crm-notes-list">
-                {leadNotes.length === 0 ? (
-                  <div style={{ fontSize: 12.5, color: "#777777", fontStyle: "italic" }}>
-                    No notes recorded yet. Add your first note below.
-                  </div>
-                ) : (
-                  leadNotes.map((n) => (
-                    <div key={n.id} className="crm-note-item">
-                      <div className="crm-note-date">
-                        {new Date(n.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </div>
-                      <div style={{ color: "#ffffff", whiteSpace: "pre-wrap" }}>{n.note}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-                <textarea
-                  rows={2}
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Type a new note (e.g. Sent pricing catalogue)..."
-                  style={{ background: "#080808", color: "#ffffff", border: "1px solid rgba(212, 175, 55, 0.35)", borderRadius: 10, padding: "10px", fontSize: 13, outline: "none", resize: "vertical" }}
-                />
-                <button
-                  type="button"
-                  className="mylux-btn-submit"
-                  style={{ alignSelf: "flex-end" }}
-                  onClick={() => handleAddNote(selectedLead.id)}
-                  disabled={addingNote || !newNote.trim()}
-                >
-                  {addingNote ? "Adding..." : "Add Note"}
-                </button>
-              </div>
-            </div>
-
-            {/* Section 4: Details & Source Metadata */}
-            <div className="crm-drawer-section">
-              <div className="crm-drawer-section-title">Source &amp; Lead Details</div>
-              <div style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 6, color: "rgba(255,255,255,0.8)" }}>
-                <div><strong>Phone:</strong> {selectedLead.phone || "—"}</div>
-                <div>
-                  <strong>WhatsApp Consent:</strong>{" "}
-                  {selectedLead.whatsapp_opt_out_at ? (
-                    <span className="wa-status-pill disconnected" style={{ fontSize: 10, padding: "2px 6px" }}>🚫 Opted Out</span>
-                  ) : selectedLead.whatsapp_opt_in ? (
-                    <span className="wa-status-pill connected" style={{ fontSize: 10, padding: "2px 6px" }}>✓ Opted In</span>
-                  ) : (
-                    <span style={{ fontSize: 11, color: "#f39c12", fontWeight: 600 }}>⚠️ Consent Missing</span>
-                  )}
-                </div>
-                {selectedLead.email && <div><strong>Email:</strong> {selectedLead.email}</div>}
-                <div>
-                  <strong>Captured via:</strong>{" "}
-                  <span className="crm-source-tag">
-                    {selectedLead.source === "NFC" ? "📱 NFC Card Tap" : selectedLead.source === "QR" ? "📷 QR Code Scan" : "Direct Link"}
-                  </span>
-                </div>
-                <div><strong>First Submitted:</strong> {new Date(selectedLead.created_at).toLocaleString()}</div>
-                <div><strong>Last Seen / Updated:</strong> {new Date(selectedLead.updated_at || selectedLead.last_seen_at).toLocaleString()}</div>
-                {selectedLead.submission_count > 1 && (
-                  <div><strong>Total Form Submissions:</strong> {selectedLead.submission_count} times</div>
-                )}
-              </div>
-            </div>
-
-            {/* Archive / Delete Action */}
-            <button
-              type="button"
-              style={{
-                background: "rgba(231, 76, 60, 0.15)",
-                color: "#e74c3c",
-                border: "1px solid rgba(231, 76, 60, 0.4)",
-                padding: "12px",
-                borderRadius: 10,
-                fontWeight: 700,
-                cursor: "pointer",
-                marginTop: "auto",
-              }}
-              onClick={() => handleArchiveLead(selectedLead.id)}
-            >
-              Archive Lead
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function WhatsAppTab() {
-  const [subTab, setSubTab] = useState<"connection" | "templates" | "broadcasts">("connection");
-  const [connection, setConnection] = useState<any | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [loadingConn, setLoadingConn] = useState(true);
-
-  // Connection form state
-  const [wabaId, setWabaId] = useState("");
-  const [phoneNumberId, setPhoneNumberId] = useState("");
-  const [accessToken, setAccessToken] = useState("");
-  const [displayPhone, setDisplayPhone] = useState("");
-  const [verifiedName, setVerifiedName] = useState("");
-  const [savingConn, setSavingConn] = useState(false);
-
-  // Templates state
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [syncingTemplates, setSyncingTemplates] = useState(false);
-
-  // Broadcasts state
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
-
-  // New Broadcast Modal state
-  const [newBroadcastOpen, setNewBroadcastOpen] = useState(false);
-  const [broadcastName, setBroadcastName] = useState("");
-  const [selectedTemplateName, setSelectedTemplateName] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sourceFilter, setSourceFilter] = useState("ALL");
-  const [submittingBroadcast, setSubmittingBroadcast] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState("");
-
-  const [toast, setToast] = useState("");
-  const notify = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2800); };
-
-  const fetchConnection = useCallback(async () => {
-    setLoadingConn(true);
-    try {
-      const res = await fetch("/api/whatsapp/connection", { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.connection) {
-        setConnection(data.connection);
-        setConnected(data.connected);
-        setWabaId(data.connection.waba_id || "");
-        setPhoneNumberId(data.connection.phone_number_id || "");
-        setDisplayPhone(data.connection.display_phone_number || "");
-        setVerifiedName(data.connection.verified_name || "");
-      } else {
-        setConnection(null);
-        setConnected(false);
-      }
-    } catch {
-      setConnection(null);
-      setConnected(false);
-    } finally {
-      setLoadingConn(false);
-    }
-  }, []);
-
-  const fetchTemplates = useCallback(async (sync = false) => {
-    if (sync) setSyncingTemplates(true);
-    try {
-      const res = await fetch(`/api/whatsapp/templates${sync ? "?sync=true" : ""}`, { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setTemplates(data.templates || []);
-        if (sync) notify("Meta templates synchronized successfully.");
-      }
-    } catch {
-      if (sync) notify("Failed to sync Meta templates.");
-    } finally {
-      setSyncingTemplates(false);
-    }
-  }, []);
-
-  const fetchCampaigns = useCallback(async () => {
-    setLoadingCampaigns(true);
-    try {
-      const res = await fetch("/api/whatsapp/broadcasts", { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setCampaigns(data.campaigns || []);
-      }
-    } catch { /* ignore */ }
-    finally { setLoadingCampaigns(false); }
-  }, []);
-
-  useEffect(() => {
-    void fetchConnection();
-    void fetchTemplates(false);
-    void fetchCampaigns();
-  }, [fetchConnection, fetchTemplates, fetchCampaigns]);
-
-  const handleSaveConnection = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!wabaId.trim() || !phoneNumberId.trim() || !accessToken.trim()) {
-      notify("Please fill in WABA ID, Phone Number ID, and Access Token.");
-      return;
-    }
-
-    setSavingConn(true);
-    try {
-      const res = await fetch("/api/whatsapp/connection", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          waba_id: wabaId.trim(),
-          phone_number_id: phoneNumberId.trim(),
-          access_token: accessToken.trim(),
-          display_phone_number: displayPhone.trim(),
-          verified_name: verifiedName.trim(),
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        notify("✓ WhatsApp Business account connected!");
-        void fetchConnection();
-        void fetchTemplates(true);
-      } else {
-        notify(data.message || "Could not save connection.");
-      }
-    } catch {
-      notify("Network error saving connection.");
-    } finally {
-      setSavingConn(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!confirm("Are you sure you want to disconnect your WhatsApp Business Account?")) return;
-    try {
-      const res = await fetch("/api/whatsapp/connection", { method: "DELETE" });
-      if (res.ok) {
-        notify("WhatsApp Business Account disconnected.");
-        setConnection(null);
-        setConnected(false);
-        setAccessToken("");
-      }
-    } catch {
-      notify("Failed to disconnect.");
-    }
-  };
-
-  const handleCreateBroadcast = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!broadcastName.trim() || !selectedTemplateName) {
-      notify("Please enter a campaign name and select an approved template.");
-      return;
-    }
-
-    setSubmittingBroadcast(true);
-    setBroadcastMessage("");
-    try {
-      const res = await fetch("/api/whatsapp/broadcasts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: broadcastName.trim(),
-          template_name: selectedTemplateName,
-          status_filter: statusFilter,
-          source_filter: sourceFilter,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        notify("✓ Broadcast campaign created and queued!");
-        setNewBroadcastOpen(false);
-        setBroadcastName("");
-        setSelectedTemplateName("");
-        void fetchCampaigns();
-      } else {
-        setBroadcastMessage(data.message || "Failed to create broadcast.");
-      }
-    } catch {
-      setBroadcastMessage("Network error creating broadcast.");
-    } finally {
-      setSubmittingBroadcast(false);
-    }
-  };
-
-  const totalBroadcastSent = campaigns.reduce((acc, c) => acc + Number(c.sent_count || 0), 0);
-  const totalBroadcastDelivered = campaigns.reduce((acc, c) => acc + Number(c.delivered_count || 0), 0);
-  const totalBroadcastRead = campaigns.reduce((acc, c) => acc + Number(c.read_count || 0), 0);
-  const totalBroadcastReplies = campaigns.reduce((acc, c) => acc + Number(c.reply_count || 0), 0);
-
-  return (
-    <section>
-      {toast && <div className="dash-toast">✓ {toast}</div>}
-
-      <div className="page-heading">
-        <div>
-          <p>INTEGRATIONS</p>
-          <h1>WhatsApp Business Platform</h1>
-          <span>Message, follow up, and broadcast approved templates to your MyLux leads.</span>
-        </div>
-      </div>
-
-      {/* Sub-nav Bar */}
-      <div className="crm-pills-row" style={{ marginBottom: 20 }}>
-        <button
-          type="button"
-          className={`crm-pill-btn ${subTab === "connection" ? "active" : ""}`}
-          onClick={() => setSubTab("connection")}
-        >
-          ⚙ Connection
-        </button>
-        <button
-          type="button"
-          className={`crm-pill-btn ${subTab === "templates" ? "active" : ""}`}
-          onClick={() => setSubTab("templates")}
-        >
-          📄 Meta Templates ({templates.length})
-        </button>
-        <button
-          type="button"
-          className={`crm-pill-btn ${subTab === "broadcasts" ? "active" : ""}`}
-          onClick={() => setSubTab("broadcasts")}
-        >
-          🚀 Broadcasts ({campaigns.length})
-        </button>
-      </div>
-
-      {/* ── SUB TAB 1: CONNECTION ── */}
-      {subTab === "connection" && (
-        <div className="wa-panel">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#fff" }}>WhatsApp Business Connection</h3>
-              <p style={{ fontSize: 13, color: "#B7B7B7", margin: "2px 0 0" }}>
-                Connect your official Meta WhatsApp Business Account (WABA) to send direct messages &amp; templates.
-              </p>
-            </div>
-            <span className={`wa-status-pill ${connected ? "connected" : "disconnected"}`}>
-              {connected ? "✓ Connected" : "Not Connected"}
-            </span>
-          </div>
-
-          {loadingConn ? (
-            <div style={{ color: "#777777", fontSize: 13.5 }}>Checking connection status…</div>
-          ) : connected && connection ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ background: "#111111", border: "1px solid rgba(212,175,55,0.3)", borderRadius: 12, padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>Verified Business</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 }}>{connection.verified_name || "Business Account"}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>Display Phone</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 2 }}>{connection.display_phone_number || "—"}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>WABA ID</div>
-                  <div style={{ fontSize: 13, color: "#B7B7B7", marginTop: 2, fontFamily: "monospace" }}>{connection.waba_id}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "#D4AF37", fontWeight: 700, textTransform: "uppercase" }}>Phone Number ID</div>
-                  <div style={{ fontSize: 13, color: "#B7B7B7", marginTop: 2, fontFamily: "monospace" }}>{connection.phone_number_id}</div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  type="button"
-                  className="crm-pagination-btn"
-                  onClick={() => fetchTemplates(true)}
-                  disabled={syncingTemplates}
-                >
-                  {syncingTemplates ? "Syncing Templates…" : "🔄 Sync Meta Templates"}
-                </button>
-                <button
-                  type="button"
-                  style={{ background: "rgba(231, 76, 60, 0.15)", color: "#e74c3c", border: "1px solid rgba(231, 76, 60, 0.4)", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                  onClick={handleDisconnect}
-                >
-                  Disconnect WABA
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSaveConnection} style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 540 }}>
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">WhatsApp Business Account (WABA) ID *</label>
-                <input
-                  type="text"
-                  className="pc-lead-input"
-                  value={wabaId}
-                  onChange={(e) => setWabaId(e.target.value)}
-                  placeholder="e.g. 104928475839201"
-                  required
-                />
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Phone Number ID *</label>
-                <input
-                  type="text"
-                  className="pc-lead-input"
-                  value={phoneNumberId}
-                  onChange={(e) => setPhoneNumberId(e.target.value)}
-                  placeholder="e.g. 109283746501928"
-                  required
-                />
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Permanent Meta System Access Token *</label>
-                <input
-                  type="password"
-                  className="pc-lead-input"
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  placeholder="EAAG..."
-                  required
-                />
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Verified Business Name (Optional)</label>
-                <input
-                  type="text"
-                  className="pc-lead-input"
-                  value={verifiedName}
-                  onChange={(e) => setVerifiedName(e.target.value)}
-                  placeholder="e.g. ABC Builders"
-                />
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Display Phone Number (Optional)</label>
-                <input
-                  type="text"
-                  className="pc-lead-input"
-                  value={displayPhone}
-                  onChange={(e) => setDisplayPhone(e.target.value)}
-                  placeholder="e.g. +91 98765 43210"
-                />
-              </div>
-
-              <button type="submit" className="mylux-btn-submit" disabled={savingConn} style={{ marginTop: 8 }}>
-                {savingConn ? "Connecting WABA..." : "CONNECT WHATSAPP BUSINESS"}
-              </button>
-            </form>
-          )}
-        </div>
-      )}
-
-      {/* ── SUB TAB 2: TEMPLATES ── */}
-      {subTab === "templates" && (
-        <div className="wa-panel">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#fff" }}>Approved Meta Message Templates</h3>
-              <p style={{ fontSize: 13, color: "#B7B7B7", margin: "2px 0 0" }}>
-                Approved templates synced directly from your Meta WABA account.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="crm-pagination-btn"
-              onClick={() => fetchTemplates(true)}
-              disabled={syncingTemplates}
-            >
-              {syncingTemplates ? "Syncing..." : "🔄 Sync Templates"}
-            </button>
-          </div>
-
-          {templates.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#777777", fontSize: 13.5 }}>
-              No templates loaded yet. Click <strong>Sync Templates</strong> to fetch your approved Meta templates.
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-              {templates.map((tpl) => (
-                <div key={tpl.id} className="wa-template-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#FFFFFF" }}>{tpl.name}</span>
-                    <span className="wa-status-pill connected" style={{ padding: "2px 8px", fontSize: 10 }}>
-                      {tpl.status}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "#D4AF37", fontWeight: 600 }}>
-                    {tpl.category} · {tpl.language}
-                  </div>
-                  <div style={{ fontSize: 12.5, color: "#B7B7B7", fontStyle: "italic", background: "#080808", padding: "8px 10px", borderRadius: 8 }}>
-                    {Array.isArray(tpl.components) && tpl.components.find((c: any) => c.type === "BODY")?.text || "Body template components..."}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── SUB TAB 3: BROADCASTS ── */}
-      {subTab === "broadcasts" && (
-        <div>
-          {/* Top Metrics Row */}
-          <div className="stats" style={{ marginBottom: 20 }}>
-            <div className="wa-metric-card">
-              <strong>{totalBroadcastSent}</strong>
-              <span>MESSAGES SENT</span>
-            </div>
-            <div className="wa-metric-card">
-              <strong>{totalBroadcastDelivered}</strong>
-              <span>DELIVERED</span>
-            </div>
-            <div className="wa-metric-card">
-              <strong>{totalBroadcastRead}</strong>
-              <span>READ</span>
-            </div>
-            <div className="wa-metric-card">
-              <strong>{totalBroadcastReplies}</strong>
-              <span>REPLIES</span>
-            </div>
-          </div>
-
-          <div className="wa-panel">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#fff" }}>WhatsApp Broadcast Campaigns</h3>
-                <p style={{ fontSize: 13, color: "#B7B7B7", margin: "2px 0 0" }}>
-                  Send approved template broadcasts to consent-verified leads.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="mylux-btn-submit"
-                onClick={() => setNewBroadcastOpen(true)}
-              >
-                + NEW BROADCAST
-              </button>
-            </div>
-
-            {loadingCampaigns ? (
-              <div style={{ padding: 30, textAlign: "center", color: "#777777", fontSize: 13.5 }}>Loading campaigns…</div>
-            ) : campaigns.length === 0 ? (
-              <div style={{ padding: 40, textAlign: "center", color: "#777777", fontSize: 13.5 }}>
-                No broadcast campaigns sent yet. Click <strong>+ NEW BROADCAST</strong> to send your first template campaign.
-              </div>
-            ) : (
-              <div className="crm-table-wrapper">
-                <table className="crm-table">
-                  <thead>
-                    <tr>
-                      <th>Campaign Name</th>
-                      <th>Template</th>
-                      <th>Status</th>
-                      <th>Eligible</th>
-                      <th>Sent</th>
-                      <th>Delivered</th>
-                      <th>Read</th>
-                      <th>Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {campaigns.map((c) => (
-                      <tr key={c.id} className="crm-row">
-                        <td style={{ fontWeight: 700, color: "#FFFFFF" }}>{c.name}</td>
-                        <td style={{ color: "#D4AF37", fontSize: 12.5 }}>{c.template_name} ({c.template_language})</td>
-                        <td>
-                          <span className="wa-status-pill connected" style={{ fontSize: 10, padding: "2px 8px" }}>
-                            {c.status}
-                          </span>
-                        </td>
-                        <td>{c.eligible_recipients} / {c.total_recipients}</td>
-                        <td style={{ color: "#FFFFFF", fontWeight: 600 }}>{c.sent_count}</td>
-                        <td style={{ color: "#2ecc71", fontWeight: 600 }}>{c.delivered_count}</td>
-                        <td style={{ color: "#3498db", fontWeight: 600 }}>{c.read_count}</td>
-                        <td style={{ fontSize: 12, color: "#777777" }}>
-                          {new Date(c.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── NEW BROADCAST MODAL ── */}
-      {newBroadcastOpen && (
-        <div className="crm-drawer-overlay" onClick={(e) => { if (e.target === e.currentTarget) setNewBroadcastOpen(false); }}>
-          <div className="crm-drawer" style={{ maxWidth: 540 }}>
-            <div className="crm-drawer-header">
-              <div>
-                <div className="crm-drawer-title">Create WhatsApp Broadcast</div>
-                <div className="crm-drawer-subtitle">Target consent-verified MyLux leads</div>
-              </div>
-              <button type="button" className="pc-lead-modal-close" onClick={() => setNewBroadcastOpen(false)}>✕</button>
-            </div>
-
-            <form onSubmit={handleCreateBroadcast} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {broadcastMessage && (
-                <div style={{ background: "rgba(231, 76, 60, 0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px", borderRadius: 8, fontSize: 13 }}>
-                  ⚠️ {broadcastMessage}
-                </div>
-              )}
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Campaign Name *</label>
-                <input
-                  type="text"
-                  className="pc-lead-input"
-                  value={broadcastName}
-                  onChange={(e) => setBroadcastName(e.target.value)}
-                  placeholder="e.g. August Catalogue Launch"
-                  required
-                />
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Approved Meta Template *</label>
-                <select
-                  className="crm-select-dark"
-                  value={selectedTemplateName}
-                  onChange={(e) => setSelectedTemplateName(e.target.value)}
-                  style={{ width: "100%", padding: "10px" }}
-                  required
-                >
-                  <option value="">-- Select Approved Template --</option>
-                  {templates.filter((t) => t.status === "APPROVED").map((t) => (
-                    <option key={t.id} value={t.name}>{t.name} ({t.category})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Target Lead Status Filter</label>
-                <select
-                  className="crm-select-dark"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  style={{ width: "100%", padding: "10px" }}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="NEW">New Leads</option>
-                  <option value="CONTACTED">Contacted</option>
-                  <option value="INTERESTED">Interested</option>
-                  <option value="FOLLOW_UP">Follow-up</option>
-                  <option value="WON">Won</option>
-                </select>
-              </div>
-
-              <div className="pc-lead-field-group">
-                <label className="pc-lead-label">Target Lead Source Filter</label>
-                <select
-                  className="crm-select-dark"
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  style={{ width: "100%", padding: "10px" }}
-                >
-                  <option value="ALL">All Sources (NFC, QR, Share, Direct)</option>
-                  <option value="NFC">📱 NFC Taps</option>
-                  <option value="QR">📷 QR Code Scans</option>
-                  <option value="SHARE">🔗 Profile Share</option>
-                </select>
-              </div>
-
-              <div style={{ background: "#111111", border: "1px solid rgba(212,175,55,0.3)", borderRadius: 10, padding: 12, fontSize: 12.5, color: "#B7B7B7" }}>
-                🔒 <strong>Consent Verification</strong>: Messages will be queued only for leads who checked <em>"I agree to receive WhatsApp updates"</em> and have not opted out.
-              </div>
-
-              <button
-                type="submit"
-                className="mylux-btn-submit"
-                disabled={submittingBroadcast}
-                style={{ marginTop: 8 }}
-              >
-                {submittingBroadcast ? "Creating Broadcast Queue..." : "QUEUE & SEND BROADCAST"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
+  function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
   const [period, setPeriod] = useState<"today" | "7d" | "30d">("30d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1856,13 +910,13 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
           <h1>Scan History &amp; Activity</h1>
           <span>Privacy-safe activity analytics for your MyLux QR identity. No visitor personal data is collected.</span>
         </div>
-        <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.06)", padding: 4, borderRadius: 10, border: "1px solid rgba(212,175,55,0.2)" }}>
+        <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.06)", padding: 4, borderRadius: 10, border: "1px solid rgba(0, 229, 255,0.2)" }}>
           {(["today", "7d", "30d"] as const).map((p) => (
             <button
               key={p}
               type="button"
               style={{
-                background: period === p ? "#d4af37" : "transparent",
+                background: period === p ? "#0066FF" : "transparent",
                 color: period === p ? "#000" : "#fff",
                 border: "none",
                 padding: "6px 14px",
@@ -1895,7 +949,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
           </p>
           <button
             type="button"
-            style={{ background: "#d4af37", color: "#000", border: "none", padding: "10px 22px", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            style={{ background: "#0066FF", color: "#000", border: "none", padding: "10px 22px", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
             onClick={() => void fetchAnalytics()}
           >
             Retry
@@ -1905,7 +959,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Row 1: Profile Entry Sources */}
           <div>
-            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(212,175,55,0.9)", letterSpacing: "0.05em", margin: "0 0 10px" }}>Profile Entry Sources</h4>
+            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(0, 229, 255,0.9)", letterSpacing: "0.05em", margin: "0 0 10px" }}>Profile Entry Sources</h4>
             <div className="stats">
               <article className="orange">
                 <div>
@@ -1967,7 +1021,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
           </div>
 
           {/* Activity by Mode */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 16px" }}>Activity by Mode</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
@@ -1976,7 +1030,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
                   <strong>{modes.profile} views</strong>
                 </div>
                 <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(modes.profile / maxModeViews) * 100}%`, background: "#d4af37", borderRadius: 4 }} />
+                  <div style={{ height: "100%", width: `${(modes.profile / maxModeViews) * 100}%`, background: "#0066FF", borderRadius: 4 }} />
                 </div>
               </div>
               <div>
@@ -2002,7 +1056,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
 
           {/* Vehicle Activity Breakdown */}
           {vehicles.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>🚗 Vehicle Activity</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {vehicles.map((v) => (
@@ -2013,7 +1067,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
                     </div>
                     <div style={{ display: "flex", gap: 14, textAlign: "right" }}>
                       <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#d4af37" }}>{v.totalViews}</div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#0066FF" }}>{v.totalViews}</div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>views</div>
                       </div>
                       <div>
@@ -2035,7 +1089,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
 
           {/* Lost & Found Activity Breakdown */}
           {lostItems.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>🏷️ Lost &amp; Found Activity</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {lostItems.map((item) => (
@@ -2046,7 +1100,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
                     </div>
                     <div style={{ display: "flex", gap: 14, textAlign: "right" }}>
                       <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#d4af37" }}>{item.totalViews}</div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#0066FF" }}>{item.totalViews}</div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>views</div>
                       </div>
                       <div>
@@ -2067,7 +1121,7 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
           )}
 
           {/* Privacy-Safe Recent Activity Feed */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 16, padding: 20 }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>Privacy-Safe Recent Activity Log</h3>
             {recent.length === 0 ? (
               <div style={{ padding: 24, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
@@ -2081,12 +1135,12 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
                       <div style={{ fontSize: 13.5, fontWeight: 700, color: "#fff" }}>
                         {ev.eventType === "PROFILE_OPENED" || ev.eventType === "VIEW" ? "Profile viewed" :
                           ev.eventType === "VEHICLE_MODE_OPENED" ? "Vehicle Connect opened" :
-                          ev.eventType === "VEHICLE_SELECTED" ? `Vehicle selected: ${ev.assetName || "Vehicle"}` :
-                          ev.eventType === "LOST_FOUND_MODE_OPENED" ? "Lost & Found opened" :
-                          ev.eventType === "LOST_FOUND_ITEM_SELECTED" ? `Lost & Found item viewed: ${ev.assetName || "Item"}` :
-                          ev.eventType === "PHONE_NUMBER_TAPPED" ? `Contact number tapped ${ev.assetName ? `(${ev.assetName})` : ""}` :
-                          ev.eventType === "LOCATION_SHARED" ? `📍 Location voluntarily shared for ${ev.assetName || "Item"}` :
-                          "Activity recorded"}
+                            ev.eventType === "VEHICLE_SELECTED" ? `Vehicle selected: ${ev.assetName || "Vehicle"}` :
+                              ev.eventType === "LOST_FOUND_MODE_OPENED" ? "Lost & Found opened" :
+                                ev.eventType === "LOST_FOUND_ITEM_SELECTED" ? `Lost & Found item viewed: ${ev.assetName || "Item"}` :
+                                  ev.eventType === "PHONE_NUMBER_TAPPED" ? `Contact number tapped ${ev.assetName ? `(${ev.assetName})` : ""}` :
+                                    ev.eventType === "LOCATION_SHARED" ? `📍 Location voluntarily shared for ${ev.assetName || "Item"}` :
+                                      "Activity recorded"}
                       </div>
                       {ev.hasLocation && (
                         <div style={{ fontSize: 12, color: "#2ecc71", marginTop: 2 }}>
@@ -2273,7 +1327,7 @@ function AccountContactNumbersManager({ contactNumbers, onRefresh }: { contactNu
             <div className="asset-item-info">
               <div className="asset-item-title">
                 📞 {cn.countryCode ? `${cn.countryCode} ` : ""}{cn.phoneNumber}
-                {cn.isPrimary && <span className="asset-badge-active" style={{ background: "rgba(212,175,55,0.2)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>PRIMARY</span>}
+                {cn.isPrimary && <span className="asset-badge-active" style={{ background: "rgba(0, 229, 255,0.2)", color: "#0066FF", border: "1px solid rgba(0, 229, 255,0.4)" }}>PRIMARY</span>}
               </div>
               <div className="asset-item-sub">
                 Label: <strong>{cn.label}</strong>
@@ -2509,7 +1563,7 @@ function EmergencyContactsManager({ emergencyContacts, onRefresh }: { emergencyC
             <div className="asset-item-info">
               <div className="asset-item-title">
                 🚨 {ec.name} {ec.relationship ? `(${ec.relationship})` : ""}
-                {ec.isPrimary && <span className="asset-badge-active" style={{ background: "rgba(212,175,55,0.2)", color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>PRIMARY</span>}
+                {ec.isPrimary && <span className="asset-badge-active" style={{ background: "rgba(0, 229, 255,0.2)", color: "#0066FF", border: "1px solid rgba(0, 229, 255,0.4)" }}>PRIMARY</span>}
               </div>
               <div className="asset-item-sub">
                 {Array.isArray(ec.numbers) && ec.numbers.length > 0 ? (
@@ -2632,7 +1686,7 @@ function EmergencyContactsManager({ emergencyContacts, onRefresh }: { emergencyC
               ))}
               <button
                 type="button"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.2)", color: "#d4af37", padding: "8px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start", marginTop: 4 }}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.2)", color: "#0066FF", padding: "8px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start", marginTop: 4 }}
                 onClick={() => {
                   setEditingContact({
                     ...editingContact,
@@ -3615,7 +2669,7 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
         </div>
       </div>
       <div className="colour-pickers">
-        {[["Background", "profileBackground", "#020202"], ["Accent", "profileAccent", "#d4af37"], ["Text", "profileText", "#ffffff"]].map(([label, key, fallback]) =>
+        {[["Background", "profileBackground", "#020202"], ["Accent", "profileAccent", "#0066FF"], ["Text", "profileText", "#ffffff"]].map(([label, key, fallback]) =>
           <label key={key}><span>{label}</span><div><input type="color" value={draft[key] || fallback} onChange={(event) => update(key, event.target.value)} /><input className="colour-code" value={draft[key] || fallback} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && update(key, event.target.value)} aria-label={`${label} hex colour`} /></div></label>
         )}
         <button
@@ -3623,23 +2677,23 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
           className="reset-profile-colours"
           onClick={() => {
             update("profileBackground", "#020202");
-            update("profileAccent", "#d4af37");
+            update("profileAccent", "#0066FF");
             update("profileText", "#ffffff");
           }}
         >Reset to gold &amp; black</button>
       </div>
     </div>
-    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{transform:`scale(${(draft.logoScale||100)/100}) rotate(${draft.logoRotation||0}deg)`,objectPosition:`${draft.logoX||50}% ${draft.logoY||50}%`}} /> : <span>YOUR<br />IMAGE</span>}</div></div>
-    {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale||100} onChange={event=>update("logoScale",Number(event.target.value))}/><output>{draft.logoScale||100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation||0} onChange={event=>update("logoRotation",Number(event.target.value))}/><output>{draft.logoRotation||0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX||50} onChange={event=>update("logoX",Number(event.target.value))}/></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY||50} onChange={event=>update("logoY",Number(event.target.value))}/></label><button type="button" onClick={()=>{update("logoScale",100);update("logoRotation",0);update("logoX",50);update("logoY",50);}}>Reset image</button></div>}
-    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={draft.cover} alt="Cover preview" style={{transform:`scale(${(draft.coverScale ?? 100)/100}) rotate(${draft.coverRotation ?? 0}deg)`,objectPosition:`${draft.coverX ?? 50}% ${draft.coverY ?? 50}%`}} /> : <span>Cover image preview</span>}</div></div>
-    {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event=>update("coverScale",Number(event.target.value))}/><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event=>update("coverRotation",Number(event.target.value))}/><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event=>update("coverX",Number(event.target.value))}/><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event=>update("coverY",Number(event.target.value))}/><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={()=>{update("coverScale",100);update("coverRotation",0);update("coverX",50);update("coverY",50);}}>Reset cover</button></div>}
+    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{ transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`, objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%` }} /> : <span>YOUR<br />IMAGE</span>}</div></div>
+    {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale || 100} onChange={event => update("logoScale", Number(event.target.value))} /><output>{draft.logoScale || 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation || 0} onChange={event => update("logoRotation", Number(event.target.value))} /><output>{draft.logoRotation || 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX || 50} onChange={event => update("logoX", Number(event.target.value))} /></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY || 50} onChange={event => update("logoY", Number(event.target.value))} /></label><button type="button" onClick={() => { update("logoScale", 100); update("logoRotation", 0); update("logoX", 50); update("logoY", 50); }}>Reset image</button></div>}
+    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={draft.cover} alt="Cover preview" style={{ transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`, objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%` }} /> : <span>Cover image preview</span>}</div></div>
+    {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event => update("coverScale", Number(event.target.value))} /><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event => update("coverRotation", Number(event.target.value))} /><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event => update("coverX", Number(event.target.value))} /><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event => update("coverY", Number(event.target.value))} /><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={() => { update("coverScale", 100); update("coverRotation", 0); update("coverX", 50); update("coverY", 50); }}>Reset cover</button></div>}
   </>;
 }
 function Field({ label, error, wide, children }: { label: string; error?: string; wide?: boolean; children: React.ReactNode }) {
   return <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}><span>{label}</span>{children}{error && <em>{error}</em>}</label>;
 }
 
-function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }) {
+function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => void }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [qrPngUrl, setQrPngUrl] = useState<string | null>(null);
@@ -3757,7 +2811,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
     const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const svgUrl = URL.createObjectURL(svgBlob);
     try {
-      const image = new Image();
+      const image = new window.Image();
       image.crossOrigin = "anonymous";
       const loaded = new Promise<void>((resolve, reject) => {
         image.onload = () => resolve();
@@ -3816,7 +2870,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
         <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
           <button className="qr-modal-close" type="button" onClick={() => setQrOpen(false)} aria-label="Close">✕</button>
           <div className="qr-modal-title">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg>
             QR Code
           </div>
           <p className="qr-modal-slug">{displayHost}/card/{card.slug}</p>
@@ -3847,20 +2901,20 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen:(card:Card)=>void }
         <i aria-label="Card is live">LIVE</i>
       </div>
       <div className="url-card-controls">
-        <button className="public-url" type="button" onClick={()=>onOpen(card)} title={`Open ${displayHost}/card/${card.slug}`}>
-          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
+        <button className="public-url" type="button" onClick={() => onOpen(card)} title={`Open ${displayHost}/card/${card.slug}`}>
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" /></svg>
           <span>{displayHost}/card/{card.slug}</span>
         </button>
         <div className="url-card-actions">
-          <button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg> QR</button>
-          <button className="view-card-link" type="button" onClick={()=>onOpen(card)}>View Card <span aria-hidden>↗</span></button>
+          <button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg> QR</button>
+          <button className="view-card-link" type="button" onClick={() => onOpen(card)}>View Card <span aria-hidden>↗</span></button>
         </div>
       </div>
     </div>
-    <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#d4af37", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
+    <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#0066FF", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
       <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
-      <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{transform:`scale(${(card.coverScale ?? 100)/100}) rotate(${card.coverRotation ?? 0}deg)`,objectPosition:`${card.coverX ?? 50}% ${card.coverY ?? 50}%`}} /> : <span>MYLUX</span>}</div>
-      <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" style={{transform:`scale(${(card.logoScale||100)/100}) rotate(${card.logoRotation||0}deg)`,objectPosition:`${card.logoX||50}% ${card.logoY||50}%`}} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
+      <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>MYLUX</span>}</div>
+      <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
       <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
       <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>
       <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>

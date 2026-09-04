@@ -1,44 +1,128 @@
 import { cleanSlug } from "@/lib/cards";
 import { validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
+import { upsertLead, validateLeadInput } from "@/lib/leads";
+import { createNotification } from "@/lib/notifications";
+
+// Simple in-memory rate limiting map for public lead capture per IP (5 requests / min)
+const ipRateLimitMap = new Map<string, { count: number; expiresAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  if (!ip) return true;
+  const now = Date.now();
+  const entry = ipRateLimitMap.get(ip);
+  if (!entry || entry.expiresAt < now) {
+    ipRateLimitMap.set(ip, { count: 1, expiresAt: now + 60000 });
+    return true;
+  }
+  if (entry.count >= 5) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!validMutationOrigin(request)) return Response.json({ message: "Invalid request origin." }, { status: 403 });
+  if (!validMutationOrigin(request)) {
+    return Response.json({ message: "Invalid request origin." }, { status: 403 });
+  }
+
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
+  if (!checkRateLimit(clientIp)) {
+    return Response.json(
+      { message: "Too many submission attempts. Please wait a minute and try again." },
+      { status: 429 }
+    );
+  }
+
+  const { slug } = await params;
   try {
-    const { slug } = await params;
-    const body = await request.json().catch(() => ({}));
-    const name = String(body.name || "").trim().slice(0, 120);
-    const email = String(body.email || "").trim().toLowerCase().slice(0, 320);
-    const phone = String(body.phone || "").trim().slice(0, 30);
-    if (name.length < 2 || (!email && !phone) || body.consent !== true) {
-      return Response.json({ message: "Enter your name, email or phone, and confirm consent." }, { status: 400 });
-    }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return Response.json({ message: "Enter a valid email." }, { status: 400 });
-    }
-    const cleaned = cleanSlug(slug);
-    const cardRes = await pool.query<{ id: string; active: boolean }>(
-      `select id, active from digital_cards where slug = $1 limit 1`,
-      [cleaned]
+    const cleanedSlug = cleanSlug(slug);
+
+    // Resolve card and owner SERVER-SIDE
+    const cardRes = await pool.query<{ id: string; owner_id: string; active: boolean }>(
+      `SELECT id, owner_id, active FROM digital_cards WHERE slug = $1 LIMIT 1`,
+      [cleanedSlug]
     );
+
     const card = cardRes.rows[0];
-    if (!card?.active) return Response.json({ message: "Card unavailable." }, { status: 404 });
+    if (!card || !card.active) {
+      return Response.json({ message: "Card unavailable." }, { status: 404 });
+    }
 
-    const company = String(body.company || "").trim().slice(0, 160) || null;
-    const message = String(body.message || "").trim().slice(0, 1000) || null;
-    const consentAt = new Date();
+    const body = await request.json().catch(() => ({}));
 
-    await pool.query(
-      `insert into card_leads (card_id, name, email, phone, company, message, consent_at) values ($1, $2, $3, $4, $5, $6, $7)`,
-      [card.id, name, email || null, phone || null, company, message, consentAt]
+    // Server-side input validation
+    const validation = validateLeadInput({
+      name: body.name,
+      companyName: body.companyName,
+      contactNumber: body.contactNumber,
+      email: body.email,
+    });
+
+    if (!validation.valid) {
+      return Response.json(
+        {
+          message: Object.values(validation.errors)[0] || "Invalid submission data.",
+          errors: validation.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Determine source
+    const rawSource = String(body.source || body.channel || "").toUpperCase();
+    const source = ["NFC", "QR", "SHARE", "DIRECT", "UNKNOWN"].includes(rawSource) ? rawSource : "DIRECT";
+
+    // Upsert Lead securely (using resolved card.owner_id and card.id)
+    const result = await upsertLead({
+      ownerUserId: card.owner_id,
+      cardId: card.id,
+      name: body.name,
+      companyName: body.companyName,
+      contactNumber: body.contactNumber,
+      email: body.email,
+      source,
+    });
+
+    // Notify Card Owner (with deduplication awareness)
+    const leadName = result.lead.name;
+    const companyText = result.lead.company_name ? ` (${result.lead.company_name})` : "";
+    const title = result.isNew ? "NEW LEAD" : "LEAD DETAILS UPDATED";
+    const bodyText = result.isNew
+      ? `${leadName}${companyText} shared contact details via ${source}.`
+      : `${leadName}${companyText} submitted contact details again.`;
+
+    void createNotification({
+      userId: card.owner_id,
+      type: "SYSTEM_ALERT",
+      title,
+      body: bodyText,
+      entityType: "lead",
+      entityId: result.lead.id,
+      actionUrl: "/dashboard",
+      metadata: {
+        source,
+        contactNumber: result.lead.contact_number,
+        companyName: result.lead.company_name,
+        submissionCount: result.lead.submission_count,
+      },
+    });
+
+    return Response.json({
+      ok: true,
+      message: "Details shared successfully.",
+      lead: {
+        id: result.lead.id,
+        name: result.lead.name,
+        submissionCount: result.lead.submission_count,
+      },
+    });
+  } catch (error) {
+    console.error("[Lead Capture API] Error processing submission:", error);
+    return Response.json(
+      { message: "We couldn't share your details right now. Please try again." },
+      { status: 500 }
     );
-    await pool.query(
-      `insert into card_events (card_id, event_type, channel) values ($1, 'LEAD', 'LINK')`,
-      [card.id]
-    ).catch(() => null);
-
-    return Response.json({ ok: true }, { status: 201 });
-  } catch {
-    return Response.json({ message: "Your details could not be sent." }, { status: 500 });
   }
 }

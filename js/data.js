@@ -1,4 +1,112 @@
-// Mock database for myluxcards Greeting Cards & Gift Portal
+// Mock database for Zappit Smart Tap Solutions & Card Portal
+const CATEGORIES = [
+  { id: 'all', name: 'All Cards', icon: 'grid' },
+  { id: 'business', name: 'Business Cards', icon: 'briefcase' },
+  { id: 'review', name: 'Google Review Cards', icon: 'star' },
+  { id: 'wifi', name: 'WiFi Stickers', icon: 'wifi' },
+  { id: 'gifting', name: 'Smart Gifting', icon: 'gift' }
+];
+
+const CARDS = [
+  {
+    id: 'nfc-card-1',
+    title: 'Executive Matte Black NFC Card',
+    category: 'business',
+    price: 1499,
+    originalPrice: 1999,
+    rating: 4.9,
+    reviewsCount: 128,
+    image: '/assets/cards/luxcards.svg',
+    badge: 'Best Seller',
+    isNew: true,
+    isPopular: true,
+    tags: ['NFC', 'Business', 'Matte Black']
+  }
+];
+
+function generateTestimonials(count) {
+  const customerNames = ['Avery Shaw', 'Jordan Reed', 'Taylor Brooks', 'Casey Morgan', 'Riley Quinn', 'Parker Blake', 'Morgan Ellis', 'Jamie Cole', 'Dakota Lane', 'Skyler Frost'];
+  const roles = ['Marketing Lead', 'Brand Manager', 'Event Stylist', 'Creative Consultant', 'Product Designer', 'Operations Head', 'Social Media Director', 'Art Director', 'Corporate Advisor', 'Community Manager'];
+  const avatars = [
+    'https://placekitten.com/150/150',
+    'https://placekitten.com/151/151',
+    'https://placekitten.com/152/152',
+    'https://placekitten.com/153/153',
+    'https://placekitten.com/154/154',
+    'https://placekitten.com/155/155',
+    'https://placekitten.com/156/156',
+    'https://placekitten.com/157/157',
+    'https://placekitten.com/158/158',
+    'https://placekitten.com/159/159'
+  ];
+  const phrases = [
+    'The designs are beautifully polished and the tap experience is seamless.',
+    'Easy to customize, quick to share, and the final result looks premium every time.',
+    'Zappit saved us hours of networking setup with a stunning finished product.',
+    'The editor is intuitive, the templates feel high-end, and the activation was perfect.',
+    'Perfect for professional networking and creative campaigns — everyone loved it.'
+  ];
+
+  return Array.from({ length: count }, (_, idx) => {
+    const i = idx + 1;
+    const rating = i <= 115 ? 5 : i <= 190 ? 4 : 3;
+    const name = `${customerNames[idx % customerNames.length]} ${Math.floor(100 + idx / customerNames.length)}`;
+    const role = roles[idx % roles.length];
+    const text = phrases[idx % phrases.length];
+    const avatar = avatars[idx % avatars.length];
+
+    return {
+      id: 100 + i,
+      name,
+      role,
+      avatar,
+      rating,
+      text
+    };
+  });
+}
+
+const TESTIMONIALS = [
+  {
+    id: 1,
+    name: 'Priya Sharma',
+    role: 'Event Planner, Mumbai',
+    avatar: 'https://placekitten.com/150/150',
+    rating: 5,
+    text: 'Zappit made our event networking look premium in minutes. The NFC card preview and QR tag ordering process were so fast, we could share details with guests immediately.'
+  }
+];
+
+const FAQS = [
+  {
+    question: 'How do I customize a template?',
+    answer: 'Browse the catalog, select a design, and update the card text and colors for a polished, personalized result. Your chosen layout can then be added to cart and ordered instantly.'
+  },
+  {
+    question: 'Are the card profiles fast to load?',
+    answer: 'Yes! Profiles are optimized for instant loading on any modern iOS or Android smartphone browser.'
+  },
+  {
+    question: 'What is the difference between Free and Premium profiles?',
+    answer: 'Basic profiles include core contact sharing. Premium profiles add booking integrations, analytics, custom lead capture forms, and priority support.'
+  },
+  {
+    question: 'Can I upload custom logos or QR codes?',
+    answer: 'We provide custom logo upload and vector QR code placement for all NFC smart cards.'
+  },
+  {
+    question: 'Do you offer physical delivery of NFC cards?',
+    answer: 'Zappit delivers custom-encoded physical NFC smart cards and QR tags straight to your door across India and globally.'
+  }
+];
+
+// Export to window object for browser access
+window.LuxData = {
+  CATEGORIES,
+  CARDS,
+  TESTIMONIALS,
+  FAQS
+};
 
 const CATEGORIES = [
   { id: 'birthday', name: 'Birthday', icon: 'cake', count: 124, gradient: 'linear-gradient(135deg, #FF6B6B, #FF8E53)' },

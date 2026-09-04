@@ -24,27 +24,20 @@ class LuxApp {
   }
 
   init() {
-    // 1. Loader dismissal
+    // 1. Instant Loader dismissal
     const hideLoader = () => {
       const loader = document.getElementById('page-loader');
       if (!loader) return;
-      loader.style.transition = 'opacity 0.4s ease';
+      loader.classList.add('is-hidden');
       loader.style.opacity = '0';
-      setTimeout(() => loader.style.display = 'none', 500);
+      setTimeout(() => loader.style.display = 'none', 300);
     };
 
+    hideLoader();
     window.addEventListener('load', hideLoader);
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       hideLoader();
     }
-
-    // Fallback: ensure loader hides even if load events are delayed or blocked
-    setTimeout(() => {
-      const loader = document.getElementById('page-loader');
-      if (loader && loader.style.display !== 'none') {
-        hideLoader();
-      }
-    }, 3000);
 
     // 3. Render Initial Catalog Grid
     this.renderCatalog();
@@ -1219,7 +1212,7 @@ class LuxApp {
     const container = document.getElementById('particles-container');
     if (!container) return;
 
-    const colors = ['#D4AF37', '#AA7C11', '#FFDF73', '#FFEBA0'];
+    const colors = ['#0066FF', '#AA7C11', '#FFDF73', '#FFEBA0'];
     const particleCount = 20;
 
     for (let i = 0; i < particleCount; i++) {

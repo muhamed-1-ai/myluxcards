@@ -119,78 +119,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [finderName, setFinderName] = useState("");
   const [finderContact, setFinderContact] = useState("");
 
-  // Lead Capture state
-  const [leadModalOpen, setLeadModalOpen] = useState(false);
-  const [leadName, setLeadName] = useState("");
-  const [leadCompany, setLeadCompany] = useState("");
-  const [leadCountryCode, setLeadCountryCode] = useState("+91");
-  const [leadPhone, setLeadPhone] = useState("");
-  const [leadEmail, setLeadEmail] = useState("");
-  const [leadWhatsAppOptIn, setLeadWhatsAppOptIn] = useState(true);
-  const [leadHoneypot, setLeadHoneypot] = useState("");
-  const [leadSubmitting, setLeadSubmitting] = useState(false);
-  const [leadError, setLeadError] = useState("");
-  const [leadSubmitted, setLeadSubmitted] = useState(false);
-
-  const handleLeadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (leadSubmitting) return;
-    setLeadError("");
-
-    if (leadName.trim().length < 2) {
-      setLeadError("Please enter your name (at least 2 characters).");
-      return;
-    }
-    if (leadCompany.trim().length < 1) {
-      setLeadError("Please enter your company name.");
-      return;
-    }
-    const digits = leadPhone.replace(/\D/g, "");
-    if (digits.length < 7) {
-      setLeadError("Please enter a valid phone number (at least 7 digits).");
-      return;
-    }
-
-    setLeadSubmitting(true);
-    const fullPhone = leadCountryCode ? `${leadCountryCode} ${leadPhone}` : leadPhone;
-
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      const rawSrc = (searchParams.get("src") || searchParams.get("source") || "").toLowerCase();
-      let channel = "DIRECT";
-      if (rawSrc === "nfc") channel = "NFC";
-      else if (rawSrc === "qr") channel = "QR";
-      else if (rawSrc === "share") channel = "SHARE";
-
-      const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}/leads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: leadName.trim(),
-          company: leadCompany.trim(),
-          phone: fullPhone.trim(),
-          email: leadEmail.trim() || undefined,
-          whatsapp_opt_in: leadWhatsAppOptIn,
-          website_url_hp: leadHoneypot,
-          channel,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setLeadError(data.message || "Could not share details. Please try again.");
-        setLeadSubmitting(false);
-        return;
-      }
-
-      setLeadSubmitted(true);
-    } catch {
-      setLeadError("Network error. Please check your connection and try again.");
-    } finally {
-      setLeadSubmitting(false);
-    }
-  };
-
   const copyToClipboard = (text: string) => {
     if (navigator.clipboard) {
       void navigator.clipboard.writeText(text);
@@ -200,6 +128,77 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   };
   const [finderContactError, setFinderContactError] = useState("");
   const [finderSubmitted, setFinderSubmitted] = useState(false);
+
+  // Lead Capture Modal state
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [leadName, setLeadName] = useState("");
+  const [leadCompany, setLeadCompany] = useState("");
+  const [leadContact, setLeadContact] = useState("");
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadErrors, setLeadErrors] = useState<{ name?: string; contactNumber?: string; email?: string; general?: string }>({});
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState(false);
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: { name?: string; contactNumber?: string; email?: string } = {};
+
+    if (!leadName.trim()) {
+      errors.name = "Please enter your name.";
+    }
+    if (!leadContact.trim()) {
+      errors.contactNumber = "Please enter a valid contact number.";
+    }
+    if (leadEmail.trim()) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(leadEmail.trim().toLowerCase())) {
+        errors.email = "Please enter a valid email address.";
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setLeadErrors(errors);
+      return;
+    }
+
+    setLeadErrors({});
+    setLeadSubmitting(true);
+
+    let source = "DIRECT";
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const s = (sp.get("src") || sp.get("source") || "").toLowerCase();
+      if (s === "nfc") source = "NFC";
+      else if (s === "qr") source = "QR";
+      else if (s === "share") source = "SHARE";
+    }
+
+    try {
+      const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}/lead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: leadName.trim(),
+          companyName: leadCompany.trim(),
+          contactNumber: leadContact.trim(),
+          email: leadEmail.trim(),
+          source,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setLeadSuccess(true);
+        trackActivity("LEAD", { context: "lead_capture_form" });
+      } else {
+        setLeadErrors({ general: data.message || "We couldn't share your details right now. Please try again." });
+      }
+    } catch {
+      setLeadErrors({ general: "We couldn't share your details right now. Please try again." });
+    } finally {
+      setLeadSubmitting(false);
+    }
+  };
 
   const recordedEventsRef = useRef<Set<string>>(new Set());
 
@@ -758,7 +757,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                       textAlign: "left",
                       cursor: "pointer",
                       background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(212,175,55,0.3)",
+                      border: "1px solid rgba(0, 229, 255,0.3)",
                       borderRadius: 12,
                       padding: "14px 16px",
                       color: "#fff",
@@ -777,7 +776,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                         {[v.make, v.model, v.color].filter(Boolean).join(" • ")} {v.licensePlate ? `(${v.licensePlate})` : ""}
                       </div>
                     </div>
-                    <span style={{ fontSize: 20, color: "#d4af37" }}>›</span>
+                    <span style={{ fontSize: 20, color: "#0066FF" }}>›</span>
                   </button>
                 ))}
               </div>
@@ -787,7 +786,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                 {activeVehicles.length > 1 && (
                   <button
                     type="button"
-                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 4px" }}
+                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#0066FF", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 4px" }}
                     onClick={() => setSelectedVehicleId(null)}
                   >
                     ← All Vehicles
@@ -945,7 +944,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                       textAlign: "left",
                       cursor: "pointer",
                       background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(212,175,55,0.3)",
+                      border: "1px solid rgba(0, 229, 255,0.3)",
                       borderRadius: 12,
                       padding: "14px 16px",
                       color: "#fff",
@@ -964,7 +963,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                         Category: {item.category} {item.color ? `• ${item.color}` : ""}
                       </div>
                     </div>
-                    <span style={{ fontSize: 20, color: "#d4af37" }}>›</span>
+                    <span style={{ fontSize: 20, color: "#0066FF" }}>›</span>
                   </button>
                 ))}
               </div>
@@ -974,7 +973,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                 {activeItems.length > 1 && (
                   <button
                     type="button"
-                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#d4af37", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 4px" }}
+                    style={{ alignSelf: "flex-start", background: "transparent", border: "none", color: "#0066FF", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 4px" }}
                     onClick={() => setSelectedItemId(null)}
                   >
                     ← All Lost &amp; Found Items
@@ -1013,9 +1012,9 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                   <button
                     type="button"
                     style={{
-                      background: "rgba(212,175,55,0.12)",
-                      border: "1px solid rgba(212,175,55,0.4)",
-                      color: "#d4af37",
+                      background: "rgba(0, 229, 255,0.12)",
+                      border: "1px solid rgba(0, 229, 255,0.4)",
+                      color: "#0066FF",
                       padding: "10px 16px",
                       borderRadius: 10,
                       fontSize: 13,
@@ -1079,26 +1078,13 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {/* ── VIEW 3: DIGITAL PROFILE (STANDARD) ── */}
       {activeView === "profile" && (
         <>
-          {/* Prominent Share Details CTA button */}
-          {!card.previewAuthorized && (
-            <div style={{ width: "100%" }}>
-              <button
-                type="button"
-                className="pc-lead-cta-btn"
-                onClick={() => {
-                  setLeadModalOpen(true);
-                  trackActivity("LEAD_MODAL_OPENED", { assetType: "profile" });
-                }}
-              >
-                🤝 SHARE YOUR DETAILS
-              </button>
-            </div>
-          )}
-
           {/* Action buttons (Save Contact / Share / QR Code) */}
           <div className="pc-actions">
-            <button className="pc-action-btn" onClick={saveContact}>Save Contact</button>
-            <button className="pc-action-btn" onClick={() => { track("SHARE"); void share(); }}>Share</button>
+            <button className="pc-action-btn pc-action-btn-primary" type="button" onClick={() => setLeadModalOpen(true)}>
+              SHARE YOUR DETAILS
+            </button>
+            <button className="pc-action-btn" type="button" onClick={saveContact}>Save Contact</button>
+            <button className="pc-action-btn" type="button" onClick={() => { track("SHARE"); void share(); }}>Share</button>
             <button className="pc-action-btn pc-action-qr" onClick={openQr}>
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{flexShrink:0,verticalAlign:"middle"}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
               {" "}QR Code
@@ -1262,6 +1248,131 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         </div>
       )}
 
+      {/* ── Lead Capture Modal ── */}
+      {leadModalOpen && (
+        <div className="pc-lead-modal-overlay" onClick={() => setLeadModalOpen(false)} role="dialog" aria-modal="true" aria-label="Share Your Details">
+          <div className="pc-lead-modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <button className="pc-lead-modal-close" type="button" onClick={() => setLeadModalOpen(false)} aria-label="Close modal">×</button>
+
+            {!leadSuccess ? (
+              <>
+                <div className="pc-lead-modal-header-block">
+                  <h2 className="pc-lead-modal-title">SHARE YOUR DETAILS</h2>
+                  <p className="pc-lead-modal-subtitle">
+                    Leave your contact information and the profile owner can get back to you.
+                  </p>
+                </div>
+
+                {leadErrors.general && (
+                  <div className="pc-lead-error-banner" role="alert">
+                    {leadErrors.general}
+                  </div>
+                )}
+
+                <form onSubmit={handleLeadSubmit} className="pc-lead-form" noValidate>
+                  <div className="pc-lead-field-group">
+                    <label htmlFor="lead-name" className="pc-lead-label">
+                      Name <span className="pc-req" style={{ color: "#0066FF" }}>*</span>
+                    </label>
+                    <input
+                      id="lead-name"
+                      type="text"
+                      className={`pc-lead-input ${leadErrors.name ? "has-error" : ""}`}
+                      placeholder="Enter your name"
+                      value={leadName}
+                      onChange={(e) => setLeadName(e.target.value)}
+                      maxLength={100}
+                      disabled={leadSubmitting}
+                      autoFocus
+                    />
+                    {leadErrors.name && <span className="pc-lead-field-error" style={{ color: "#e74c3c", fontSize: 12 }}>{leadErrors.name}</span>}
+                  </div>
+
+                  <div className="pc-lead-field-group">
+                    <label htmlFor="lead-company" className="pc-lead-label">Company Name</label>
+                    <input
+                      id="lead-company"
+                      type="text"
+                      className="pc-lead-input"
+                      placeholder="Enter company name"
+                      value={leadCompany}
+                      onChange={(e) => setLeadCompany(e.target.value)}
+                      maxLength={150}
+                      disabled={leadSubmitting}
+                    />
+                  </div>
+
+                  <div className="pc-lead-field-group">
+                    <label htmlFor="lead-contact" className="pc-lead-label">
+                      Contact Number <span className="pc-req" style={{ color: "#0066FF" }}>*</span>
+                    </label>
+                    <input
+                      id="lead-contact"
+                      type="tel"
+                      className={`pc-lead-input ${leadErrors.contactNumber ? "has-error" : ""}`}
+                      placeholder="+91 98765 43210"
+                      value={leadContact}
+                      onChange={(e) => setLeadContact(e.target.value)}
+                      maxLength={30}
+                      disabled={leadSubmitting}
+                    />
+                    {leadErrors.contactNumber && <span className="pc-lead-field-error" style={{ color: "#e74c3c", fontSize: 12 }}>{leadErrors.contactNumber}</span>}
+                  </div>
+
+                  <div className="pc-lead-field-group">
+                    <label htmlFor="lead-email" className="pc-lead-label">Email</label>
+                    <input
+                      id="lead-email"
+                      type="email"
+                      className={`pc-lead-input ${leadErrors.email ? "has-error" : ""}`}
+                      placeholder="you@example.com"
+                      value={leadEmail}
+                      onChange={(e) => setLeadEmail(e.target.value)}
+                      maxLength={255}
+                      disabled={leadSubmitting}
+                    />
+                    {leadErrors.email && <span className="pc-lead-field-error" style={{ color: "#e74c3c", fontSize: 12 }}>{leadErrors.email}</span>}
+                  </div>
+
+                  <button type="submit" className="pc-lead-submit-btn" disabled={leadSubmitting}>
+                    {leadSubmitting ? "SHARING..." : "SHARE DETAILS"}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="pc-lead-success-box">
+                <div className="pc-lead-success-icon" aria-hidden>
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <h2 className="pc-lead-modal-title" style={{ fontSize: 22, marginTop: 8 }}>DETAILS SHARED</h2>
+                <p className="pc-lead-modal-subtitle" style={{ fontSize: 14, lineHeight: 1.5 }}>
+                  Thank you, <strong>{leadName}</strong>. Your contact information has been shared successfully.
+                </p>
+                <p style={{ color: "#9A9FAE", fontSize: 13, margin: "4px 0 16px" }}>
+                  The profile owner can now get back to you.
+                </p>
+                <button
+                  type="button"
+                  className="pc-lead-submit-btn"
+                  onClick={() => {
+                    setLeadModalOpen(false);
+                    setLeadSuccess(false);
+                    setLeadName("");
+                    setLeadCompany("");
+                    setLeadContact("");
+                    setLeadEmail("");
+                  }}
+                >
+                  DONE
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Footer ── */}
       <footer className="pc-footer">
         <a href="/" className="pc-footer-pill">
@@ -1269,173 +1380,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           Get your own page for free!
         </a>
       </footer>
-
-      {/* ── LEAD CAPTURE MODAL ── */}
-      {leadModalOpen && (
-        <div
-          className="pc-lead-modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !leadSubmitting) setLeadModalOpen(false);
-          }}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="pc-lead-modal-dialog">
-            <div className="pc-lead-modal-header">
-              <div>
-                <h3 className="pc-lead-modal-title">SHARE YOUR DETAILS</h3>
-                <p className="pc-lead-modal-subtitle">Let's stay connected with {card.name || "profile owner"}.</p>
-              </div>
-              <button
-                type="button"
-                className="pc-lead-modal-close"
-                onClick={() => setLeadModalOpen(false)}
-                aria-label="Close"
-                disabled={leadSubmitting}
-              >
-                ✕
-              </button>
-            </div>
-
-            {leadSubmitted ? (
-              <div className="pc-lead-success-box">
-                <div className="pc-lead-success-icon">✓</div>
-                <h4 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>Details Shared</h4>
-                <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.75)", margin: 0, lineHeight: 1.5 }}>
-                  Your contact information has been shared successfully with {card.name}.
-                  <br />Thank you for connecting!
-                </p>
-                <button
-                  type="button"
-                  className="pc-lead-submit-btn"
-                  style={{ marginTop: 12 }}
-                  onClick={() => {
-                    setLeadModalOpen(false);
-                    setLeadSubmitted(false);
-                    setLeadName("");
-                    setLeadCompany("");
-                    setLeadPhone("");
-                    setLeadEmail("");
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleLeadSubmit} className="pc-lead-form">
-                {leadError && (
-                  <div style={{ background: "rgba(231, 76, 60, 0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 12px", borderRadius: 8, fontSize: 13 }}>
-                    ⚠️ {leadError}
-                  </div>
-                )}
-
-                <input
-                  type="text"
-                  name="website_url_hp"
-                  value={leadHoneypot}
-                  onChange={(e) => setLeadHoneypot(e.target.value)}
-                  style={{ display: "none" }}
-                  tabIndex={-1}
-                  autoComplete="off"
-                />
-
-                <div className="pc-lead-field-group">
-                  <label className="pc-lead-label">Your Name *</label>
-                  <input
-                    type="text"
-                    className="pc-lead-input"
-                    value={leadName}
-                    onChange={(e) => setLeadName(e.target.value)}
-                    placeholder="e.g. Rahul Nair"
-                    required
-                  />
-                </div>
-
-                <div className="pc-lead-field-group">
-                  <label className="pc-lead-label">Company Name *</label>
-                  <input
-                    type="text"
-                    className="pc-lead-input"
-                    value={leadCompany}
-                    onChange={(e) => setLeadCompany(e.target.value)}
-                    placeholder="e.g. ABC Technologies"
-                    required
-                  />
-                </div>
-
-                <div className="pc-lead-field-group">
-                  <label className="pc-lead-label">Phone Number *</label>
-                  <div className="pc-lead-phone-row">
-                    <select
-                      className="pc-lead-country-select"
-                      value={leadCountryCode}
-                      onChange={(e) => setLeadCountryCode(e.target.value)}
-                    >
-                      <option value="+91">🇮🇳 +91</option>
-                      <option value="+971">🇦🇪 +971</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+966">🇸🇦 +966</option>
-                      <option value="+974">🇶🇦 +974</option>
-                      <option value="+968">🇴🇲 +968</option>
-                      <option value="+965">🇰🇼 +965</option>
-                      <option value="+65">🇸🇬 +65</option>
-                      <option value="+60">🇲🇾 +60</option>
-                      <option value="+61">🇦🇺 +61</option>
-                      <option value="+49">🇩🇪 +49</option>
-                    </select>
-                    <input
-                      type="tel"
-                      className="pc-lead-input"
-                      value={leadPhone}
-                      onChange={(e) => setLeadPhone(e.target.value.replace(/[^\d\s-+()]/g, ""))}
-                      placeholder="98765 43210"
-                      inputMode="tel"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="pc-lead-field-group">
-                  <label className="pc-lead-label">Email Address (Optional)</label>
-                  <input
-                    type="email"
-                    className="pc-lead-input"
-                    value={leadEmail}
-                    onChange={(e) => setLeadEmail(e.target.value)}
-                    placeholder="name@company.com"
-                  />
-                </div>
-
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10, margin: "6px 0 12px", cursor: "pointer" }} onClick={() => setLeadWhatsAppOptIn(!leadWhatsAppOptIn)}>
-                  <input
-                    type="checkbox"
-                    checked={leadWhatsAppOptIn}
-                    onChange={(e) => setLeadWhatsAppOptIn(e.target.checked)}
-                    style={{ accentColor: "#D4AF37", width: 16, height: 16, marginTop: 2, cursor: "pointer" }}
-                  />
-                  <span style={{ fontSize: 12.5, color: "rgba(255, 255, 255, 0.85)", lineHeight: 1.4 }}>
-                    I agree to receive WhatsApp updates and follow-ups from this business.
-                  </span>
-                </div>
-
-                <p className="pc-lead-privacy-note">
-                  By sharing your details, you agree that this MyLux profile owner may contact you regarding this connection.
-                </p>
-
-                <button
-                  type="submit"
-                  className="pc-lead-submit-btn"
-                  disabled={leadSubmitting}
-                >
-                  {leadSubmitting ? "Sharing Details..." : "SHARE DETAILS"}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
     </main>
   );
 }

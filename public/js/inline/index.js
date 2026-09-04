@@ -1,11 +1,12 @@
 (() => {
-      const hideLoader = () => {
-        const loader = document.getElementById('page-loader');
-        if (!loader) return;
-        loader.classList.add('is-hidden');
-        window.setTimeout(() => loader.remove(), 450);
-      };
+  const hideLoader = () => {
+    const loader = document.getElementById('page-loader');
+    if (!loader) return;
+    loader.classList.add('is-hidden');
+    loader.style.opacity = '0';
+    window.setTimeout(() => loader.remove(), 300);
+  };
 
-      document.addEventListener('DOMContentLoaded', () => window.setTimeout(hideLoader, 100), { once: true });
-      window.setTimeout(hideLoader, 3000);
-    })();
+  hideLoader();
+  document.addEventListener('DOMContentLoaded', hideLoader, { once: true });
+})();

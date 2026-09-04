@@ -23,13 +23,10 @@ model User {
   digitalCards       DigitalCard[]
   orders             Order[]
   accounts           Account[]
-  profiles           Profile[]
+  profile            Profile?
   leads              Lead[]
-  leadNotes          LeadNote[]
-  whatsappConnection WhatsAppConnection?
-  whatsappTemplates  WhatsAppTemplate[]
-  whatsappCampaigns  WhatsAppCampaign[]
-  whatsappMessages    WhatsAppMessage[]
+  followUps          LeadFollowUp[]
+  activities         LeadActivity[]
 
   @@map("users")
 }
@@ -57,18 +54,13 @@ model Account {
 }
 
 model Profile {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @unique @map("user_id") @db.Uuid
-  mobile    String?
-  country   String?
-  address   String?
-  city      String?
-  state     String?
-  pincode   String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  id            String   @id @db.Uuid
+  phone         String?
+  internalNotes String?  @map("internal_notes")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [id], references: [id], onDelete: Cascade)
 
   @@map("profiles")
 }
@@ -91,6 +83,76 @@ model DigitalCard {
   leads              Lead[]
 
   @@map("digital_cards")
+}
+
+model Lead {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId             String   @map("owner_user_id") @db.Uuid
+  cardId                  String   @map("card_id") @db.Uuid
+  name                    String
+  companyName             String?  @map("company_name")
+  contactNumber           String   @map("contact_number")
+  contactNumberNormalized String   @map("contact_number_normalized")
+  email                   String?
+  status                  String   @default("NEW")
+  source                  String   @default("DIRECT")
+  firstSubmittedAt        DateTime @default(now()) @map("first_submitted_at") @db.Timestamptz
+  lastSubmittedAt         DateTime @default(now()) @map("last_submitted_at") @db.Timestamptz
+  submissionCount         Int      @default(1) @map("submission_count")
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  owner                   User           @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  card                    DigitalCard    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  followUps               LeadFollowUp[]
+  activities              LeadActivity[]
+
+  @@unique([ownerUserId, contactNumberNormalized])
+  @@index([ownerUserId, status])
+  @@index([ownerUserId, createdAt])
+  @@index([cardId])
+  @@map("leads")
+}
+
+model LeadFollowUp {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId String    @map("owner_user_id") @db.Uuid
+  leadId      String    @map("lead_id") @db.Uuid
+  scheduledAt DateTime  @map("scheduled_at") @db.Timestamptz
+  note        String?
+  status      String    @default("SCHEDULED")
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  owner       User      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, scheduledAt])
+  @@index([ownerUserId, status, scheduledAt])
+  @@index([leadId])
+  @@map("lead_follow_ups")
+}
+
+model LeadActivity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId String   @map("owner_user_id") @db.Uuid
+  leadId      String   @map("lead_id") @db.Uuid
+  type        String   @map("type")
+  fromValue   String?  @map("from_value")
+  toValue     String?  @map("to_value")
+  description String?
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id") @db.Uuid
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, occurredAt])
+  @@index([leadId, occurredAt])
+  @@map("lead_activities")
 }
 
 model Card {
@@ -213,154 +275,6 @@ model AdminAuditLog {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("admin_audit_logs")
-}
-
-model Lead {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  cardId              String    @map("card_id") @db.Uuid
-  ownerUserId         String?   @map("owner_user_id") @db.Uuid
-  name                String
-  email               String?
-  phone               String?
-  phoneNormalized     String?   @map("phone_normalized")
-  company             String?
-  message             String?
-  status              String    @default("NEW")
-  source              String?   @default("DIRECT")
-  nextFollowUpAt      DateTime? @map("next_follow_up_at") @db.Timestamptz
-  notes               String?
-  submissionCount     Int       @default(1) @map("submission_count")
-  consentAt           DateTime  @default(now()) @map("consent_at") @db.Timestamptz
-  whatsappOptIn       Boolean   @default(false) @map("whatsapp_opt_in")
-  whatsappOptInAt     DateTime? @map("whatsapp_opt_in_at") @db.Timestamptz
-  whatsappOptInSource String?   @map("whatsapp_opt_in_source")
-  whatsappOptOutAt    DateTime? @map("whatsapp_opt_out_at") @db.Timestamptz
-  lastSeenAt          DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz
-
-  digitalCard         DigitalCard                 @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  ownerUser           User?                       @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  leadNotes           LeadNote[]
-  campaignRecipients  WhatsAppCampaignRecipient[]
-  whatsappMessages    WhatsAppMessage[]
-
-  @@map("card_leads")
-}
-
-model LeadNote {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  leadId    String   @map("lead_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  note      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
-
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("lead_notes")
-}
-
-model WhatsAppConnection {
-  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String    @unique @map("user_id") @db.Uuid
-  provider              String    @default("META")
-  wabaId                String    @map("waba_id")
-  phoneNumberId         String    @map("phone_number_id")
-  displayPhoneNumber    String?   @map("display_phone_number")
-  verifiedName          String?   @map("verified_name")
-  qualityRating         String?   @default("GREEN") @map("quality_rating")
-  connectionStatus      String    @default("CONNECTED") @map("connection_status")
-  accessTokenEncrypted  String    @map("access_token_encrypted")
-  tokenExpiresAt        DateTime? @map("token_expires_at") @db.Timestamptz
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz
-
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("whatsapp_connections")
-}
-
-model WhatsAppTemplate {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  wabaId     String   @map("waba_id")
-  name       String
-  category   String
-  language   String
-  status     String
-  components Json     @default("[]")
-  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz
-
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, name, language])
-  @@map("whatsapp_templates")
-}
-
-model WhatsAppCampaign {
-  id                 String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId             String                      @map("user_id") @db.Uuid
-  name               String
-  templateName       String                      @map("template_name")
-  templateLanguage   String                      @default("en_US") @map("template_language")
-  templateParams     Json                        @default("{}") @map("template_params")
-  status             String                      @default("DRAFT")
-  totalRecipients    Int                         @default(0) @map("total_recipients")
-  eligibleRecipients Int                         @default(0) @map("eligible_recipients")
-  sentCount          Int                         @default(0) @map("sent_count")
-  deliveredCount     Int                         @default(0) @map("delivered_count")
-  readCount          Int                         @default(0) @map("read_count")
-  failedCount        Int                         @default(0) @map("failed_count")
-  replyCount         Int                         @default(0) @map("reply_count")
-  createdAt          DateTime                    @default(now()) @map("created_at") @db.Timestamptz
-  startedAt          DateTime?                   @map("started_at") @db.Timestamptz
-  completedAt        DateTime?                   @map("completed_at") @db.Timestamptz
-
-  user               User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recipients         WhatsAppCampaignRecipient[]
-
-  @@map("whatsapp_campaigns")
-}
-
-model WhatsAppCampaignRecipient {
-  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaignId    String           @map("campaign_id") @db.Uuid
-  leadId        String           @map("lead_id") @db.Uuid
-  phoneNumber   String           @map("phone_number")
-  wamid         String?
-  status        String           @default("QUEUED")
-  sentAt        DateTime?        @map("sent_at") @db.Timestamptz
-  deliveredAt   DateTime?        @map("delivered_at") @db.Timestamptz
-  readAt        DateTime?        @map("read_at") @db.Timestamptz
-  failedAt      DateTime?        @map("failed_at") @db.Timestamptz
-  failureCode   String?          @map("failure_code")
-  failureReason String?          @map("failure_reason")
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime         @default(now()) @map("updated_at") @db.Timestamptz
-
-  campaign      WhatsAppCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  lead          Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  @@map("whatsapp_campaign_recipients")
-}
-
-model WhatsAppMessage {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  leadId      String?  @map("lead_id") @db.Uuid
-  wamid       String?
-  direction   String
-  messageType String   @default("text") @map("message_type")
-  content     Json     @default("{}")
-  status      String?  @default("RECEIVED")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
-
-  @@map("whatsapp_messages")
 }
 
 

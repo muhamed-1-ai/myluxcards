@@ -4,7 +4,7 @@
   <defs>
     <linearGradient id="goldMain" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#F9E6A0"/>
-      <stop offset="45%" stop-color="#D4AF37"/>
+      <stop offset="45%" stop-color="#0066FF"/>
       <stop offset="100%" stop-color="#A57D20"/>
     </linearGradient>
     <linearGradient id="goldLight" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -23,7 +23,7 @@
   <rect width="780" height="340" fill="transparent"/>
 
   <g filter="url(#shadow)">
-    <rect x="110" y="60" width="560" height="220" rx="38" fill="#070607" stroke="rgba(212,175,55,0.24)" stroke-width="3"/>
+    <rect x="110" y="60" width="560" height="220" rx="38" fill="#070607" stroke="rgba(0, 229, 255,0.24)" stroke-width="3"/>
   </g>
 
   <path d="M256 110c-42 0-74 32-74 72v82h24v-78c0-28 20-48 50-48 28 0 46 20 46 48v78h24v-78c0-22-14-42-38-48l20-38h-16l-18 36-18-36h-14l20 38Z" fill="url(#goldMain)"/>
@@ -34,7 +34,7 @@
   <path d="M344 86h88l-24-36h-40l-24 36Z" fill="url(#goldLight)"/>
   <path d="M348 76h80l-16-24h-48l-16 24Z" fill="url(#goldShadow)" opacity="0.45"/>
 
-  <path d="M274 234h224" stroke="rgba(212,175,55,0.18)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M274 234h224" stroke="rgba(0, 229, 255,0.18)" stroke-width="4" stroke-linecap="round"/>
   <text x="390" y="282" text-anchor="middle" font-family="Cinzel, serif" font-size="44" font-weight="800" letter-spacing="0.12em" fill="url(#goldMain)">MYLUXCARDS</text>
-  <text x="390" y="310" text-anchor="middle" font-family="Poppins, sans-serif" font-size="16" font-weight="600" letter-spacing="0.18em" fill="#D4AF37">PREMIUM. QUALITY.</text>
+  <text x="390" y="310" text-anchor="middle" font-family="Poppins, sans-serif" font-size="16" font-weight="600" letter-spacing="0.18em" fill="#0066FF">PREMIUM. QUALITY.</text>
 </svg>

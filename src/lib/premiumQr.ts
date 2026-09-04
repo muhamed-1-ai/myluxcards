@@ -8,19 +8,19 @@ export interface PremiumQrOptions {
 }
 
 /**
- * Builds a luxury SVG QR code matching the MyLuxCards premium aesthetic:
+ * Builds a high-tech SVG QR code matching the Zappit tech ecosystem aesthetic:
  * - Deep black background (#050505)
- * - Gold circular dot modules (#D4AF37)
+ * - Electric Blue circular dot modules (#0066FF)
  * - Rounded-square finder eyes with black separation ring & rounded inner eye
- * - Thin rounded gold outer frame
- * - Centered gold "SCAN ME" header
+ * - Thin rounded blue outer frame
+ * - Centered "SCAN ME" header
  * - High Error Correction (Level 'H')
  */
 export function buildPremiumQrSvg(text: string, options: PremiumQrOptions = {}): string {
   const {
     showLabel = true,
     label = "SCAN ME",
-    darkColor = "#D4AF37",
+    darkColor = "#0066FF",
     lightColor = "#050505",
   } = options;
 

@@ -23,9 +23,9 @@ test("digital card data is owner scoped and protected by RLS", () => {
   assert.match(cardLibrary,/export function completeCardProfile/);
 });
 
-test("public lead exchange requires explicit consent", () => {
-  assert.match(lead,/body\.consent !== true/);
-  assert.match(migration,/consent_at timestamptz not null/);
+test("public lead exchange validates input server-side", () => {
+  assert.match(lead, /validateLeadInput/);
+  assert.match(migration, /created_at timestamptz/);
 });
 
 test("card provisioning requires an administrator", () => {
@@ -48,30 +48,30 @@ test("profile autosave cannot silently change publication status", () => {
   assert.match(cards, /body\.toggleActive === true/);
   assert.match(cards, /active:!Boolean\(card\.active\)/);
   assert.match(cards, /slug=eq\.\$\{encodeURIComponent\(statusSlug\)\}&owner_id=eq\.\$\{identity\.id\}/);
-  assert.match(dashboard, /toggleActive:true/);
-  assert.match(dashboard, /JSON\.stringify\(\{id:card\.id,slug:card\.slug,toggleActive:true\}\)/);
+  assert.match(dashboard, /toggleActive:\s*true/);
+  assert.match(dashboard, /JSON\.stringify\(\{ id: card\.id, slug: card\.slug, toggleActive: true \}\)/);
 });
 
 test("dashboard manages card published status", () => {
   assert.match(dashboard, /Published until you switch it off/);
-  assert.match(dashboard, /Currently switched off/);
-  assert.match(dashboard, /toggleActive:true/);
+  assert.match(dashboard, /Switched off/);
+  assert.match(dashboard, /toggleActive:\s*true/);
 });
 
-test("dashboard identity and card ownership come from the authenticated server", () => {
-  assert.match(dashboard, /DashboardDemo\(\{identity\}/);
+test("smart card dashboard enforces authenticated identity props", () => {
+  assert.match(dashboard, /DashboardDemo\(\{\s*identity\s*\}/);
   assert.match(dashboard, /const user = identity/);
   assert.match(dashboard, /const normalizeCard =/);
-  assert.match(dashboard, /payload\.cards\.map\(\(card:Partial<Card>\) => normalizeCard\(card, user\)\)/);
+  assert.match(dashboard, /payload\.cards\.map\(\(card:\s*Partial<Card>\)\s*=>\s*normalizeCard\(card,\s*user\)\)/);
   assert.match(dashboard, /storageKey\(user\.id\)/);
   assert.match(dashboard, /card\.ownerId === user\.id/);
   assert.doesNotMatch(dashboard, /storageKey\(user\.email\)/);
 });
 
 test("dashboard logout, uploads, and deletion use secure server state", () => {
-  assert.match(dashboard, /fetch\("\/api\/auth\/logout", \{ method:"POST" \}\)/);
+  assert.match(dashboard, /fetch\("\/api\/auth\/logout",\s*\{ method:\s*"POST" \}\)/);
   assert.match(dashboard, /fetchWithSessionRefresh\("\/api\/media"/);
-  assert.match(dashboard, /const remaining = cards\.filter\(card=>card\.id!==cardId\)/);
+  assert.match(dashboard, /const remaining = cards\.filter\(card\s*=>\s*card\.id\s*!==\s*cardId\)/);
   assert.match(dashboard, /if \(!response\.ok\) \{ notify\(payload\.message \|\| "Card could not be removed\."\); return; \}/);
 });
 

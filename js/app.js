@@ -74,27 +74,20 @@ class LuxApp {
   }
 
   init() {
-    // 1. Loader dismissal
+    // 1. Instant Loader dismissal
     const hideLoader = () => {
       const loader = document.getElementById('page-loader');
       if (!loader) return;
-      loader.style.transition = 'opacity 0.4s ease';
+      loader.classList.add('is-hidden');
       loader.style.opacity = '0';
-      setTimeout(() => loader.style.display = 'none', 500);
+      setTimeout(() => loader.style.display = 'none', 300);
     };
 
+    hideLoader();
     window.addEventListener('load', hideLoader);
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       hideLoader();
     }
-
-    // Fallback: ensure loader hides even if load events are delayed or blocked
-    setTimeout(() => {
-      const loader = document.getElementById('page-loader');
-      if (loader && loader.style.display !== 'none') {
-        hideLoader();
-      }
-    }, 3000);
 
     // 3. Render Initial Catalog Grid
     this.renderCatalog();
@@ -202,7 +195,7 @@ class LuxApp {
         logoPlacement: document.getElementById('logo-placement')?.value || 'Top left',
         qrPlacement: document.getElementById('qr-placement')?.value || 'Back of card',
         color: activeSwatch.dataset.color || '#0E0E10',
-        accent: activeSwatch.dataset.accent || '#D4AF37',
+        accent: activeSwatch.dataset.accent || '#0066FF',
         colorName: activeSwatch.title || 'Custom'
       };
       const customCard = {
@@ -242,8 +235,8 @@ class LuxApp {
       <rect width="560" height="350" rx="28" fill="url(#card)" stroke="${xml(design.accent)}" stroke-width="4"/>
       ${glossy}
       <g fill="${xml(design.accent)}">
-        <text x="38" y="68" font-family="Arial,sans-serif" font-size="27" font-weight="700">MYLUXCARDS</text>
-        <text x="38" y="96" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">PREMIUM EDITION</text>
+        <text x="38" y="68" font-family="Arial,sans-serif" font-size="27" font-weight="700">ZAPPIT</text>
+        <text x="38" y="96" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">SMART TAP SOLUTIONS</text>
         <text x="38" y="268" font-family="Georgia,serif" font-size="30" font-weight="700">${xml(design.name)}</text>
         <text x="38" y="300" font-family="Arial,sans-serif" font-size="17">${xml(design.designation)}</text>
         <rect x="455" y="260" width="58" height="43" rx="8" fill="none" stroke="${xml(design.accent)}" stroke-width="4"/>
@@ -261,7 +254,7 @@ class LuxApp {
       if (!phone) return;
       phone.classList.add('is-open');
       const state = document.getElementById('tap-profile-state');
-      if (state) state.innerHTML = '<i data-lucide="badge-check"></i><strong>Aarav Menon</strong><span>Creative Director · MyLux Studio</span><button class="mini-profile-btn" type="button">View profile</button>';
+      if (state) state.innerHTML = '<i data-lucide="badge-check"></i><strong>Aarav Menon</strong><span>Creative Director · Zappit Studio</span><button class="mini-profile-btn" type="button">View profile</button>';
       if (window.lucide) window.lucide.createIcons();
       this.showToast('Tap successful — digital profile opened.', 'success');
     };
@@ -1400,7 +1393,7 @@ class LuxApp {
           this.updateAccountButton(user);
           form.reset();
           this.closeModal('signup-modal');
-          this.showToast(`Welcome to MyLuxCards, ${user.name}!`, 'success');
+          this.showToast(`Welcome to Zappit, ${user.name}!`, 'success');
         } else {
           const loginResponse = await fetch('/api/auth/login', {
             method: 'POST',
@@ -1419,7 +1412,7 @@ class LuxApp {
             this.updateAccountButton(user);
             form.reset();
             this.closeModal('signup-modal');
-            this.showToast(`Welcome to MyLuxCards, ${user.name}!`, 'success');
+            this.showToast(`Welcome to Zappit, ${user.name}!`, 'success');
             return;
           }
           if (loginData.code === 'EMAIL_NOT_CONFIRMED' && error) {
@@ -1622,7 +1615,7 @@ class LuxApp {
     const container = document.getElementById('particles-container');
     if (!container) return;
 
-    const colors = ['#D4AF37', '#AA7C11', '#FFDF73', '#FFEBA0'];
+    const colors = ['#0066FF', '#AA7C11', '#FFDF73', '#FFEBA0'];
     const particleCount = 20;
 
     for (let i = 0; i < particleCount; i++) {

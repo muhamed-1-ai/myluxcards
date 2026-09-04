@@ -1,94 +1,174 @@
-export type LeadStatus = 'NEW' | 'CONTACTED' | 'INTERESTED' | 'FOLLOW_UP' | 'WON' | 'LOST' | 'ARCHIVED';
+import { pool } from "./db/core";
+import { normalizePhoneNumber } from "./phone";
+
+export interface CreateLeadInput {
+  ownerUserId: string;
+  cardId: string;
+  name: string;
+  companyName?: string | null;
+  contactNumber: string;
+  email?: string | null;
+  source?: string;
+}
 
 export interface LeadRecord {
   id: string;
-  card_id: string;
   owner_user_id: string;
+  card_id: string;
   name: string;
+  company_name: string | null;
+  contact_number: string;
+  contact_number_normalized: string;
   email: string | null;
-  phone: string | null;
-  phone_normalized: string | null;
-  company: string | null;
-  message: string | null;
-  status: LeadStatus;
+  status: string;
   source: string;
-  next_follow_up_at: string | null;
-  notes: string | null;
+  first_submitted_at: Date;
+  last_submitted_at: Date;
   submission_count: number;
-  consent_at: string;
-  last_seen_at: string;
-  created_at: string;
-  updated_at: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
-export interface LeadNoteRecord {
-  id: string;
-  lead_id: string;
-  user_id: string;
-  note: string;
-  created_at: string;
-  updated_at: string;
+export interface UpsertLeadResult {
+  lead: LeadRecord;
+  isNew: boolean;
+  submissionCount: number;
 }
 
-export interface LeadSummaryMetrics {
-  total: number;
-  newCount: number;
-  followUpCount: number;
-  wonCount: number;
-}
+/**
+ * Validates lead submission payload server-side.
+ */
+export function validateLeadInput(input: Partial<CreateLeadInput>): {
+  valid: boolean;
+  errors: Record<string, string>;
+  sanitized?: {
+    name: string;
+    companyName: string | null;
+    contactNumber: string;
+    contactNumberNormalized: string;
+    email: string | null;
+  };
+} {
+  const errors: Record<string, string> = {};
 
-export const LEAD_STATUSES: LeadStatus[] = [
-  'NEW',
-  'CONTACTED',
-  'INTERESTED',
-  'FOLLOW_UP',
-  'WON',
-  'LOST',
-];
-
-export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; bg: string; color: string; border: string }> = {
-  NEW:        { label: "NEW",        bg: "rgba(52, 152, 219, 0.15)",  color: "#3498db", border: "rgba(52, 152, 219, 0.4)" },
-  CONTACTED:  { label: "CONTACTED",  bg: "rgba(212, 175, 55, 0.15)",  color: "#d4af37", border: "rgba(212, 175, 55, 0.4)" },
-  INTERESTED: { label: "INTERESTED", bg: "rgba(155, 89, 182, 0.15)", color: "#a569bd", border: "rgba(155, 89, 182, 0.4)" },
-  FOLLOW_UP:  { label: "FOLLOW-UP",  bg: "rgba(230, 126, 34, 0.15)",  color: "#e67e22", border: "rgba(230, 126, 34, 0.4)" },
-  WON:        { label: "WON",        bg: "rgba(46, 204, 113, 0.15)",  color: "#2ecc71", border: "rgba(46, 204, 113, 0.4)" },
-  LOST:       { label: "LOST",       bg: "rgba(231, 76, 60, 0.15)",   color: "#e74c3c", border: "rgba(231, 76, 60, 0.4)" },
-  ARCHIVED:   { label: "ARCHIVED",   bg: "rgba(149, 165, 166, 0.15)", color: "#95a5a6", border: "rgba(149, 165, 166, 0.4)" },
-};
-
-export function normalizePhoneNumber(phone: string): string {
-  if (!phone) return "";
-  return phone.replace(/\D/g, "");
-}
-
-export function validateLeadSubmission(data: { name?: unknown; company?: unknown; phone?: unknown; email?: unknown }) {
-  const name = String(data.name || "").trim();
-  const company = String(data.company || "").trim();
-  const phone = String(data.phone || "").trim();
-  const email = data.email ? String(data.email).trim() : "";
-
-  if (name.length < 2 || name.length > 100) {
-    return { valid: false, message: "Please enter a valid name (2 to 100 characters)." };
+  const name = (input.name || "").trim().slice(0, 100);
+  if (!name) {
+    errors.name = "Please enter your name.";
   }
-  if (company.length < 1 || company.length > 150) {
-    return { valid: false, message: "Please enter your company name (up to 150 characters)." };
+
+  const rawPhone = (input.contactNumber || "").trim();
+  const phoneRes = normalizePhoneNumber(rawPhone);
+  if (!phoneRes.isValid) {
+    errors.contactNumber = "Please enter a valid contact number.";
   }
-  const digits = normalizePhoneNumber(phone);
-  if (digits.length < 7 || digits.length > 15) {
-    return { valid: false, message: "Please enter a valid phone number (at least 7 digits)." };
+
+  const companyName = (input.companyName || "").trim().slice(0, 150) || null;
+
+  let email: string | null = null;
+  if (input.email && input.email.trim().length > 0) {
+    const rawEmail = input.email.trim().toLowerCase().slice(0, 255);
+    // Standard email validation (not overly strict)
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(rawEmail)) {
+      errors.email = "Please enter a valid email address.";
+    } else {
+      email = rawEmail;
+    }
   }
-  if (email && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)) {
-    return { valid: false, message: "Please enter a valid email address." };
+
+  if (Object.keys(errors).length > 0) {
+    return { valid: false, errors };
   }
 
   return {
     valid: true,
-    data: { name, company, phone, email: email || null },
+    errors: {},
+    sanitized: {
+      name,
+      companyName,
+      contactNumber: rawPhone,
+      contactNumberNormalized: phoneRes.normalized,
+      email,
+    },
   };
 }
 
-export function formatWhatsAppUrl(phone: string): string {
-  const digits = normalizePhoneNumber(phone);
-  if (!digits) return "#";
-  return `https://wa.me/${digits}`;
+/**
+ * Upserts a Lead scoped to (ownerUserId, contactNumberNormalized).
+ * Multi-tenant safe. Overwrite-protected for empty optional fields.
+ */
+export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResult> {
+  const validation = validateLeadInput(input);
+  if (!validation.valid || !validation.sanitized) {
+    throw new Error(Object.values(validation.errors)[0] || "Invalid lead data.");
+  }
+
+  const { name, companyName, contactNumber, contactNumberNormalized, email } = validation.sanitized;
+  const sourceInput = (input.source || "DIRECT").toUpperCase();
+  const allowedSources = ["NFC", "QR", "SHARE", "DIRECT", "UNKNOWN"];
+  const source = allowedSources.includes(sourceInput) ? sourceInput : "DIRECT";
+
+  const res = await pool.query<LeadRecord>(
+    `INSERT INTO leads (
+       owner_user_id,
+       card_id,
+       name,
+       company_name,
+       contact_number,
+       contact_number_normalized,
+       email,
+       status,
+       source,
+       first_submitted_at,
+       last_submitted_at,
+       submission_count,
+       created_at,
+       updated_at
+     ) VALUES (
+       $1, $2, $3, $4, $5, $6, $7, 'NEW', $8, NOW(), NOW(), 1, NOW(), NOW()
+     )
+     ON CONFLICT (owner_user_id, contact_number_normalized) DO UPDATE SET
+       submission_count = leads.submission_count + 1,
+       last_submitted_at = NOW(),
+       updated_at = NOW(),
+       name = EXCLUDED.name,
+       company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), leads.company_name),
+       email = COALESCE(NULLIF(EXCLUDED.email, ''), leads.email),
+       source = EXCLUDED.source
+     RETURNING
+       id,
+       owner_user_id,
+       card_id,
+       name,
+       company_name,
+       contact_number,
+       contact_number_normalized,
+       email,
+       status,
+       source,
+       first_submitted_at,
+       last_submitted_at,
+       submission_count,
+       created_at,
+       updated_at`,
+    [
+      input.ownerUserId,
+      input.cardId,
+      name,
+      companyName,
+      contactNumber,
+      contactNumberNormalized,
+      email,
+      source,
+    ]
+  );
+
+  const lead = res.rows[0];
+  const isNew = lead.submission_count === 1;
+
+  return {
+    lead,
+    isNew,
+    submissionCount: lead.submission_count,
+  };
 }

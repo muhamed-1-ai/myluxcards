@@ -113,7 +113,7 @@ export const DEFAULT_LOST_AND_FOUND: LostAndFoundSettings = {
 const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
   state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
-  logo:"", cover:"", profileBackground:"#020202", profileAccent:"#d4af37", profileText:"#ffffff", start:"", expiry:"",
+  logo:"", cover:"", profileBackground:"#020202", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
   logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
   profileMode: "DIGITAL_PROFILE",
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
@@ -187,7 +187,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       else if (field === "email") output[field] = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed.toLowerCase().slice(0, 254) : "";
       else if (["mobile","whatsapp","defaultContactPhone","defaultEmergencyPhone"].includes(field)) output[field] = /^[0-9 ()+.-]{0,30}$/.test(trimmed) ? trimmed : "";
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
-      else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#d4af37" : "#ffffff";
+      else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#0066FF" : "#ffffff";
       else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
       else if (field === "brochureData") output[field] = /^https:\/\/[^\s]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
       else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
