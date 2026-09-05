@@ -198,6 +198,10 @@
   padding: 10px 20px;
   font-size: 13px;
   font-weight: 600;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   text-decoration: none;
   font-family: inherit;

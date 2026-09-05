@@ -3,18 +3,38 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
   DashboardLayoutType,
-  DashboardLayoutSelectorModal,
   CompactDashboardLayoutDropdown,
 } from "@/components/dashboard/DashboardLayoutSelector";
 import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDashboard";
-import { LeadSourcesConfig } from "@/components/dashboard/config/LeadSourcesConfig";
-import { ProductsConfig } from "@/components/dashboard/config/ProductsConfig";
-import { LeadStagesConfig } from "@/components/dashboard/config/LeadStagesConfig";
-import { CalendarConfig } from "@/components/dashboard/config/CalendarConfig";
-import { LobReasonsConfig } from "@/components/dashboard/config/LobReasonsConfig";
+
+const DashboardLayoutSelectorModal = dynamic(
+  () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
+  { ssr: false }
+);
+const LeadSourcesConfig = dynamic(
+  () => import("@/components/dashboard/config/LeadSourcesConfig").then((mod) => mod.LeadSourcesConfig),
+  { ssr: false }
+);
+const ProductsConfig = dynamic(
+  () => import("@/components/dashboard/config/ProductsConfig").then((mod) => mod.ProductsConfig),
+  { ssr: false }
+);
+const LeadStagesConfig = dynamic(
+  () => import("@/components/dashboard/config/LeadStagesConfig").then((mod) => mod.LeadStagesConfig),
+  { ssr: false }
+);
+const CalendarConfig = dynamic(
+  () => import("@/components/dashboard/config/CalendarConfig").then((mod) => mod.CalendarConfig),
+  { ssr: false }
+);
+const LobReasonsConfig = dynamic(
+  () => import("@/components/dashboard/config/LobReasonsConfig").then((mod) => mod.LobReasonsConfig),
+  { ssr: false }
+);
 import {
   BusinessKpiGrid,
   DigitalCardKpiGrid,

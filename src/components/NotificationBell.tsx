@@ -246,7 +246,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
         aria-label="Notifications"
         aria-expanded={isOpen}
       >
-        <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "text-black scale-105" : "text-[#0066FF]"}`} />
+        <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "text-[#0066FF] scale-105" : "text-[#0066FF]"}`} />
 
         {/* Upper-right Gold Unread Badge */}
         {unreadCount > 0 && (

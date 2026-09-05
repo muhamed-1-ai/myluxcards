@@ -99,7 +99,7 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
     [ownerUserId]
   );
 
-  // Query 2: Pipeline Leads (up to 5 per stage)
+  // Query 2: Pipeline Leads (top 5 per stage limited at DB level via CTE)
   const pipelineRes = pool.query<{
     id: string;
     name: string;
@@ -113,21 +113,28 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
     next_follow_up_at: Date | null;
     next_follow_up_note: string | null;
   }>(
-    `SELECT l.id, l.name, l.company_name, l.contact_number, l.email, l.status, l.source,
-            l.submission_count, l.updated_at,
+    `WITH ranked_leads AS (
+       SELECT l.id, l.name, l.company_name, l.contact_number, l.email, l.status, l.source,
+              l.submission_count, l.updated_at,
+              ROW_NUMBER() OVER (PARTITION BY l.status ORDER BY l.updated_at DESC) as rn
+       FROM leads l
+       WHERE l.owner_user_id = $1
+     )
+     SELECT rl.id, rl.name, rl.company_name, rl.contact_number, rl.email, rl.status, rl.source,
+            rl.submission_count, rl.updated_at,
             f.scheduled_at as next_follow_up_at, f.note as next_follow_up_note
-     FROM leads l
+     FROM ranked_leads rl
      LEFT JOIN LATERAL (
        SELECT scheduled_at, note FROM lead_follow_ups
-       WHERE lead_id = l.id AND status = 'SCHEDULED'
+       WHERE lead_id = rl.id AND status = 'SCHEDULED'
        ORDER BY scheduled_at ASC LIMIT 1
      ) f ON true
-     WHERE l.owner_user_id = $1
-     ORDER BY l.updated_at DESC`,
+     WHERE rl.rn <= 5
+     ORDER BY rl.updated_at DESC`,
     [ownerUserId]
   );
 
-  // Query 3: Follow-Ups (Today, Overdue, Upcoming)
+  // Query 3: Follow-Ups (Today, Overdue, Upcoming - bounded to top 50)
   const followUpsRes = pool.query<{
     id: string;
     lead_id: string;
@@ -143,7 +150,8 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
      FROM lead_follow_ups f
      JOIN leads l ON l.id = f.lead_id
      WHERE f.owner_user_id = $1 AND f.status = 'SCHEDULED'
-     ORDER BY f.scheduled_at ASC`,
+     ORDER BY f.scheduled_at ASC
+     LIMIT 50`,
     [ownerUserId]
   );
 

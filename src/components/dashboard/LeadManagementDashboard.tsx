@@ -20,15 +20,23 @@ import {
   Calendar,
   ChevronDown,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import {
   DashboardSummaryPayload,
   LeadStage,
   PipelineLeadCard,
 } from "@/lib/crm";
-import { CrmActivityCalendar } from "./CrmActivityCalendar";
 import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
-import { AddLeadModal } from "./AddLeadModal";
+
+const CrmActivityCalendar = dynamic(
+  () => import("./CrmActivityCalendar").then((mod) => mod.CrmActivityCalendar),
+  { ssr: false }
+);
+const AddLeadModal = dynamic(
+  () => import("./AddLeadModal").then((mod) => mod.AddLeadModal),
+  { ssr: false }
+);
 
 interface LeadManagementDashboardProps {
   userName: string;

@@ -269,7 +269,7 @@ export function CalendarConfig() {
     // Previous month padding days
     for (let i = startDayOfWeek; i > 0; i--) {
       const d = new Date(year, month, 1 - i);
-      const isoDate = d.toISOString().split("T")[0];
+      const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       days.push({ date: d, dateStr: isoDate, isCurrentMonth: false, isToday: false });
     }
 
@@ -285,7 +285,7 @@ export function CalendarConfig() {
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const d = new Date(year, month + 1, i);
-      const isoDate = d.toISOString().split("T")[0];
+      const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       days.push({ date: d, dateStr: isoDate, isCurrentMonth: false, isToday: false });
     }
 
@@ -738,13 +738,13 @@ export function CalendarConfig() {
 
         {/* 7-COLUMN MONTH GRID */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
-          {calendarGrid.map((dayItem) => {
+          {calendarGrid.map((dayItem, gridIdx) => {
             const dayEvents = eventsByDate[dayItem.dateStr] || [];
             const isToday = dayItem.isToday;
 
             return (
               <div
-                key={dayItem.dateStr}
+                key={`cell-${dayItem.dateStr}-${dayItem.isCurrentMonth ? "curr" : "pad"}-${gridIdx}`}
                 style={{
                   minHeight: 140,
                   background: dayItem.isCurrentMonth ? "#181924" : "rgba(18, 19, 26, 0.5)",

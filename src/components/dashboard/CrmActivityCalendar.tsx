@@ -169,7 +169,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
 
           return (
             <button
-              key={dateStr}
+              key={`day-${dateStr}-${idx}`}
               type="button"
               onClick={() => handleDateClick(dateStr)}
               style={{

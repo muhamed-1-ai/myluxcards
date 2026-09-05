@@ -1546,6 +1546,18 @@ class LuxApp {
       }
     });
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const loginFlag = urlParams.get('login') === '1';
+    const nextDestination = urlParams.get('next');
+    if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
+    if (loginFlag) {
+      const modal = document.getElementById('login-modal');
+      if (modal) {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    }
+
     const switchAuthModal = (fromId, toId) => {
       this.closeModal(fromId);
       const modal = document.getElementById(toId);
@@ -1749,6 +1761,12 @@ class LuxApp {
           window.location.href = '/admin';
           return;
         }
+        const nextUrl = new URLSearchParams(window.location.search).get('next') || sessionStorage.getItem('myluxcards_auth_next');
+        sessionStorage.removeItem('myluxcards_auth_next');
+        if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//')) {
+          window.location.href = nextUrl;
+          return;
+        }
         this.closeModal('login-modal');
         this.showToast(`Welcome back, ${user.name}!`, 'success');
       } catch {
@@ -1829,11 +1847,8 @@ class LuxApp {
         .catch(() => {});
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const loginFlag = urlParams.get('login') === '1';
+    // reuse existing urlParams, loginFlag, and nextDestination
     const oauthError = urlParams.get('error');
-    const nextDestination = urlParams.get('next');
-    if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
 
     if (oauthError) {
       const error = document.getElementById('login-error');
