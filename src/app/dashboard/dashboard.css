@@ -94,12 +94,32 @@
   left: 0;
   top: 72px;
   bottom: 0;
+  height: calc(100vh - 72px);
+  max-height: calc(100vh - 72px);
   width: 244px;
   background: linear-gradient(165deg, var(--d-navy2), var(--d-navy));
   color: #c8d0d7;
   padding: 24px 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 255, 0.3) rgba(7, 20, 38, 0.6);
+}
+.dash-side::-webkit-scrollbar {
+  width: 5px;
+}
+.dash-side::-webkit-scrollbar-track {
+  background: rgba(7, 20, 38, 0.6);
+}
+.dash-side::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.25);
+  border-radius: 4px;
+}
+.dash-side::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.5);
 }
 .dash-side nav > button,
 .card-owner {
