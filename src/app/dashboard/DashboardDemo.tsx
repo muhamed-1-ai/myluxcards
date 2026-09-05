@@ -336,6 +336,67 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const lastSavedRef = useRef("");
 
+  const [nicknameModalOpen, setNicknameModalOpen] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
+
+  const handleOpenNicknameModal = () => {
+    setAccountMenu(false);
+    setNicknameInput(currentUser?.name || "");
+    setNicknameError("");
+    setNicknameModalOpen(true);
+  };
+
+  const handleSaveNickname = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = nicknameInput.trim();
+    if (!trimmed) {
+      setNicknameError("Nickname cannot be empty.");
+      return;
+    }
+    if (trimmed.length < 2) {
+      setNicknameError("Nickname must be at least 2 characters.");
+      return;
+    }
+    if (trimmed.length > 30) {
+      setNicknameError("Nickname cannot exceed 30 characters.");
+      return;
+    }
+
+    setSavingNickname(true);
+    setNicknameError("");
+
+    try {
+      const response = await fetchWithSessionRefresh("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: trimmed }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setNicknameError(data.message || "Failed to update nickname.");
+        setSavingNickname(false);
+        return;
+      }
+
+      if (data.user && currentUser) {
+        const updatedUser = { ...currentUser, name: data.user.name };
+        setCurrentUser(updatedUser);
+        localStorage.setItem("myluxcards_current_user", JSON.stringify(updatedUser));
+      }
+
+      setNicknameModalOpen(false);
+      setSavingNickname(false);
+      notify("Nickname updated successfully.");
+    } catch {
+      setNicknameError("An error occurred while saving nickname.");
+      setSavingNickname(false);
+    }
+  };
+
+
   const reloadContactsData = async () => {
     try {
       const res = await fetchWithSessionRefresh("/api/cards", { cache: "no-store" });
@@ -705,7 +766,8 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
                 <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
               )}
-              <button onClick={logout}>Log out</button>
+              <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
+              <button type="button" onClick={logout}>Log out</button>
             </div>}
           </div>
         </div>
@@ -857,6 +919,85 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         {tab === "analytics" && <AnalyticsTab selectedCardId={selected?.id || ""} />}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
+      <MyLuxModal
+        isOpen={nicknameModalOpen}
+        onClose={() => {
+          if (!savingNickname) setNicknameModalOpen(false);
+        }}
+        title="Change Nickname"
+        subtitle="Update your nickname displayed across your profile."
+        maxWidth={440}
+        footer={
+          <>
+            <button
+              type="button"
+              className="mylux-btn-cancel"
+              onClick={() => setNicknameModalOpen(false)}
+              disabled={savingNickname}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="mylux-btn-submit"
+              onClick={handleSaveNickname}
+              disabled={savingNickname}
+            >
+              {savingNickname ? "Saving…" : "Save"}
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveNickname} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6, fontWeight: 600 }}>
+              Current Nickname
+            </label>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#ffffff", background: "rgba(255, 255, 255, 0.05)", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              {currentUser?.name || "N/A"}
+            </div>
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label htmlFor="nickname-input" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                New Nickname
+              </label>
+              <span style={{ fontSize: 11, color: nicknameInput.trim().length > 30 ? "#ff4d4f" : "rgba(255,255,255,0.5)" }}>
+                {nicknameInput.trim().length}/30
+              </span>
+            </div>
+            <input
+              id="nickname-input"
+              type="text"
+              value={nicknameInput}
+              onChange={(e) => {
+                setNicknameInput(e.target.value);
+                if (nicknameError) setNicknameError("");
+              }}
+              placeholder="Enter new nickname"
+              maxLength={30}
+              autoFocus
+              disabled={savingNickname}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                background: "#0c0d12",
+                border: nicknameError ? "1px solid #ff4d4f" : "1px solid rgba(0, 102, 255, 0.4)",
+                borderRadius: 8,
+                color: "#ffffff",
+                fontSize: 14,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            {nicknameError && (
+              <p style={{ color: "#ff4d4f", fontSize: 12, marginTop: 6, marginBottom: 0 }}>
+                {nicknameError}
+              </p>
+            )}
+          </div>
+        </form>
+      </MyLuxModal>
       <MyLuxModal
         isOpen={Boolean(deleteId)}
         onClose={() => setDeleteId(null)}

@@ -8,3 +8,5 @@ export async function findUserById(id:string,db:Queryable=pool){return (await db
 export async function findUserByEmail(email:string,db:Queryable=pool){return (await db.query<UserRow>(`select ${publicColumns} from users where normalized_email=$1`,[normalizeEmail(email)])).rows[0]??null}
 export async function findCredentialUser(email:string,db:Queryable=pool){return (await db.query<UserRow>("select * from users where normalized_email=$1",[normalizeEmail(email)])).rows[0]??null}
 export async function updateUserDashboardLayout(userId:string,layout:string,db:Queryable=pool){await db.query(`update users set dashboard_layout=$1, updated_at=now() where id=$2`,[layout,userId]);return (await db.query<UserRow>(`select ${publicColumns} from users where id=$1`,[userId])).rows[0]??null}
+export async function updateUserNickname(userId:string,name:string,db:Queryable=pool){await db.query(`update users set name=$1, updated_at=now() where id=$2`,[name,userId]);return (await db.query<UserRow>(`select ${publicColumns} from users where id=$1`,[userId])).rows[0]??null}
+

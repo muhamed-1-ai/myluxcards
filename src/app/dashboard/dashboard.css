@@ -2389,6 +2389,28 @@ th {
 .account-popover button:hover {
   background: #f0ce63;
 }
+.account-popover .btn-change-nickname {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 102, 255, 0.4);
+  border-radius: 7px;
+  background: rgba(0, 102, 255, 0.12);
+  color: #0066FF;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.account-popover .btn-change-nickname:hover {
+  background: rgba(0, 102, 255, 0.22);
+  border-color: #0066FF;
+  color: #3385ff;
+}
+
 .phone-preview {
   background: var(--profile-bg, #020202) !important;
   border-color: var(--profile-accent, #0066FF) !important;
