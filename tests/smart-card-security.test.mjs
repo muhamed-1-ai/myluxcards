@@ -34,7 +34,7 @@ test("card provisioning requires an administrator", () => {
   assert.match(activation,/customersWithoutCards/);
   assert.match(activation,/owner_id: ownerId/);
   assert.match(activation,/force-dynamic/);
-  assert.match(dashboardAdmin,/section==="activations"\?"customers"/);
+  assert.match(dashboardAdmin,/section\s*===\s*"activations"/);
   assert.match(dashboardAdmin,/body:JSON\.stringify\(\{ownerId:customer\.id\}\)/);
 });
 

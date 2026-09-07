@@ -3,9 +3,26 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { getPublicCardUrl } from "@/lib/url";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
-type Section = "overview"|"managed_users"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
+type Section = "overview"|"managed_users"|"team_calendar"|"team_leads"|"team_analytics"|"team_lob_reasons"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
-const labels: Record<Section,string> = { overview:"Overview",managed_users:"My Managed Users",orders:"Orders",customers:"Customers",activations:"Card assignment",products:"Products",payments:"Payments",support:"Support tickets",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
+const labels: Record<Section,string> = {
+  overview: "Overview",
+  managed_users: "Users",
+  team_calendar: "Team Calendar",
+  team_leads: "Team Leads",
+  team_analytics: "Team Analytics",
+  team_lob_reasons: "Team LOB Reasons",
+  orders: "Orders",
+  customers: "Customers",
+  activations: "Card assignment",
+  products: "Products",
+  payments: "Payments",
+  support: "Support tickets",
+  notifications: "Notifications",
+  admins: "Admin management",
+  audit: "Audit logs",
+  settings: "Settings",
+};
 const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
 
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
@@ -15,8 +32,13 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   const load=useCallback(async()=>{
     const version=++loadVersion.current;
     setLoading(true);setError("");
-    const path=section==="overview"?"dashboard":section==="activations"?"customers":section==="managed_users"?"managed-users":section;
-    try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers","managed_users"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
+    let path: string = section;
+    if (section === "overview") path = "dashboard";
+    else if (section === "activations") path = "customers";
+    else if (section === "managed_users") path = "managed-users";
+    else if (section.startsWith("team_")) path = `team/${section.replace("team_", "").replace("_", "-")}`;
+
+    try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers","managed_users","team_leads"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
       const payload=await response.json();
@@ -31,12 +53,38 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   };
   const navigate=(next:Section)=>{setSection(next);setSearch("");setMobile(false);const url=new URL(window.location.href);if(next==="overview")url.searchParams.delete("section");else url.searchParams.set("section",next);window.history.replaceState(null,"",url)};
   const logout=async()=>{await fetch("/api/auth/logout",{method:"POST"});localStorage.removeItem("myluxcards_current_user");window.location.replace("/")};
-  const allowed=(Object.keys(labels) as Section[]).filter(item=>identity.role==="SUPER_ADMIN"||!["admins","audit","settings"].includes(item));
   return <div className="admin-shell">
-    <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo">MYLUX<span>CARDS</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
+    <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo">3G ZAPPIT <span>ADMIN</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
     {mobile&&<button className="admin-scrim" onClick={()=>setMobile(false)} aria-label="Close menu"/>}
-    <aside className={mobile?"open":""}><p>MANAGED ACCOUNT CENTRE</p><nav>{allowed.map(item=><button key={item} className={section===item?"active":""} onClick={()=>navigate(item)}>{labels[item]}</button>)}<a href="/admin/affiliates">Affiliate program</a></nav><button className="admin-logout" onClick={logout}>Log out</button></aside>
-    <main><div className="admin-heading"><div><p>MYLUX ADMIN DASHBOARD</p><h1>{labels[section]}</h1><span>Secure account &amp; user operations.</span></div>{["orders","customers","managed_users"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
+    <aside className={mobile?"open":""}>
+      <p>ADMINISTRATION</p>
+      <nav>
+        <button className={section==="overview"?"active":""} onClick={()=>navigate("overview")}>🏠 Dashboard</button>
+
+        <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>TEAM MANAGEMENT</p>
+        <button className={section==="managed_users"?"active":""} onClick={()=>navigate("managed_users")}>👥 Users</button>
+
+        <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>TEAM</p>
+        <button className={section==="team_calendar"?"active":""} onClick={()=>navigate("team_calendar")}>📅 Team Calendar</button>
+        <button className={section==="team_leads"?"active":""} onClick={()=>navigate("team_leads")}>🎯 Team Leads</button>
+        <button className={section==="team_analytics"?"active":""} onClick={()=>navigate("team_analytics")}>📊 Team Analytics</button>
+        <button className={section==="team_lob_reasons"?"active":""} onClick={()=>navigate("team_lob_reasons")}>📉 Team LOB Reasons</button>
+
+        <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>MY ZAPPIT</p>
+        <button className={section==="activations"?"active":""} onClick={()=>navigate("activations")}>💳 My Card</button>
+        <button className={section==="orders"?"active":""} onClick={()=>navigate("orders")}>🛒 My Orders</button>
+        <button className={section==="notifications"?"active":""} onClick={()=>navigate("notifications")}>🔔 Notifications</button>
+
+        {identity.role==="SUPER_ADMIN" && <>
+          <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>PLATFORM CONTROL</p>
+          <button className={section==="admins"?"active":""} onClick={()=>navigate("admins")}>⚙️ Admin Management</button>
+          <button className={section==="audit"?"active":""} onClick={()=>navigate("audit")}>🛡️ Audit Logs</button>
+          <button className={section==="settings"?"active":""} onClick={()=>navigate("settings")}>🔧 Platform Settings</button>
+        </>}
+      </nav>
+      <button className="admin-logout" onClick={logout}>Log out</button>
+    </aside>
+    <main><div className="admin-heading"><div><p>ZAPPIT ADMIN DASHBOARD</p><h1>{labels[section]}</h1><span>Manage your team and user accounts.</span></div>{["orders","customers","managed_users","team_leads"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
       {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate} navigate={navigate} reload={load}/>}
     </main>
   </div>;
@@ -45,6 +93,10 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
 function Content({section,payload,identity,mutate,navigate,reload}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void,reload:()=>Promise<void>}) {
   if(section==="overview") return <Overview data={payload}/>;
   if(section==="managed_users") return <ManagedUsers rows={payload?.users||[]} mutate={mutate} reload={reload}/>;
+  if(section==="team_calendar") return <TeamCalendar data={payload}/>;
+  if(section==="team_leads") return <TeamLeads rows={payload?.leads||[]}/>;
+  if(section==="team_analytics") return <TeamAnalytics data={payload}/>;
+  if(section==="team_lob_reasons") return <TeamLobReasons rows={payload?.lobReasons||[]}/>;
   const rows:Row[]=payload?.data||[];
   if(section==="orders") return <Orders rows={rows} mutate={mutate}/>;
   if(section==="customers") return <Customers rows={rows} identity={identity} mutate={mutate}/>;
@@ -478,8 +530,243 @@ function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Pro
   );
 }
 
+function TeamCalendar({ data }: { data: any }) {
+  const followUps: Row[] = data?.followUps || [];
+  const teamLeadCounts: Row[] = data?.teamLeadCounts || [];
+  const [filterUser, setFilterUser] = useState<string>("ALL");
+
+  const filteredFollowUps = filterUser === "ALL" 
+    ? followUps 
+    : followUps.filter((f) => f.user_id === filterUser);
+
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div>
+          <h2>Team Calendar &amp; Activity</h2>
+          <p style={{ fontSize: "13px", color: "#888" }}>Monitor scheduled follow-ups and lead submission counts across your assigned team.</p>
+        </div>
+        <div>
+          <label style={{ fontSize: "13px", marginRight: "8px" }}>Filter User:</label>
+          <select value={filterUser} onChange={(e) => setFilterUser(e.target.value)} style={{ padding: "6px 12px", background: "#111", color: "#fff", border: "1px solid #333", borderRadius: "6px" }}>
+            <option value="ALL">All Managed Users</option>
+            {teamLeadCounts.map((u) => (
+              <option key={u.user_id} value={u.user_id}>{u.user_name || u.user_email}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+        {teamLeadCounts.map((user) => (
+          <div key={user.user_id} style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+            <strong style={{ fontSize: "15px" }}>{user.user_name || "Unnamed User"}</strong>
+            <div style={{ color: "#888", fontSize: "12px", marginBottom: "10px" }}>{user.user_email}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #222", paddingTop: "8px" }}>
+              <span style={{ fontSize: "12px", color: "#aaa" }}>Leads Today</span>
+              <strong style={{ fontSize: "18px", color: "#d4af37" }}>{user.leads_today || 0}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+              <span style={{ fontSize: "12px", color: "#aaa" }}>Total Leads</span>
+              <span style={{ fontSize: "14px", fontWeight: 600 }}>{user.total_leads || 0}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h3>Scheduled Follow-Ups &amp; Meetings</h3>
+      {!filteredFollowUps.length ? (
+        <Empty title="No scheduled team follow-ups" text="Follow-ups scheduled by your team members will appear here." />
+      ) : (
+        <Table
+          heads={["Scheduled", "User", "Lead", "Contact", "Note / Purpose", "Status"]}
+          rows={filteredFollowUps.map((f) => [
+            new Date(f.scheduled_at).toLocaleString(),
+            <><b>{f.user_name || "Unnamed"}</b><small>{f.user_email}</small></>,
+            <><b>{f.lead_name}</b><small>{f.company_name || "No Company"}</small></>,
+            f.contact_number || "—",
+            f.note || "General Follow-up",
+            <span className={`pill ${f.status?.toLowerCase()}`}>{f.status}</span>,
+          ])}
+        />
+      )}
+    </>
+  );
+}
+
+function TeamLeads({ rows }: { rows: Row[] }) {
+  const [filterUser, setFilterUser] = useState("ALL");
+  const [filterStage, setFilterStage] = useState("ALL");
+
+  const uniqueUsers = Array.from(new Set(rows.map((r) => r.user_id))).map((id) => {
+    const row = rows.find((r) => r.user_id === id);
+    return { id, name: row?.user_name || row?.user_email };
+  });
+
+  const filtered = rows.filter((r) => {
+    if (filterUser !== "ALL" && r.user_id !== filterUser) return false;
+    if (filterStage !== "ALL" && r.status !== filterStage) return false;
+    return true;
+  });
+
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div>
+          <h2>Team Leads ({filtered.length})</h2>
+          <p style={{ fontSize: "13px", color: "#888" }}>Leads captured across all accounts assigned to your Admin profile.</p>
+        </div>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <select value={filterUser} onChange={(e) => setFilterUser(e.target.value)} style={{ padding: "6px 12px", background: "#111", color: "#fff", border: "1px solid #333", borderRadius: "6px" }}>
+            <option value="ALL">All Users</option>
+            {uniqueUsers.map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+          <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)} style={{ padding: "6px 12px", background: "#111", color: "#fff", border: "1px solid #333", borderRadius: "6px" }}>
+            <option value="ALL">All Stages</option>
+            <option value="NEW">New</option>
+            <option value="CONTACTED">Contacted</option>
+            <option value="INTERESTED">Interested</option>
+            <option value="FOLLOW_UP">Follow-up</option>
+            <option value="CONVERTED">Converted</option>
+            <option value="LOST">Lost</option>
+          </select>
+        </div>
+      </div>
+
+      {!filtered.length ? (
+        <Empty title="No matching team leads" text="Leads submitted by your managed team members will appear here." />
+      ) : (
+        <Table
+          heads={["Assigned User", "Lead Name", "Company", "Contact", "Source", "Stage", "Created Date"]}
+          rows={filtered.map((l) => [
+            <><b>{l.user_name || "Unnamed"}</b><small>{l.user_email}</small></>,
+            <b>{l.name}</b>,
+            l.company_name || "—",
+            <><div>{l.contact_number}</div><small>{l.email || ""}</small></>,
+            l.source || "DIRECT",
+            <span className={`pill ${l.status?.toLowerCase()}`}>{l.status}</span>,
+            new Date(l.created_at).toLocaleDateString(),
+          ])}
+        />
+      )}
+    </>
+  );
+}
+
+function TeamAnalytics({ data }: { data: any }) {
+  const totals = data?.totals || { total_leads: 0, leads_today: 0, leads_week: 0, leads_month: 0, converted_leads: 0, lost_leads: 0 };
+  const userBreakdown: Row[] = data?.userBreakdown || [];
+
+  return (
+    <>
+      <div style={{ marginBottom: "20px" }}>
+        <h2>Team Performance Analytics</h2>
+        <p style={{ fontSize: "13px", color: "#888" }}>Aggregated performance statistics for users under your Admin scope.</p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+        <div style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+          <span style={{ color: "#888", fontSize: "12px" }}>Total Team Leads</span>
+          <h2 style={{ fontSize: "28px", margin: "6px 0" }}>{totals.total_leads}</h2>
+        </div>
+        <div style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+          <span style={{ color: "#888", fontSize: "12px" }}>Leads Today</span>
+          <h2 style={{ fontSize: "28px", margin: "6px 0", color: "#d4af37" }}>{totals.leads_today}</h2>
+        </div>
+        <div style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+          <span style={{ color: "#888", fontSize: "12px" }}>This Week</span>
+          <h2 style={{ fontSize: "28px", margin: "6px 0" }}>{totals.leads_week}</h2>
+        </div>
+        <div style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+          <span style={{ color: "#888", fontSize: "12px" }}>This Month</span>
+          <h2 style={{ fontSize: "28px", margin: "6px 0" }}>{totals.leads_month}</h2>
+        </div>
+        <div style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+          <span style={{ color: "#888", fontSize: "12px" }}>Converted</span>
+          <h2 style={{ fontSize: "28px", margin: "6px 0", color: "#52c41a" }}>{totals.converted_leads}</h2>
+        </div>
+        <div style={{ background: "#141414", border: "1px solid #262626", padding: "16px", borderRadius: "8px" }}>
+          <span style={{ color: "#888", fontSize: "12px" }}>Lost</span>
+          <h2 style={{ fontSize: "28px", margin: "6px 0", color: "#ff4d4f" }}>{totals.lost_leads}</h2>
+        </div>
+      </div>
+
+      <h3>Per-User Performance Breakdown</h3>
+      {!userBreakdown.length ? (
+        <Empty title="No team analytics data" text="Per-user metrics will populate as your managed team captures leads." />
+      ) : (
+        <Table
+          heads={["Team Member", "Total Leads", "Converted", "Lost", "Conversion Rate %"]}
+          rows={userBreakdown.map((u) => {
+            const convRate = u.total_leads > 0 ? Math.round((u.converted_leads / u.total_leads) * 100) : 0;
+            return [
+              <><b>{u.user_name || "Unnamed"}</b><small>{u.user_email}</small></>,
+              u.total_leads,
+              <span style={{ color: "#52c41a", fontWeight: 700 }}>{u.converted_leads}</span>,
+              <span style={{ color: "#ff4d4f", fontWeight: 700 }}>{u.lost_leads}</span>,
+              <strong>{convRate}%</strong>,
+            ];
+          })}
+        />
+      )}
+    </>
+  );
+}
+
+function TeamLobReasons({ rows }: { rows: Row[] }) {
+  const totalLost = rows.reduce((acc, r) => acc + Number(r.count || 0), 0);
+
+  return (
+    <>
+      <div style={{ marginBottom: "20px" }}>
+        <h2>Team LOB Reasons</h2>
+        <p style={{ fontSize: "13px", color: "#888" }}>Identify patterns and exit reasons why your managed users are losing leads.</p>
+      </div>
+
+      {!rows.length ? (
+        <Empty title="No LOB reasons recorded yet" text="LOB reasons selected by team members when marking leads as Lost will appear here." />
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div style={{ background: "#141414", border: "1px solid #262626", padding: "20px", borderRadius: "8px" }}>
+            <h3 style={{ marginBottom: "16px" }}>LOB Reason Frequency Breakdown</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {rows.map((r) => {
+                const count = Number(r.count || 0);
+                const pct = totalLost > 0 ? Math.round((count / totalLost) * 100) : 0;
+                return (
+                  <div key={r.reason}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                      <strong>{r.reason}</strong>
+                      <span>{count} ({pct}%)</span>
+                    </div>
+                    <div style={{ background: "#222", height: "8px", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ background: "#d4af37", height: "100%", width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <Table
+            heads={["LOB Reason", "Lost Count", "Percentage"]}
+            rows={rows.map((r) => {
+              const count = Number(r.count || 0);
+              const pct = totalLost > 0 ? Math.round((count / totalLost) * 100) : 0;
+              return [r.reason, count, `${pct}%`];
+            })}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 function Settings({value,mutate}:{value:Row,mutate:any}) { const save=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));return mutate("settings","PATCH",{...f,low_stock_threshold:Number(f.low_stock_threshold)})}; return <form className="settings-form" onSubmit={save}>{[["business_name","Business name"],["support_email","Support email"],["support_phone","Support phone"],["order_notification_email","Order notification email"],["currency","Currency"],["low_stock_threshold","Low-stock threshold"],["terms_url","Terms URL"],["privacy_url","Privacy URL"],["maintenance_message","Maintenance message"]].map(([name,label])=><label key={name}>{label}<input name={name} defaultValue={value[name]??""}/></label>)}<button>Save settings</button><p>Secrets and environment variables are intentionally never displayed here.</p></form> }
 function Table({heads,rows}:{heads:string[],rows:any[][]}) { return <div className="table-wrap"><table><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((c,j)=><td key={j}>{c}</td>)}</tr>)}</tbody></table></div> }
 function Empty({title,text,action}:{title:string,text:string,action?:()=>void}) { return <section className="empty"><strong>{title}</strong><p>{text}</p>{action&&<button onClick={action}>Try again</button>}</section> }
 function Skeleton(){return <div className="skeleton">{[1,2,3,4,5,6].map(x=><i key={x}/>)}</div>}
+
 
