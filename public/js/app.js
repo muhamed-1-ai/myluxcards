@@ -1,4 +1,5 @@
-wwwwwwwwwwwwwwwwwww// Main myluxcards Application Controller
+// Main myluxcards Application Controller
+
 
 class LuxApp {
   constructor() {
