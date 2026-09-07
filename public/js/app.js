@@ -176,7 +176,6 @@ class LuxApp {
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: (response) => this.handleGoogleOneTapResponse(response),
-        use_fedcm_for_prompt: isSecureContext,
         auto_select: false,
         cancel_on_tap_outside: true,
         context: 'signin'
@@ -211,16 +210,9 @@ class LuxApp {
       }
 
       if (isSecureContext) {
-        window.google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed?.()) {
-            console.log('[Google Auth] One Tap prompt not displayed.');
-          } else if (notification.isSkippedMoment?.()) {
-            console.log('[Google Auth] One Tap prompt skipped.');
-          } else if (notification.isDismissedMoment?.()) {
-            console.log('[Google Auth] One Tap prompt dismissed.');
-          }
-        });
+        window.google.accounts.id.prompt();
       }
+
 
 
     } catch (err) {
