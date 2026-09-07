@@ -222,8 +222,17 @@ class LuxApp {
       }
 
       if (isSecureContext) {
-        window.google.accounts.id.prompt();
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            console.log('[Google Auth] One Tap prompt not displayed:', notification.getNotDisplayedReason());
+          } else if (notification.isSkippedMoment()) {
+            console.log('[Google Auth] One Tap prompt skipped:', notification.getSkippedReason());
+          } else if (notification.isDismissedMoment()) {
+            console.log('[Google Auth] One Tap prompt dismissed:', notification.getDismissedReason());
+          }
+        });
       }
+
     } catch (err) {
       console.warn('[Google Auth] One Tap initialization notice:', err);
     }
