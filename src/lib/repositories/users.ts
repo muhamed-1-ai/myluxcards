@@ -20,10 +20,17 @@ export async function findCredentialUser(email: string, db: Queryable = pool) {
 }
 
 export async function findManagedUsersByAdmin(adminId: string, isSuperAdmin = false, db: Queryable = pool) {
-  if (isSuperAdmin) {
-    return (await db.query<UserRow>(`select ${publicColumns} from users order by created_at desc`)).rows;
-  }
-  return (await db.query<UserRow>(`select ${publicColumns} from users where created_by_admin_id=$1 order by created_at desc`, [adminId])).rows;
+  const query = `
+    SELECT u.*, p.phone, dc.slug as digital_card_slug
+    FROM users u
+    LEFT JOIN profiles p ON p.id = u.id
+    LEFT JOIN LATERAL (
+      SELECT slug FROM digital_cards WHERE owner_id = u.id ORDER BY created_at DESC LIMIT 1
+    ) dc ON TRUE
+    ${isSuperAdmin ? "" : "WHERE u.created_by_admin_id = $1"}
+    ORDER BY u.created_at DESC
+  `;
+  return (await db.query<UserRow & { phone?: string; digital_card_slug?: string }>(query, isSuperAdmin ? [] : [adminId])).rows;
 }
 
 export async function findManagedUserById(adminId: string, targetUserId: string, isSuperAdmin = false, db: Queryable = pool) {

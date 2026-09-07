@@ -1,6 +1,8 @@
 "use client";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { getPublicCardUrl } from "@/lib/url";
+import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
+import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
+import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
 type Section = "overview"|"managed_users"|"team_calendar"|"team_leads"|"team_analytics"|"team_lob_reasons"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
@@ -28,6 +30,7 @@ const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   const [section,setSection]=useState<Section>("overview"), [mobile,setMobile]=useState(false);
   const [data,setData]=useState<any>(null), [loading,setLoading]=useState(true), [error,setError]=useState(""), [search,setSearch]=useState("");
+  const [shipOrderId, setShipOrderId] = useState<string | null>(null);
   const loadVersion=useRef(0);
   const load=useCallback(async()=>{
     const version=++loadVersion.current;
@@ -53,6 +56,16 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   };
   const navigate=(next:Section)=>{setSection(next);setSearch("");setMobile(false);const url=new URL(window.location.href);if(next==="overview")url.searchParams.delete("section");else url.searchParams.set("section",next);window.history.replaceState(null,"",url)};
   const logout=async()=>{await fetch("/api/auth/logout",{method:"POST"});localStorage.removeItem("myluxcards_current_user");window.location.replace("/")};
+
+  if (shipOrderId) {
+    return (
+      <ShipOrderWorkspace
+        orderId={shipOrderId}
+        onBack={() => setShipOrderId(null)}
+      />
+    );
+  }
+
   return <div className="admin-shell">
     <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo">3G ZAPPIT <span>ADMIN</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
     {mobile&&<button className="admin-scrim" onClick={()=>setMobile(false)} aria-label="Close menu"/>}
@@ -85,14 +98,14 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
       <button className="admin-logout" onClick={logout}>Log out</button>
     </aside>
     <main><div className="admin-heading"><div><p>ZAPPIT ADMIN DASHBOARD</p><h1>{labels[section]}</h1><span>Manage your team and user accounts.</span></div>{["orders","customers","managed_users","team_leads"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
-      {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate} navigate={navigate} reload={load}/>}
+      {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate} navigate={navigate} reload={load} openShipOrder={(id: string) => setShipOrderId(id)}/>}
     </main>
   </div>;
 }
 
-function Content({section,payload,identity,mutate,navigate,reload}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void,reload:()=>Promise<void>}) {
+function Content({section,payload,identity,mutate,navigate,reload,openShipOrder}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
   if(section==="overview") return <Overview data={payload}/>;
-  if(section==="managed_users") return <ManagedUsers rows={payload?.users||[]} mutate={mutate} reload={reload}/>;
+  if(section==="managed_users") return <ManagedUsers rows={payload?.users||[]} mutate={mutate} reload={reload} openShipOrder={openShipOrder}/>;
   if(section==="team_calendar") return <TeamCalendar data={payload}/>;
   if(section==="team_leads") return <TeamLeads rows={payload?.leads||[]}/>;
   if(section==="team_analytics") return <TeamAnalytics data={payload}/>;
@@ -306,11 +319,17 @@ function Admins({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate
   const invite=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);const result=await mutate("admins","POST",{email:f.get("email")});alert(result.message);e.currentTarget.reset()};
   return <><form className="quick-form" onSubmit={invite}><h2>Invite an administrator</h2><input name="email" type="email" required placeholder="admin@example.com"/><button>Record invite</button></form><Table heads={["Administrator","Role","Created","Status","Action"]} rows={rows.map(r=>[<><b>{r.name}</b><small>{r.email}</small></>,r.role,new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",r.id===identity.id||r.role==="SUPER_ADMIN"?"Protected":<div className="row-actions"><button className="small danger" onClick={()=>confirm(`Change access for ${r.email}?`)&&mutate("admins","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button><button className="small" onClick={()=>confirm(`Remove ADMIN role from ${r.email}?`)&&mutate("admins","PATCH",{id:r.id,role:"CUSTOMER"})}>Remove role</button></div>])}/></>;
 }
-function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Promise<void>}) {
+function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
   const [showCreate,setShowCreate]=useState(false);
   const [selectedUser,setSelectedUser]=useState<Row|null>(null);
+  const [qrModalUser,setQrModalUser]=useState<Row|null>(null);
+  const [detailsData,setDetailsData]=useState<any|null>(null);
+  const [detailsLoading,setDetailsLoading]=useState(false);
+  const [ordersModalData,setOrdersModalData]=useState<any|null>(null);
+  const [ordersLoading,setOrdersLoading]=useState(false);
   const [creating,setCreating]=useState(false);
   const [updating,setUpdating]=useState(false);
+  const [copyNotice,setCopyNotice]=useState("");
 
   const featureList: Array<{key: string; label: string}> = [
     {key:"dashboard",label:"Dashboard"},
@@ -326,6 +345,67 @@ function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Pro
     {key:"products",label:"Products"},
     {key:"notifications",label:"Notifications"},
   ];
+
+  const copyToClipboard = (text: string, label: string) => {
+    if (!text || text === "Not provided") return;
+    navigator.clipboard.writeText(text);
+    setCopyNotice(`Copied ${label}!`);
+    setTimeout(() => setCopyNotice(""), 2000);
+  };
+
+  const openDetailsModal = async (user: Row) => {
+    setDetailsLoading(true);
+    setDetailsData(null);
+    try {
+      const res = await fetch(`/api/admin/managed-users/${user.id}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load user details");
+      const json = await res.json();
+      setDetailsData(json);
+    } catch (e: any) {
+      alert(e.message || "Could not load user details");
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const openOrdersModal = async (user: Row) => {
+    setOrdersLoading(true);
+    setOrdersModalData(null);
+    try {
+      const res = await fetch(`/api/admin/managed-users/${user.id}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load user orders");
+      const json = await res.json();
+      setOrdersModalData(json);
+    } catch (e: any) {
+      alert(e.message || "Could not load user orders");
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const downloadUserQr = async (user: Row, format: "png" | "svg") => {
+    const qrUrl = user.qrUrl || getCanonicalUserQrUrl({ slug: user.digital_card_slug, id: user.id });
+    const svgString = buildPremiumQrSvg(qrUrl, { label: "3G ZAPPIT" });
+    const filename = `zappit-qr-${user.name ? user.name.replace(/\s+/g, "-").toLowerCase() : user.id}.${format}`;
+
+    if (format === "svg") {
+      const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const blob = await svgToHighResPngBlob(svgString, 1500);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
 
   const createUser = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -392,6 +472,12 @@ function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Pro
 
   return (
     <>
+      {copyNotice && (
+        <div style={{ position: "fixed", top: "20px", right: "20px", background: "#52c41a", color: "#000", padding: "10px 20px", borderRadius: "6px", fontWeight: 700, zIndex: 9999 }}>
+          ✓ {copyNotice}
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h2>Managed Users ({rows.length})</h2>
@@ -412,11 +498,20 @@ function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Pro
               <b>{user.name || "Unnamed"}</b>
               <small>{user.email}</small>
             </>,
-            <span className="pill">{user.role}</span>,
+            <span className="pill">{user.role === "CUSTOMER" ? "USER" : user.role}</span>,
             <span className={`pill ${user.status?.toLowerCase()}`}>{user.status}</span>,
             new Date(user.created_at).toLocaleDateString(),
             <div className="row-actions">
-              <button className="small gold" onClick={() => setSelectedUser(user)}>
+              <button className="small gold" onClick={() => setQrModalUser(user)}>
+                QR
+              </button>
+              <button className="small gold" onClick={() => openDetailsModal(user)}>
+                Details
+              </button>
+              <button className="small gold" onClick={() => openOrdersModal(user)}>
+                Orders
+              </button>
+              <button className="small" onClick={() => setSelectedUser(user)}>
                 Permissions
               </button>
               {user.status === "ACTIVE" ? (
@@ -433,6 +528,7 @@ function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Pro
         />
       )}
 
+      {/* CREATE USER MODAL */}
       {showCreate && (
         <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setShowCreate(false)}>
           <section className="customer-detail" role="dialog" style={{ maxWidth: "500px" }}>
@@ -478,6 +574,157 @@ function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Pro
         </div>
       )}
 
+      {/* QR MODAL */}
+      {qrModalUser && (() => {
+        const qrUrl = qrModalUser.qrUrl || getCanonicalUserQrUrl({ slug: qrModalUser.digital_card_slug, id: qrModalUser.id });
+        const cardUrl = getPublicCardUrl(qrModalUser.digital_card_slug || qrModalUser.id);
+        return (
+          <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setQrModalUser(null)}>
+            <section className="customer-detail" role="dialog" style={{ maxWidth: "420px", textAlign: "center" }}>
+              <header>
+                <div>
+                  <small>USER QR CODE</small>
+                  <h2>{qrModalUser.name || qrModalUser.email}</h2>
+                  <p style={{ wordBreak: "break-all", fontSize: "11px" }}>{qrUrl}</p>
+                </div>
+                <button onClick={() => setQrModalUser(null)}>×</button>
+              </header>
+              <div style={{ padding: "20px 0" }}>
+                <div
+                  dangerouslySetInnerHTML={{ __html: buildPremiumQrSvg(qrUrl, { label: "3G ZAPPIT" }) }}
+                  style={{ width: "220px", height: "220px", margin: "0 auto 16px", background: "#050505", padding: "8px", borderRadius: "10px", border: "1px solid #333" }}
+                />
+                <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="small gold" onClick={() => downloadUserQr(qrModalUser, "png")}>Download PNG</button>
+                  <button className="small gold" onClick={() => downloadUserQr(qrModalUser, "svg")}>Download SVG</button>
+                  <button className="small" onClick={() => copyToClipboard(qrUrl, "QR URL")}>Copy QR URL</button>
+                  <a className="small" href={cardUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "4px 8px", background: "#222", color: "#0066FF", border: "1px solid #333", borderRadius: "4px", textDecoration: "none" }}>
+                    Open Profile
+                  </a>
+                </div>
+              </div>
+            </section>
+          </div>
+        );
+      })()}
+
+      {/* DETAILS DRAWER */}
+      {(detailsData || detailsLoading) && (
+        <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setDetailsData(null)}>
+          <section className="customer-detail" role="dialog" style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
+            <header>
+              <div>
+                <small>CUSTOMER &amp; SHIPPING DETAILS</small>
+                <h2>{detailsData?.user?.name || "Customer Details"}</h2>
+                <p>{detailsData?.user?.email}</p>
+              </div>
+              <button onClick={() => setDetailsData(null)}>×</button>
+            </header>
+
+            {detailsLoading ? (
+              <p style={{ padding: "20px" }}>Loading details...</p>
+            ) : (
+              <div style={{ padding: "16px 0", fontSize: "13px", lineHeight: "1.6" }}>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+                  <button className="small gold" onClick={() => copyToClipboard(
+                    [
+                      detailsData.shippingAddress?.recipientName,
+                      detailsData.shippingAddress?.phone ? `Phone: ${detailsData.shippingAddress.phone}` : "",
+                      detailsData.shippingAddress?.house,
+                      detailsData.shippingAddress?.street,
+                      detailsData.shippingAddress?.locality,
+                      `${detailsData.shippingAddress?.city || ""} ${detailsData.shippingAddress?.state || ""} ${detailsData.shippingAddress?.pinCode || ""}`,
+                      detailsData.shippingAddress?.country
+                    ].filter(Boolean).join(", "),
+                    "Full Address"
+                  )}>
+                    Copy Address
+                  </button>
+                  <button className="small gold" onClick={() => copyToClipboard(detailsData.profile?.phone || detailsData.shippingAddress?.phone || "Not provided", "Phone")}>
+                    Copy Phone
+                  </button>
+                  <button className="small gold" onClick={() => copyToClipboard(detailsData.user?.email || "Not provided", "Email")}>
+                    Copy Email
+                  </button>
+                </div>
+
+                <div style={{ background: "#111", padding: "12px", borderRadius: "6px", marginBottom: "14px", border: "1px solid #222" }}>
+                  <h4 style={{ margin: "0 0 8px", color: "#d4af37" }}>CUSTOMER INFORMATION</h4>
+                  <div><strong>Full Name:</strong> {detailsData.user?.name || "Not provided"}</div>
+                  <div><strong>Nickname:</strong> {detailsData.user?.name || "Not provided"}</div>
+                  <div><strong>Email:</strong> {detailsData.user?.email || "Not provided"}</div>
+                  <div><strong>Phone:</strong> {detailsData.profile?.phone || detailsData.user?.phone || "Not provided"}</div>
+                  <div><strong>Alternate Phone:</strong> {detailsData.shippingAddress?.alternatePhone || "Not provided"}</div>
+                </div>
+
+                <div style={{ background: "#111", padding: "12px", borderRadius: "6px", border: "1px solid #222" }}>
+                  <h4 style={{ margin: "0 0 8px", color: "#0066FF" }}>SHIPPING INFORMATION</h4>
+                  <div><strong>Recipient Name:</strong> {detailsData.shippingAddress?.recipientName || "Not provided"}</div>
+                  <div><strong>Phone:</strong> {detailsData.shippingAddress?.phone || "Not provided"}</div>
+                  <div><strong>Alternate Phone:</strong> {detailsData.shippingAddress?.alternatePhone || "Not provided"}</div>
+                  <div><strong>House / Building:</strong> {detailsData.shippingAddress?.house || "Not provided"}</div>
+                  <div><strong>Street:</strong> {detailsData.shippingAddress?.street || "Not provided"}</div>
+                  <div><strong>Locality:</strong> {detailsData.shippingAddress?.locality || "Not provided"}</div>
+                  <div><strong>City:</strong> {detailsData.shippingAddress?.city || "Not provided"}</div>
+                  <div><strong>District:</strong> {detailsData.shippingAddress?.district || "Not provided"}</div>
+                  <div><strong>State:</strong> {detailsData.shippingAddress?.state || "Not provided"}</div>
+                  <div><strong>PIN Code:</strong> {detailsData.shippingAddress?.pinCode || "Not provided"}</div>
+                  <div><strong>Country:</strong> {detailsData.shippingAddress?.country || "Not provided"}</div>
+                  <div><strong>Delivery Instructions:</strong> {detailsData.shippingAddress?.deliveryInstructions || "Not provided"}</div>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ORDERS MODAL */}
+      {(ordersModalData || ordersLoading) && (
+        <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setOrdersModalData(null)}>
+          <section className="customer-detail" role="dialog" style={{ maxWidth: "750px" }}>
+            <header>
+              <div>
+                <small>USER ORDERS</small>
+                <h2>{ordersModalData?.user?.name || "User Orders"}</h2>
+                <p>{ordersModalData?.user?.email}</p>
+              </div>
+              <button onClick={() => setOrdersModalData(null)}>×</button>
+            </header>
+
+            {ordersLoading ? (
+              <p style={{ padding: "20px" }}>Loading orders...</p>
+            ) : ordersModalData?.orders?.length === 0 ? (
+              <p style={{ padding: "20px", color: "#888" }}>No orders placed by this user yet.</p>
+            ) : (
+              <div style={{ padding: "16px 0", overflowX: "auto" }}>
+                <Table
+                  heads={["Order #", "Date", "Amount", "Payment", "Order Status", "Card Status", "Tracking / AWB", "Action"]}
+                  rows={ordersModalData?.orders?.map((o: any) => [
+                    <b>#{o.orderNumber}</b>,
+                    new Date(o.createdAt).toLocaleDateString(),
+                    `₹${(o.totalMinor / 100).toFixed(2)}`,
+                    <span style={{ color: o.paymentStatus === "PAID" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{o.paymentStatus}</span>,
+                    <span className="pill">{o.status}</span>,
+                    <span className="pill">{o.cardStatus}</span>,
+                    o.trackingNumber ? `${o.courier || "Courier"}: ${o.trackingNumber}` : "Not Dispatched",
+                    <button
+                      className="small gold"
+                      onClick={() => {
+                        setOrdersModalData(null);
+                        openShipOrder(o.id);
+                      }}
+                    >
+                      Open Order
+                    </button>
+                  ])}
+                />
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* PERMISSIONS MODAL */}
       {selectedUser && (
         <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setSelectedUser(null)}>
           <section className="customer-detail" role="dialog" style={{ maxWidth: "550px" }}>

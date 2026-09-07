@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireManagedUserOwnership, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
 import { updateUserPermissions, updateUserStatus, updateUserNickname } from "@/lib/repositories/users";
+import { pool } from "@/lib/db";
+import { getCanonicalUserQrUrl, getPublicCardUrl } from "@/lib/url";
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   try {
@@ -10,7 +12,103 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       return NextResponse.json({ message: "Forbidden or user not found" }, { status: 403 });
     }
 
-    return NextResponse.json({ user: authResult.managedUser });
+    const { managedUser } = authResult;
+
+    // 1. Profile details
+    const profileRes = await pool.query(
+      `SELECT phone, internal_notes FROM profiles WHERE id = $1`,
+      [managedUser.id]
+    );
+    const profile = profileRes.rows[0] || {};
+
+    // 2. Digital card & physical cards
+    const digitalCardRes = await pool.query(
+      `SELECT id, slug, active, activated_at, created_at
+       FROM digital_cards
+       WHERE owner_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [managedUser.id]
+    );
+    const digitalCard = digitalCardRes.rows[0] || null;
+
+    let physicalCards: any[] = [];
+    if (digitalCard) {
+      const cardsRes = await pool.query(
+        `SELECT id, status, created_at FROM cards WHERE digital_card_id = $1 ORDER BY created_at DESC`,
+        [digitalCard.id]
+      );
+      physicalCards = cardsRes.rows;
+    }
+
+    // 3. User Orders
+    const ordersRes = await pool.query(
+      `SELECT id, order_number, status, payment_status, currency, total_minor, courier, tracking_number, shipping_address, created_at
+       FROM orders
+       WHERE user_id = $1 OR lower(customer_email) = lower($2)
+       ORDER BY created_at DESC`,
+      [managedUser.id, managedUser.email]
+    );
+
+    // Parse shipping address from latest order if present
+    const latestOrder = ordersRes.rows[0];
+    const rawAddr = latestOrder?.shipping_address || {};
+    const shippingAddress = {
+      recipientName: rawAddr.recipientName || rawAddr.fullName || rawAddr.name || managedUser.name || null,
+      phone: rawAddr.phone || rawAddr.mobile || profile.phone || null,
+      alternatePhone: rawAddr.alternatePhone || rawAddr.altPhone || null,
+      house: rawAddr.house || rawAddr.building || rawAddr.flat || rawAddr.line1 || null,
+      street: rawAddr.street || rawAddr.area || rawAddr.line2 || null,
+      locality: rawAddr.locality || rawAddr.landmark || null,
+      city: rawAddr.city || rawAddr.town || null,
+      district: rawAddr.district || null,
+      state: rawAddr.state || null,
+      pinCode: rawAddr.pinCode || rawAddr.pin_code || rawAddr.zip || null,
+      country: rawAddr.country || "India",
+      deliveryInstructions: rawAddr.deliveryInstructions || rawAddr.notes || null,
+    };
+
+    const qrUrl = getCanonicalUserQrUrl({
+      slug: digitalCard?.slug,
+      id: managedUser.id,
+    });
+
+    return NextResponse.json({
+      user: managedUser,
+      profile: {
+        phone: profile.phone || null,
+        internalNotes: profile.internal_notes || null,
+      },
+      shippingAddress,
+      qr: {
+        url: qrUrl,
+        slug: digitalCard?.slug || null,
+        status: digitalCard?.slug ? "READY" : "PENDING_SLUG",
+      },
+      card: digitalCard
+        ? {
+            id: digitalCard.id,
+            slug: digitalCard.slug,
+            active: digitalCard.active,
+            activatedAt: digitalCard.activated_at,
+            publicProfileUrl: getPublicCardUrl(digitalCard.slug),
+            physicalCards,
+          }
+        : null,
+      orders: ordersRes.rows.map((o) => ({
+        id: o.id,
+        orderNumber: o.order_number,
+        status: o.status || "PENDING",
+        paymentStatus: o.payment_status || "UNPAID",
+        currency: o.currency || "INR",
+        totalMinor: Number(o.total_minor || 0),
+        courier: o.courier || null,
+        trackingNumber: o.tracking_number || null,
+        createdAt: o.created_at,
+        cardStatus: digitalCard?.active ? "ACTIVE" : "UNASSIGNED",
+        shippingStatus: o.courier && o.tracking_number ? "DISPATCHED" : o.status,
+      })),
+    });
   } catch (error) {
     return safeError(error);
   }
