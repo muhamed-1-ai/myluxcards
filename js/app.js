@@ -105,9 +105,25 @@ class LuxApp {
     sessionStorage.setItem('myluxcards_auth_next', safeNext);
 
     try {
-      const res = await fetch('/api/auth/csrf');
-      const data = await res.json();
-      const csrfToken = data?.csrfToken;
+      const csrfRes = await fetch('/api/auth/csrf', { cache: 'no-store' });
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData?.csrfToken;
+
+      const res = await fetch('/api/auth/signin/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          csrfToken: csrfToken || '',
+          callbackUrl: safeNext,
+          json: 'true',
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (data?.url && typeof data.url === 'string' && data.url.startsWith('https://accounts.google.com')) {
+        window.location.href = data.url;
+        return;
+      }
 
       const form = document.createElement('form');
       form.method = 'POST';
@@ -131,7 +147,11 @@ class LuxApp {
       form.submit();
     } catch (err) {
       console.error('Google login initialization failed:', err);
-      window.location.href = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(safeNext)}`;
+      googleBtns.forEach(btn => {
+        btn.disabled = false;
+        const textSpan = btn.querySelector('.btn-google-text, span');
+        if (textSpan) textSpan.textContent = 'Continue with Google';
+      });
     }
   }
 
