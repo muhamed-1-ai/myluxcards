@@ -1,4 +1,4 @@
-// Main myluxcards Application Controller
+wwwwwwwwwwwwwwwwwww// Main myluxcards Application Controller
 
 class LuxApp {
   constructor() {
@@ -18,7 +18,7 @@ class LuxApp {
       currentTestimonialIndex: 0,
       engageShown: JSON.parse(localStorage.getItem('myluxcards_engage_shown')) || false
     };
-    
+
     // Bind methods
     this.init();
   }
@@ -313,7 +313,7 @@ class LuxApp {
     const animateCursor = () => {
       ringX += (mouseX - ringX) * speedRing;
       ringY += (mouseY - ringY) * speedRing;
-      
+
       ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate3d(-50%, -50%, 0)`;
       requestAnimationFrame(animateCursor);
     };
@@ -345,10 +345,10 @@ class LuxApp {
       swatch.addEventListener('click', () => {
         swatches.forEach(s => s.classList.remove('active'));
         swatch.classList.add('active');
-        
+
         const color = swatch.dataset.color;
         const accent = swatch.dataset.accent;
-        
+
         configCard.style.background = `linear-gradient(135deg, ${color}, #000)`;
         configCard.style.color = accent;
         configCard.style.borderColor = accent;
@@ -547,11 +547,11 @@ class LuxApp {
     $('designer-next')?.addEventListener('click', () => showStep(step + 1)); $('designer-prev')?.addEventListener('click', () => showStep(step - 1));
     $('save-design-draft')?.addEventListener('click', () => { localStorage.setItem('myluxcards_saved_card_design', JSON.stringify(getDesign())); this.showToast('Design draft saved.', 'success'); });
     $('reset-card-design')?.addEventListener('click', () => { localStorage.removeItem('myluxcards_saved_card_design'); window.location.reload(); });
-    card.addEventListener('pointermove', event => { const box = card.getBoundingClientRect(); card.style.transform = `rotateY(${((event.clientX-box.left)/box.width-.5)*10}deg) rotateX(${((event.clientY-box.top)/box.height-.5)*-8}deg)`; });
+    card.addEventListener('pointermove', event => { const box = card.getBoundingClientRect(); card.style.transform = `rotateY(${((event.clientX - box.left) / box.width - .5) * 10}deg) rotateX(${((event.clientY - box.top) / box.height - .5) * -8}deg)`; });
     card.addEventListener('pointerleave', () => card.style.transform = '');
     $('save-card-design')?.addEventListener('click', () => {
       const saved = getDesign(); const total = updatePrice();
-      const item = { id:'custom-nfc-card', title:`${saved.name}'s Custom NFC Card`, price:total, currency:'INR', quantity:1, image:this.createConfiguredCardImage(saved), details:`${saved.material} · ${saved.finish} · ${saved.colorName}`, design:saved };
+      const item = { id: 'custom-nfc-card', title: `${saved.name}'s Custom NFC Card`, price: total, currency: 'INR', quantity: 1, image: this.createConfiguredCardImage(saved), details: `${saved.material} · ${saved.finish} · ${saved.colorName}`, design: saved };
       const index = this.state.cart.findIndex(existing => String(existing.id) === item.id); if (index < 0) this.state.cart.push(item); else this.state.cart[index] = item;
       localStorage.setItem('myluxcards_saved_card_design', JSON.stringify(saved)); this.updateCounters(); this.renderCartDrawer(); this.openCartDrawer(); this.showToast(`Design added to cart for ₹${total.toLocaleString('en-IN')}.`, 'success');
     });
@@ -649,7 +649,7 @@ class LuxApp {
     const savedTheme = localStorage.getItem('myluxcards_theme') || 'light';
     const body = document.body;
     const themeIcon = document.querySelector('#theme-toggle i');
-    
+
     if (savedTheme === 'dark') {
       body.classList.add('dark-mode');
       if (themeIcon) themeIcon.className = 'lucide-sun';
@@ -662,7 +662,7 @@ class LuxApp {
   toggleTheme() {
     const body = document.body;
     const themeIcon = document.querySelector('#theme-toggle i');
-    
+
     if (body.classList.contains('dark-mode')) {
       body.classList.remove('dark-mode');
       localStorage.setItem('myluxcards_theme', 'light');
@@ -685,16 +685,16 @@ class LuxApp {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     const icon = type === 'success' ? 'check-circle' : 'info';
     toast.innerHTML = `
       <i data-lucide="${icon}"></i>
       <span>${message}</span>
     `;
-    
+
     container.appendChild(toast);
     if (window.lucide) window.lucide.createIcons();
-    
+
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(20px)';
@@ -707,11 +707,11 @@ class LuxApp {
   updateCounters() {
     const wishlistBadges = document.querySelectorAll('.wishlist-count-badge');
     const cartBadges = document.querySelectorAll('.cart-count-badge');
-    
+
     wishlistBadges.forEach(b => b.textContent = this.state.wishlist.length);
     const cartItemCount = this.state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
     cartBadges.forEach(b => b.textContent = cartItemCount);
-    
+
     localStorage.setItem('myluxcards_wishlist', JSON.stringify(this.state.wishlist));
     localStorage.setItem('myluxcards_cart', JSON.stringify(this.state.cart));
   }
@@ -735,7 +735,7 @@ class LuxApp {
   addToCart(cardId) {
     const card = window.LuxData.CARDS.find(c => c.id === cardId);
     if (!card) return;
-    
+
     // Check if already in cart
     const exists = this.state.cart.some(item => item.id === cardId);
     if (exists) {
@@ -858,15 +858,15 @@ class LuxApp {
     const payload = {
       paymentMethod: method,
       couponCode: value('checkout-coupon'),
-      customer: { name:value('checkout-name'), jobTitle:value('checkout-job-title'), email:value('checkout-email'), phone:value('checkout-phone') },
-      shippingAddress: { line1:value('checkout-address1'), line2:value('checkout-address2'), city:value('checkout-city'), state:value('checkout-state'), postalCode:value('checkout-postal'), country:value('checkout-country') },
-      items: this.state.cart.map(item => ({ id:String(item.id), quantity:Number(item.quantity)||1, details:item.details||'', design:item.design||{} })),
+      customer: { name: value('checkout-name'), jobTitle: value('checkout-job-title'), email: value('checkout-email'), phone: value('checkout-phone') },
+      shippingAddress: { line1: value('checkout-address1'), line2: value('checkout-address2'), city: value('checkout-city'), state: value('checkout-state'), postalCode: value('checkout-postal'), country: value('checkout-country') },
+      items: this.state.cart.map(item => ({ id: String(item.id), quantity: Number(item.quantity) || 1, details: item.details || '', design: item.design || {} })),
     };
     try {
-      let response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      let response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.status === 401) {
-        const refreshed = await fetch('/api/auth/refresh', { method:'POST' });
-        if (refreshed.ok) response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        const refreshed = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (refreshed.ok) response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       }
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -901,7 +901,7 @@ class LuxApp {
     if (!window.Razorpay) {
       await new Promise((resolve, reject) => {
         const existing = document.querySelector('script[data-razorpay-checkout]');
-        if (existing) { existing.addEventListener('load', resolve, { once:true }); existing.addEventListener('error', reject, { once:true }); return; }
+        if (existing) { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); return; }
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
@@ -927,7 +927,7 @@ class LuxApp {
         handler: async payment => {
           completed = true;
           try {
-            const response = await fetch('/api/payments/razorpay/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ orderId:order.orderId, ...payment }) });
+            const response = await fetch('/api/payments/razorpay/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.orderId, ...payment }) });
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.message || 'Payment verification failed.');
             resolve(result);
@@ -962,14 +962,14 @@ class LuxApp {
   renderCategoryChips() {
     const sidebarChips = document.querySelector('.category-chips');
     if (!sidebarChips) return;
-    
+
     let html = `
       <div class="chip ${this.state.activeCategory === 'all' ? 'active' : ''}" data-category="all">
         <span>All Occasions</span>
         <span class="chip-count">${window.LuxData.CARDS.length}</span>
       </div>
     `;
-    
+
     window.LuxData.CATEGORIES.forEach(cat => {
       const matchCount = window.LuxData.CARDS.filter(c => c.category === cat.id).length;
       html += `
@@ -979,9 +979,9 @@ class LuxApp {
         </div>
       `;
     });
-    
+
     sidebarChips.innerHTML = html;
-    
+
     // Attach click events
     sidebarChips.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -996,7 +996,7 @@ class LuxApp {
   renderCatalog() {
     const grid = document.querySelector('.cards-grid');
     if (!grid) return;
-    
+
     // Filter and Sort data
     let filtered = window.LuxData.CARDS.filter(card => {
       const matchCategory = this.state.activeCategory === 'all' || card.category === this.state.activeCategory;
@@ -1021,7 +1021,7 @@ class LuxApp {
     const totalPages = Math.ceil(filtered.length / this.state.cardsPerPage) || 1;
     const startIdx = (this.state.currentPage - 1) * this.state.cardsPerPage;
     const paginated = filtered.slice(startIdx, startIdx + this.state.cardsPerPage);
-    
+
     if (paginated.length === 0) {
       grid.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
@@ -1081,7 +1081,7 @@ class LuxApp {
   renderPagination(totalPages) {
     const pagContainer = document.querySelector('.pagination');
     if (!pagContainer) return;
-    
+
     let html = '';
     for (let i = 1; i <= totalPages; i++) {
       html += `
@@ -1162,9 +1162,9 @@ class LuxApp {
           <div class="testimonial-rating">
             <div class="review-stars">
               ${Array.from({ length: 5 }, (_, idx) => {
-                const filled = idx < Math.round(testimonial.rating || 0);
-                return `<i data-lucide="star" ${filled ? 'fill="currentColor"' : ''}></i>`;
-              }).join('')}
+      const filled = idx < Math.round(testimonial.rating || 0);
+      return `<i data-lucide="star" ${filled ? 'fill="currentColor"' : ''}></i>`;
+    }).join('')}
             </div>
             <span>${testimonial.rating.toFixed(1)}</span>
           </div>
@@ -1221,7 +1221,7 @@ class LuxApp {
       if (!response.ok) throw new Error(result.message || 'Your support request could not be submitted.');
       const newTicket = { id: result.reference, name, email, topic, message, createdAt: new Date().toISOString(), status: 'Open' };
       this.state.supportTickets.unshift(newTicket);
-      try { localStorage.setItem('myluxcards_support_tickets', JSON.stringify(this.state.supportTickets.slice(0, 10))); } catch (_) {}
+      try { localStorage.setItem('myluxcards_support_tickets', JSON.stringify(this.state.supportTickets.slice(0, 10))); } catch (_) { }
       this.renderSupportTickets();
       this.showToast(`Support ticket ${result.reference} submitted.`, 'success');
       form?.reset();
@@ -1299,7 +1299,7 @@ class LuxApp {
   renderWishlistDrawer() {
     const listContainer = document.getElementById('wishlist-items');
     if (!listContainer) return;
-    
+
     if (this.state.wishlist.length === 0) {
       listContainer.innerHTML = `
         <div class="drawer-empty">
@@ -1336,7 +1336,7 @@ class LuxApp {
     const listContainer = document.getElementById('cart-items');
     const totalElem = document.getElementById('cart-total-price');
     if (!listContainer) return;
-    
+
     if (this.state.cart.length === 0) {
       listContainer.innerHTML = `
         <div class="drawer-empty">
@@ -1391,12 +1391,12 @@ class LuxApp {
     this.state.searchQuery = val;
     const suggestions = document.getElementById('search-suggestions');
     if (!suggestions) return;
-    
+
     if (!val.trim()) {
       suggestions.style.display = 'none';
       return;
     }
-    
+
     const products = [
       { id: 'nfc-card', title: 'Premium NFC Cards', keywords: 'business card nfc profile professional' },
       { id: 'nfc-keytag', title: 'Smart NFC Keytags', keywords: 'keytag nfc menu review contact' },
@@ -1407,7 +1407,7 @@ class LuxApp {
     const matches = products.filter(product =>
       `${product.title} ${product.keywords}`.toLowerCase().includes(query)
     ).slice(0, 5);
-    
+
     if (matches.length === 0) {
       suggestions.innerHTML = `
         <div class="suggestion-item" style="cursor: default; color: var(--text-muted)">No NFC products found</div>
@@ -1415,7 +1415,7 @@ class LuxApp {
       suggestions.style.display = 'block';
       return;
     }
-    
+
     suggestions.innerHTML = matches.map(product => `
       <button class="suggestion-item" type="button" data-featured-product="${product.id}">
         <i data-lucide="search" style="width: 14px; height: 14px;"></i>
@@ -1425,7 +1425,7 @@ class LuxApp {
     suggestions.querySelectorAll('[data-featured-product]').forEach(item => {
       item.addEventListener('click', () => this.selectFeaturedProduct(item.dataset.featuredProduct));
     });
-    
+
     suggestions.style.display = 'block';
     if (window.lucide) window.lucide.createIcons();
   }
@@ -1443,11 +1443,11 @@ class LuxApp {
   openPreviewModal(cardId) {
     const card = window.LuxData.CARDS.find(c => c.id === cardId);
     if (!card) return;
-    
+
     const modal = document.getElementById('preview-modal');
     const modalBody = document.getElementById('preview-modal-body');
     if (!modal || !modalBody) return;
-    
+
     modalBody.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
         <div style="width: 100%; max-width: 320px; aspect-ratio: 3/4; border-radius: 16px; overflow: hidden; box-shadow: var(--card-shadow-hover);">
@@ -1465,7 +1465,7 @@ class LuxApp {
         </div>
       </div>
     `;
-    
+
     modal.classList.add('open');
   }
 
@@ -1479,16 +1479,16 @@ class LuxApp {
     const track = document.getElementById('testimonials-track');
     const dots = document.querySelectorAll('.dot-indicator');
     if (!track) return;
-    
+
     const maxIdx = window.LuxData.TESTIMONIALS.length - 1;
     let nextIdx = this.state.currentTestimonialIndex + direction;
-    
+
     if (nextIdx < 0) nextIdx = maxIdx;
     if (nextIdx > maxIdx) nextIdx = 0;
-    
+
     this.state.currentTestimonialIndex = nextIdx;
     track.style.transform = `translateX(-${nextIdx * 100}%)`;
-    
+
     dots.forEach((dot, index) => {
       dot.classList.toggle('active', index === nextIdx);
     });
@@ -1498,10 +1498,10 @@ class LuxApp {
     const track = document.getElementById('testimonials-track');
     const dots = document.querySelectorAll('.dot-indicator');
     if (!track) return;
-    
+
     this.state.currentTestimonialIndex = idx;
     track.style.transform = `translateX(-${idx * 100}%)`;
-    
+
     dots.forEach((dot, index) => {
       dot.classList.toggle('active', index === idx);
     });
@@ -1511,7 +1511,7 @@ class LuxApp {
   bindEvents() {
     // 1. Theme toggle
     document.getElementById('theme-toggle')?.addEventListener('click', () => this.toggleTheme());
-    
+
     // 2. Drawers triggering
     const overlay = document.getElementById('drawer-overlay');
     const cartDrawer = document.getElementById('cart-drawer');
@@ -1519,20 +1519,20 @@ class LuxApp {
     const supportTrigger = document.getElementById('support-trigger');
 
     supportTrigger?.addEventListener('click', () => this.openSupportModal());
-    
+
     const openDrawer = (drawer) => {
       overlay.classList.add('open');
       drawer.classList.add('open');
       if (drawer === cartDrawer) this.renderCartDrawer();
       if (drawer === wishlistDrawer) this.renderWishlistDrawer();
     };
-    
+
     const closeDrawers = () => {
       overlay.classList.remove('open');
       cartDrawer.classList.remove('open');
       wishlistDrawer.classList.remove('open');
     };
-    
+
     document.getElementById('cart-trigger')?.addEventListener('click', () => openDrawer(cartDrawer));
     document.getElementById('wishlist-trigger')?.addEventListener('click', () => openDrawer(wishlistDrawer));
     document.querySelectorAll('.buy-featured-product').forEach(button => {
@@ -1543,7 +1543,7 @@ class LuxApp {
       }
       button.addEventListener('click', () => this.addFeaturedProduct(button));
     });
-    
+
     document.querySelectorAll('.drawer-close').forEach(b => b.addEventListener('click', closeDrawers));
     overlay?.addEventListener('click', closeDrawers);
 
@@ -1592,7 +1592,7 @@ class LuxApp {
     // 4. Search actions
     const searchInput = document.getElementById('search-input');
     searchInput?.addEventListener('input', (e) => this.handleSearchInput(e.target.value));
-    
+
     // Dismiss suggestions list on clicking outside
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.search-container')) {
@@ -1659,10 +1659,10 @@ class LuxApp {
       trigger.addEventListener('click', () => {
         const item = trigger.closest('.faq-item');
         const isActive = item.classList.contains('active');
-        
+
         // Collapse all others
         document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-        
+
         if (!isActive) {
           item.classList.add('active');
         }
@@ -2032,7 +2032,7 @@ class LuxApp {
             this.updateAccountButton(null);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     // reuse existing urlParams, loginFlag, and nextDestination
@@ -2076,18 +2076,18 @@ class LuxApp {
     // Support Panel Topics selection
     const supportPanelItems = document.querySelectorAll('.support-panel-item');
     const supportTopicSelect = document.getElementById('support-topic');
-    
+
     supportPanelItems.forEach(item => {
       item.addEventListener('click', () => {
         // Remove active class from all items
         supportPanelItems.forEach(i => i.classList.remove('active'));
         // Add active class to clicked item
         item.classList.add('active');
-        
+
         // Update select value based on data-topic
         if (supportTopicSelect) {
           supportTopicSelect.value = item.getAttribute('data-topic');
-          
+
           // Optionally, smoothly focus or highlight the form area
           const formName = document.getElementById('support-name');
           if (formName) {
@@ -2127,15 +2127,15 @@ class LuxApp {
         ripple.className = 'ripple-effect';
         ripple.style.left = `${x}px`;
         ripple.style.top = `${y}px`;
-        
+
         // Calculate max dimension to cover entire button
         const size = Math.max(rect.width, rect.height);
         ripple.style.width = `${size}px`;
         ripple.style.height = `${size}px`;
         ripple.style.transform = 'translate(-50%, -50%) scale(0)';
-        
+
         button.appendChild(ripple);
-        
+
         setTimeout(() => {
           ripple.remove();
         }, 600);
@@ -2189,7 +2189,7 @@ class LuxApp {
       particle.style.opacity = '0';
       particle.style.filter = 'blur(4px)';
       particle.style.animation = `floatParticle ${duration}s linear ${delay}s infinite`;
-      
+
       container.appendChild(particle);
     }
   }
