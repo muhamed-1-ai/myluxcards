@@ -1,13 +1,4 @@
-import type { Metadata } from 'next';
-import LegacyPage from '@/components/layout/LegacyPage';
+import PrivacyPolicyPage from "@/app/privacy-policy/page";
 
-export const metadata: Metadata = { title: "Zappit Privacy Centre", description: "Zappit privacy controls and support." };
-
-const markup = "<div id=\"custom-cursor-ring\" class=\"custom-cursor-ring\"></div><nav class=\"navbar\"><div class=\"container navbar-container\"><a class=\"logo\" href=\"/\">ZAPPIT<span>PRIVACY</span></a><a class=\"btn btn-glass\" href=\"/\">Back to home</a></div></nav><main class=\"subpage\"><section class=\"sub-hero\"><div class=\"container\"><i data-lucide=\"shield-check\" class=\"hero-shield\"></i><h1>Your Information. <span>Your Control.</span></h1><p>Zappit products are designed to keep you in control of what is shared, when it is shared and with whom.</p></div></section><section class=\"section-padding\"><div class=\"container privacy-grid\"><article class=\"glass\"><i data-lucide=\"eye-off\"></i><h3>Visibility controls</h3><p>Choose the details people see. Keep private phone numbers hidden when a public link is opened.</p></article><article class=\"glass\"><i data-lucide=\"pencil-line\"></i><h3>Profile control</h3><p>Update or delete your profile details at any time from your account.</p></article><article class=\"glass\"><i data-lucide=\"messages-square\"></i><h3>Private recovery</h3><p>Zappit Find supports secure finder communication without publishing owner details.</p></article><article class=\"glass\"><i data-lucide=\"database-zap\"></i><h3>Purpose-limited data</h3><p>Information should be collected only for clear, defined product and service purposes.</p></article><article class=\"glass\"><i data-lucide=\"lock-keyhole\"></i><h3>Protected accounts</h3><p>Account access is protected with secure sign-in practices and appropriate safeguards.</p></article><article class=\"glass\"><i data-lucide=\"flag\"></i><h3>Report misuse</h3><p>Report suspected misuse or inappropriate content so it can be reviewed promptly.</p></article></div></section><section class=\"section-padding\"><div class=\"container narrow glass enquiry\"><h2>Need help with your data?</h2><p>Contact support for access, correction, deletion or a misuse report.</p><a href=\"/support\" class=\"btn btn-primary\">Contact support</a></div></section></main><footer class=\"footer\"><div class=\"container footer-bottom\"><p>© 2026 Zappit</p><a href=\"/find\">Zappit Find</a><a href=\"/corporate\">For teams</a></div></footer>";
-
-export default function Page() {
-  const cleanMarkup = markup
-    .replace('<a href="/find">Zappit Find</a>', '')
-    .replace('<a href="/corporate">For teams</a>', '');
-  return <LegacyPage markup={cleanMarkup} inlineScript="/js/inline/privacy.js" />;
-}
+export { metadata } from "@/app/privacy-policy/page";
+export default PrivacyPolicyPage;

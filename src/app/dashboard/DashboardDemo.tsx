@@ -10,6 +10,7 @@ import {
   CompactDashboardLayoutDropdown,
 } from "@/components/dashboard/DashboardLayoutSelector";
 import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDashboard";
+import LegalConsentModal from "@/components/auth/LegalConsentModal";
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -313,6 +314,7 @@ const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight:
 export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedId, setSelectedId] = useState(emptyCard.id);
   const [draft, setDraft] = useState<Card>(emptyCard);
@@ -413,6 +415,17 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   useEffect(() => {
     try {
       const user = identity;
+      const consentValid = Boolean(
+        (user as any).terms_accepted &&
+        (user as any).privacy_accepted &&
+        (user as any).cookie_consent &&
+        (user as any).terms_version === "1.0" &&
+        (user as any).privacy_version === "1.0" &&
+        (user as any).cookie_version === "1.0"
+      );
+      if (!consentValid) {
+        setConsentModalOpen(true);
+      }
       localStorage.setItem("myluxcards_current_user", JSON.stringify(user));
       setCurrentUser(user);
       const key = storageKey(user.id);
@@ -1015,6 +1028,10 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
           Are you sure you want to remove this digital card? All configuration and settings for this card will be permanently removed from your account.
         </div>
       </MyLuxModal>
+      <LegalConsentModal
+        isOpen={consentModalOpen}
+        onConsentAccepted={() => setConsentModalOpen(false)}
+      />
     </div>
   );
 }

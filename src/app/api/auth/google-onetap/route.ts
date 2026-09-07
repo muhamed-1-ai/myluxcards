@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
 import { linkGoogleIdentity } from "@/lib/authService";
+import { validMutationOrigin } from "@/lib/adminAuth";
 
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || "100033105320-vesgkflqqv9nermm0nllqa5mnnhq6kms.apps.googleusercontent.com";
@@ -15,6 +16,10 @@ interface GoogleTokenPayload {
 }
 
 export async function POST(req: NextRequest) {
+  if (!validMutationOrigin(req)) {
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+  }
+
   try {
     const body = await req.json();
     const { credential } = body;

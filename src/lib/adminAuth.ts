@@ -14,6 +14,13 @@ export type AdminIdentity = {
   role: AdminRole;
   disabled: boolean;
   mustChangePassword: boolean;
+  terms_accepted?: boolean;
+  privacy_accepted?: boolean;
+  cookie_consent?: boolean;
+  terms_version?: string | null;
+  privacy_version?: string | null;
+  cookie_version?: string | null;
+  legal_accepted_at?: Date | null;
 };
 
 export async function currentIdentity(): Promise<AdminIdentity | null> {
@@ -29,6 +36,13 @@ export async function currentIdentity(): Promise<AdminIdentity | null> {
       role: profile.role,
       disabled: profile.disabled,
       mustChangePassword: profile.must_change_password,
+      terms_accepted: profile.terms_accepted,
+      privacy_accepted: profile.privacy_accepted,
+      cookie_consent: profile.cookie_consent,
+      terms_version: profile.terms_version,
+      privacy_version: profile.privacy_version,
+      cookie_version: profile.cookie_version,
+      legal_accepted_at: profile.legal_accepted_at,
     };
   } catch (error) {
     console.error("[Auth] currentIdentity error:", error);

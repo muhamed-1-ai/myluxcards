@@ -16,12 +16,22 @@ export default function nextConfig(phase: string): NextConfig {
       ];
     },
     async headers() {
-      return [{
-        source: '/dashboard',
-        headers: [
-          { key: 'Cache-Control', value: 'private, no-store, no-cache, must-revalidate, max-age=0' },
-        ],
-      }];
+      return [
+        {
+          source: '/dashboard',
+          headers: [
+            { key: 'Cache-Control', value: 'private, no-store, no-cache, must-revalidate, max-age=0' },
+          ],
+        },
+        {
+          source: '/:path*',
+          headers: [
+            { key: 'X-Content-Type-Options', value: 'nosniff' },
+            { key: 'X-Frame-Options', value: 'DENY' },
+            { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          ],
+        },
+      ];
     },
   };
 }
