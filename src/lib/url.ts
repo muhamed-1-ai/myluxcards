@@ -80,3 +80,19 @@ export function getRelativeCardUrl(slug: string): string {
     .replace(/^-|-$/g, "");
   return `/card/${cleanSlug}`;
 }
+
+export function getCanonicalUserQrUrl(userOrSlug: any, request?: Request): string {
+  if (!userOrSlug) return `${getAppOrigin(request)}/find?src=qr`;
+  if (typeof userOrSlug === "string") {
+    return getPublicCardQrUrl(userOrSlug, request);
+  }
+  const slug =
+    userOrSlug.digital_card_slug ||
+    userOrSlug.card_slug ||
+    userOrSlug.slug ||
+    (Array.isArray(userOrSlug.digitalCards) && userOrSlug.digitalCards[0]?.slug) ||
+    userOrSlug.id;
+
+  return getPublicCardQrUrl(String(slug), request);
+}
+

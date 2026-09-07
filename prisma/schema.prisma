@@ -211,6 +211,7 @@ model Order {
   courier         String?
   trackingNumber  String?     @map("tracking_number")
   notes           String?
+  fulfillmentData Json        @default("{}") @map("fulfillment_data")
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime    @default(now()) @map("updated_at") @db.Timestamptz
 
