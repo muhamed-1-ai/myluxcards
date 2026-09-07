@@ -2863,8 +2863,8 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
   const [qrError, setQrError] = useState("");
   const qrPngUrlRef = useRef<string | null>(null);
   const displayHost = typeof window !== "undefined" && window.location?.host
-    ? (process.env.NODE_ENV === "production" && /localhost|127\.0\.0\.1/i.test(window.location.host) ? "myluxcards.com" : window.location.host)
-    : "myluxcards.com";
+    ? (process.env.NODE_ENV === "production" && /localhost|127\.0\.0\.1/i.test(window.location.host) ? "3gzappit.com" : window.location.host)
+    : "3gzappit.com";
 
   useEffect(() => {
     setQrOpen(false);

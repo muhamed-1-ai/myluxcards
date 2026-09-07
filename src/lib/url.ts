@@ -49,7 +49,7 @@ export function getAppOrigin(request?: Request): string {
   }
 
   // 4. Default canonical production domain (Never vercel.app, never localhost in production)
-  return "https://myluxcards.com";
+  return "https://3gzappit.com";
 }
 
 export function getPublicCardUrl(slug: string, request?: Request): string {

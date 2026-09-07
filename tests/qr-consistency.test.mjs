@@ -20,7 +20,7 @@ test("getAppOrigin never defaults to localhost in production mode", () => {
 
     const origin = getAppOrigin();
     assert.notEqual(origin, "http://localhost:3000", "Production origin must never resolve to localhost");
-    assert.equal(origin, "https://myluxcards.com");
+    assert.equal(origin, "https://3gzappit.com");
   } finally {
     process.env.NODE_ENV = originalEnv;
     process.env.APP_URL = originalAppUrl;
