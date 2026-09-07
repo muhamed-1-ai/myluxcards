@@ -3,17 +3,21 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authOptions } from "./auth";
 import { pool } from "./db";
-import { findUserById } from "./repositories/users";
+import { findUserById, findManagedUserById } from "./repositories/users";
+import { AppRole, AccountStatus, FeaturePermissions, DEFAULT_FEATURE_PERMISSIONS } from "@/types/database";
 
-export type AdminRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
+export type AdminRole = AppRole;
 
 export type AdminIdentity = {
   id: string;
   email: string;
   name: string;
   role: AdminRole;
+  status: AccountStatus;
   disabled: boolean;
   mustChangePassword: boolean;
+  createdByAdminId?: string | null;
+  featurePermissions: FeaturePermissions;
   terms_accepted?: boolean;
   privacy_accepted?: boolean;
   cookie_consent?: boolean;
@@ -25,17 +29,34 @@ export type AdminIdentity = {
 
 export async function currentIdentity(): Promise<AdminIdentity | null> {
   try {
-    const session=await getServerSession(authOptions);
-    if(!session?.user?.id)return null;
-    const profile=await findUserById(session.user.id);
-    if(!profile||profile.disabled||profile.status!=="ACTIVE"||(Number.isInteger(session.user.sessionVersion)&&profile.session_version!==session.user.sessionVersion))return null;
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return null;
+    const profile = await findUserById(session.user.id);
+    if (
+      !profile ||
+      profile.disabled ||
+      profile.status === "DISABLED" ||
+      profile.status === "SUSPENDED" ||
+      (Number.isInteger(session.user.sessionVersion) && profile.session_version!==session.user.sessionVersion)
+    ) {
+      return null;
+    }
+
+    const featurePermissions: FeaturePermissions = {
+      ...DEFAULT_FEATURE_PERMISSIONS,
+      ...(profile.feature_permissions as Partial<FeaturePermissions> | undefined),
+    } as FeaturePermissions;
+
     return {
       id: profile.id,
       email: profile.email,
       name: profile.name,
       role: profile.role,
+      status: profile.status,
       disabled: profile.disabled,
       mustChangePassword: profile.must_change_password,
+      createdByAdminId: profile.created_by_admin_id,
+      featurePermissions,
       terms_accepted: profile.terms_accepted,
       privacy_accepted: profile.privacy_accepted,
       cookie_consent: profile.cookie_consent,
@@ -50,13 +71,51 @@ export async function currentIdentity(): Promise<AdminIdentity | null> {
   }
 }
 
-export async function requireAdmin(superOnly = false) {
+export async function requireAuthenticatedUser(): Promise<AdminIdentity | null> {
+  return currentIdentity();
+}
+
+export async function requireAdmin(options?: boolean | { allowSuper?: boolean }) {
   const identity = await currentIdentity();
-  if (!identity || (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN")) {
+  if (!identity) return null;
+  const allowSuper = typeof options === "boolean" ? options : options?.allowSuper ?? true;
+  if (identity.role === "ADMIN" || (allowSuper && identity.role === "SUPER_ADMIN")) {
+    return identity;
+  }
+  return null;
+}
+
+export async function requireSuperAdmin() {
+  const identity = await currentIdentity();
+  if (!identity || identity.role !== "SUPER_ADMIN") {
     return null;
   }
-  if (superOnly && identity.role !== "SUPER_ADMIN") return null;
   return identity;
+}
+
+export async function requirePermission(permission: keyof FeaturePermissions): Promise<AdminIdentity | null> {
+  const identity = await currentIdentity();
+  if (!identity) return null;
+  // SUPER_ADMIN and ADMIN always have all features for their own account
+  if (identity.role === "SUPER_ADMIN" || identity.role === "ADMIN") {
+    return identity;
+  }
+  // USER check
+  if (!identity.featurePermissions || !identity.featurePermissions[permission]) {
+    return null;
+  }
+  return identity;
+}
+
+export async function requireManagedUserOwnership(targetUserId: string) {
+  const identity = await currentIdentity();
+  if (!identity) return null;
+  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") return null;
+
+  const isSuperAdmin = identity.role === "SUPER_ADMIN";
+  const managedUser = await findManagedUserById(identity.id, targetUserId, isSuperAdmin);
+  if (!managedUser) return null;
+  return { identity, managedUser };
 }
 
 function normalizeHost(value: string | null) {
@@ -72,10 +131,18 @@ export function validMutationOrigin(request: Request) {
   const normalizedHost = normalizeHost(host);
   if (!normalizedHost) return process.env.NODE_ENV !== "production";
   if (origin) {
-    try { return normalizeHost(new URL(origin).host) === normalizedHost; } catch { return false; }
+    try {
+      return normalizeHost(new URL(origin).host) === normalizedHost;
+    } catch {
+      return false;
+    }
   }
   if (referer) {
-    try { return normalizeHost(new URL(referer).host) === normalizedHost; } catch { return false; }
+    try {
+      return normalizeHost(new URL(referer).host) === normalizedHost;
+    } catch {
+      return false;
+    }
   }
   return process.env.NODE_ENV !== "production";
 }
@@ -84,6 +151,14 @@ export async function requireAdminPage() {
   const identity = await currentIdentity();
   if (!identity) redirect("/?login=1&next=%2Fadmin");
   if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") redirect("/forbidden");
+  if (identity.mustChangePassword) redirect("/reset-password?required=1");
+  return identity;
+}
+
+export async function requireSuperAdminPage() {
+  const identity = await currentIdentity();
+  if (!identity) redirect("/?login=1&next=%2Fsuper-admin");
+  if (identity.role !== "SUPER_ADMIN") redirect("/forbidden");
   if (identity.mustChangePassword) redirect("/reset-password?required=1");
   return identity;
 }
@@ -113,12 +188,27 @@ export async function audit(
     if (Array.isArray(value)) return value.map(scrub);
     if (!value || typeof value !== "object") return value;
     const blocked = /password|token|secret|key|card|cvv|authorization/i;
-    return Object.fromEntries(Object.entries(value)
-      .filter(([key]) => !blocked.test(key))
-      .map(([key, nested]) => [key, scrub(nested)]));
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !blocked.test(key))
+        .map(([key, nested]) => [key, scrub(nested)])
+    );
   };
-  await pool.query(`insert into admin_audit_logs(actor_id,actor_role,action,entity_type,entity_id,before_summary,after_summary,ip_address,user_agent)
-    values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[actor.id,actor.role,action,entityType,entityId,JSON.stringify(scrub(before)),JSON.stringify(scrub(after)),context.ip,context.userAgent]);
+  await pool.query(
+    `insert into admin_audit_logs(actor_id,actor_role,action,entity_type,entity_id,before_summary,after_summary,ip_address,user_agent)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [
+      actor.id,
+      actor.role,
+      action,
+      entityType,
+      entityId,
+      JSON.stringify(scrub(before)),
+      JSON.stringify(scrub(after)),
+      context.ip,
+      context.userAgent,
+    ]
+  );
 }
 
 export function safeError(error: unknown) {

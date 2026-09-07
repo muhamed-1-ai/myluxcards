@@ -99,7 +99,7 @@ type Card = {
   lostAndFound?: LostAndFoundSettings;
 };
 type Lead = { id: string; card_id: string; name: string; email?: string; phone?: string; company?: string; message?: string; status: string; created_at: string };
-type CurrentUser = { id: string; name: string; email: string; role?: string };
+type CurrentUser = { id: string; name: string; email: string; role?: string; featurePermissions?: Record<string, boolean> };
 
 function MyLuxModal({
   isOpen,

@@ -17,7 +17,7 @@ const refresh = readFileSync(new URL("../src/app/api/auth/refresh/route.ts", imp
 const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
 
 test("public signup fixes the role server-side", () => {
-  assert.match(authService, /'CUSTOMER'/);
+  assert.match(authService, /'(CUSTOMER|USER)'/);
   assert.doesNotMatch(signup, /body\.role/);
   assert.match(signup, /createCredentialUser/);
   assert.doesNotMatch(signup, /Supabase|auth\/v1/);

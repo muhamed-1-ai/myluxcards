@@ -3,9 +3,9 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { getPublicCardUrl } from "@/lib/url";
 import type { AdminIdentity } from "@/lib/adminAuth";
 
-type Section = "overview"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
+type Section = "overview"|"managed_users"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
-const labels: Record<Section,string> = { overview:"Overview",orders:"Orders",customers:"Customers",activations:"Card assignment",products:"Products",payments:"Payments",support:"Support tickets",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
+const labels: Record<Section,string> = { overview:"Overview",managed_users:"My Managed Users",orders:"Orders",customers:"Customers",activations:"Card assignment",products:"Products",payments:"Payments",support:"Support tickets",notifications:"Notifications",admins:"Admin management",audit:"Audit logs",settings:"Settings" };
 const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
 
 export default function AdminApp({ identity }:{identity:AdminIdentity}) {
@@ -15,8 +15,8 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   const load=useCallback(async()=>{
     const version=++loadVersion.current;
     setLoading(true);setError("");
-    const path=section==="overview"?"dashboard":section==="activations"?"customers":section;
-    try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
+    const path=section==="overview"?"dashboard":section==="activations"?"customers":section==="managed_users"?"managed-users":section;
+    try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers","managed_users"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
       const payload=await response.json();
@@ -35,15 +35,16 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   return <div className="admin-shell">
     <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo">MYLUX<span>CARDS</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
     {mobile&&<button className="admin-scrim" onClick={()=>setMobile(false)} aria-label="Close menu"/>}
-    <aside className={mobile?"open":""}><p>CONTROL CENTRE</p><nav>{allowed.map(item=><button key={item} className={section===item?"active":""} onClick={()=>navigate(item)}>{labels[item]}</button>)}<a href="/admin/affiliates">Affiliate program</a></nav><button className="admin-logout" onClick={logout}>Log out</button></aside>
-    <main><div className="admin-heading"><div><p>MYLUX ADMINISTRATION</p><h1>{labels[section]}</h1><span>Secure, real-time business operations.</span></div>{["orders","customers"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
-      {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate} navigate={navigate}/>}
+    <aside className={mobile?"open":""}><p>MANAGED ACCOUNT CENTRE</p><nav>{allowed.map(item=><button key={item} className={section===item?"active":""} onClick={()=>navigate(item)}>{labels[item]}</button>)}<a href="/admin/affiliates">Affiliate program</a></nav><button className="admin-logout" onClick={logout}>Log out</button></aside>
+    <main><div className="admin-heading"><div><p>MYLUX ADMIN DASHBOARD</p><h1>{labels[section]}</h1><span>Secure account &amp; user operations.</span></div>{["orders","customers","managed_users"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
+      {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate} navigate={navigate} reload={load}/>}
     </main>
   </div>;
 }
 
-function Content({section,payload,identity,mutate,navigate}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void}) {
+function Content({section,payload,identity,mutate,navigate,reload}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void,reload:()=>Promise<void>}) {
   if(section==="overview") return <Overview data={payload}/>;
+  if(section==="managed_users") return <ManagedUsers rows={payload?.users||[]} mutate={mutate} reload={reload}/>;
   const rows:Row[]=payload?.data||[];
   if(section==="orders") return <Orders rows={rows} mutate={mutate}/>;
   if(section==="customers") return <Customers rows={rows} identity={identity} mutate={mutate}/>;
@@ -253,7 +254,232 @@ function Admins({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate
   const invite=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);const result=await mutate("admins","POST",{email:f.get("email")});alert(result.message);e.currentTarget.reset()};
   return <><form className="quick-form" onSubmit={invite}><h2>Invite an administrator</h2><input name="email" type="email" required placeholder="admin@example.com"/><button>Record invite</button></form><Table heads={["Administrator","Role","Created","Status","Action"]} rows={rows.map(r=>[<><b>{r.name}</b><small>{r.email}</small></>,r.role,new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",r.id===identity.id||r.role==="SUPER_ADMIN"?"Protected":<div className="row-actions"><button className="small danger" onClick={()=>confirm(`Change access for ${r.email}?`)&&mutate("admins","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button><button className="small" onClick={()=>confirm(`Remove ADMIN role from ${r.email}?`)&&mutate("admins","PATCH",{id:r.id,role:"CUSTOMER"})}>Remove role</button></div>])}/></>;
 }
+function ManagedUsers({rows,mutate,reload}:{rows:Row[],mutate:any,reload:()=>Promise<void>}) {
+  const [showCreate,setShowCreate]=useState(false);
+  const [selectedUser,setSelectedUser]=useState<Row|null>(null);
+  const [creating,setCreating]=useState(false);
+  const [updating,setUpdating]=useState(false);
+
+  const featureList: Array<{key: string; label: string}> = [
+    {key:"dashboard",label:"Dashboard"},
+    {key:"profile",label:"Profile"},
+    {key:"nfc_card",label:"NFC Card"},
+    {key:"qr_profile",label:"QR Profile"},
+    {key:"crm",label:"CRM"},
+    {key:"leads",label:"Leads"},
+    {key:"lost_found",label:"Lost & Found"},
+    {key:"vehicle",label:"Vehicle"},
+    {key:"orders",label:"Orders"},
+    {key:"analytics",label:"Analytics"},
+    {key:"products",label:"Products"},
+    {key:"notifications",label:"Notifications"},
+  ];
+
+  const createUser = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const f = new FormData(e.currentTarget);
+      const name = String(f.get("name") || "").trim();
+      const email = String(f.get("email") || "").trim();
+      const password = String(f.get("password") || "").trim();
+      const status = String(f.get("status") || "ACTIVE");
+
+      const response = await fetch("/api/admin/managed-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password: password || undefined, status }),
+      });
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.message || "Failed to create user.");
+      alert("User created successfully!");
+      setShowCreate(false);
+      await reload();
+    } catch (err: any) {
+      alert(err.message || "Could not create user.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const savePermissions = async (user: Row, newPermissions: Record<string, boolean>) => {
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/admin/managed-users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featurePermissions: newPermissions }),
+      });
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.message || "Failed to update permissions.");
+      alert("User feature permissions updated successfully.");
+      setSelectedUser(null);
+      await reload();
+    } catch (err: any) {
+      alert(err.message || "Failed to save permissions.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const changeStatus = async (user: Row, newStatus: string) => {
+    if (!confirm(`Change ${user.email} status to ${newStatus}?`)) return;
+    try {
+      const response = await fetch(`/api/admin/managed-users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.message || "Failed to update status.");
+      await reload();
+    } catch (err: any) {
+      alert(err.message || "Failed to update status.");
+    }
+  };
+
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div>
+          <h2>Managed Users ({rows.length})</h2>
+          <p style={{ fontSize: "13px", color: "#888" }}>Users created by and assigned to your Admin account.</p>
+        </div>
+        <button className="gold" onClick={() => setShowCreate(true)} style={{ padding: "8px 16px" }}>
+          + Create User
+        </button>
+      </div>
+
+      {!rows.length ? (
+        <Empty title="No managed users yet" text="Click '+ Create User' to assign your first user account." />
+      ) : (
+        <Table
+          heads={["User", "Role", "Status", "Created", "Actions"]}
+          rows={rows.map((user) => [
+            <>
+              <b>{user.name || "Unnamed"}</b>
+              <small>{user.email}</small>
+            </>,
+            <span className="pill">{user.role}</span>,
+            <span className={`pill ${user.status?.toLowerCase()}`}>{user.status}</span>,
+            new Date(user.created_at).toLocaleDateString(),
+            <div className="row-actions">
+              <button className="small gold" onClick={() => setSelectedUser(user)}>
+                Permissions
+              </button>
+              {user.status === "ACTIVE" ? (
+                <button className="small danger" onClick={() => changeStatus(user, "SUSPENDED")}>
+                  Suspend
+                </button>
+              ) : (
+                <button className="small gold" onClick={() => changeStatus(user, "ACTIVE")}>
+                  Activate
+                </button>
+              )}
+            </div>,
+          ])}
+        />
+      )}
+
+      {showCreate && (
+        <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setShowCreate(false)}>
+          <section className="customer-detail" role="dialog" style={{ maxWidth: "500px" }}>
+            <header>
+              <div>
+                <small>ADMIN ACTION</small>
+                <h2>Create New User Account</h2>
+                <p>New user will be automatically assigned to your Admin account (role = USER).</p>
+              </div>
+              <button onClick={() => setShowCreate(false)}>×</button>
+            </header>
+            <form onSubmit={createUser} style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "20px 0" }}>
+              <label>
+                Full Name
+                <input name="name" required placeholder="User Full Name" style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+              </label>
+              <label>
+                Email Address
+                <input name="email" type="email" required placeholder="user@example.com" style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+              </label>
+              <label>
+                Password (Optional - user can sign in or reset)
+                <input name="password" type="password" placeholder="Min 12 chars" style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+              </label>
+              <label>
+                Initial Account Status
+                <select name="status" defaultValue="ACTIVE" style={{ width: "100%", padding: "8px", marginTop: "4px" }}>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                </select>
+              </label>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                <button type="button" onClick={() => setShowCreate(false)} style={{ padding: "8px 16px" }}>
+                  Cancel
+                </button>
+                <button className="gold" disabled={creating} type="submit" style={{ padding: "8px 16px" }}>
+                  {creating ? "Creating..." : "Create User"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {selectedUser && (
+        <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setSelectedUser(null)}>
+          <section className="customer-detail" role="dialog" style={{ maxWidth: "550px" }}>
+            <header>
+              <div>
+                <small>FEATURE PERMISSIONS</small>
+                <h2>{selectedUser.name || selectedUser.email}</h2>
+                <p>Toggle feature access for this user. Disabled features return 403 server-side.</p>
+              </div>
+              <button onClick={() => setSelectedUser(null)}>×</button>
+            </header>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formEl = e.currentTarget;
+                const permissions: Record<string, boolean> = {};
+                featureList.forEach((f) => {
+                  const inputEl = formEl.elements.namedItem(`perm_${f.key}`) as HTMLInputElement | null;
+                  permissions[f.key] = inputEl ? inputEl.checked : false;
+                });
+                savePermissions(selectedUser, permissions);
+              }}
+              style={{ padding: "20px 0" }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+                {featureList.map((f) => {
+                  const currentPermissions = selectedUser.feature_permissions || {};
+                  const isChecked = currentPermissions[f.key] !== false;
+                  return (
+                    <label key={f.key} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", cursor: "pointer" }}>
+                      <input type="checkbox" name={`perm_${f.key}`} defaultChecked={isChecked} style={{ width: "18px", height: "18px" }} />
+                      <span>{f.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button type="button" onClick={() => setSelectedUser(null)} style={{ padding: "8px 16px" }}>
+                  Cancel
+                </button>
+                <button className="gold" disabled={updating} type="submit" style={{ padding: "8px 16px" }}>
+                  {updating ? "Saving..." : "Save Feature Permissions"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
 function Settings({value,mutate}:{value:Row,mutate:any}) { const save=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));return mutate("settings","PATCH",{...f,low_stock_threshold:Number(f.low_stock_threshold)})}; return <form className="settings-form" onSubmit={save}>{[["business_name","Business name"],["support_email","Support email"],["support_phone","Support phone"],["order_notification_email","Order notification email"],["currency","Currency"],["low_stock_threshold","Low-stock threshold"],["terms_url","Terms URL"],["privacy_url","Privacy URL"],["maintenance_message","Maintenance message"]].map(([name,label])=><label key={name}>{label}<input name={name} defaultValue={value[name]??""}/></label>)}<button>Save settings</button><p>Secrets and environment variables are intentionally never displayed here.</p></form> }
 function Table({heads,rows}:{heads:string[],rows:any[][]}) { return <div className="table-wrap"><table><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((c,j)=><td key={j}>{c}</td>)}</tr>)}</tbody></table></div> }
 function Empty({title,text,action}:{title:string,text:string,action?:()=>void}) { return <section className="empty"><strong>{title}</strong><p>{text}</p>{action&&<button onClick={action}>Try again</button>}</section> }
 function Skeleton(){return <div className="skeleton">{[1,2,3,4,5,6].map(x=><i key={x}/>)}</div>}
+

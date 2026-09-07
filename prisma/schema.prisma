@@ -17,8 +17,13 @@ model User {
   mustChangePassword Boolean  @default(false) @map("must_change_password")
   sessionVersion     Int      @default(1) @map("session_version")
   status             String   @default("ACTIVE")
+  createdByAdminId   String?  @map("created_by_admin_id") @db.Uuid
+  featurePermissions Json     @default("{\"dashboard\":true,\"profile\":true,\"nfc_card\":true,\"qr_profile\":true,\"crm\":true,\"leads\":true,\"lost_found\":true,\"vehicle\":true,\"orders\":true,\"analytics\":true,\"products\":true,\"notifications\":true}") @map("feature_permissions")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  createdByAdmin     User?    @relation("AdminManagedUsers", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  managedUsers       User[]   @relation("AdminManagedUsers")
 
   digitalCards       DigitalCard[]
   orders             Order[]
@@ -269,6 +274,7 @@ model SupportTicket {
 model AdminAuditLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   actorId   String?  @map("actor_id") @db.Uuid
+  actorRole String?  @map("actor_role")
   action    String
   target    String?
   metadata  Json     @default("{}")

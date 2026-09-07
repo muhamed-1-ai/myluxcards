@@ -1,4 +1,4 @@
-import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
+import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 import { createManualLead } from "@/lib/crm";
 
@@ -7,9 +7,11 @@ export async function POST(request: Request) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity();
+  const identity = await requirePermission("leads");
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    const user = await currentIdentity();
+    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ message: "Leads feature is disabled for your account." }, { status: 403 });
   }
 
   try {
