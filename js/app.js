@@ -87,6 +87,169 @@ class LuxApp {
     }
   }
 
+
+  async loginWithGoogle() {
+    const googleBtns = document.querySelectorAll('.btn-google, .google-auth-button, #google-login, #google-login-btn, #google-signup-btn');
+    googleBtns.forEach(btn => {
+      btn.disabled = true;
+      const textSpan = btn.querySelector('.btn-google-text, span');
+      if (textSpan) textSpan.textContent = 'Connecting to Google...';
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const nextParam = urlParams.get('next') || sessionStorage.getItem('myluxcards_auth_next');
+    let safeNext = '/dashboard';
+    if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+      safeNext = nextParam;
+    }
+    sessionStorage.setItem('myluxcards_auth_next', safeNext);
+
+    try {
+      const res = await fetch('/api/auth/csrf');
+      const data = await res.json();
+      const csrfToken = data?.csrfToken;
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/auth/signin/google';
+
+      if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfToken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+      }
+
+      const callbackInput = document.createElement('input');
+      callbackInput.type = 'hidden';
+      callbackInput.name = 'callbackUrl';
+      callbackInput.value = safeNext;
+      form.appendChild(callbackInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error('Google login initialization failed:', err);
+      window.location.href = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(safeNext)}`;
+    }
+  }
+
+  initGoogleOneTap() {
+    const googleClientId = '100033105320-vesgkflqqv9nermm0nllqa5mnnhq6kms.apps.googleusercontent.com';
+    if (!googleClientId) return;
+
+    if (window.google?.accounts?.id) {
+      this.setupGoogleOneTap(googleClientId);
+      return;
+    }
+
+    if (document.getElementById('gsi-client-script')) return;
+
+    const script = document.createElement('script');
+    script.id = 'gsi-client-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      this.setupGoogleOneTap(googleClientId);
+    };
+    document.head.appendChild(script);
+  }
+
+  setupGoogleOneTap(clientId) {
+    if (!window.google?.accounts?.id || this._gsiInitialized) return;
+    this._gsiInitialized = true;
+
+    const isSecureContext = window.location.protocol === 'https:';
+
+    try {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response) => this.handleGoogleOneTapResponse(response),
+        use_fedcm_for_prompt: isSecureContext,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        context: 'signin'
+      });
+
+      const loginContainer = document.getElementById('google-login-onetap-container');
+      if (loginContainer) {
+        loginContainer.innerHTML = '';
+        window.google.accounts.id.renderButton(loginContainer, {
+          theme: 'outline',
+          size: 'large',
+          type: 'standard',
+          shape: 'rectangular',
+          text: 'continue_with',
+          logo_alignment: 'left',
+          width: 280
+        });
+      }
+
+      const signupContainer = document.getElementById('google-signup-onetap-container');
+      if (signupContainer) {
+        signupContainer.innerHTML = '';
+        window.google.accounts.id.renderButton(signupContainer, {
+          theme: 'outline',
+          size: 'large',
+          type: 'standard',
+          shape: 'rectangular',
+          text: 'continue_with',
+          logo_alignment: 'left',
+          width: 280
+        });
+      }
+
+      if (isSecureContext) {
+        window.google.accounts.id.prompt();
+      }
+    } catch (err) {
+      console.warn('[Google Auth] One Tap initialization notice:', err);
+    }
+  }
+
+  async handleGoogleOneTapResponse(response) {
+    if (!response?.credential) return;
+
+    const googleBtns = document.querySelectorAll('.btn-google, .google-auth-button, #google-login, #google-login-btn, #google-signup-btn');
+    googleBtns.forEach(btn => {
+      btn.disabled = true;
+      const textSpan = btn.querySelector('.btn-google-text, span');
+      if (textSpan) textSpan.textContent = 'Verifying with Google...';
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const nextParam = urlParams.get('next') || sessionStorage.getItem('myluxcards_auth_next');
+    let safeNext = '/dashboard';
+    if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+      safeNext = nextParam;
+    }
+
+    try {
+      const res = await fetch('/api/auth/google-onetap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (typeof this.showToast === 'function') {
+          this.showToast('Google authentication successful! Redirecting...', 'success');
+        }
+        window.location.href = safeNext;
+      } else {
+        console.error('Google One Tap verification error:', data.error);
+        this.loginWithGoogle();
+      }
+    } catch (err) {
+      console.error('Google One Tap network error:', err);
+      this.loginWithGoogle();
+    }
+  }
+
+
   init() {
     // 1. Instant Loader dismissal
     const hideLoader = () => {
@@ -102,6 +265,8 @@ class LuxApp {
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       hideLoader();
     }
+
+    this.initGoogleOneTap();
 
     // 3. Render Initial Catalog Grid
     this.renderCatalog();
@@ -1318,6 +1483,12 @@ class LuxApp {
     });
 
     document.getElementById('account-logout')?.addEventListener('click', () => this.logout());
+    document.querySelectorAll('#google-login, #google-login-btn, #google-signup-btn, .google-auth-button, .btn-google').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.loginWithGoogle();
+      });
+    });
     document.addEventListener('click', (event) => {
       const menu = document.getElementById('account-menu');
       const dropdown = document.getElementById('account-dropdown');
@@ -1517,6 +1688,22 @@ class LuxApp {
     const loginFlag = urlParams.get('login') === '1';
     const nextDestination = urlParams.get('next');
     if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
+
+    const oauthError = urlParams.get('error');
+    if (oauthError) {
+      let friendlyMsg = 'Google authentication failed. Please try again.';
+      if (oauthError === 'OAuthCallback' || oauthError === 'Callback') {
+        friendlyMsg = 'Authentication was cancelled or the callback failed.';
+      } else if (oauthError === 'AccessDenied') {
+        friendlyMsg = 'Access was denied during Google sign in.';
+      } else if (oauthError === 'OAuthCreateAccount' || oauthError === 'EmailSignin') {
+        friendlyMsg = 'Could not sign in with Google account. Please try standard login.';
+      }
+      this.showToast(friendlyMsg, 'error');
+      const loginModal = document.getElementById('login-modal');
+      if (loginModal) loginModal.classList.add('open');
+    }
+
 
     if (loginFlag) {
       fetch('/api/auth/me', { cache: 'no-store' })

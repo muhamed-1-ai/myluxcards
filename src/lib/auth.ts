@@ -24,9 +24,9 @@ export const authOptions:NextAuthOptions={
         return null;
       }
     }}),
-    GoogleProvider({clientId:process.env.AUTH_GOOGLE_ID||"",clientSecret:process.env.AUTH_GOOGLE_SECRET||"",authorization:{params:{scope:"openid email profile"}}}),
+    GoogleProvider({clientId:process.env.GOOGLE_CLIENT_ID||process.env.AUTH_GOOGLE_ID||"",clientSecret:process.env.GOOGLE_CLIENT_SECRET||process.env.AUTH_GOOGLE_SECRET||"",authorization:{params:{scope:"openid email profile"}}}),
   ],
-  pages:{error:"/"},
+  pages:{signIn:"/",error:"/"},
   callbacks:{
     async signIn({user,account,profile}){
       if(account?.provider!=="google")return true;
