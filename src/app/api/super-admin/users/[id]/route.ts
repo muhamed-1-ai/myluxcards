@@ -40,35 +40,38 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     let physicalCards: any[] = [];
     let profileProducts: any[] = [];
+    let profileServices: any[] = [];
+    let profilePortfolio: any[] = [];
+    let profileGallery: any[] = [];
+    let profileVideos: any[] = [];
+    let profilePaymentLinks: any[] = [];
+    let profileDocuments: any[] = [];
+    let profileAchievements: any[] = [];
+    let profileCertifications: any[] = [];
+
     if (digitalCard) {
-      const [cardsRes, productsRes] = await Promise.all([
-        pool.query(
-          `SELECT id, status, created_at FROM cards WHERE digital_card_id = $1 ORDER BY created_at DESC`,
-          [digitalCard.id]
-        ),
-        pool.query(
-          `SELECT id, name, description, price, currency, image_url, category, cta_label, cta_url, enabled, sort_order, created_at
-           FROM card_profile_products
-           WHERE card_id = $1
-           ORDER BY sort_order ASC, created_at ASC`,
-          [digitalCard.id]
-        ),
+      const [cardsRes, productsRes, servicesRes, portfolioRes, galleryRes, videosRes, payLinksRes, docsRes, achRes, certsRes] = await Promise.all([
+        pool.query(`SELECT id, status, created_at FROM cards WHERE digital_card_id = $1 ORDER BY created_at DESC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_products WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_services WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_portfolio WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_gallery WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_videos WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_payment_links WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_documents WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_achievements WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
+        pool.query(`SELECT * FROM card_profile_certifications WHERE card_id = $1 ORDER BY sort_order ASC, created_at ASC`, [digitalCard.id]),
       ]);
       physicalCards = cardsRes.rows;
-      profileProducts = productsRes.rows.map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        currency: p.currency,
-        imageUrl: p.image_url,
-        category: p.category,
-        ctaLabel: p.cta_label,
-        ctaUrl: p.cta_url,
-        enabled: p.enabled,
-        sortOrder: p.sort_order,
-        createdAt: p.created_at,
-      }));
+      profileProducts = productsRes.rows;
+      profileServices = servicesRes.rows;
+      profilePortfolio = portfolioRes.rows;
+      profileGallery = galleryRes.rows;
+      profileVideos = videosRes.rows;
+      profilePaymentLinks = payLinksRes.rows;
+      profileDocuments = docsRes.rows;
+      profileAchievements = achRes.rows;
+      profileCertifications = certsRes.rows;
     }
 
     // 3. Fetch recent orders
@@ -134,6 +137,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
               createdAt: c.created_at,
             })),
             profileProducts,
+            profileServices,
+            profilePortfolio,
+            profileGallery,
+            profileVideos,
+            profilePaymentLinks,
+            profileDocuments,
+            profileAchievements,
+            profileCertifications,
           }
         : null,
       orders: ordersRes.rows.map((o) => ({

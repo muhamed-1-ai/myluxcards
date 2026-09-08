@@ -43,8 +43,23 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
     const defaultEmergRel = profileObj.defaultEmergencyRelationship || profileObj.emergencyContact?.relationship || "";
     const defaultEmergPhone = profileObj.defaultEmergencyPhone || profileObj.emergencyContact?.phone || "";
 
-    // Query active vehicles, lost items, account numbers, emergency contacts, and profile showcase products
-    const [vehiclesRes, lostItemsRes, accountContactsRes, emergencyContactsRes, emergencyNumbersRes, productsRes] = await Promise.all([
+    // Query active vehicles, lost items, account numbers, emergency contacts, profile products and modular dynamic profile sections
+    const [
+      vehiclesRes,
+      lostItemsRes,
+      accountContactsRes,
+      emergencyContactsRes,
+      emergencyNumbersRes,
+      productsRes,
+      servicesRes,
+      portfolioRes,
+      galleryRes,
+      videosRes,
+      paymentLinksRes,
+      documentsRes,
+      achievementsRes,
+      certificationsRes,
+    ] = await Promise.all([
       pool.query<{
         id: string;
         display_name: string;
@@ -142,6 +157,136 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       }>(
         `select id, name, description, price, currency, image_url, category, cta_label, cta_url, enabled, sort_order
          from card_profile_products
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        name: string;
+        description: string;
+        price: string;
+        currency: string;
+        image_url: string;
+        category: string;
+        cta_label: string;
+        cta_url: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, name, description, price, currency, image_url, category, cta_label, cta_url, enabled, sort_order
+         from card_profile_services
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        title: string;
+        description: string;
+        image_url: string;
+        category: string;
+        project_url: string;
+        cta_label: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, title, description, image_url, category, project_url, cta_label, enabled, sort_order
+         from card_profile_portfolio
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        title: string;
+        image_url: string;
+        caption: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, title, image_url, caption, enabled, sort_order
+         from card_profile_gallery
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        title: string;
+        provider: string;
+        video_url: string;
+        embed_id: string;
+        description: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, title, provider, video_url, embed_id, description, enabled, sort_order
+         from card_profile_videos
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        label: string;
+        provider: string;
+        pay_url: string;
+        upi_id: string;
+        description: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, label, provider, pay_url, upi_id, description, enabled, sort_order
+         from card_profile_payment_links
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        title: string;
+        file_url: string;
+        file_size: string;
+        file_type: string;
+        description: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, title, file_url, file_size, file_type, description, enabled, sort_order
+         from card_profile_documents
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        title: string;
+        organization: string;
+        achievement_date: string;
+        description: string;
+        image_url: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, title, organization, achievement_date, description, image_url, enabled, sort_order
+         from card_profile_achievements
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        title: string;
+        issuer: string;
+        issue_date: string;
+        credential_url: string;
+        certificate_url: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, title, issuer, issue_date, credential_url, certificate_url, enabled, sort_order
+         from card_profile_certifications
          where card_id = $1 and enabled = true
          order by sort_order asc, created_at asc`,
         [row.id]
@@ -308,11 +453,109 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       sortOrder: p.sort_order,
     }));
 
+    const profileServices = servicesRes.rows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      price: s.price,
+      currency: s.currency,
+      imageUrl: s.image_url,
+      category: s.category,
+      ctaLabel: s.cta_label,
+      ctaUrl: s.cta_url,
+      enabled: s.enabled,
+      sortOrder: s.sort_order,
+    }));
+
+    const profilePortfolio = portfolioRes.rows.map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      imageUrl: p.image_url,
+      category: p.category,
+      projectUrl: p.project_url,
+      ctaLabel: p.cta_label,
+      enabled: p.enabled,
+      sortOrder: p.sort_order,
+    }));
+
+    const profileGallery = galleryRes.rows.map((g) => ({
+      id: g.id,
+      title: g.title,
+      imageUrl: g.image_url,
+      caption: g.caption,
+      enabled: g.enabled,
+      sortOrder: g.sort_order,
+    }));
+
+    const profileVideos = videosRes.rows.map((v) => ({
+      id: v.id,
+      title: v.title,
+      provider: v.provider,
+      videoUrl: v.video_url,
+      embedId: v.embed_id,
+      description: v.description,
+      enabled: v.enabled,
+      sortOrder: v.sort_order,
+    }));
+
+    const profilePaymentLinks = paymentLinksRes.rows.map((pl) => ({
+      id: pl.id,
+      label: pl.label,
+      provider: pl.provider,
+      payUrl: pl.pay_url,
+      upiId: pl.upi_id,
+      description: pl.description,
+      enabled: pl.enabled,
+      sortOrder: pl.sort_order,
+    }));
+
+    const profileDocuments = documentsRes.rows.map((d) => ({
+      id: d.id,
+      title: d.title,
+      fileUrl: d.file_url,
+      fileSize: d.file_size,
+      fileType: d.file_type,
+      description: d.description,
+      enabled: d.enabled,
+      sortOrder: d.sort_order,
+    }));
+
+    const profileAchievements = achievementsRes.rows.map((a) => ({
+      id: a.id,
+      title: a.title,
+      organization: a.organization,
+      achievementDate: a.achievement_date,
+      description: a.description,
+      imageUrl: a.image_url,
+      enabled: a.enabled,
+      sortOrder: a.sort_order,
+    }));
+
+    const profileCertifications = certificationsRes.rows.map((c) => ({
+      id: c.id,
+      title: c.title,
+      issuer: c.issuer,
+      issueDate: c.issue_date,
+      credentialUrl: c.credential_url,
+      certificateUrl: c.certificate_url,
+      enabled: c.enabled,
+      sortOrder: c.sort_order,
+    }));
+
     return Response.json({
       card: { ...safeCard, previewAuthorized },
       vehicles,
       lostItems,
       profileProducts,
+      profileServices,
+      profilePortfolio,
+      profileGallery,
+      profileVideos,
+      profilePaymentLinks,
+      profileDocuments,
+      profileAchievements,
+      profileCertifications,
     });
   } catch {
     return Response.json({ message: "Card unavailable." }, { status: 503 });

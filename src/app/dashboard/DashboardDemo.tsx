@@ -1345,14 +1345,25 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
   const [featureError, setFeatureError] = useState("");
 
   const featureMetadata: Record<string, { label: string; icon: string; desc: string }> = {
-    BASIC_PROFILE: { label: "Basic Profile", icon: "👤", desc: "Your main profile information, bio, name, designation & services" },
+    BASIC_PROFILE: { label: "Basic Profile", icon: "👤", desc: "Your main profile info, bio, designation & services" },
     CONTACT: { label: "Contact Details", icon: "📞", desc: "Allow visitors to call, WhatsApp, or email you directly" },
     SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Show your social profiles (Instagram, LinkedIn, X, YouTube)" },
     WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Link to your company website and share digital brochure PDF" },
     EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Show emergency contact details for rapid safety response" },
     VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Share vehicle details, parking notes & direct contact" },
     LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Allow people to contact you about lost items safely" },
-    PRODUCTS: { label: "Products Showcase", icon: "🛍️", desc: "Showcase custom products, services, items & pricing directly on your profile" },
+    PRODUCTS: { label: "Products Showcase", icon: "🛍️", desc: "Showcase custom products, items & pricing directly on your profile" },
+    SERVICES: { label: "Services Offered", icon: "💼", desc: "Professional services offered with pricing & CTAs" },
+    PORTFOLIO: { label: "Portfolio & Projects", icon: "🎨", desc: "Work showcase, project links & images" },
+    GALLERY: { label: "Photo Gallery", icon: "🖼️", desc: "High-quality image gallery grid" },
+    VIDEOS: { label: "Video Showcase", icon: "🎬", desc: "YouTube, Vimeo & video embeds" },
+    BUSINESS_HOURS: { label: "Business Hours", icon: "🕒", desc: "Weekly operating schedule & hours" },
+    LOCATION: { label: "Location & Map", icon: "📍", desc: "Office location & map directions" },
+    PAYMENT_LINKS: { label: "Payment Links & UPI", icon: "💳", desc: "UPI ID, PayPal & payment links" },
+    DOCUMENTS: { label: "Documents & Files", icon: "📁", desc: "Downloadable PDFs, brochures & files" },
+    RESUME: { label: "Resume / CV", icon: "📄", desc: "Professional resume & CV attachment" },
+    ACHIEVEMENTS: { label: "Achievements & Awards", icon: "🏆", desc: "Honors, awards & milestones" },
+    CERTIFICATIONS: { label: "Certifications", icon: "📜", desc: "Verified professional certifications" },
   };
 
   const profileFeatures = (draft as any).profileFeatures || {
@@ -1364,6 +1375,17 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     VEHICLE: { enabled: true, sortOrder: 5 },
     LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
     PRODUCTS: { enabled: false, sortOrder: 7 },
+    SERVICES: { enabled: false, sortOrder: 8 },
+    PORTFOLIO: { enabled: false, sortOrder: 9 },
+    GALLERY: { enabled: false, sortOrder: 10 },
+    VIDEOS: { enabled: false, sortOrder: 11 },
+    BUSINESS_HOURS: { enabled: false, sortOrder: 12 },
+    LOCATION: { enabled: false, sortOrder: 13 },
+    PAYMENT_LINKS: { enabled: false, sortOrder: 14 },
+    DOCUMENTS: { enabled: false, sortOrder: 15 },
+    RESUME: { enabled: false, sortOrder: 16 },
+    ACHIEVEMENTS: { enabled: false, sortOrder: 17 },
+    CERTIFICATIONS: { enabled: false, sortOrder: 18 },
   };
 
   const featureOrder = (draft as any).featureOrder || [
@@ -1375,6 +1397,17 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     "VEHICLE",
     "LOST_AND_FOUND",
     "PRODUCTS",
+    "SERVICES",
+    "PORTFOLIO",
+    "GALLERY",
+    "VIDEOS",
+    "BUSINESS_HOURS",
+    "LOCATION",
+    "PAYMENT_LINKS",
+    "DOCUMENTS",
+    "RESUME",
+    "ACHIEVEMENTS",
+    "CERTIFICATIONS",
   ];
 
   const handleToggleFeature = async (key: string, currentStatus: boolean) => {
@@ -1724,6 +1757,16 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
 
       {/* ── CUSTOM PROFILE PRODUCTS MANAGEMENT ── */}
       <ProfileProductsManager cardId={draft.id} />
+
+      {/* ── MODULAR DYNAMIC PROFILE SECTIONS MANAGERS ── */}
+      <GenericProfileSectionManager cardId={draft.id} section="services" title="SERVICES" icon="💼" mediaKind="service" />
+      <GenericProfileSectionManager cardId={draft.id} section="portfolio" title="PORTFOLIO & PROJECTS" icon="🎨" mediaKind="portfolio" />
+      <GenericProfileSectionManager cardId={draft.id} section="gallery" title="PHOTO GALLERY" icon="🖼️" mediaKind="gallery" />
+      <GenericProfileSectionManager cardId={draft.id} section="videos" title="VIDEO SHOWCASE" icon="🎬" mediaKind="video" />
+      <GenericProfileSectionManager cardId={draft.id} section="payment-links" title="PAYMENT LINKS & UPI" icon="💳" mediaKind="document" />
+      <GenericProfileSectionManager cardId={draft.id} section="documents" title="DOCUMENTS & FILES" icon="📁" mediaKind="document" />
+      <GenericProfileSectionManager cardId={draft.id} section="achievements" title="ACHIEVEMENTS & AWARDS" icon="🏆" mediaKind="achievement" />
+      <GenericProfileSectionManager cardId={draft.id} section="certifications" title="CERTIFICATIONS" icon="📜" mediaKind="certification" />
     </>
   );
 }
@@ -3926,4 +3969,508 @@ function SocialBrandIcon({ brand }: { brand: string }) {
   if (brand === "twitter") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M4 3h4.5l4.3 5.8L17.8 3H20l-6.2 7.3L21 21h-4.5l-4.8-6.5L6.2 21H4l6.7-8L4 3Zm3.4 2 10.1 14h1.9L9.3 5H7.4Z" /></svg>;
   if (brand === "youtube") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M21.4 7.1a2.5 2.5 0 0 0-1.8-1.8C18 4.9 12 4.9 12 4.9s-6 0-7.6.4a2.5 2.5 0 0 0-1.8 1.8A26 26 0 0 0 2.2 12a26 26 0 0 0 .4 4.9 2.5 2.5 0 0 0 1.8 1.8c1.6.4 7.6.4 7.6.4s6 0 7.6-.4a2.5 2.5 0 0 0 1.8-1.8 26 26 0 0 0 .4-4.9 26 26 0 0 0-.4-4.9ZM10 15.6V8.4l6.2 3.6-6.2 3.6Z" /></svg>;
   return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.7 4.7 0 0 1-2 3v2.6h3.3c1.9-1.8 2.9-4.4 2.9-7.5ZM12 22c2.7 0 5-.9 6.7-2.3l-3.3-2.6c-.9.6-2.1 1-3.4 1a5.9 5.9 0 0 1-5.5-4.1H3.1v2.7A10 10 0 0 0 12 22ZM6.5 14a6 6 0 0 1 0-3.9V7.4H3.1a10 10 0 0 0 0 9.3L6.5 14ZM12 5.9c1.5 0 2.8.5 3.9 1.5l2.9-2.9A9.8 9.8 0 0 0 3.1 7.4l3.4 2.7A5.9 5.9 0 0 1 12 5.9Z" /></svg>;
+}
+
+function GenericProfileSectionManager({
+  cardId,
+  section,
+  title,
+  icon,
+  mediaKind,
+}: {
+  cardId?: string;
+  section: string;
+  title: string;
+  icon: string;
+  mediaKind: string;
+}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const loadItems = async () => {
+    if (!cardId) return;
+    try {
+      const res = await fetch(`/api/cards/profile-sections/${section}?cardId=${encodeURIComponent(cardId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.items)) {
+        setItems(data.items);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadItems();
+  }, [cardId, section]);
+
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingItem) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setSaveError("File must be 10 MB or smaller.");
+      return;
+    }
+
+    setUploadingMedia(true);
+    setSaveError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", mediaKind);
+
+      const res = await fetch("/api/media", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        setEditingItem({ ...editingItem, [targetField]: data.url });
+      } else {
+        setSaveError(data.message || "Media upload failed.");
+      }
+    } catch {
+      setSaveError("Upload network error.");
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem || saving) return;
+
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      const isNew = !editingItem.id;
+      const url = `/api/cards/profile-sections/${section}`;
+      const method = isNew ? "POST" : "PUT";
+
+      const payload = {
+        ...editingItem,
+        cardId,
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEditingItem(null);
+        await loadItems();
+      } else {
+        setSaveError(data.message || `Failed to save item in ${section}.`);
+      }
+    } catch {
+      setSaveError("Network error while saving item.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleVisibility = async (item: any) => {
+    try {
+      const newStatus = !item.enabled;
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, enabled: newStatus } : i)));
+
+      const res = await fetch(`/api/cards/profile-sections/${section}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, enabled: newStatus }),
+      });
+
+      if (!res.ok) await loadItems();
+    } catch {
+      await loadItems();
+    }
+  };
+
+  const handleMoveItem = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+
+    const reordered = [...items];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIndex];
+    reordered[targetIndex] = temp;
+
+    setItems(reordered);
+
+    try {
+      await fetch(`/api/cards/profile-sections/${section}/reorder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId,
+          itemIds: reordered.map((i) => i.id),
+        }),
+      });
+    } catch {
+      await loadItems();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/cards/profile-sections/${section}?id=${encodeURIComponent(deleteId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setDeleteId(null);
+        await loadItems();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getItemTitle = (item: any) => item.name || item.title || item.label || "Item";
+
+  return (
+    <div className="mode-settings-block">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 10 }}>
+        <div className="mode-settings-title" style={{ margin: 0 }}>
+          {icon} {title} ({items.length})
+        </div>
+        <button
+          type="button"
+          className="asset-btn-primary"
+          onClick={() => {
+            setSaveError("");
+            setEditingItem({ enabled: true });
+          }}
+        >
+          + ADD {section.replace(/-/g, " ").toUpperCase().slice(0, -1)}
+        </button>
+      </div>
+
+      {items.length === 0 && !editingItem && !loading && (
+        <div style={{ padding: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          No entries added yet in {title}. Click the add button above to create one.
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="asset-card-list">
+          {items.map((item, idx) => (
+            <div key={item.id} className="asset-item-card" style={{ opacity: item.enabled ? 1 : 0.6 }}>
+              <div className="asset-item-info">
+                <div className="asset-item-title">
+                  {icon} {getItemTitle(item)}
+                </div>
+                <div className="asset-item-sub">
+                  {item.category || item.provider || item.organization || item.issuer || item.description || ""}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: item.enabled ? "#2ecc71" : "rgba(255,255,255,0.4)", fontWeight: 700 }}>
+                    {item.enabled ? "ON" : "OFF"}
+                  </span>
+                  <div
+                    className={`mylux-toggle-switch ${item.enabled !== false ? "active" : ""}`}
+                    onClick={() => handleToggleVisibility(item)}
+                    style={{ cursor: "pointer", transform: "scale(0.85)" }}
+                  >
+                    <div className="mylux-toggle-knob" />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    type="button"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: idx === 0 ? "not-allowed" : "pointer", opacity: idx === 0 ? 0.3 : 1 }}
+                    onClick={() => handleMoveItem(idx, "up")}
+                    disabled={idx === 0}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: idx === items.length - 1 ? "not-allowed" : "pointer", opacity: idx === items.length - 1 ? 0.3 : 1 }}
+                    onClick={() => handleMoveItem(idx, "down")}
+                    disabled={idx === items.length - 1}
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                <div className="asset-item-actions">
+                  <button type="button" className="edit-btn" onClick={() => { setSaveError(""); setEditingItem(item); }}>Edit</button>
+                  <button type="button" className="delete-btn" onClick={() => setDeleteId(item.id)}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── ADD / EDIT ITEM MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(editingItem)}
+        onClose={() => setEditingItem(null)}
+        title={editingItem?.id ? `Edit ${title}` : `Add ${title}`}
+        subtitle={`Configure item details for your public profile.`}
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setEditingItem(null)} disabled={saving || uploadingMedia}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-submit" onClick={handleSave} disabled={saving || uploadingMedia}>
+              {saving ? "Saving..." : "Save Item"}
+            </button>
+          </>
+        }
+      >
+        {editingItem && (
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {saveError && (
+              <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13 }}>
+                ⚠️ {saveError}
+              </div>
+            )}
+
+            {/* Dynamic fields based on section */}
+            {section === "services" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">SERVICE NAME *</label>
+                  <input type="text" className="mylux-input" value={editingItem.name || ""} onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })} placeholder="e.g. Executive Consultation" required />
+                </div>
+                <div className="mylux-form-grid-2">
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">PRICE</label>
+                    <input type="text" className="mylux-input" value={editingItem.price || ""} onChange={(e) => setEditingItem({ ...editingItem, price: e.target.value })} placeholder="e.g. 1500" />
+                  </div>
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">CURRENCY</label>
+                    <select className="mylux-select" value={editingItem.currency || "INR"} onChange={(e) => setEditingItem({ ...editingItem, currency: e.target.value })}>
+                      <option value="INR">INR (₹)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">DESCRIPTION</label>
+                  <textarea className="mylux-textarea" value={editingItem.description || ""} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} placeholder="Service description..." rows={3} />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">CTA BUTTON LABEL &amp; LINK</label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <input type="text" className="mylux-input" style={{ width: 140 }} value={editingItem.ctaLabel || ""} onChange={(e) => setEditingItem({ ...editingItem, ctaLabel: e.target.value })} placeholder="Book Now" />
+                    <input type="text" className="mylux-input" style={{ flex: 1 }} value={editingItem.ctaUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, ctaUrl: e.target.value })} placeholder="https://wa.me/91..." />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {section === "portfolio" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">PROJECT TITLE *</label>
+                  <input type="text" className="mylux-input" value={editingItem.title || ""} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="e.g. E-Commerce Redesign" required />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">CATEGORY / TECH</label>
+                  <input type="text" className="mylux-input" value={editingItem.category || ""} onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })} placeholder="e.g. Web Development" />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">DESCRIPTION</label>
+                  <textarea className="mylux-textarea" value={editingItem.description || ""} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} placeholder="Project overview..." rows={3} />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">PROJECT URL</label>
+                  <input type="text" className="mylux-input" value={editingItem.projectUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, projectUrl: e.target.value })} placeholder="https://example.com/project" />
+                </div>
+              </>
+            )}
+
+            {section === "gallery" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">PHOTO TITLE / CAPTION</label>
+                  <input type="text" className="mylux-input" value={editingItem.title || ""} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="Photo title..." />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">IMAGE FILE OR URL *</label>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="text" className="mylux-input" style={{ flex: 1 }} value={editingItem.imageUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, imageUrl: e.target.value })} placeholder="https://..." required />
+                    <label style={{ background: "rgba(0, 102, 255, 0.2)", border: "1px solid rgba(0, 102, 255, 0.4)", color: "#00E5FF", padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      Upload
+                      <input type="file" accept="image/*" onChange={(e) => handleMediaUpload(e, "imageUrl")} style={{ display: "none" }} />
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {section === "videos" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">VIDEO TITLE *</label>
+                  <input type="text" className="mylux-input" value={editingItem.title || ""} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="e.g. Product Demo 2026" required />
+                </div>
+                <div className="mylux-form-grid-2">
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">PROVIDER</label>
+                    <select className="mylux-select" value={editingItem.provider || "YouTube"} onChange={(e) => setEditingItem({ ...editingItem, provider: e.target.value })}>
+                      <option value="YouTube">YouTube</option>
+                      <option value="Vimeo">Vimeo</option>
+                      <option value="Direct">Direct Link</option>
+                    </select>
+                  </div>
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">YOUTUBE EMBED ID</label>
+                    <input type="text" className="mylux-input" value={editingItem.embedId || ""} onChange={(e) => setEditingItem({ ...editingItem, embedId: e.target.value })} placeholder="e.g. dQw4w9WgXcQ" />
+                  </div>
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">VIDEO URL</label>
+                  <input type="text" className="mylux-input" value={editingItem.videoUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." />
+                </div>
+              </>
+            )}
+
+            {section === "payment-links" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">PAYMENT LABEL *</label>
+                  <input type="text" className="mylux-input" value={editingItem.label || ""} onChange={(e) => setEditingItem({ ...editingItem, label: e.target.value })} placeholder="e.g. Pay via GPay / UPI" required />
+                </div>
+                <div className="mylux-form-grid-2">
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">UPI ID</label>
+                    <input type="text" className="mylux-input" value={editingItem.upiId || ""} onChange={(e) => setEditingItem({ ...editingItem, upiId: e.target.value })} placeholder="user@upi" />
+                  </div>
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">PAYMENT URL</label>
+                    <input type="text" className="mylux-input" value={editingItem.payUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, payUrl: e.target.value })} placeholder="https://pay.gpay.app/..." />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {section === "documents" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">DOCUMENT TITLE *</label>
+                  <input type="text" className="mylux-input" value={editingItem.title || ""} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="e.g. Company Deck 2026.pdf" required />
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">FILE ATTACHMENT OR URL *</label>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="text" className="mylux-input" style={{ flex: 1 }} value={editingItem.fileUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, fileUrl: e.target.value })} placeholder="https://..." required />
+                    <label style={{ background: "rgba(0, 102, 255, 0.2)", border: "1px solid rgba(0, 102, 255, 0.4)", color: "#00E5FF", padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      Upload PDF
+                      <input type="file" accept="application/pdf" onChange={(e) => handleMediaUpload(e, "fileUrl")} style={{ display: "none" }} />
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {section === "achievements" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">ACHIEVEMENT TITLE *</label>
+                  <input type="text" className="mylux-input" value={editingItem.title || ""} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="e.g. Entrepreneur of the Year" required />
+                </div>
+                <div className="mylux-form-grid-2">
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">ORGANIZATION / AWARDING BODY</label>
+                    <input type="text" className="mylux-input" value={editingItem.organization || ""} onChange={(e) => setEditingItem({ ...editingItem, organization: e.target.value })} placeholder="e.g. Forbes" />
+                  </div>
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">DATE / YEAR</label>
+                    <input type="text" className="mylux-input" value={editingItem.achievementDate || ""} onChange={(e) => setEditingItem({ ...editingItem, achievementDate: e.target.value })} placeholder="e.g. 2025" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {section === "certifications" && (
+              <>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">CERTIFICATION TITLE *</label>
+                  <input type="text" className="mylux-input" value={editingItem.title || ""} onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })} placeholder="e.g. AWS Certified Solutions Architect" required />
+                </div>
+                <div className="mylux-form-grid-2">
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">ISSUING ORGANIZATION</label>
+                    <input type="text" className="mylux-input" value={editingItem.issuer || ""} onChange={(e) => setEditingItem({ ...editingItem, issuer: e.target.value })} placeholder="e.g. Amazon Web Services" />
+                  </div>
+                  <div className="mylux-field">
+                    <label className="mylux-field-label">ISSUE DATE</label>
+                    <input type="text" className="mylux-input" value={editingItem.issueDate || ""} onChange={(e) => setEditingItem({ ...editingItem, issueDate: e.target.value })} placeholder="e.g. Jan 2026" />
+                  </div>
+                </div>
+                <div className="mylux-field">
+                  <label className="mylux-field-label">CREDENTIAL VERIFICATION URL</label>
+                  <input type="text" className="mylux-input" value={editingItem.credentialUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, credentialUrl: e.target.value })} placeholder="https://credly.com/..." />
+                </div>
+              </>
+            )}
+
+            {/* Item Visibility Toggle */}
+            <div className="mylux-toggle-row">
+              <div>
+                <div className="mylux-radio-label-text">Item Visibility</div>
+                <div className="mylux-radio-subtext">Control whether this item is publicly visible.</div>
+              </div>
+              <div
+                className={`mylux-toggle-switch ${editingItem.enabled !== false ? "active" : ""}`}
+                onClick={() => setEditingItem({ ...editingItem, enabled: editingItem.enabled === false })}
+              >
+                <div className="mylux-toggle-knob" />
+              </div>
+            </div>
+          </form>
+        )}
+      </MyLuxModal>
+
+      {/* ── DELETE MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        title={`Delete Item Permanently?`}
+        subtitle="Are you sure you want to delete this item? This action cannot be undone."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-danger" onClick={handleDelete} disabled={saving}>
+              {saving ? "Deleting..." : "Delete Permanently"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: "12px 16px", background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 10, color: "#fff" }}>
+          Confirm deletion of this item.
+        </div>
+      </MyLuxModal>
+    </div>
+  );
 }

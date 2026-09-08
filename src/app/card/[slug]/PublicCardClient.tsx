@@ -88,6 +88,96 @@ type CardProfileProduct = {
   sortOrder: number;
 };
 
+type CardProfileService = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  imageUrl: string;
+  category: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfilePortfolio = {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  category: string;
+  projectUrl: string;
+  ctaLabel: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfileGallery = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  caption: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfileVideo = {
+  id: string;
+  title: string;
+  provider: string;
+  videoUrl: string;
+  embedId: string;
+  description: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfilePaymentLink = {
+  id: string;
+  label: string;
+  provider: string;
+  payUrl: string;
+  upiId: string;
+  description: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfileDocument = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  fileSize: string;
+  fileType: string;
+  description: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfileAchievement = {
+  id: string;
+  title: string;
+  organization: string;
+  achievementDate: string;
+  description: string;
+  imageUrl: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+type CardProfileCertification = {
+  id: string;
+  title: string;
+  issuer: string;
+  issueDate: string;
+  credentialUrl: string;
+  certificateUrl: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
 type Card = {
   id?: string;
   name: string; slug: string; title: string; business: string; countryCode: string; mobile: string;
@@ -115,6 +205,14 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [vehicles, setVehicles] = useState<CardVehicle[]>([]);
   const [lostItems, setLostItems] = useState<CardLostItem[]>([]);
   const [profileProducts, setProfileProducts] = useState<CardProfileProduct[]>([]);
+  const [profileServices, setProfileServices] = useState<CardProfileService[]>([]);
+  const [profilePortfolio, setProfilePortfolio] = useState<CardProfilePortfolio[]>([]);
+  const [profileGallery, setProfileGallery] = useState<CardProfileGallery[]>([]);
+  const [profileVideos, setProfileVideos] = useState<CardProfileVideo[]>([]);
+  const [profilePaymentLinks, setProfilePaymentLinks] = useState<CardProfilePaymentLink[]>([]);
+  const [profileDocuments, setProfileDocuments] = useState<CardProfileDocument[]>([]);
+  const [profileAchievements, setProfileAchievements] = useState<CardProfileAchievement[]>([]);
+  const [profileCertifications, setProfileCertifications] = useState<CardProfileCertification[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -318,6 +416,14 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             setVehicles(Array.isArray(payload.vehicles) ? payload.vehicles : []);
             setLostItems(Array.isArray(payload.lostItems) ? payload.lostItems : []);
             setProfileProducts(Array.isArray(payload.profileProducts) ? payload.profileProducts : []);
+            setProfileServices(Array.isArray(payload.profileServices) ? payload.profileServices : []);
+            setProfilePortfolio(Array.isArray(payload.profilePortfolio) ? payload.profilePortfolio : []);
+            setProfileGallery(Array.isArray(payload.profileGallery) ? payload.profileGallery : []);
+            setProfileVideos(Array.isArray(payload.profileVideos) ? payload.profileVideos : []);
+            setProfilePaymentLinks(Array.isArray(payload.profilePaymentLinks) ? payload.profilePaymentLinks : []);
+            setProfileDocuments(Array.isArray(payload.profileDocuments) ? payload.profileDocuments : []);
+            setProfileAchievements(Array.isArray(payload.profileAchievements) ? payload.profileAchievements : []);
+            setProfileCertifications(Array.isArray(payload.profileCertifications) ? payload.profileCertifications : []);
             setLoaded(true);
             trackActivity("PROFILE_OPENED", { assetType: "profile" });
           }
@@ -403,13 +509,17 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     trackActivity(type, { linkType });
   };
   const saveContact = () => {
+    const contactEnabled = pf.CONTACT ? pf.CONTACT.enabled : true;
+    const basicEnabled = pf.BASIC_PROFILE ? pf.BASIC_PROFILE.enabled : true;
+    const websiteEnabled = pf.WEBSITE ? pf.WEBSITE.enabled : true;
+
     const vcard = ["BEGIN:VCARD", "VERSION:3.0", `FN:${card.name}`,
       card.title    && `TITLE:${card.title}`,
       card.business && `ORG:${card.business}`,
-      phone         && `TEL:${phone}`,
-      card.email    && `EMAIL:${card.email}`,
-      card.website  && `URL:${card.website}`,
-      location      && `ADR:;;${location};;;;`,
+      contactEnabled && phone && `TEL:${phone}`,
+      contactEnabled && card.email && `EMAIL:${card.email}`,
+      websiteEnabled && card.website && `URL:${card.website}`,
+      contactEnabled && location && `ADR:;;${location};;;;`,
       "END:VCARD"].filter(Boolean).join("\n");
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([vcard], { type: "text/vcard" }));
@@ -1372,6 +1482,234 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                               </div>
                             ) : null}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "SERVICES") {
+                const activeServices = profileServices.filter(s => s.enabled !== false);
+                if (activeServices.length === 0) return null;
+
+                return (
+                  <div key="SERVICES" className="pc-card pc-services-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Services</h2>
+                      <span style={{ fontSize: 11, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(0, 102, 255, 0.3)", fontWeight: 700 }}>
+                        SERVICES
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                      {activeServices.map((svc) => (
+                        <div key={svc.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", padding: 14, gap: 8 }}>
+                          {svc.imageUrl && (
+                            <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden", background: "#000" }}>
+                              <img src={svc.imageUrl} alt={svc.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          )}
+                          {svc.category && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0066FF", textTransform: "uppercase" }}>{svc.category}</span>}
+                          <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0 }}>{svc.name}</h3>
+                          {svc.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{svc.description}</p>}
+                          {svc.price && <div style={{ fontSize: 14, fontWeight: 800, color: "#38ef7d" }}>{svc.currency === "INR" ? "₹" : "$"} {svc.price}</div>}
+                          {svc.ctaUrl && (
+                            <a href={svc.ctaUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 6, background: "linear-gradient(135deg, #0066FF 0%, #00E5FF 100%)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 12px", borderRadius: 8, textAlign: "center", textDecoration: "none" }}>
+                              {svc.ctaLabel || "Book Service"}
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "PORTFOLIO") {
+                const activeProjects = profilePortfolio.filter(p => p.enabled !== false);
+                if (activeProjects.length === 0) return null;
+
+                return (
+                  <div key="PORTFOLIO" className="pc-card pc-portfolio-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Portfolio &amp; Projects</h2>
+                      <span style={{ fontSize: 11, background: "rgba(255, 153, 0, 0.12)", color: "#ff9900", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(255, 153, 0, 0.3)", fontWeight: 700 }}>
+                        WORK
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                      {activeProjects.map((proj) => (
+                        <div key={proj.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", padding: 14, gap: 8 }}>
+                          {proj.imageUrl && (
+                            <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden" }}>
+                              <img src={proj.imageUrl} alt={proj.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          )}
+                          {proj.category && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#ff9900", textTransform: "uppercase" }}>{proj.category}</span>}
+                          <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0 }}>{proj.title}</h3>
+                          {proj.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{proj.description}</p>}
+                          {proj.projectUrl && (
+                            <a href={proj.projectUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 6, background: "rgba(255, 153, 0, 0.15)", border: "1px solid rgba(255, 153, 0, 0.4)", color: "#ff9900", fontWeight: 700, fontSize: 12, padding: "8px 12px", borderRadius: 8, textAlign: "center", textDecoration: "none" }}>
+                              {proj.ctaLabel || "View Project 🔗"}
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "GALLERY") {
+                const activePhotos = profileGallery.filter(g => g.enabled !== false);
+                if (activePhotos.length === 0) return null;
+
+                return (
+                  <div key="GALLERY" className="pc-card pc-gallery-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>Gallery</h2>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
+                      {activePhotos.map((img) => (
+                        <div key={img.id} style={{ borderRadius: 10, overflow: "hidden", position: "relative", height: 120, background: "#111" }}>
+                          <img src={img.imageUrl} alt={img.title || "Gallery photo"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          {img.title && (
+                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.7)", padding: "4px 6px", fontSize: 10.5, color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                              {img.title}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "VIDEOS") {
+                const activeVideos = profileVideos.filter(v => v.enabled !== false);
+                if (activeVideos.length === 0) return null;
+
+                return (
+                  <div key="VIDEOS" className="pc-card pc-videos-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>Videos</h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {activeVideos.map((vid) => (
+                        <div key={vid.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0 }}>{vid.title}</h3>
+                          {vid.embedId && vid.provider === "YouTube" ? (
+                            <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", borderRadius: 10, overflow: "hidden" }}>
+                              <iframe src={`https://www.youtube.com/embed/${vid.embedId}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen />
+                            </div>
+                          ) : vid.videoUrl ? (
+                            <a href={vid.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,0,0,0.15)", border: "1px solid rgba(255,0,0,0.4)", color: "#ff4d4d", padding: "10px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                              ▶ Watch Video ({vid.provider || "Link"})
+                            </a>
+                          ) : null}
+                          {vid.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{vid.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "PAYMENT_LINKS") {
+                const activePayLinks = profilePaymentLinks.filter(p => p.enabled !== false);
+                if (activePayLinks.length === 0) return null;
+
+                return (
+                  <div key="PAYMENT_LINKS" className="pc-card pc-payment-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>💳 Payment &amp; UPI Links</h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {activePayLinks.map((pay) => (
+                        <div key={pay.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(0, 229, 255, 0.2)", borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{pay.label}</div>
+                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{pay.provider} {pay.upiId ? `• ${pay.upiId}` : ""}</div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            {pay.upiId && (
+                              <button type="button" onClick={() => copyToClipboard(pay.upiId)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>
+                                Copy UPI
+                              </button>
+                            )}
+                            {pay.payUrl && (
+                              <a href={pay.payUrl} target="_blank" rel="noopener noreferrer" style={{ background: "#0066FF", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                                Pay Now
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "DOCUMENTS") {
+                const activeDocs = profileDocuments.filter(d => d.enabled !== false);
+                if (activeDocs.length === 0) return null;
+
+                return (
+                  <div key="DOCUMENTS" className="pc-card pc-documents-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📁 Documents &amp; Files</h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {activeDocs.map((doc) => (
+                        <a key={doc.id} href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none", color: "#fff" }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>📄 {doc.title}</div>
+                            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)" }}>{doc.fileType || "PDF"} {doc.fileSize ? `• ${doc.fileSize}` : ""}</div>
+                          </div>
+                          <span style={{ fontSize: 12, color: "#0066FF", fontWeight: 700 }}>Download ↓</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "ACHIEVEMENTS") {
+                const activeAchievements = profileAchievements.filter(a => a.enabled !== false);
+                if (activeAchievements.length === 0) return null;
+
+                return (
+                  <div key="ACHIEVEMENTS" className="pc-card pc-achievements-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>🏆 Achievements &amp; Awards</h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {activeAchievements.map((ach) => (
+                        <div key={ach.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 215, 0, 0.2)", borderRadius: 12, padding: 14, display: "flex", gap: 12, alignItems: "center" }}>
+                          {ach.imageUrl && (
+                            <img src={ach.imageUrl} alt={ach.title} style={{ width: 50, height: 50, borderRadius: 8, objectFit: "cover" }} />
+                          )}
+                          <div>
+                            <div style={{ fontSize: 14.5, fontWeight: 700, color: "#ffd700" }}>{ach.title}</div>
+                            {ach.organization && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{ach.organization} {ach.achievementDate ? `• ${ach.achievementDate}` : ""}</div>}
+                            {ach.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>{ach.description}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (featureKey === "CERTIFICATIONS") {
+                const activeCerts = profileCertifications.filter(c => c.enabled !== false);
+                if (activeCerts.length === 0) return null;
+
+                return (
+                  <div key="CERTIFICATIONS" className="pc-card pc-certifications-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📜 Certifications</h2>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                      {activeCerts.map((cert) => (
+                        <div key={cert.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(0, 229, 255, 0.2)", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{cert.title}</div>
+                          {cert.issuer && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Issuer: {cert.issuer} {cert.issueDate ? `(${cert.issueDate})` : ""}</div>}
+                          {cert.credentialUrl && (
+                            <a href={cert.credentialUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 4, fontSize: 12, color: "#0066FF", fontWeight: 700, textDecoration: "none" }}>
+                              Verify Credential ↗
+                            </a>
+                          )}
                         </div>
                       ))}
                     </div>

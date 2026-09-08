@@ -71,7 +71,7 @@ export async function PATCH(request: Request) {
     const updatedFeatures: ProfileFeaturesConfig = { ...beforeFeatures };
     let updatedOrder: ProfileFeatureKey[] = [ ...beforeOrder ];
 
-    const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND", "PRODUCTS"];
+    const validKeys = DEFAULT_FEATURE_ORDER;
 
     // Update feature state if provided
     if (body.featureKey && validKeys.includes(body.featureKey as ProfileFeatureKey)) {
