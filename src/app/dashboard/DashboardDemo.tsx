@@ -1931,50 +1931,136 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
 
       <ProfileFeatureEngineManager draft={draft} update={update} onContactsRefresh={onContactsRefresh} />
 
-      <div className="mode-settings-block">
-        <div className="mode-settings-title">💎 Permanent Feature Entitlements</div>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>
-          You can enable all three features at the exact same time. Visitors who scan your QR code will be able to switch between all enabled views.
+      {/* ── CORE PROFILE MODES ── */}
+      <div style={{ background: "linear-gradient(135deg, rgba(0, 102, 255, 0.08), rgba(0, 229, 255, 0.04))", border: "1px solid rgba(0, 229, 255, 0.22)", borderRadius: 16, padding: "20px 22px", marginTop: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", letterSpacing: 0.5 }}>CORE PROFILE MODES</div>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", margin: "6px 0 16px" }}>
+          Manage the permanent profile capabilities available to this card. Multiple modes can remain enabled at the same time.
         </p>
-        <div className="mode-card-selector">
-          <button
-            type="button"
-            className={`mode-option-btn ${enabled.digitalProfile !== false ? "active" : ""}`}
-            onClick={() => update("enabledFeatures", { ...enabled, digitalProfile: enabled.digitalProfile === false })}
-          >
-            <span className="mode-option-icon">💼</span>
-            <span className="mode-option-title">Digital Profile</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: enabled.digitalProfile !== false ? "#2ecc71" : "#e74c3c" }}>
-              {enabled.digitalProfile !== false ? "✓ ENABLED" : "✕ DISABLED"}
-            </span>
-            <span className="mode-option-desc">Standard Digital Business Card &amp; VCard contact sharing</span>
-          </button>
 
-          <button
-            type="button"
-            className={`mode-option-btn ${enabled.vehicleConnect !== false ? "active" : ""}`}
-            onClick={() => update("enabledFeatures", { ...enabled, vehicleConnect: enabled.vehicleConnect === false })}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* DIGITAL PROFILE ROW */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: enabled.digitalProfile !== false ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+              border: enabled.digitalProfile !== false ? "1px solid rgba(0, 229, 255, 0.22)" : "1px dashed rgba(255,255,255,0.12)",
+              borderRadius: 14,
+              padding: "14px 18px",
+              opacity: enabled.digitalProfile !== false ? 1 : 0.65,
+              transition: "all 0.15s ease",
+            }}
           >
-            <span className="mode-option-icon">🚘</span>
-            <span className="mode-option-title">Vehicle Connect</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: enabled.vehicleConnect !== false ? "#2ecc71" : "#e74c3c" }}>
-              {enabled.vehicleConnect !== false ? "✓ ENABLED" : "✕ DISABLED"}
-            </span>
-            <span className="mode-option-desc">Multiple vehicles specs, parking owner contact &amp; emergency alert</span>
-          </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>💼</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>Digital Profile</span>
+                  {enabled.digitalProfile !== false ? (
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>✓ ENABLED</span>
+                  ) : (
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: 6 }}>✕ DISABLED</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+                  Standard digital business card &amp; vCard contact sharing
+                </div>
+              </div>
+            </div>
 
-          <button
-            type="button"
-            className={`mode-option-btn ${enabled.lostAndFound !== false ? "active" : ""}`}
-            onClick={() => update("enabledFeatures", { ...enabled, lostAndFound: enabled.lostAndFound === false })}
+            <div
+              title={enabled.digitalProfile !== false ? "Click to disable mode" : "Click to enable mode"}
+              className={`mylux-toggle-switch ${enabled.digitalProfile !== false ? "active" : ""}`}
+              style={{ cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
+              onClick={() => update("enabledFeatures", { ...enabled, digitalProfile: enabled.digitalProfile === false })}
+            >
+              <div className="mylux-toggle-knob" />
+            </div>
+          </div>
+
+          {/* VEHICLE CONNECT ROW */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: enabled.vehicleConnect !== false ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+              border: enabled.vehicleConnect !== false ? "1px solid rgba(0, 229, 255, 0.22)" : "1px dashed rgba(255,255,255,0.12)",
+              borderRadius: 14,
+              padding: "14px 18px",
+              opacity: enabled.vehicleConnect !== false ? 1 : 0.65,
+              transition: "all 0.15s ease",
+            }}
           >
-            <span className="mode-option-icon">🏷️</span>
-            <span className="mode-option-title">Lost &amp; Found Tag</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: enabled.lostAndFound !== false ? "#2ecc71" : "#e74c3c" }}>
-              {enabled.lostAndFound !== false ? "✓ ENABLED" : "✕ DISABLED"}
-            </span>
-            <span className="mode-option-desc">Multiple item recovery instructions &amp; direct owner contact</span>
-          </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>🚗</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>Vehicle Connect</span>
+                  {enabled.vehicleConnect !== false ? (
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>✓ ENABLED</span>
+                  ) : (
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: 6 }}>✕ DISABLED</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+                  Multiple vehicles, parking information &amp; owner contact
+                </div>
+              </div>
+            </div>
+
+            <div
+              title={enabled.vehicleConnect !== false ? "Click to disable mode" : "Click to enable mode"}
+              className={`mylux-toggle-switch ${enabled.vehicleConnect !== false ? "active" : ""}`}
+              style={{ cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
+              onClick={() => update("enabledFeatures", { ...enabled, vehicleConnect: enabled.vehicleConnect === false })}
+            >
+              <div className="mylux-toggle-knob" />
+            </div>
+          </div>
+
+          {/* LOST & FOUND TAG ROW */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: enabled.lostAndFound !== false ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+              border: enabled.lostAndFound !== false ? "1px solid rgba(0, 229, 255, 0.22)" : "1px dashed rgba(255,255,255,0.12)",
+              borderRadius: 14,
+              padding: "14px 18px",
+              opacity: enabled.lostAndFound !== false ? 1 : 0.65,
+              transition: "all 0.15s ease",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>🏷️</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>Lost &amp; Found Tag</span>
+                  {enabled.lostAndFound !== false ? (
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>✓ ENABLED</span>
+                  ) : (
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: 6 }}>✕ DISABLED</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+                  Multiple tagged items, recovery instructions &amp; direct owner contact
+                </div>
+              </div>
+            </div>
+
+            <div
+              title={enabled.lostAndFound !== false ? "Click to disable mode" : "Click to enable mode"}
+              className={`mylux-toggle-switch ${enabled.lostAndFound !== false ? "active" : ""}`}
+              style={{ cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
+              onClick={() => update("enabledFeatures", { ...enabled, lostAndFound: enabled.lostAndFound === false })}
+            >
+              <div className="mylux-toggle-knob" />
+            </div>
+          </div>
         </div>
       </div>
 
