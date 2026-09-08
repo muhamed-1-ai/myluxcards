@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { Pool } from "pg";
-import { completeCardProfile, DEFAULT_FEATURE_ORDER, DEFAULT_PROFILE_FEATURES } from "../src/lib/cards";
+import { completeCardProfile, DEFAULT_FEATURE_ORDER, DEFAULT_PROFILE_FEATURES, ProfileFeatureKey } from "../src/lib/cards";
 import { databaseConfig } from "../src/lib/db/config";
 
 const pool = new Pool(databaseConfig());
@@ -42,7 +42,74 @@ async function runTests() {
     assert.equal(completed.profileFeatures.CERTIFICATIONS.enabled, false);
     console.log("  ✓ New user card initializes modular sections in OFF state by default (DATA != VISIBILITY)");
 
-    // 3. Test Services Table CRUD & Visibility
+    // 3. Test Custom Section Order Persistence
+    const customOrder: ProfileFeatureKey[] = [
+      "PRODUCTS",
+      "GALLERY",
+      "CONTACT",
+      "SOCIAL_LINKS",
+      "BASIC_PROFILE",
+      "PORTFOLIO",
+      "WEBSITE",
+      "EMERGENCY_CONTACT",
+      "VEHICLE",
+      "LOST_AND_FOUND",
+      "SERVICES",
+      "VIDEOS",
+      "BUSINESS_HOURS",
+      "LOCATION",
+      "PAYMENT_LINKS",
+      "DOCUMENTS",
+      "RESUME",
+      "ACHIEVEMENTS",
+      "CERTIFICATIONS",
+    ];
+
+    const updateOrderProfile = {
+      ...completed,
+      featureOrder: customOrder,
+    };
+
+    await pool.query(`update digital_cards set profile = $1 where id = $2`, [
+      JSON.stringify(updateOrderProfile),
+      testCardId,
+    ]);
+
+    const fetchedCard = await pool.query<{ profile: unknown }>(`select profile from digital_cards where id = $1`, [testCardId]);
+    const fetchedCompleted = completeCardProfile(fetchedCard.rows[0].profile);
+    assert.deepEqual(fetchedCompleted.featureOrder, customOrder);
+    console.log("  ✓ Custom section order (PRODUCTS -> GALLERY -> CONTACT -> SOCIAL_LINKS -> BASIC_PROFILE -> PORTFOLIO) persists accurately");
+
+    // 4. Test Hidden Section Position Preservation (Products OFF -> ON)
+    const toggledOffProfile = {
+      ...fetchedCompleted,
+      profileFeatures: {
+        ...fetchedCompleted.profileFeatures,
+        PRODUCTS: { enabled: false, sortOrder: 0 },
+      },
+    };
+    await pool.query(`update digital_cards set profile = $1 where id = $2`, [JSON.stringify(toggledOffProfile), testCardId]);
+
+    const fetchedOff = completeCardProfile((await pool.query<{ profile: unknown }>(`select profile from digital_cards where id = $1`, [testCardId])).rows[0].profile);
+    assert.equal(fetchedOff.profileFeatures.PRODUCTS.enabled, false);
+    assert.equal(fetchedOff.featureOrder[0], "PRODUCTS");
+    console.log("  ✓ Section OFF preserves its exact index position in featureOrder array");
+
+    const toggledOnProfile = {
+      ...fetchedOff,
+      profileFeatures: {
+        ...fetchedOff.profileFeatures,
+        PRODUCTS: { enabled: true, sortOrder: 0 },
+      },
+    };
+    await pool.query(`update digital_cards set profile = $1 where id = $2`, [JSON.stringify(toggledOnProfile), testCardId]);
+
+    const fetchedOn = completeCardProfile((await pool.query<{ profile: unknown }>(`select profile from digital_cards where id = $1`, [testCardId])).rows[0].profile);
+    assert.equal(fetchedOn.profileFeatures.PRODUCTS.enabled, true);
+    assert.equal(fetchedOn.featureOrder[0], "PRODUCTS");
+    console.log("  ✓ Section ON restores section to its exact previous position in layout order");
+
+    // 5. Test Services Table CRUD & Visibility
     const serviceRes = await pool.query<{ id: string; name: string }>(
       `insert into card_profile_services
        (card_id, name, description, price, currency, image_url, category, cta_label, cta_url, enabled, sort_order)
@@ -53,7 +120,7 @@ async function runTests() {
     assert.equal(serviceRes.rows[0].name, "Executive Coaching");
     console.log("  ✓ Created Card Profile Service");
 
-    // 4. Test Portfolio Table CRUD & Visibility
+    // 6. Test Portfolio Table CRUD & Visibility
     const portfolioRes = await pool.query<{ id: string; title: string }>(
       `insert into card_profile_portfolio
        (card_id, title, description, image_url, category, project_url, cta_label, enabled, sort_order)
@@ -64,7 +131,7 @@ async function runTests() {
     assert.equal(portfolioRes.rows[0].title, "Next.js E-Commerce");
     console.log("  ✓ Created Card Profile Portfolio Project");
 
-    // 5. Test Gallery Table CRUD & Visibility
+    // 7. Test Gallery Table CRUD & Visibility
     const galleryRes = await pool.query<{ id: string; title: string }>(
       `insert into card_profile_gallery
        (card_id, title, image_url, caption, enabled, sort_order)
@@ -75,7 +142,7 @@ async function runTests() {
     assert.equal(galleryRes.rows[0].title, "Headshot 2026");
     console.log("  ✓ Created Card Profile Gallery Photo");
 
-    // 6. Test Videos Table CRUD & Visibility
+    // 8. Test Videos Table CRUD & Visibility
     const videoRes = await pool.query<{ id: string; title: string }>(
       `insert into card_profile_videos
        (card_id, title, provider, video_url, embed_id, description, enabled, sort_order)
@@ -86,7 +153,7 @@ async function runTests() {
     assert.equal(videoRes.rows[0].title, "Keynote Address 2026");
     console.log("  ✓ Created Card Profile Video Showcase");
 
-    // 7. Test Payment Links Table CRUD & Visibility
+    // 9. Test Payment Links Table CRUD & Visibility
     const payRes = await pool.query<{ id: string; label: string }>(
       `insert into card_profile_payment_links
        (card_id, label, provider, pay_url, upi_id, description, enabled, sort_order)
@@ -97,7 +164,7 @@ async function runTests() {
     assert.equal(payRes.rows[0].label, "Pay via GPay");
     console.log("  ✓ Created Card Profile Payment Link");
 
-    // 8. Test Documents Table CRUD & Visibility
+    // 10. Test Documents Table CRUD & Visibility
     const docRes = await pool.query<{ id: string; title: string }>(
       `insert into card_profile_documents
        (card_id, title, file_url, file_size, file_type, description, enabled, sort_order)
@@ -108,7 +175,7 @@ async function runTests() {
     assert.equal(docRes.rows[0].title, "Company Brochure 2026");
     console.log("  ✓ Created Card Profile Document");
 
-    // 9. Test Achievements Table CRUD & Visibility
+    // 11. Test Achievements Table CRUD & Visibility
     const achRes = await pool.query<{ id: string; title: string }>(
       `insert into card_profile_achievements
        (card_id, title, organization, achievement_date, description, image_url, enabled, sort_order)
@@ -119,7 +186,7 @@ async function runTests() {
     assert.equal(achRes.rows[0].title, "Innovator of the Year");
     console.log("  ✓ Created Card Profile Achievement");
 
-    // 10. Test Certifications Table CRUD & Visibility
+    // 12. Test Certifications Table CRUD & Visibility
     const certRes = await pool.query<{ id: string; title: string }>(
       `insert into card_profile_certifications
        (card_id, title, issuer, issue_date, credential_url, certificate_url, enabled, sort_order)
@@ -130,7 +197,7 @@ async function runTests() {
     assert.equal(certRes.rows[0].title, "AWS Solutions Architect");
     console.log("  ✓ Created Card Profile Certification");
 
-    // 11. Test Item-level Visibility Toggle & Preservation
+    // 13. Test Item-level Visibility Toggle & Preservation
     await pool.query(`update card_profile_services set enabled = false where id = $1`, [serviceId]);
     const checkToggledService = await pool.query<{ enabled: boolean }>(`select enabled from card_profile_services where id = $1`, [serviceId]);
     assert.equal(checkToggledService.rows[0].enabled, false);
@@ -142,7 +209,7 @@ async function runTests() {
     assert.equal(checkRestoredService.rows[0].enabled, true);
     console.log("  ✓ Item visibility toggle (ON) restores public rendering");
 
-    // 12. Cleanup
+    // 14. Cleanup
     await pool.query(`delete from users where id = $1`, [testUserId]);
     console.log("  ✓ Cleaned up test database records (CASCADE removed all section rows)");
 

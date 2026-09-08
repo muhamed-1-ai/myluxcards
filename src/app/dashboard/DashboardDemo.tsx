@@ -1343,28 +1343,44 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
 function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { draft: Card; update: (field: string, val: any) => void; onContactsRefresh: () => void }) {
   const [savingFeature, setSavingFeature] = useState<string | null>(null);
   const [featureError, setFeatureError] = useState("");
+  const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "OFF">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+  const [loadingCounts, setLoadingCounts] = useState(false);
+  const [activeManagerSection, setActiveManagerSection] = useState<string | null>(null);
 
-  const featureMetadata: Record<string, { label: string; icon: string; desc: string }> = {
-    BASIC_PROFILE: { label: "Basic Profile", icon: "👤", desc: "Your main profile info, bio, designation & services" },
-    CONTACT: { label: "Contact Details", icon: "📞", desc: "Allow visitors to call, WhatsApp, or email you directly" },
-    SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Show your social profiles (Instagram, LinkedIn, X, YouTube)" },
-    WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Link to your company website and share digital brochure PDF" },
-    EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Show emergency contact details for rapid safety response" },
-    VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Share vehicle details, parking notes & direct contact" },
-    LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Allow people to contact you about lost items safely" },
-    PRODUCTS: { label: "Products Showcase", icon: "🛍️", desc: "Showcase custom products, items & pricing directly on your profile" },
-    SERVICES: { label: "Services Offered", icon: "💼", desc: "Professional services offered with pricing & CTAs" },
-    PORTFOLIO: { label: "Portfolio & Projects", icon: "🎨", desc: "Work showcase, project links & images" },
-    GALLERY: { label: "Photo Gallery", icon: "🖼️", desc: "High-quality image gallery grid" },
-    VIDEOS: { label: "Video Showcase", icon: "🎬", desc: "YouTube, Vimeo & video embeds" },
-    BUSINESS_HOURS: { label: "Business Hours", icon: "🕒", desc: "Weekly operating schedule & hours" },
-    LOCATION: { label: "Location & Map", icon: "📍", desc: "Office location & map directions" },
-    PAYMENT_LINKS: { label: "Payment Links & UPI", icon: "💳", desc: "UPI ID, PayPal & payment links" },
-    DOCUMENTS: { label: "Documents & Files", icon: "📁", desc: "Downloadable PDFs, brochures & files" },
-    RESUME: { label: "Resume / CV", icon: "📄", desc: "Professional resume & CV attachment" },
-    ACHIEVEMENTS: { label: "Achievements & Awards", icon: "🏆", desc: "Honors, awards & milestones" },
-    CERTIFICATIONS: { label: "Certifications", icon: "📜", desc: "Verified professional certifications" },
+  const featureMetadata: Record<string, { label: string; icon: string; desc: string; category: string }> = {
+    BASIC_PROFILE: { label: "About Me", icon: "👤", desc: "Your photo, title, business name, bio & overview", category: "PERSONAL" },
+    CONTACT: { label: "Contact Details", icon: "📞", desc: "Phone, WhatsApp, email & vCard save contact button", category: "PERSONAL" },
+    SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Instagram, LinkedIn, X, YouTube & web profiles", category: "PERSONAL" },
+    WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Company website URL & downloadable PDF brochure", category: "PERSONAL" },
+    RESUME: { label: "Resume / CV", icon: "📄", desc: "Professional resume & CV attachment download", category: "PERSONAL" },
+    PRODUCTS: { label: "Products", icon: "🛍️", desc: "Custom profile products with pricing, photos & CTAs", category: "BUSINESS" },
+    SERVICES: { label: "Services", icon: "💼", desc: "Professional services offered with pricing & descriptions", category: "BUSINESS" },
+    PORTFOLIO: { label: "Portfolio", icon: "🎨", desc: "Project showcase grid, client work & project links", category: "BUSINESS" },
+    BUSINESS_HOURS: { label: "Business Hours", icon: "🕒", desc: "Weekly operating schedule & availability hours", category: "BUSINESS" },
+    LOCATION: { label: "Location & Map", icon: "📍", desc: "Office address, location map & directions link", category: "BUSINESS" },
+    PAYMENT_LINKS: { label: "Payment Links", icon: "💳", desc: "UPI ID, PayPal, Razorpay & payment button links", category: "BUSINESS" },
+    GALLERY: { label: "Photo Gallery", icon: "🖼️", desc: "High-resolution photo gallery & lightbox slider", category: "MEDIA" },
+    VIDEOS: { label: "Video Showcase", icon: "🎬", desc: "YouTube, Vimeo & video embed showcases", category: "MEDIA" },
+    DOCUMENTS: { label: "Documents", icon: "📁", desc: "Downloadable PDF files, catalogs & documents", category: "MEDIA" },
+    ACHIEVEMENTS: { label: "Achievements", icon: "🏆", desc: "Honors, awards, key metrics & milestones", category: "CREDENTIALS" },
+    CERTIFICATIONS: { label: "Certifications", icon: "📜", desc: "Verified professional certifications & licenses", category: "CREDENTIALS" },
+    VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Vehicle details, parking notes & direct contact", category: "SPECIAL" },
+    LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Tagged item lost-and-found finder contact form", category: "SPECIAL" },
+    EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Emergency contact details & rapid safety response", category: "SPECIAL" },
   };
+
+  const SECTION_CATEGORIES = [
+    { key: "PERSONAL", title: "PERSONAL", desc: "Basic details, contact info & links" },
+    { key: "BUSINESS", title: "BUSINESS", desc: "Products, services, portfolio & locations" },
+    { key: "MEDIA", title: "MEDIA", desc: "Photos, videos & file attachments" },
+    { key: "CREDENTIALS", title: "CREDENTIALS", desc: "Awards, milestones & certifications" },
+    { key: "SPECIAL", title: "SPECIAL", desc: "Vehicle Connect, Lost & Found & Emergency" },
+  ];
 
   const profileFeatures = (draft as any).profileFeatures || {
     BASIC_PROFILE: { enabled: true, sortOrder: 0 },
@@ -1410,6 +1426,52 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     "CERTIFICATIONS",
   ];
 
+  // Fetch count metadata for section items where applicable
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCounts = async () => {
+      if (!draft.id) return;
+      setLoadingCounts(true);
+      try {
+        const counts: Record<string, number> = {};
+        
+        // Products count
+        const prodRes = await fetch(`/api/cards/profile-products?cardId=${encodeURIComponent(draft.id)}`);
+        if (prodRes.ok) {
+          const pData = await prodRes.json();
+          if (Array.isArray(pData.products)) counts.PRODUCTS = pData.products.length;
+        }
+
+        // Modular sections counts
+        const modularTypes = ["services", "portfolio", "gallery", "videos", "payment_links", "documents", "achievements", "certifications"];
+        await Promise.all(modularTypes.map(async (sec) => {
+          try {
+            const res = await fetch(`/api/cards/profile-sections/${sec}?cardId=${encodeURIComponent(draft.id)}`);
+            if (res.ok) {
+              const d = await res.json();
+              if (Array.isArray(d.items)) counts[sec.toUpperCase()] = d.items.length;
+            }
+          } catch {
+            // ignore
+          }
+        }));
+
+        // Social links count
+        if (draft.social && typeof draft.social === "object") {
+          counts.SOCIAL_LINKS = Object.values(draft.social).filter(Boolean).length;
+        }
+
+        if (!cancelled) setItemCounts(counts);
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoadingCounts(false);
+      }
+    };
+    void fetchCounts();
+    return () => { cancelled = true; };
+  }, [draft.id, draft.social]);
+
   const handleToggleFeature = async (key: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
     const updatedFeatures = {
@@ -1438,11 +1500,11 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         update("profileFeatures", profileFeatures);
-        setFeatureError(data.message || `Unable to update feature. Please try again.`);
+        setFeatureError(data.message || `Unable to update feature status.`);
       }
     } catch {
       update("profileFeatures", profileFeatures);
-      setFeatureError(`Unable to update feature. Please try again.`);
+      setFeatureError(`Unable to update feature status.`);
     } finally {
       setSavingFeature(null);
     }
@@ -1473,213 +1535,444 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+    const newOrder = [...featureOrder];
+    const [removed] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(dropIndex, 0, removed);
+
+    setDraggedIndex(null);
+    update("featureOrder", newOrder);
+
+    try {
+      await fetch("/api/profile/features", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: draft.id,
+          featureOrder: newOrder,
+        }),
+      });
+    } catch {
+      // ignore
+    }
+  };
+
   const activeFeatureKeys = featureOrder.filter((k: string) => profileFeatures[k]?.enabled !== false);
   const availableFeatureKeys = featureOrder.filter((k: string) => profileFeatures[k]?.enabled === false);
 
+  // Filtered keys based on tab and search
+  const filteredOrderKeys = featureOrder.filter((key: string) => {
+    const meta = featureMetadata[key];
+    const matchesSearch = !searchQuery.trim() || (meta && (meta.label.toLowerCase().includes(searchQuery.toLowerCase()) || meta.desc.toLowerCase().includes(searchQuery.toLowerCase())));
+    const isEnabled = profileFeatures[key]?.enabled !== false;
+
+    if (!matchesSearch) return false;
+    if (activeTab === "ACTIVE") return isEnabled;
+    if (activeTab === "OFF") return !isEnabled;
+    return true;
+  });
+
+  const getSectionStatusBadge = (key: string) => {
+    const isEnabled = profileFeatures[key]?.enabled !== false;
+    const count = itemCounts[key];
+
+    if (!isEnabled) {
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: 6 }}>OFF</span>;
+    }
+
+    if (count !== undefined) {
+      if (count > 0) {
+        return <span style={{ fontSize: 11.5, fontWeight: 700, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>✓ {count} {count === 1 ? "item" : "items"}</span>;
+      }
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: "#f39c12", background: "rgba(243,156,18,0.15)", padding: "3px 8px", borderRadius: 6 }}>⚠️ No items yet</span>;
+    }
+
+    if (key === "BASIC_PROFILE") {
+      return draft.name ? <span style={{ fontSize: 11.5, fontWeight: 700, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>✓ Profile Set</span> : <span style={{ fontSize: 11.5, fontWeight: 700, color: "#f39c12", background: "rgba(243,156,18,0.15)", padding: "3px 8px", borderRadius: 6 }}>⚠️ Setup Name</span>;
+    }
+    if (key === "CONTACT") {
+      return (draft.mobile || draft.email) ? <span style={{ fontSize: 11.5, fontWeight: 700, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>✓ Contact Added</span> : <span style={{ fontSize: 11.5, fontWeight: 700, color: "#f39c12", background: "rgba(243,156,18,0.15)", padding: "3px 8px", borderRadius: 6 }}>⚠️ Add Contact</span>;
+    }
+
+    return <span style={{ fontSize: 11.5, fontWeight: 800, color: "#2ecc71", background: "rgba(46,204,113,0.15)", padding: "3px 8px", borderRadius: 6 }}>ON</span>;
+  };
+
   return (
-    <div className="mode-settings-block">
-      {/* ── PROFILE STATUS HEADER ── */}
-      <div style={{ background: "rgba(0, 229, 255, 0.06)", border: "1px solid rgba(0, 229, 255, 0.3)", borderRadius: 14, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+    <div className="mode-settings-block" style={{ maxWidth: "100%" }}>
+      {/* ── TOP HEADER / STATUS BAR ── */}
+      <div style={{ background: "linear-gradient(135deg, rgba(0, 102, 255, 0.12), rgba(0, 229, 255, 0.06))", border: "1px solid rgba(0, 229, 255, 0.3)", borderRadius: 16, padding: "18px 22px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 800, color: "#fff" }}>
-            <span style={{ color: "#2ecc71", fontSize: 14 }}>🟢</span> PROFILE LIVE
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", letterSpacing: 0.5 }}>PROFILE SECTIONS</div>
+            <span style={{ fontSize: 11.5, fontWeight: 800, color: "#2ecc71", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", padding: "3px 10px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 8 }}>🟢</span> PROFILE LIVE
+            </span>
           </div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", margin: "4px 0 0" }}>
-            Your profile features are live on your permanent ZAPPIT QR code and NFC URL.
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", margin: "6px 0 0" }}>
+            Arrange the structure and content of your public card. Drag sections to reorder. Toggling OFF preserves your data and previous position.
           </p>
         </div>
-        <a
-          href={`/card/${draft.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-        >
-          View Public Profile ↗
-        </a>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="asset-btn-primary"
+            onClick={() => setIsAddModalOpen(true)}
+            style={{ background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", padding: "9px 18px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            + ADD SECTION
+          </button>
+          <a
+            href={`/card/${draft.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "9px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            👁 PREVIEW PROFILE
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              if (navigator.clipboard) {
+                const link = `${window.location.origin}/card/${draft.slug}`;
+                void navigator.clipboard.writeText(link);
+                alert("Profile URL copied to clipboard!");
+              }
+            }}
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+          >
+            ↗ SHARE
+          </button>
+        </div>
       </div>
 
       {featureError && (
-        <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+        <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "12px 16px", borderRadius: 10, fontSize: 13, marginBottom: 20 }}>
           ⚠️ {featureError}
         </div>
       )}
 
-      {/* ── ACTIVE FEATURES SECTION ── */}
-      <div style={{ marginBottom: 28 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 12px" }}>
-          Active Features ({activeFeatureKeys.length})
-        </h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {activeFeatureKeys.map((key: string) => {
-            const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "" };
-            const isSaving = savingFeature === key;
-
-            return (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(0, 229, 255, 0.25)",
-                  borderRadius: 12,
-                  padding: "14px 18px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 22 }}>{meta.icon}</span>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{meta.label}</div>
-                    <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{meta.desc}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#2ecc71", background: "rgba(46, 204, 113, 0.15)", padding: "4px 8px", borderRadius: 6 }}>
-                    ON
-                  </span>
-                  <button
-                    type="button"
-                    style={{
-                      background: "rgba(231, 76, 60, 0.15)",
-                      border: "1px solid rgba(231, 76, 60, 0.4)",
-                      color: "#e74c3c",
-                      padding: "6px 14px",
-                      borderRadius: 6,
-                      fontSize: 12.5,
-                      fontWeight: 700,
-                      cursor: isSaving ? "wait" : "pointer",
-                      opacity: isSaving ? 0.6 : 1,
-                    }}
-                    onClick={() => handleToggleFeature(key, true)}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? "Saving..." : "Disable"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── AVAILABLE FEATURES SECTION ── */}
-      {availableFeatureKeys.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 12px" }}>
-            Available Features ({availableFeatureKeys.length})
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {availableFeatureKeys.map((key: string) => {
-              const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "" };
-              const isSaving = savingFeature === key;
-
-              return (
-                <div
-                  key={key}
+      {/* ── SPLIT MAIN CONTAINER: SECTIONS BUILDER + LIVE PREVIEW ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+        
+        {/* LEFT COLUMN: SECTION MANAGEMENT LIST */}
+        <div>
+          {/* SEARCH & FILTER CONTROLS */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", padding: 3, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)" }}>
+              {(["ALL", "ACTIVE", "OFF"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px dashed rgba(255,255,255,0.15)",
-                    borderRadius: 12,
-                    padding: "14px 18px",
+                    background: activeTab === tab ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "transparent",
+                    color: activeTab === tab ? "#fff" : "rgba(255,255,255,0.6)",
+                    border: "none",
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    cursor: "pointer",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 22, opacity: 0.6 }}>{meta.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.75)" }}>{meta.label}</div>
-                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{meta.desc}</div>
+                  {tab === "ALL" ? `ALL (${featureOrder.length})` : tab === "ACTIVE" ? `ACTIVE (${activeFeatureKeys.length})` : `OFF (${availableFeatureKeys.length})`}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ position: "relative", width: 220 }}>
+              <input
+                type="text"
+                placeholder="Search sections..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="mylux-input"
+                style={{ height: 36, fontSize: 12.5, paddingLeft: 30, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}
+              />
+              <span style={{ position: "absolute", left: 10, top: 9, fontSize: 13, opacity: 0.5 }}>🔍</span>
+            </div>
+          </div>
+
+          {/* DYNAMIC SECTION CARDS LIST */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filteredOrderKeys.length === 0 ? (
+              <div style={{ padding: 30, background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 12, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+                No sections found matching your filter criteria.
+              </div>
+            ) : (
+              filteredOrderKeys.map((key: string) => {
+                const index = featureOrder.indexOf(key);
+                const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "", category: "GENERAL" };
+                const isEnabled = profileFeatures[key]?.enabled !== false;
+                const isSaving = savingFeature === key;
+
+                return (
+                  <div
+                    key={key}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      background: isEnabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+                      border: isEnabled ? "1px solid rgba(0, 229, 255, 0.22)" : "1px dashed rgba(255,255,255,0.12)",
+                      borderRadius: 14,
+                      padding: "14px 18px",
+                      opacity: isEnabled ? 1 : 0.65,
+                      transition: "all 0.15s ease",
+                      cursor: "grab",
+                    }}
+                  >
+                    {/* LEFT: DRAG HANDLE + ICON + TITLE + BADGE */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
+                      <span
+                        title="Drag to reorder section"
+                        style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", cursor: "grab", paddingRight: 4, userSelect: "none" }}
+                      >
+                        ☰
+                      </span>
+                      <span style={{ fontSize: 24, flexShrink: 0 }}>{meta.icon}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>{meta.label}</span>
+                          {getSectionStatusBadge(key)}
+                        </div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {meta.desc}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT: TOGGLE SWITCH + REORDER + SETTINGS */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: 12 }}>
+                      {/* TOUCH REORDER BUTTONS */}
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button
+                          type="button"
+                          title="Move section up"
+                          onClick={() => handleMoveFeature(index, "up")}
+                          disabled={index === 0}
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, width: 26, height: 26, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: index === 0 ? "not-allowed" : "pointer", opacity: index === 0 ? 0.3 : 1 }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          title="Move section down"
+                          onClick={() => handleMoveFeature(index, "down")}
+                          disabled={index === featureOrder.length - 1}
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, width: 26, height: 26, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: index === featureOrder.length - 1 ? "not-allowed" : "pointer", opacity: index === featureOrder.length - 1 ? 0.3 : 1 }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+
+                      {/* SECTION SETTINGS BUTTON */}
+                      <button
+                        type="button"
+                        title="Section Settings & Content Editor"
+                        onClick={() => setActiveManagerSection(key)}
+                        style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                      >
+                        ⚙ Edit
+                      </button>
+
+                      {/* ON/OFF TOGGLE SWITCH */}
+                      <div
+                        title={isEnabled ? "Click to disable section" : "Click to enable section"}
+                        className={`mylux-toggle-switch ${isEnabled ? "active" : ""}`}
+                        style={{ opacity: isSaving ? 0.5 : 1, cursor: isSaving ? "wait" : "pointer" }}
+                        onClick={() => !isSaving && handleToggleFeature(key, isEnabled)}
+                      >
+                        <div className="mylux-toggle-knob" />
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)", padding: "4px 8px", borderRadius: 6 }}>
-                      OFF
-                    </span>
-                    <button
-                      type="button"
-                      style={{
-                        background: "rgba(0, 102, 255, 0.2)",
-                        border: "1px solid rgba(0, 102, 255, 0.5)",
-                        color: "#00E5FF",
-                        padding: "6px 14px",
-                        borderRadius: 6,
-                        fontSize: 12.5,
-                        fontWeight: 700,
-                        cursor: isSaving ? "wait" : "pointer",
-                        opacity: isSaving ? 0.6 : 1,
-                      }}
-                      onClick={() => handleToggleFeature(key, false)}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? "Saving..." : "+ Enable"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
-      )}
 
-      {/* ── PUBLIC PROFILE ORDER SECTION ── */}
-      <div>
-        <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 4px" }}>
-          Public Profile Display Order
-        </h3>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "0 0 12px" }}>
-          Control the order in which active profile sections appear on your public card.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {featureOrder.map((key: string, index: number) => {
-            const meta = featureMetadata[key] || { label: key, icon: "⚡" };
-            const isEnabled = profileFeatures[key]?.enabled !== false;
+        {/* RIGHT COLUMN: LIVE PREVIEW CONTAINER */}
+        <div style={{ position: "sticky", top: 80, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          {/* DEVICE PREVIEW SELECTOR */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              📱 LIVE PROFILE PREVIEW
+            </div>
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", padding: 2, borderRadius: 8 }}>
+              {(["mobile", "tablet", "desktop"] as const).map((dev) => (
+                <button
+                  key={dev}
+                  type="button"
+                  onClick={() => setPreviewDevice(dev)}
+                  style={{
+                    background: previewDevice === dev ? "rgba(0, 229, 255, 0.25)" : "transparent",
+                    color: previewDevice === dev ? "#00E5FF" : "rgba(255,255,255,0.5)",
+                    border: "none",
+                    padding: "3px 8px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {dev[0].toUpperCase() + dev.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SIMULATED DEVICE FRAME */}
+          <div
+            style={{
+              width: previewDevice === "mobile" ? "100%" : previewDevice === "tablet" ? "100%" : "100%",
+              height: 540,
+              background: "#08080c",
+              borderRadius: 16,
+              border: "2px solid rgba(255,255,255,0.15)",
+              overflow: "hidden",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+              position: "relative",
+            }}
+          >
+            <iframe
+              src={`/card/${draft.slug}`}
+              title="Live Profile Preview"
+              style={{ width: "100%", height: "100%", border: "none" }}
+            />
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── CATEGORIZED ADD SECTION MODAL ── */}
+      <MyLuxModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add Profile Section"
+        subtitle="Select a section to add to your public ZAPPIT profile structure."
+        maxWidth={720}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {SECTION_CATEGORIES.map((cat) => {
+            const catKeys = featureOrder.filter((k: string) => featureMetadata[k]?.category === cat.key);
+            if (catKeys.length === 0) return null;
 
             return (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: isEnabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.01)",
-                  border: isEnabled ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(255,255,255,0.04)",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  opacity: isEnabled ? 1 : 0.4,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#0066FF", width: 20 }}>☰</span>
-                  <span style={{ fontSize: 16 }}>{meta.icon}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{meta.label}</span>
-                  {!isEnabled && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>(Hidden)</span>}
+              <div key={cat.key} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#00E5FF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                  {cat.title} • {cat.desc}
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button
-                    type="button"
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: index === 0 ? "not-allowed" : "pointer", opacity: index === 0 ? 0.3 : 1 }}
-                    onClick={() => handleMoveFeature(index, "up")}
-                    disabled={index === 0}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: index === featureOrder.length - 1 ? "not-allowed" : "pointer", opacity: index === featureOrder.length - 1 ? 0.3 : 1 }}
-                    onClick={() => handleMoveFeature(index, "down")}
-                    disabled={index === featureOrder.length - 1}
-                  >
-                    ▼
-                  </button>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                  {catKeys.map((key: string) => {
+                    const meta = featureMetadata[key];
+                    const isEnabled = profileFeatures[key]?.enabled !== false;
+
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          background: isEnabled ? "rgba(46, 204, 113, 0.08)" : "rgba(255,255,255,0.04)",
+                          border: isEnabled ? "1px solid rgba(46, 204, 113, 0.3)" : "1px solid rgba(255,255,255,0.12)",
+                          borderRadius: 10,
+                          padding: "10px 12px",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{meta.label}</div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 1 }}>{meta.desc}</div>
+                          </div>
+                        </div>
+
+                        {isEnabled ? (
+                          <div style={{ fontSize: 11, fontWeight: 800, color: "#2ecc71", alignSelf: "flex-end" }}>
+                            ✓ Already added
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleToggleFeature(key, false);
+                              setIsAddModalOpen(false);
+                            }}
+                            style={{
+                              background: "linear-gradient(135deg, #0066FF, #00E5FF)",
+                              color: "#fff",
+                              border: "none",
+                              padding: "4px 10px",
+                              borderRadius: 6,
+                              fontSize: 11.5,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              alignSelf: "flex-end",
+                            }}
+                          >
+                            + Add Section
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </MyLuxModal>
+
+      {/* ── SECTION EDIT / SETTINGS MODAL DELEGATION ── */}
+      <MyLuxModal
+        isOpen={Boolean(activeManagerSection)}
+        onClose={() => setActiveManagerSection(null)}
+        title={activeManagerSection ? `${featureMetadata[activeManagerSection]?.icon || "⚙"} Edit ${featureMetadata[activeManagerSection]?.label || "Section"}` : "Edit Section"}
+        subtitle="Manage content and settings for this profile section."
+        maxWidth={700}
+      >
+        {activeManagerSection === "PRODUCTS" && <ProfileProductsManager cardId={draft.id} />}
+        {activeManagerSection === "VEHICLE" && <VehiclesManager cardId={draft.id} contactNumbers={[]} emergencyContacts={[]} />}
+        {activeManagerSection === "LOST_AND_FOUND" && <LostItemsManager cardId={draft.id} contactNumbers={[]} />}
+        {activeManagerSection === "EMERGENCY_CONTACT" && <EmergencyContactsManager emergencyContacts={[]} onRefresh={onContactsRefresh} />}
+        {activeManagerSection && ["SERVICES", "PORTFOLIO", "GALLERY", "VIDEOS", "PAYMENT_LINKS", "DOCUMENTS", "ACHIEVEMENTS", "CERTIFICATIONS"].includes(activeManagerSection) && (
+          <GenericProfileSectionManager
+            cardId={draft.id}
+            section={activeManagerSection.toLowerCase()}
+            title={featureMetadata[activeManagerSection]?.label || activeManagerSection}
+            icon={featureMetadata[activeManagerSection]?.icon || "⚡"}
+            mediaKind={activeManagerSection.toLowerCase()}
+          />
+        )}
+        {activeManagerSection && ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "BUSINESS_HOURS", "LOCATION", "RESUME"].includes(activeManagerSection) && (
+          <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", borderRadius: 10, color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 1.6 }}>
+            💡 Content for <strong>{featureMetadata[activeManagerSection]?.label}</strong> can be updated directly under the main profile form tabs. Toggle visibility using the ON/OFF switch in Profile Sections.
+          </div>
+        )}
+      </MyLuxModal>
     </div>
   );
 }

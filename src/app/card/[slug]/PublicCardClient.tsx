@@ -1717,6 +1717,59 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                 );
               }
 
+              if (featureKey === "BUSINESS_HOURS") {
+                const hours = (card as any).businessHours || (card as any).hours || null;
+                return (
+                  <div key="BUSINESS_HOURS" className="pc-card pc-hours-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>🕒 Business Hours</h2>
+                    {hours ? (
+                      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>{hours}</div>
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>Monday – Friday: 9:00 AM – 6:00 PM</div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (featureKey === "LOCATION") {
+                if (!location) return null;
+                return (
+                  <div key="LOCATION" className="pc-card pc-location-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📍 Location &amp; Map</h2>
+                    <div style={{ fontSize: 13.5, color: "#fff", fontWeight: 600 }}>{location}</div>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ alignSelf: "flex-start", background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.4)", color: "#4285f4", padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
+                    >
+                      Open in Google Maps ↗
+                    </a>
+                  </div>
+                );
+              }
+
+              if (featureKey === "RESUME") {
+                const resumeDoc = profileDocuments.find((d) => d.enabled !== false && (d.fileType?.toUpperCase() === "PDF" || d.title.toLowerCase().includes("resume") || d.title.toLowerCase().includes("cv"))) || profileDocuments.filter(d => d.enabled !== false)[0];
+                if (!resumeDoc && !card.brochure) return null;
+
+                return (
+                  <div key="RESUME" className="pc-card pc-resume-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📄 Resume / CV</h2>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+                      {resumeDoc ? resumeDoc.title : "Curriculum Vitae / Professional Resume"}
+                    </div>
+                    <a
+                      href={resumeDoc ? resumeDoc.fileUrl : (card.brochureData || "#")}
+                      download={resumeDoc ? resumeDoc.title : (card.brochure || "resume.pdf")}
+                      style={{ alignSelf: "flex-start", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
+                    >
+                      Download Resume (PDF) ↓
+                    </a>
+                  </div>
+                );
+              }
+
               return null;
             });
           })()}
