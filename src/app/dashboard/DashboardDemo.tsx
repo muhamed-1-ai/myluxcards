@@ -1612,9 +1612,9 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
   return (
     <div className="mode-settings-block" style={{ maxWidth: "100%" }}>
       {/* ── TOP HEADER / STATUS BAR ── */}
-      <div style={{ background: "linear-gradient(135deg, rgba(0, 102, 255, 0.12), rgba(0, 229, 255, 0.06))", border: "1px solid rgba(0, 229, 255, 0.3)", borderRadius: 16, padding: "18px 22px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+      <div className="ps-top-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", letterSpacing: 0.5 }}>PROFILE SECTIONS</div>
             <span style={{ fontSize: 11.5, fontWeight: 800, color: "#2ecc71", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", padding: "3px 10px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
               <span style={{ fontSize: 8 }}>🟢</span> PROFILE LIVE
@@ -1625,7 +1625,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="ps-header-actions">
           <button
             type="button"
             className="asset-btn-primary"
@@ -1634,27 +1634,29 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
           >
             + ADD SECTION
           </button>
-          <a
-            href={`/card/${draft.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "9px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            👁 PREVIEW PROFILE
-          </a>
-          <button
-            type="button"
-            onClick={() => {
-              if (navigator.clipboard) {
-                const link = `${window.location.origin}/card/${draft.slug}`;
-                void navigator.clipboard.writeText(link);
-                alert("Profile URL copied to clipboard!");
-              }
-            }}
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-          >
-            ↗ SHARE
-          </button>
+          <div className="ps-secondary-actions">
+            <a
+              href={`/card/${draft.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "9px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              👁 PREVIEW PROFILE
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                if (navigator.clipboard) {
+                  const link = `${window.location.origin}/card/${draft.slug}`;
+                  void navigator.clipboard.writeText(link);
+                  alert("Profile URL copied to clipboard!");
+                }
+              }}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+            >
+              ↗ SHARE
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1667,64 +1669,68 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
       {/* ── SECTION MANAGEMENT LIST ── */}
       <div style={{ width: "100%" }}>
         {/* SEARCH & FILTER CONTROLS */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", padding: 3, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)" }}>
-              {(["ALL", "ACTIVE", "OFF"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    background: activeTab === tab ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "transparent",
-                    color: activeTab === tab ? "#fff" : "rgba(255,255,255,0.6)",
-                    border: "none",
-                    padding: "6px 14px",
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  {tab === "ALL" ? `ALL (${featureOrder.length})` : tab === "ACTIVE" ? `ACTIVE (${activeFeatureKeys.length})` : `OFF (${availableFeatureKeys.length})`}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ position: "relative", width: 220 }}>
-              <input
-                type="text"
-                placeholder="Search sections..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mylux-input"
-                style={{ height: 36, fontSize: 12.5, paddingLeft: 30, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}
-              />
-              <span style={{ position: "absolute", left: 10, top: 9, fontSize: 13, opacity: 0.5 }}>🔍</span>
-            </div>
+        <div className="ps-filter-bar">
+          <div className="ps-filter-tabs">
+            {(["ALL", "ACTIVE", "OFF"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  background: activeTab === tab ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "transparent",
+                  color: activeTab === tab ? "#fff" : "rgba(255,255,255,0.6)",
+                  border: "none",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                {tab === "ALL" ? `ALL (${featureOrder.length})` : tab === "ACTIVE" ? `ACTIVE (${activeFeatureKeys.length})` : `OFF (${availableFeatureKeys.length})`}
+              </button>
+            ))}
           </div>
 
-          {/* DYNAMIC SECTION CARDS LIST */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filteredOrderKeys.length === 0 ? (
-              <div style={{ padding: 30, background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 12, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
-                No sections found matching your filter criteria.
-              </div>
-            ) : (
-              filteredOrderKeys.map((key: string) => {
-                const index = featureOrder.indexOf(key);
-                const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "", category: "GENERAL" };
-                const isEnabled = profileFeatures[key]?.enabled !== false;
-                const isSaving = savingFeature === key;
+          <div className="ps-search-box">
+            <input
+              type="text"
+              placeholder="Search sections..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="mylux-input"
+              style={{ height: 36, fontSize: 12.5, paddingLeft: 30, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}
+            />
+            <span style={{ position: "absolute", left: 10, top: 9, fontSize: 13, opacity: 0.5 }}>🔍</span>
+          </div>
+        </div>
 
-                return (
+        {/* DYNAMIC SECTION CARDS LIST */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+          {filteredOrderKeys.length === 0 ? (
+            <div style={{ padding: 30, background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 12, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+              No sections found matching your filter criteria.
+            </div>
+          ) : (
+            filteredOrderKeys.map((key: string) => {
+              const index = featureOrder.indexOf(key);
+              const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "", category: "GENERAL" };
+              const isEnabled = profileFeatures[key]?.enabled !== false;
+              const isSaving = savingFeature === key;
+
+              return (
+                <div
+                  key={key}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  style={{ width: "100%" }}
+                >
+                  {/* ── DESKTOP HORIZONTAL ROW (≥768px) ── */}
                   <div
-                    key={key}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={(e) => handleDrop(e, index)}
+                    className="ps-desktop-only"
                     style={{
-                      display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                       background: isEnabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
@@ -1801,11 +1807,79 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                       </div>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
+
+                  {/* ── MOBILE STACKED CARD VIEW (<768px) ── */}
+                  <div className={`ps-mobile-only ps-mobile-card ${isEnabled ? "" : "disabled"}`}>
+                    {/* HEADER ROW: DRAG HANDLE + ICON + TITLE + TOGGLE */}
+                    <div className="ps-mobile-header">
+                      <div className="ps-mobile-title-block">
+                        <span style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", cursor: "grab", userSelect: "none", flexShrink: 0 }}>
+                          ☰
+                        </span>
+                        <span style={{ fontSize: 22, flexShrink: 0 }}>{meta.icon}</span>
+                        <span style={{ fontSize: 14.5, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>{meta.label}</span>
+                      </div>
+                      <div
+                        title={isEnabled ? "Click to disable section" : "Click to enable section"}
+                        className={`mylux-toggle-switch ${isEnabled ? "active" : ""}`}
+                        style={{ opacity: isSaving ? 0.5 : 1, cursor: isSaving ? "wait" : "pointer", flexShrink: 0 }}
+                        onClick={() => !isSaving && handleToggleFeature(key, isEnabled)}
+                      >
+                        <div className="mylux-toggle-knob" />
+                      </div>
+                    </div>
+
+                    {/* DESCRIPTION */}
+                    <div className="ps-mobile-desc">
+                      {meta.desc}
+                    </div>
+
+                    {/* STATUS BADGE */}
+                    <div className="ps-mobile-badge-row">
+                      {getSectionStatusBadge(key)}
+                    </div>
+
+                    {/* ACTION ROW: REORDER BUTTONS + EDIT BUTTON */}
+                    <div className="ps-mobile-actions">
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          title="Move section up"
+                          onClick={() => handleMoveFeature(index, "up")}
+                          disabled={index === 0}
+                          className="ps-mobile-reorder-btn"
+                          style={{ opacity: index === 0 ? 0.3 : 1, cursor: index === 0 ? "not-allowed" : "pointer" }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          title="Move section down"
+                          onClick={() => handleMoveFeature(index, "down")}
+                          disabled={index === featureOrder.length - 1}
+                          className="ps-mobile-reorder-btn"
+                          style={{ opacity: index === featureOrder.length - 1 ? 0.3 : 1, cursor: index === featureOrder.length - 1 ? "not-allowed" : "pointer" }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        title="Section Settings & Content Editor"
+                        onClick={() => setActiveManagerSection(key)}
+                        className="ps-mobile-edit-btn"
+                      >
+                        ⚙ Edit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
+      </div>
 
       {/* ── CATEGORIZED ADD SECTION MODAL ── */}
       <MyLuxModal
