@@ -1,13 +1,17 @@
 import { requireSuperAdmin, safeError } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
+import { calculateNextAction } from "@/lib/nextActionEngine";
 
-export async function GET() {
+export async function GET(request: Request) {
   const identity = await requireSuperAdmin();
   if (!identity) {
     return Response.json({ message: "Forbidden: Super Admin access required." }, { status: 403 });
   }
 
   try {
+    const url = new URL(request.url);
+    const queueParam = url.searchParams.get("queue");
+
     // 1. Operational order counts by status
     const statusCountsRes = await pool.query<{ status: string; count: string }>(
       `SELECT status, COUNT(*)::int as count FROM orders GROUP BY status`
@@ -29,15 +33,26 @@ export async function GET() {
        WHERE DATE(created_at) = CURRENT_DATE`
     );
 
-    // 4. Orders needing attention (e.g. UNPAID, missing address, unverified QR/card, PENDING, READY_TO_SHIP)
-    const attentionRes = await pool.query(
-      `SELECT id, order_number, customer_name, customer_email, customer_mobile, status, payment_status, total_minor, shipping_address, fulfillment_data, created_at
-       FROM orders
-       WHERE payment_status != 'PAID'
+    // 4. Queue Specific Queries (oldest first for packing / shipping queues)
+    let whereClause = `WHERE payment_status != 'PAID'
           OR status IN ('PENDING', 'NEW', 'PROCESSING', 'CUSTOMIZATION', 'QR_READY', 'CARD_PRODUCTION', 'PACKAGING', 'PACKED', 'READY_TO_SHIP')
           OR (fulfillment_data->>'qrVerified')::boolean IS NOT TRUE
-          OR (fulfillment_data->>'cardVerified')::boolean IS NOT TRUE
-       ORDER BY created_at DESC
+          OR (fulfillment_data->>'cardVerified')::boolean IS NOT TRUE`;
+    let orderByClause = `ORDER BY created_at DESC`;
+
+    if (queueParam === "packing") {
+      whereClause = `WHERE status IN ('PACKAGING', 'PENDING', 'NEW', 'PROCESSING', 'PAYMENT_VERIFIED') AND payment_status = 'PAID'`;
+      orderByClause = `ORDER BY created_at ASC`;
+    } else if (queueParam === "shipping") {
+      whereClause = `WHERE status IN ('READY_TO_SHIP', 'PACKED') AND payment_status = 'PAID'`;
+      orderByClause = `ORDER BY created_at ASC`;
+    }
+
+    const attentionRes = await pool.query(
+      `SELECT id, order_number, customer_name, customer_email, customer_mobile, status, payment_status, total_minor, shipping_address, fulfillment_data, tracking_number, courier, created_at
+       FROM orders
+       ${whereClause}
+       ${orderByClause}
        LIMIT 50`
     );
 
@@ -112,6 +127,17 @@ export async function GET() {
         severity = "WAITING";
       }
 
+      const nextAction = calculateNextAction({
+        status: o.status,
+        paymentStatus: o.payment_status,
+        fulfillment_data: ful,
+        shipping_address: addr,
+        customerName: o.customer_name,
+        customerMobile: o.customer_mobile,
+        trackingNumber: o.tracking_number,
+        courier: o.courier,
+      });
+
       return {
         id: o.id,
         orderNumber: o.order_number,
@@ -125,6 +151,7 @@ export async function GET() {
         missingFields,
         severity,
         isReadyToShip: missingFields.length === 0 && (o.status === "READY_TO_SHIP" || o.status === "PACKED"),
+        nextAction,
       };
     });
 
@@ -137,7 +164,7 @@ export async function GET() {
         todayOrders: Number(todayData.today_orders || 0),
         todaySalesMinor: Number(todayData.today_sales || 0),
         ordersToFulfill: (counts.NEW || 0) + (counts.PAYMENT_VERIFIED || 0) + (counts.CUSTOMIZATION || 0) + (counts.QR_READY || 0) + (counts.CARD_PRODUCTION || 0) + (counts.PACKAGING || 0) + (counts.PENDING || 0),
-        readyToShip: counts.READY_TO_SHIP || counts.PACKED || 0,
+        readyToShip: (counts.READY_TO_SHIP || 0) + (counts.PACKED || 0),
         shippedToday: Number(todayData.shipped_today || 0),
       },
       needingAttention,

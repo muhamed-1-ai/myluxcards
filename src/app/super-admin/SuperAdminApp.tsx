@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
+import PackingMode from "@/components/super-admin/PackingMode";
+import ShippingMode from "@/components/super-admin/ShippingMode";
 import JSZip from "jszip";
 
 type Section = "overview" | "users" | "fulfillment" | "audit" | "settings";
@@ -31,6 +33,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
   const [fulfillmentData, setFulfillmentData] = useState<any | null>(null);
   const [fulfillmentLoading, setFulfillmentLoading] = useState(false);
   const [selectedOrderIdForShip, setSelectedOrderIdForShip] = useState<string | null>(null);
+  const [fulfillmentMode, setFulfillmentMode] = useState<"all" | "packing" | "shipping">("all");
   const [pipelineFilter, setPipelineFilter] = useState<string>("ALL");
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -581,224 +584,358 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
           {/* SECTION 3: ORDER FULFILLMENT COMMAND CENTER */}
           {section === "fulfillment" && (
             <div>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <h1 style={{ fontSize: "24px", margin: 0 }}>Fulfillment Command Center</h1>
-                  <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0" }}>
-                    Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.
-                  </p>
-                </div>
-                <button onClick={loadFulfillment} style={{ padding: "8px 14px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: "6px", cursor: "pointer" }}>
-                  🔄 Refresh Statuses
-                </button>
-              </div>
-
-              {/* TODAY STATS METRICS BAR */}
-              {fulfillmentData?.today && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
-                  <div style={statBoxStyle}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S ORDERS</span>
-                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#fff" }}>{fulfillmentData.today.todayOrders}</h3>
-                  </div>
-                  <div style={statBoxStyle}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S SALES</span>
-                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#2ecc71" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
-                  </div>
-                  <div style={statBoxStyle}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>ORDERS TO FULFILL</span>
-                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#f39c12" }}>{fulfillmentData.today.ordersToFulfill}</h3>
-                  </div>
-                  <div style={statBoxStyle}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>READY TO SHIP</span>
-                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#00E5FF" }}>{fulfillmentData.today.readyToShip}</h3>
-                  </div>
-                  <div style={statBoxStyle}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>SHIPPED TODAY</span>
-                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#52c41a" }}>{fulfillmentData.today.shippedToday}</h3>
-                  </div>
-                </div>
-              )}
-
-              {/* FULFILLMENT PIPELINE COUNTER STAGES */}
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 20 }}>
-                {PIPELINE_STAGES.map((st) => {
-                  const count = st.key === "ALL" ? (fulfillmentData?.needingAttention?.length || 0) : (fulfillmentData?.counts?.[st.key] || 0);
-                  const active = pipelineFilter === st.key;
-
-                  return (
-                    <button
-                      key={st.key}
-                      type="button"
-                      onClick={() => setPipelineFilter(st.key)}
-                      style={{
-                        background: active ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "#111",
-                        border: active ? "1px solid #00E5FF" : "1px solid #222",
-                        color: active ? "#fff" : "rgba(255,255,255,0.7)",
-                        padding: "8px 14px",
-                        borderRadius: 10,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <span>{st.label}</span>
-                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", padding: "2px 7px", borderRadius: 12, fontSize: 11 }}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* MULTI-IDENTIFIER SEARCH & BATCH ACTION BAR */}
-              <div style={{ background: "#111", border: "1px solid #222", borderRadius: 10, padding: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                <div style={{ position: "relative", minWidth: 280, flex: 1 }}>
-                  <input
-                    type="text"
-                    placeholder="Search Order #, Name, Phone, Email, Slug..."
-                    value={orderSearchQuery}
-                    onChange={(e) => setOrderSearchQuery(e.target.value)}
-                    style={{ width: "100%", padding: "8px 12px 8px 32px", background: "#050505", border: "1px solid #333", color: "#fff", borderRadius: 8, fontSize: 13 }}
-                  />
-                  <span style={{ position: "absolute", left: 10, top: 9, opacity: 0.5 }}>🔍</span>
-                </div>
-
-                {selectedOrderIds.length > 0 && (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#00E5FF" }}>
-                      {selectedOrderIds.length} Selected
-                    </span>
-                    <button
-                      disabled={batchActionLoading}
-                      onClick={() => handleBatchOperation("qr_zip")}
-                      style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      📦 Download QR ZIP
-                    </button>
-                    <button
-                      disabled={batchActionLoading}
-                      onClick={() => handleBatchOperation("export_csv")}
-                      style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      📊 Export Shipping CSV
-                    </button>
-                    <button
-                      disabled={batchActionLoading}
-                      onClick={() => handleBatchOperation("bulk_status", "PACKED")}
-                      style={{ padding: "6px 12px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      ✓ Mark Packed
-                    </button>
-                    <button
-                      disabled={batchActionLoading}
-                      onClick={() => handleBatchOperation("bulk_status", "READY_TO_SHIP")}
-                      style={{ padding: "6px 12px", background: "#52c41a", color: "#000", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}
-                    >
-                      🚀 Mark Ready to Ship
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* ORDERS TABLE WITH MULTI-SELECT & QUICK ACTIONS */}
-              {fulfillmentLoading ? (
-                <p>Loading fulfillment overview...</p>
-              ) : !fulfillmentData ? (
-                <p>No fulfillment data available.</p>
+              {selectedOrderIdForShip ? (
+                <ShipOrderWorkspace
+                  orderId={selectedOrderIdForShip}
+                  onBack={() => setSelectedOrderIdForShip(null)}
+                  onViewCustomer={(userId) => {
+                    setSelectedOrderIdForShip(null);
+                    setSection("users");
+                    openUserDetails(userId);
+                  }}
+                  onOpenPacking={(id) => {
+                    setSelectedOrderIdForShip(null);
+                    setFulfillmentMode("packing");
+                  }}
+                  onOpenShipping={(id) => {
+                    setSelectedOrderIdForShip(null);
+                    setFulfillmentMode("shipping");
+                  }}
+                />
+              ) : fulfillmentMode === "packing" ? (
+                <PackingMode
+                  onExit={() => setFulfillmentMode("all")}
+                  onOpenWorkspace={(id) => {
+                    setFulfillmentMode("all");
+                    setSelectedOrderIdForShip(id);
+                  }}
+                />
+              ) : fulfillmentMode === "shipping" ? (
+                <ShippingMode
+                  onExit={() => setFulfillmentMode("all")}
+                  onOpenWorkspace={(id) => {
+                    setFulfillmentMode("all");
+                    setSelectedOrderIdForShip(id);
+                  }}
+                />
               ) : (
-                <div style={{ background: "#111", borderRadius: 10, border: "1px solid #222", padding: 20 }}>
-                  <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>
-                    ⚠️ Orders Needing Operational Attention ({filteredAttentionOrders.length})
-                  </h3>
+                <div>
+                  {/* Header & Operational Mode Switcher */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: 12 }}>
+                    <div>
+                      <h1 style={{ fontSize: "24px", margin: 0 }}>Fulfillment Command Center</h1>
+                      <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0" }}>
+                        Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.
+                      </p>
+                    </div>
 
-                  {filteredAttentionOrders.length === 0 ? (
-                    <p style={{ color: "#52c41a" }}>✓ All orders are processed and up to date!</p>
+                    {/* Operational Mode Switcher */}
+                    <div style={{ display: "flex", gap: 6, background: "#0c1017", padding: 4, borderRadius: 8, border: "1px solid #1c2638" }}>
+                      <button
+                        onClick={() => setFulfillmentMode("all")}
+                        style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer", background: "#1e293b", color: "#fff" }}
+                      >
+                        📊 ALL ORDERS
+                      </button>
+                      <button
+                        onClick={() => setFulfillmentMode("packing")}
+                        style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer", background: "transparent", color: "#94a3b8" }}
+                      >
+                        📦 PACKING MODE
+                      </button>
+                      <button
+                        onClick={() => setFulfillmentMode("shipping")}
+                        style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer", background: "transparent", color: "#94a3b8" }}
+                      >
+                        🚚 SHIPPING MODE
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* TODAY STATS METRICS BAR (CLICKABLE OPERATIONAL CARDS) */}
+                  {fulfillmentData?.today && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+                      <div style={statBoxStyle}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S ORDERS</span>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#fff" }}>{fulfillmentData.today.todayOrders}</h3>
+                      </div>
+                      <div style={statBoxStyle}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S SALES</span>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#2ecc71" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
+                      </div>
+                      <div
+                        onClick={() => setFulfillmentMode("packing")}
+                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid #f39c1255", transition: "all 0.2s ease" }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: "#f39c12", fontWeight: 800 }}>ORDERS TO PACK ➔</span>
+                        </div>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#f39c12" }}>{fulfillmentData.today.ordersToFulfill}</h3>
+                      </div>
+                      <div
+                        onClick={() => setFulfillmentMode("shipping")}
+                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid #00E5FF55", transition: "all 0.2s ease" }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: "#00E5FF", fontWeight: 800 }}>READY TO SHIP ➔</span>
+                        </div>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#00E5FF" }}>{fulfillmentData.today.readyToShip}</h3>
+                      </div>
+                      <div style={statBoxStyle}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>SHIPPED TODAY</span>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#52c41a" }}>{fulfillmentData.today.shippedToday}</h3>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SAVED OPERATIONAL FILTER PILLS */}
+                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 12 }}>
+                    <button
+                      onClick={() => setPipelineFilter("ALL")}
+                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #333", background: pipelineFilter === "ALL" ? "#333" : "#111", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      🔴 Needs Attention
+                    </button>
+                    <button
+                      onClick={() => setPipelineFilter("PACKAGING")}
+                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #eab30844", background: pipelineFilter === "PACKAGING" ? "#eab308" : "#111", color: pipelineFilter === "PACKAGING" ? "#000" : "#eab308", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      📦 To Pack
+                    </button>
+                    <button
+                      onClick={() => setPipelineFilter("READY_TO_SHIP")}
+                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #00E5FF44", background: pipelineFilter === "READY_TO_SHIP" ? "#00E5FF" : "#111", color: pipelineFilter === "READY_TO_SHIP" ? "#000" : "#00E5FF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      🚚 Ready to Ship
+                    </button>
+                    <button
+                      onClick={() => setPipelineFilter("NEW")}
+                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #ff4d4f44", background: pipelineFilter === "NEW" ? "#ff4d4f" : "#111", color: pipelineFilter === "NEW" ? "#fff" : "#ff4d4f", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      💳 Payment Pending
+                    </button>
+                  </div>
+
+                  {/* FULFILLMENT PIPELINE COUNTER STAGES */}
+                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 20 }}>
+                    {PIPELINE_STAGES.map((st) => {
+                      const count = st.key === "ALL" ? (fulfillmentData?.needingAttention?.length || 0) : (fulfillmentData?.counts?.[st.key] || 0);
+                      const active = pipelineFilter === st.key;
+
+                      return (
+                        <button
+                          key={st.key}
+                          type="button"
+                          onClick={() => setPipelineFilter(st.key)}
+                          style={{
+                            background: active ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "#111",
+                            border: active ? "1px solid #00E5FF" : "1px solid #222",
+                            color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                            padding: "8px 14px",
+                            borderRadius: 10,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <span>{st.label}</span>
+                          <span style={{ background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", padding: "2px 7px", borderRadius: 12, fontSize: 11 }}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* MULTI-IDENTIFIER SEARCH & BATCH ACTION BAR */}
+                  <div style={{ background: "#111", border: "1px solid #222", borderRadius: 10, padding: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                    <div style={{ position: "relative", minWidth: 280, flex: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="Search Order #, Name, Phone, Email, Slug..."
+                        value={orderSearchQuery}
+                        onChange={(e) => setOrderSearchQuery(e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px 8px 32px", background: "#050505", border: "1px solid #333", color: "#fff", borderRadius: 8, fontSize: 13 }}
+                      />
+                      <span style={{ position: "absolute", left: 10, top: 9, opacity: 0.5 }}>🔍</span>
+                    </div>
+
+                    {selectedOrderIds.length > 0 && (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#00E5FF" }}>
+                          {selectedOrderIds.length} Selected
+                        </span>
+                        <button
+                          disabled={batchActionLoading}
+                          onClick={() => handleBatchOperation("qr_zip")}
+                          style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          📦 Download QR ZIP
+                        </button>
+                        <button
+                          disabled={batchActionLoading}
+                          onClick={() => handleBatchOperation("export_csv")}
+                          style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          📊 Export Shipping CSV
+                        </button>
+                        <button
+                          disabled={batchActionLoading}
+                          onClick={() => handleBatchOperation("bulk_status", "PACKED")}
+                          style={{ padding: "6px 12px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                        >
+                          ✓ Mark Packed
+                        </button>
+                        <button
+                          disabled={batchActionLoading}
+                          onClick={() => handleBatchOperation("bulk_status", "READY_TO_SHIP")}
+                          style={{ padding: "6px 12px", background: "#52c41a", color: "#000", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                        >
+                          🚀 Mark Ready to Ship
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ORDERS TABLE WITH MULTI-SELECT, NEXT ACTION & QUICK ACTIONS */}
+                  {fulfillmentLoading ? (
+                    <p>Loading fulfillment overview...</p>
+                  ) : !fulfillmentData ? (
+                    <p>No fulfillment data available.</p>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
-                            <th style={{ padding: "10px" }}>
-                              <input
-                                type="checkbox"
-                                checked={selectedOrderIds.length === filteredAttentionOrders.length && filteredAttentionOrders.length > 0}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedOrderIds(filteredAttentionOrders.map((o: any) => o.id));
-                                  } else {
-                                    setSelectedOrderIds([]);
-                                  }
-                                }}
-                              />
-                            </th>
-                            <th style={{ padding: "10px" }}>Order #</th>
-                            <th style={{ padding: "10px" }}>Customer</th>
-                            <th style={{ padding: "10px" }}>Amount</th>
-                            <th style={{ padding: "10px" }}>Payment</th>
-                            <th style={{ padding: "10px" }}>Status</th>
-                            <th style={{ padding: "10px" }}>Pending Requirements</th>
-                            <th style={{ padding: "10px" }}>Quick Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredAttentionOrders.map((o: any) => {
-                            const isSelected = selectedOrderIds.includes(o.id);
-                            return (
-                              <tr key={o.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
-                                <td style={{ padding: "10px" }}>
+                    <div style={{ background: "#111", borderRadius: 10, border: "1px solid #222", padding: 20 }}>
+                      <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>
+                        ⚠️ Orders Needing Operational Attention ({filteredAttentionOrders.length})
+                      </h3>
+
+                      {filteredAttentionOrders.length === 0 ? (
+                        <p style={{ color: "#52c41a" }}>✓ All orders are processed and up to date!</p>
+                      ) : (
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                            <thead>
+                              <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
+                                <th style={{ padding: "10px" }}>
                                   <input
                                     type="checkbox"
-                                    checked={isSelected}
+                                    checked={selectedOrderIds.length === filteredAttentionOrders.length && filteredAttentionOrders.length > 0}
                                     onChange={(e) => {
                                       if (e.target.checked) {
-                                        setSelectedOrderIds((prev) => [...prev, o.id]);
+                                        setSelectedOrderIds(filteredAttentionOrders.map((o: any) => o.id));
                                       } else {
-                                        setSelectedOrderIds((prev) => prev.filter((id) => id !== o.id));
+                                        setSelectedOrderIds([]);
                                       }
                                     }}
                                   />
-                                </td>
-                                <td style={{ padding: "10px", fontWeight: 700, color: "#fff" }}>#{o.orderNumber}</td>
-                                <td style={{ padding: "10px" }}>
-                                  <div>{o.customerName}</div>
-                                  <small style={{ color: "#777" }}>{o.customerEmail}</small>
-                                </td>
-                                <td style={{ padding: "10px", fontWeight: 700 }}>₹{(o.totalMinor / 100).toFixed(2)}</td>
-                                <td style={{ padding: "10px" }}>
-                                  <span style={{ color: o.paymentStatus === "PAID" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{o.paymentStatus}</span>
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                  <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#222", fontSize: "11px" }}>{o.status}</span>
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                  {o.missingFields?.length > 0 ? (
-                                    <span style={{ color: o.severity === "CRITICAL" ? "#ff4d4f" : "#f39c12", fontSize: "12px" }}>
-                                      ⚠️ {o.missingFields.join(", ")}
-                                    </span>
-                                  ) : (
-                                    <span style={{ color: "#52c41a", fontSize: "12px" }}>✓ Verified &amp; Ready</span>
-                                  )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                    <button
-                                      onClick={() => setSelectedOrderIdForShip(o.id)}
-                                      style={{ padding: "5px 10px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "4px", cursor: "pointer", fontSize: 11.5 }}
-                                    >
-                                      VIEW / SHIP
-                                    </button>
-                                  </div>
-                                </td>
+                                </th>
+                                <th style={{ padding: "10px" }}>Order #</th>
+                                <th style={{ padding: "10px" }}>Customer</th>
+                                <th style={{ padding: "10px" }}>Amount</th>
+                                <th style={{ padding: "10px" }}>Payment</th>
+                                <th style={{ padding: "10px" }}>Status</th>
+                                <th style={{ padding: "10px" }}>NEXT ACTION</th>
+                                <th style={{ padding: "10px" }}>Pending Requirements</th>
+                                <th style={{ padding: "10px" }}>Quick Actions</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody>
+                              {filteredAttentionOrders.map((o: any) => {
+                                const isSelected = selectedOrderIds.includes(o.id);
+                                const na = o.nextAction;
+
+                                return (
+                                  <tr key={o.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
+                                    <td style={{ padding: "10px" }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedOrderIds((prev) => [...prev, o.id]);
+                                          } else {
+                                            setSelectedOrderIds((prev) => prev.filter((id) => id !== o.id));
+                                          }
+                                        }}
+                                      />
+                                    </td>
+                                    <td style={{ padding: "10px", fontWeight: 700, color: "#fff" }}>#{o.orderNumber}</td>
+                                    <td style={{ padding: "10px" }}>
+                                      <div>{o.customerName}</div>
+                                      <small style={{ color: "#777" }}>{o.customerEmail}</small>
+                                    </td>
+                                    <td style={{ padding: "10px", fontWeight: 700 }}>₹{(o.totalMinor / 100).toFixed(2)}</td>
+                                    <td style={{ padding: "10px" }}>
+                                      <span style={{ color: o.paymentStatus === "PAID" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{o.paymentStatus}</span>
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                      <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#222", fontSize: "11px" }}>{o.status}</span>
+                                    </td>
+
+                                    {/* CALCULATED NEXT ACTION COLUMN */}
+                                    <td style={{ padding: "10px" }}>
+                                      {na ? (
+                                        <button
+                                          onClick={() => {
+                                            if (na.targetTab === "packing") {
+                                              setFulfillmentMode("packing");
+                                            } else if (na.targetTab === "shipping") {
+                                              setFulfillmentMode("shipping");
+                                            } else {
+                                              setSelectedOrderIdForShip(o.id);
+                                            }
+                                          }}
+                                          style={{
+                                            background: `${na.color}22`,
+                                            color: na.color,
+                                            border: `1px solid ${na.color}`,
+                                            padding: "3px 8px",
+                                            borderRadius: "4px",
+                                            fontWeight: 800,
+                                            fontSize: "11px",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "4px",
+                                          }}
+                                        >
+                                          <span>{na.label}</span>
+                                          <span>➔</span>
+                                        </button>
+                                      ) : (
+                                        <span style={{ color: "#888" }}>—</span>
+                                      )}
+                                    </td>
+
+                                    <td style={{ padding: "10px" }}>
+                                      {o.missingFields?.length > 0 ? (
+                                        <span style={{ color: o.severity === "CRITICAL" ? "#ff4d4f" : "#f39c12", fontSize: "12px" }}>
+                                          ⚠️ {o.missingFields.join(", ")}
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: "#52c41a", fontSize: "12px" }}>✓ Verified &amp; Ready</span>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                        <button
+                                          onClick={() => setSelectedOrderIdForShip(o.id)}
+                                          style={{ padding: "5px 10px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "4px", cursor: "pointer", fontSize: 11.5 }}
+                                        >
+                                          VIEW / SHIP
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

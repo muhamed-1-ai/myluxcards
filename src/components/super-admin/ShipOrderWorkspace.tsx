@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
+import { calculateNextAction } from "@/lib/nextActionEngine";
 
 interface ShipOrderWorkspaceProps {
   orderId: string;
   onBack?: () => void;
   onViewCustomer?: (userId: string) => void;
+  onOpenPacking?: (orderId: string) => void;
+  onOpenShipping?: (orderId: string) => void;
 }
 
 const OPERATIONAL_LABELS = [
@@ -19,7 +22,7 @@ const OPERATIONAL_LABELS = [
   "INTERNATIONAL",
 ];
 
-export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer }: ShipOrderWorkspaceProps) {
+export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, onOpenPacking, onOpenShipping }: ShipOrderWorkspaceProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -159,22 +162,17 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer }: 
   };
 
   if (loading) {
-    return (
-      <div style={{ padding: "40px", color: "#fff", background: "#0a0a0a", minHeight: "100vh" }}>
-        <p>Loading Ship Order Command Center...</p>
-      </div>
-    );
+    return <div style={{ color: "#fff", padding: "40px", textAlign: "center" }}>Loading Order Workspace...</div>;
   }
 
   if (error || !data) {
     return (
-      <div style={{ padding: "40px", color: "#fff", background: "#0a0a0a", minHeight: "100vh" }}>
-        <button onClick={onBack} style={{ background: "#222", color: "#fff", border: "1px solid #444", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", marginBottom: "20px" }}>
-          ← Back to Orders
+      <div style={{ color: "#ff4d4f", padding: "40px", textAlign: "center" }}>
+        <h3>Error Loading Order</h3>
+        <p>{error || "Order not found."}</p>
+        <button onClick={onBack} style={{ padding: "8px 16px", background: "#333", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+          Back to List
         </button>
-        <div style={{ background: "#2a1215", border: "1px solid #ff4d4f", padding: "20px", borderRadius: "8px", color: "#ff4d4f" }}>
-          {error || "Order data unavailable."}
-        </div>
       </div>
     );
   }
@@ -184,9 +182,20 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer }: 
   const readiness = fulfillment?.shippingReadiness || { percentage: 0, isReadyToShip: false, missingRequirements: [] };
   const qrSvgString = qr?.url ? buildPremiumQrSvg(qr.url, { label: "3G ZAPPIT" }) : "";
 
+  const nextAction = calculateNextAction({
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    fulfillment_data: fulfillment,
+    shipping_address: shippingAddress,
+    customerName: customer.name,
+    customerMobile: customer.phone,
+    trackingNumber: order.trackingNumber,
+    courier: order.courier,
+  });
+
   const fullAddressString = [
     shippingAddress.recipientName,
-    shippingAddress.phone ? `Phone: ${shippingAddress.phone}` : "",
+    `Phone: ${shippingAddress.phone}`,
     shippingAddress.alternatePhone ? `Alt Phone: ${shippingAddress.alternatePhone}` : "",
     shippingAddress.house,
     shippingAddress.street,
@@ -202,7 +211,7 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer }: 
   return (
     <div style={{ background: "#050505", color: "#fff", minHeight: "100vh", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
       {/* Top Header */}
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px" }}>
         <div>
           <button onClick={onBack} style={{ background: "transparent", color: "#00E5FF", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: "700", marginBottom: "6px", display: "inline-block" }}>
             ← Back to Orders List
@@ -247,6 +256,36 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer }: 
           </button>
         </div>
       </div>
+
+      {/* CALCULATED NEXT ACTION BANNER */}
+      {nextAction && (
+        <div style={{ background: "#0b1324", border: `1px solid ${nextAction.color}`, borderRadius: 10, padding: 14, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <span style={{ fontSize: 10, color: "#888", fontWeight: 800, letterSpacing: 0.5, display: "block", marginBottom: 2 }}>
+              CALCULATED NEXT ACTION
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ background: nextAction.color, color: "#000", fontWeight: 900, fontSize: 12, padding: "3px 9px", borderRadius: 4 }}>
+                {nextAction.label}
+              </span>
+              <span style={{ fontSize: 13, color: "#eee" }}>{nextAction.subtext}</span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {nextAction.targetTab === "packing" && onOpenPacking && (
+              <button onClick={() => onOpenPacking(order.id)} style={{ padding: "8px 14px", background: nextAction.color, color: "#000", fontWeight: 900, border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
+                📦 Open in Packing Mode ➔
+              </button>
+            )}
+            {nextAction.targetTab === "shipping" && onOpenShipping && (
+              <button onClick={() => onOpenShipping(order.id)} style={{ padding: "8px 14px", background: nextAction.color, color: "#000", fontWeight: 900, border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
+                🚚 Open in Shipping Mode ➔
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {copyFeedback && (
         <div style={{ background: "#52c41a", color: "#000", padding: "8px 16px", borderRadius: "6px", fontWeight: 700, marginBottom: "16px" }}>
