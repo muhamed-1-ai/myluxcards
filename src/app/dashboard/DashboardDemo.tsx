@@ -1346,7 +1346,6 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
   const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "OFF">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(false);
@@ -1665,12 +1664,9 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
         </div>
       )}
 
-      {/* ── SPLIT MAIN CONTAINER: SECTIONS BUILDER + LIVE PREVIEW ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
-        
-        {/* LEFT COLUMN: SECTION MANAGEMENT LIST */}
-        <div>
-          {/* SEARCH & FILTER CONTROLS */}
+      {/* ── SECTION MANAGEMENT LIST ── */}
+      <div style={{ width: "100%" }}>
+        {/* SEARCH & FILTER CONTROLS */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", padding: 3, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)" }}>
               {(["ALL", "ACTIVE", "OFF"] as const).map((tab) => (
@@ -1810,60 +1806,6 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
             )}
           </div>
         </div>
-
-        {/* RIGHT COLUMN: LIVE PREVIEW CONTAINER */}
-        <div style={{ position: "sticky", top: 80, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {/* DEVICE PREVIEW SELECTOR */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-              📱 LIVE PROFILE PREVIEW
-            </div>
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", padding: 2, borderRadius: 8 }}>
-              {(["mobile", "tablet", "desktop"] as const).map((dev) => (
-                <button
-                  key={dev}
-                  type="button"
-                  onClick={() => setPreviewDevice(dev)}
-                  style={{
-                    background: previewDevice === dev ? "rgba(0, 229, 255, 0.25)" : "transparent",
-                    color: previewDevice === dev ? "#00E5FF" : "rgba(255,255,255,0.5)",
-                    border: "none",
-                    padding: "3px 8px",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {dev[0].toUpperCase() + dev.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* SIMULATED DEVICE FRAME */}
-          <div
-            style={{
-              width: previewDevice === "mobile" ? "100%" : previewDevice === "tablet" ? "100%" : "100%",
-              height: 540,
-              background: "#08080c",
-              borderRadius: 16,
-              border: "2px solid rgba(255,255,255,0.15)",
-              overflow: "hidden",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
-              position: "relative",
-            }}
-          >
-            <iframe
-              src={`/card/${draft.slug}`}
-              title="Live Profile Preview"
-              style={{ width: "100%", height: "100%", border: "none" }}
-            />
-          </div>
-        </div>
-
-      </div>
 
       {/* ── CATEGORIZED ADD SECTION MODAL ── */}
       <MyLuxModal
