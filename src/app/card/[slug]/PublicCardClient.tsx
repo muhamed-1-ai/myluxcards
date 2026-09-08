@@ -74,6 +74,20 @@ type CardLostItem = {
   enabled: boolean;
 };
 
+type CardProfileProduct = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  imageUrl: string;
+  category: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  enabled: boolean;
+  sortOrder: number;
+};
+
 type Card = {
   id?: string;
   name: string; slug: string; title: string; business: string; countryCode: string; mobile: string;
@@ -100,6 +114,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [vehicles, setVehicles] = useState<CardVehicle[]>([]);
   const [lostItems, setLostItems] = useState<CardLostItem[]>([]);
+  const [profileProducts, setProfileProducts] = useState<CardProfileProduct[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -302,6 +317,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             setCard(payload.card);
             setVehicles(Array.isArray(payload.vehicles) ? payload.vehicles : []);
             setLostItems(Array.isArray(payload.lostItems) ? payload.lostItems : []);
+            setProfileProducts(Array.isArray(payload.profileProducts) ? payload.profileProducts : []);
             setLoaded(true);
             trackActivity("PROFILE_OPENED", { assetType: "profile" });
           }
@@ -1253,6 +1269,112 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                         )}
                       </div>
                     )}
+                  </div>
+                );
+              }
+
+              if (featureKey === "PRODUCTS") {
+                const activeProducts = profileProducts.filter(p => p.enabled !== false);
+                if (activeProducts.length === 0) return null;
+
+                return (
+                  <div key="PRODUCTS" className="pc-card pc-products-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Products</h2>
+                      <span style={{ fontSize: 11, background: "rgba(0, 229, 255, 0.12)", color: "#00E5FF", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(0, 229, 255, 0.3)", fontWeight: 700, letterSpacing: "0.5px" }}>
+                        SHOWCASE
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                      {activeProducts.map((prod) => (
+                        <div
+                          key={prod.id}
+                          style={{
+                            background: "rgba(255, 255, 255, 0.04)",
+                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                            borderRadius: 14,
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.25)",
+                            transition: "transform 0.2s ease, border-color 0.2s ease",
+                          }}
+                        >
+                          {prod.imageUrl && (
+                            <div style={{ width: "100%", height: 160, overflow: "hidden", background: "#0a0a0c", position: "relative" }}>
+                              <img
+                                src={prod.imageUrl}
+                                alt={prod.name}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            </div>
+                          )}
+                          <div style={{ padding: 14, display: "flex", flexDirection: "column", flex: 1, gap: 8 }}>
+                            {prod.category && (
+                              <span style={{ alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, color: "#00E5FF", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                {prod.category}
+                              </span>
+                            )}
+                            <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.3 }}>
+                              {prod.name}
+                            </h3>
+                            {prod.description && (
+                              <p style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.7)", margin: 0, flex: 1, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.4 }}>
+                                {prod.description}
+                              </p>
+                            )}
+                            {prod.price && (
+                              <div style={{ fontSize: 15, fontWeight: 800, color: "#38ef7d", marginTop: 4 }}>
+                                {prod.currency === "INR" ? "₹" : prod.currency === "USD" ? "$" : prod.currency === "EUR" ? "€" : prod.currency === "GBP" ? "£" : `${prod.currency} `}
+                                {prod.price}
+                              </div>
+                            )}
+                            {prod.ctaUrl ? (
+                              <a
+                                href={prod.ctaUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => trackActivity("PRODUCT_CTA_CLICKED", { context: prod.name })}
+                                style={{
+                                  marginTop: 8,
+                                  width: "100%",
+                                  textAlign: "center",
+                                  background: "linear-gradient(135deg, #0066FF 0%, #00E5FF 100%)",
+                                  color: "#fff",
+                                  fontWeight: 700,
+                                  fontSize: 12.5,
+                                  padding: "8px 12px",
+                                  borderRadius: 8,
+                                  textDecoration: "none",
+                                  display: "inline-block",
+                                  boxShadow: "0 2px 10px rgba(0, 102, 255, 0.3)",
+                                }}
+                              >
+                                {prod.ctaLabel || "View Details"}
+                              </a>
+                            ) : prod.ctaLabel ? (
+                              <div
+                                style={{
+                                  marginTop: 8,
+                                  width: "100%",
+                                  textAlign: "center",
+                                  background: "rgba(255, 255, 255, 0.08)",
+                                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                                  color: "#fff",
+                                  fontWeight: 600,
+                                  fontSize: 12,
+                                  padding: "6px 12px",
+                                  borderRadius: 8,
+                                }}
+                              >
+                                {prod.ctaLabel}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               }

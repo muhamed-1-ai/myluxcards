@@ -1352,6 +1352,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Show emergency contact details for rapid safety response" },
     VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Share vehicle details, parking notes & direct contact" },
     LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Allow people to contact you about lost items safely" },
+    PRODUCTS: { label: "Products Showcase", icon: "🛍️", desc: "Showcase custom products, services, items & pricing directly on your profile" },
   };
 
   const profileFeatures = (draft as any).profileFeatures || {
@@ -1362,6 +1363,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     EMERGENCY_CONTACT: { enabled: true, sortOrder: 4 },
     VEHICLE: { enabled: true, sortOrder: 5 },
     LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
+    PRODUCTS: { enabled: false, sortOrder: 7 },
   };
 
   const featureOrder = (draft as any).featureOrder || [
@@ -1372,6 +1374,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     "EMERGENCY_CONTACT",
     "VEHICLE",
     "LOST_AND_FOUND",
+    "PRODUCTS",
   ];
 
   const handleToggleFeature = async (key: string, currentStatus: boolean) => {
@@ -1718,6 +1721,9 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
 
       {/* ── MULTI-ITEM LOST & FOUND MANAGEMENT ── */}
       <LostItemsManager cardId={draft.id} contactNumbers={contactNumbers} />
+
+      {/* ── CUSTOM PROFILE PRODUCTS MANAGEMENT ── */}
+      <ProfileProductsManager cardId={draft.id} />
     </>
   );
 }
@@ -3036,6 +3042,499 @@ function LostItemsManager({ cardId, contactNumbers = [] }: any) {
               </div>
             </div>
           </form>
+        )}
+      </MyLuxModal>
+    </div>
+  );
+}
+
+function ProfileProductsManager({ cardId }: { cardId?: string }) {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const loadProducts = async () => {
+    if (!cardId) return;
+    try {
+      const res = await fetch(`/api/cards/profile-products?cardId=${encodeURIComponent(cardId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.products)) {
+        setProducts(data.products);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadProducts();
+  }, [cardId]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingProduct) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError("Image must be 5 MB or smaller.");
+      return;
+    }
+
+    setUploadingImage(true);
+    setSaveError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", "product");
+
+      const res = await fetch("/api/media", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        setEditingProduct({ ...editingProduct, imageUrl: data.url });
+      } else {
+        setSaveError(data.message || "Image upload failed. Old image retained.");
+      }
+    } catch {
+      setSaveError("Image upload network error. Old image retained.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct || saving) return;
+
+    if (!editingProduct.name.trim()) {
+      setSaveError("Product name is required.");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      const isNew = !editingProduct.id;
+      const url = "/api/cards/profile-products";
+      const method = isNew ? "POST" : "PUT";
+
+      const payload = {
+        ...editingProduct,
+        cardId,
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEditingProduct(null);
+        await loadProducts();
+      } else {
+        setSaveError(data.message || "Failed to save product.");
+      }
+    } catch {
+      setSaveError("Network error while saving product.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleProductVisibility = async (product: any) => {
+    try {
+      const newStatus = !product.enabled;
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, enabled: newStatus } : p));
+
+      const res = await fetch("/api/cards/profile-products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: product.id, enabled: newStatus }),
+      });
+
+      if (!res.ok) {
+        await loadProducts();
+      }
+    } catch {
+      await loadProducts();
+    }
+  };
+
+  const handleMoveProduct = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= products.length) return;
+
+    const reordered = [...products];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIndex];
+    reordered[targetIndex] = temp;
+
+    setProducts(reordered);
+
+    try {
+      await fetch("/api/cards/profile-products/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId,
+          productIds: reordered.map((p) => p.id),
+        }),
+      });
+    } catch {
+      await loadProducts();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/cards/profile-products?id=${encodeURIComponent(deleteId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setDeleteId(null);
+        await loadProducts();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedDeleteProduct = products.find((p) => p.id === deleteId);
+
+  return (
+    <div className="mode-settings-block">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 10 }}>
+        <div className="mode-settings-title" style={{ margin: 0 }}>🛍️ MY PRODUCTS ({products.length})</div>
+        <button
+          type="button"
+          className="asset-btn-primary"
+          onClick={() => {
+            setSaveError("");
+            setEditingProduct({
+              name: "",
+              description: "",
+              price: "",
+              currency: "INR",
+              imageUrl: "",
+              category: "",
+              ctaLabel: "Enquire",
+              ctaUrl: "",
+              enabled: true,
+            });
+          }}
+        >
+          + ADD PRODUCT
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 16px" }}>
+        Create custom product showcase items for your public profile. These custom products belong exclusively to your profile.
+      </p>
+
+      {loading ? (
+        <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          Loading products…
+        </div>
+      ) : products.length === 0 && !editingProduct ? (
+        <div style={{ padding: 24, background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 12, textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          No custom profile products created yet. Click "+ ADD PRODUCT" to feature your first product!
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {products.map((prod, idx) => (
+            <div
+              key={prod.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: prod.enabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+                border: prod.enabled ? "1px solid rgba(0, 229, 255, 0.25)" : "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12,
+                padding: "14px 16px",
+                gap: 14,
+                opacity: prod.enabled ? 1 : 0.65,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 220, flex: 1 }}>
+                {prod.imageUrl ? (
+                  <img
+                    src={prod.imageUrl}
+                    alt={prod.name}
+                    style={{ width: 54, height: 54, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(255,255,255,0.15)" }}
+                  />
+                ) : (
+                  <div style={{ width: 54, height: 54, borderRadius: 8, background: "rgba(0, 102, 255, 0.15)", border: "1px solid rgba(0, 102, 255, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#00E5FF" }}>
+                    🛍️
+                  </div>
+                )}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{prod.name}</span>
+                    {prod.category && (
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#00E5FF", background: "rgba(0, 229, 255, 0.12)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>
+                        {prod.category}
+                      </span>
+                    )}
+                  </div>
+                  {prod.price && (
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: "#38ef7d", marginTop: 2 }}>
+                      {prod.currency === "INR" ? "₹" : prod.currency === "USD" ? "$" : prod.currency === "EUR" ? "€" : prod.currency === "GBP" ? "£" : `${prod.currency} `}{prod.price}
+                    </div>
+                  )}
+                  {prod.description && (
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {prod.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {/* Visibility state badge & switch */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: prod.enabled ? "#2ecc71" : "#e74c3c" }}>
+                    {prod.enabled ? "Visible" : "Hidden"}
+                  </span>
+                  <div
+                    className={`mylux-toggle-switch ${prod.enabled ? "active" : ""}`}
+                    onClick={() => handleToggleProductVisibility(prod)}
+                    style={{ cursor: "pointer", transform: "scale(0.85)" }}
+                    title={prod.enabled ? "Hide from public profile" : "Show on public profile"}
+                  >
+                    <div className="mylux-toggle-knob" />
+                  </div>
+                </div>
+
+                {/* Ordering controls */}
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    type="button"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: idx === 0 ? "not-allowed" : "pointer", opacity: idx === 0 ? 0.3 : 1 }}
+                    onClick={() => handleMoveProduct(idx, "up")}
+                    disabled={idx === 0}
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: idx === products.length - 1 ? "not-allowed" : "pointer", opacity: idx === products.length - 1 ? 0.3 : 1 }}
+                    onClick={() => handleMoveProduct(idx, "down")}
+                    disabled={idx === products.length - 1}
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {/* Action buttons */}
+                <div className="asset-item-actions">
+                  <button type="button" className="edit-btn" onClick={() => { setSaveError(""); setEditingProduct(prod); }}>Edit</button>
+                  <button type="button" className="delete-btn" onClick={() => setDeleteId(prod.id)}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── ADD / EDIT PRODUCT MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(editingProduct)}
+        onClose={() => setEditingProduct(null)}
+        title={editingProduct?.id ? "Edit Custom Product" : "Add Custom Product"}
+        subtitle="Create or modify custom products for your public profile."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setEditingProduct(null)} disabled={saving || uploadingImage}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-submit" onClick={handleSave} disabled={saving || uploadingImage}>
+              {saving ? "Saving Product..." : "Save Product"}
+            </button>
+          </>
+        }
+      >
+        {editingProduct && (
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {saveError && (
+              <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13 }}>
+                ⚠️ {saveError}
+              </div>
+            )}
+
+            <div className="mylux-field">
+              <label className="mylux-field-label">PRODUCT NAME *</label>
+              <input
+                type="text"
+                className="mylux-input"
+                value={editingProduct.name || ""}
+                onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                placeholder="e.g. Rolex Submariner / Custom Ring / Interior Package"
+                required
+              />
+            </div>
+
+            <div className="mylux-field">
+              <label className="mylux-field-label">PRODUCT IMAGE</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                {editingProduct.imageUrl ? (
+                  <img src={editingProduct.imageUrl} alt="Preview" style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
+                ) : (
+                  <div style={{ width: 64, height: 64, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "rgba(255,255,255,0.4)" }}>
+                    📷
+                  </div>
+                )}
+                <div>
+                  <label className="asset-btn-primary" style={{ cursor: uploadingImage ? "wait" : "pointer", display: "inline-block" }}>
+                    {uploadingImage ? "Uploading..." : "Upload Product Image"}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleImageUpload} style={{ display: "none" }} disabled={uploadingImage} />
+                  </label>
+                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+                    Supported: JPG, JPEG, PNG, WEBP, GIF (Max 5MB)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mylux-field">
+              <label className="mylux-field-label">DESCRIPTION</label>
+              <textarea
+                className="mylux-textarea"
+                rows={3}
+                value={editingProduct.description || ""}
+                onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                placeholder="Describe your product specs, materials, or details..."
+              />
+            </div>
+
+            <div className="mylux-form-grid-2">
+              <div className="mylux-field">
+                <label className="mylux-field-label">PRICE (Optional)</label>
+                <input
+                  type="text"
+                  className="mylux-input"
+                  value={editingProduct.price || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                  placeholder="e.g. 12,50,000 / 2,999 / Contact for price"
+                />
+              </div>
+              <div className="mylux-field">
+                <label className="mylux-field-label">CURRENCY</label>
+                <select
+                  className="mylux-select"
+                  value={editingProduct.currency || "INR"}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, currency: e.target.value })}
+                >
+                  <option value="INR">INR (₹)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="AED">AED (د.إ)</option>
+                  <option value="SAR">SAR (﷼)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="AUD">AUD ($)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mylux-form-grid-2">
+              <div className="mylux-field">
+                <label className="mylux-field-label">CATEGORY (Optional)</label>
+                <input
+                  type="text"
+                  className="mylux-input"
+                  value={editingProduct.category || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                  placeholder="e.g. Watches / Real Estate / Services"
+                />
+              </div>
+              <div className="mylux-field">
+                <label className="mylux-field-label">CALL TO ACTION</label>
+                <select
+                  className="mylux-select"
+                  value={editingProduct.ctaLabel || "Enquire"}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, ctaLabel: e.target.value })}
+                >
+                  <option value="Enquire">Enquire</option>
+                  <option value="Contact Me">Contact Me</option>
+                  <option value="Buy Now">Buy Now</option>
+                  <option value="View Details">View Details</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Visit Website">Visit Website</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mylux-field">
+              <label className="mylux-field-label">CALL TO ACTION URL (Optional)</label>
+              <input
+                type="text"
+                className="mylux-input"
+                value={editingProduct.ctaUrl || ""}
+                onChange={(e) => setEditingProduct({ ...editingProduct, ctaUrl: e.target.value })}
+                placeholder="e.g. https://wa.me/919876543210 or https://example.com/product"
+              />
+              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+                Only http, https, tel, and mailto links are allowed.
+              </div>
+            </div>
+
+            <div className="mylux-toggle-row">
+              <div>
+                <div className="mylux-radio-label-text">Product Visibility</div>
+                <div className="mylux-radio-subtext">When OFF, product is saved but hidden from the public profile.</div>
+              </div>
+              <div
+                className={`mylux-toggle-switch ${editingProduct.enabled !== false ? "active" : ""}`}
+                onClick={() => setEditingProduct({ ...editingProduct, enabled: editingProduct.enabled === false })}
+              >
+                <div className="mylux-toggle-knob" />
+              </div>
+            </div>
+          </form>
+        )}
+      </MyLuxModal>
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      <MyLuxModal
+        isOpen={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        title="Delete Custom Product Permanently?"
+        subtitle="Are you sure you want to delete this custom profile product? This action cannot be undone."
+        footer={
+          <>
+            <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="mylux-btn-danger" onClick={handleDelete} disabled={saving}>
+              {saving ? "Deleting..." : "Delete Permanently"}
+            </button>
+          </>
+        }
+      >
+        {selectedDeleteProduct && (
+          <div style={{ padding: "12px 16px", background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 10, color: "#fff" }}>
+            <strong>{selectedDeleteProduct.name}</strong>
+            {selectedDeleteProduct.price && <div>Price: {selectedDeleteProduct.price}</div>}
+          </div>
         )}
       </MyLuxModal>
     </div>

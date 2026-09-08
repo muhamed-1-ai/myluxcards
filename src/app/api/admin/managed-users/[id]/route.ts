@@ -33,12 +33,36 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     const digitalCard = digitalCardRes.rows[0] || null;
 
     let physicalCards: any[] = [];
+    let profileProducts: any[] = [];
     if (digitalCard) {
-      const cardsRes = await pool.query(
-        `SELECT id, status, created_at FROM cards WHERE digital_card_id = $1 ORDER BY created_at DESC`,
-        [digitalCard.id]
-      );
+      const [cardsRes, productsRes] = await Promise.all([
+        pool.query(
+          `SELECT id, status, created_at FROM cards WHERE digital_card_id = $1 ORDER BY created_at DESC`,
+          [digitalCard.id]
+        ),
+        pool.query(
+          `SELECT id, name, description, price, currency, image_url, category, cta_label, cta_url, enabled, sort_order, created_at
+           FROM card_profile_products
+           WHERE card_id = $1
+           ORDER BY sort_order ASC, created_at ASC`,
+          [digitalCard.id]
+        ),
+      ]);
       physicalCards = cardsRes.rows;
+      profileProducts = productsRes.rows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        currency: p.currency,
+        imageUrl: p.image_url,
+        category: p.category,
+        ctaLabel: p.cta_label,
+        ctaUrl: p.cta_url,
+        enabled: p.enabled,
+        sortOrder: p.sort_order,
+        createdAt: p.created_at,
+      }));
     }
 
     // 3. User Orders
@@ -93,6 +117,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
             activatedAt: digitalCard.activated_at,
             publicProfileUrl: getPublicCardUrl(digitalCard.slug),
             physicalCards,
+            profileProducts,
           }
         : null,
       orders: ordersRes.rows.map((o) => ({

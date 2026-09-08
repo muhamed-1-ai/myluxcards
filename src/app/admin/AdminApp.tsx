@@ -675,6 +675,25 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
                   </div>
                 )}
 
+                {Array.isArray(detailsData.digitalCard?.profileProducts) && detailsData.digitalCard.profileProducts.length > 0 && (
+                  <div style={{ background: "#111", padding: "12px", borderRadius: "6px", marginBottom: "14px", border: "1px solid #222" }}>
+                    <h4 style={{ margin: "0 0 8px", color: "#00E5FF" }}>🛍️ USER PROFILE SHOWCASE PRODUCTS ({detailsData.digitalCard.profileProducts.length})</h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {detailsData.digitalCard.profileProducts.map((p: any) => (
+                        <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", padding: "6px 10px", borderRadius: 4 }}>
+                          <div>
+                            <span style={{ fontWeight: 700, color: "#fff" }}>{p.name}</span>
+                            {p.price && <span style={{ color: "#38ef7d", marginLeft: 8, fontSize: 12 }}>({p.currency === "INR" ? "₹" : p.currency} {p.price})</span>}
+                          </div>
+                          <span style={{ color: p.enabled ? "#2ecc71" : "#e74c3c", fontSize: 11, fontWeight: 700 }}>
+                            {p.enabled ? "VISIBLE" : "HIDDEN"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ background: "#111", padding: "12px", borderRadius: "6px", border: "1px solid #222" }}>
                   <h4 style={{ margin: "0 0 8px", color: "#0066FF" }}>SHIPPING INFORMATION</h4>
                   <div><strong>Recipient Name:</strong> {detailsData.shippingAddress?.recipientName || "Not provided"}</div>

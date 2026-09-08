@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   const kind = String(form?.get("kind") || "");
-  if (!(file instanceof File) || !["logo","cover","brochure"].includes(kind)) return Response.json({ message: "Choose a valid file." }, { status: 400 });
+  if (!(file instanceof File) || !["logo","cover","brochure","product"].includes(kind)) return Response.json({ message: "Choose a valid file." }, { status: 400 });
   const extension = allowed.get(file.type);
   if (!extension || (kind === "brochure") !== (file.type === "application/pdf")) return Response.json({ message: kind === "brochure" ? "Choose a PDF file." : "Choose a PNG, JPG, WebP, or GIF image." }, { status: 400 });
   if (!file.size || file.size > 5 * 1024 * 1024) return Response.json({ message: "Files must be 5 MB or smaller." }, { status: 413 });

@@ -19,7 +19,8 @@ export type ProfileFeatureKey =
   | "WEBSITE"
   | "EMERGENCY_CONTACT"
   | "VEHICLE"
-  | "LOST_AND_FOUND";
+  | "LOST_AND_FOUND"
+  | "PRODUCTS";
 
 export interface ProfileFeatureItemConfig {
   enabled: boolean;
@@ -36,6 +37,7 @@ export const DEFAULT_PROFILE_FEATURES: ProfileFeaturesConfig = {
   EMERGENCY_CONTACT: { enabled: true, sortOrder: 4 },
   VEHICLE: { enabled: true, sortOrder: 5 },
   LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
+  PRODUCTS: { enabled: false, sortOrder: 7 },
 };
 
 export const DEFAULT_FEATURE_ORDER: ProfileFeatureKey[] = [
@@ -46,6 +48,7 @@ export const DEFAULT_FEATURE_ORDER: ProfileFeatureKey[] = [
   "EMERGENCY_CONTACT",
   "VEHICLE",
   "LOST_AND_FOUND",
+  "PRODUCTS",
 ];
 
 export interface EnabledFeatures {
@@ -87,6 +90,23 @@ export interface CardLostItem {
   returnInstructions: string;
   enabled: boolean;
   sortOrder: number;
+}
+
+export interface CardProfileProduct {
+  id: string;
+  cardId: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  imageUrl: string;
+  category: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface VehicleConnectSettings {
@@ -187,7 +207,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       };
     } else if (field === "profileFeatures" && value && typeof value === "object") {
       const pfObj = value as Record<string, unknown>;
-      const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND"];
+      const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND", "PRODUCTS"];
       const cleanedPF: Partial<ProfileFeaturesConfig> = {};
       for (const k of validKeys) {
         const item = pfObj[k] as Record<string, unknown> | undefined;
@@ -202,7 +222,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       }
       output.profileFeatures = cleanedPF;
     } else if (field === "featureOrder" && Array.isArray(value)) {
-      const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND"];
+      const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND", "PRODUCTS"];
       const filtered = value.map(v => String(v)).filter((v): v is ProfileFeatureKey => validKeys.includes(v as ProfileFeatureKey));
       const missing = validKeys.filter(k => !filtered.includes(k));
       output.featureOrder = [...filtered, ...missing];

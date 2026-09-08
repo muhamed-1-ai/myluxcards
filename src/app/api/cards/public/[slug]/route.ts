@@ -43,8 +43,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
     const defaultEmergRel = profileObj.defaultEmergencyRelationship || profileObj.emergencyContact?.relationship || "";
     const defaultEmergPhone = profileObj.defaultEmergencyPhone || profileObj.emergencyContact?.phone || "";
 
-    // Query active vehicles, lost items, account numbers, and emergency contacts
-    const [vehiclesRes, lostItemsRes, accountContactsRes, emergencyContactsRes, emergencyNumbersRes] = await Promise.all([
+    // Query active vehicles, lost items, account numbers, emergency contacts, and profile showcase products
+    const [vehiclesRes, lostItemsRes, accountContactsRes, emergencyContactsRes, emergencyNumbersRes, productsRes] = await Promise.all([
       pool.query<{
         id: string;
         display_name: string;
@@ -126,6 +126,25 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
          where emergency_contact_id in (select id from emergency_contacts where user_id = $1 and enabled = true)
          order by is_primary desc, sort_order asc, created_at asc`,
         [row.owner_id]
+      ).catch(() => ({ rows: [] })),
+      pool.query<{
+        id: string;
+        name: string;
+        description: string;
+        price: string;
+        currency: string;
+        image_url: string;
+        category: string;
+        cta_label: string;
+        cta_url: string;
+        enabled: boolean;
+        sort_order: number;
+      }>(
+        `select id, name, description, price, currency, image_url, category, cta_label, cta_url, enabled, sort_order
+         from card_profile_products
+         where card_id = $1 and enabled = true
+         order by sort_order asc, created_at asc`,
+        [row.id]
       ).catch(() => ({ rows: [] })),
     ]);
 
@@ -275,10 +294,25 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       }];
     }
 
+    const profileProducts = productsRes.rows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      currency: p.currency,
+      imageUrl: p.image_url,
+      category: p.category,
+      ctaLabel: p.cta_label,
+      ctaUrl: p.cta_url,
+      enabled: p.enabled,
+      sortOrder: p.sort_order,
+    }));
+
     return Response.json({
       card: { ...safeCard, previewAuthorized },
       vehicles,
       lostItems,
+      profileProducts,
     });
   } catch {
     return Response.json({ message: "Card unavailable." }, { status: 503 });
