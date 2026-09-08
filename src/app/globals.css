@@ -4841,4 +4841,103 @@ iframe {
   }
 }
 
+/* Home Landing Page & Modals Light Mode Overrides */
+[data-theme="light"] .navbar,
+body.light-mode .navbar {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] .nav-link,
+body.light-mode .nav-link {
+  color: #1E293B !important;
+}
+
+[data-theme="light"] .hero,
+[data-theme="light"] .sub-hero,
+[data-theme="light"] .purchase-confidence,
+[data-theme="light"] .after-purchase,
+body.light-mode .hero,
+body.light-mode .sub-hero,
+body.light-mode .purchase-confidence,
+body.light-mode .after-purchase {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .hero-title,
+[data-theme="light"] .section-header h2,
+[data-theme="light"] .purchase-confidence-head h2,
+[data-theme="light"] .after-purchase-heading h2,
+body.light-mode .hero-title,
+body.light-mode .section-header h2,
+body.light-mode .purchase-confidence-head h2,
+body.light-mode .after-purchase-heading h2 {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .product-showcase,
+[data-theme="light"] .purchase-facts article,
+[data-theme="light"] .after-purchase-steps li,
+[data-theme="light"] .after-purchase-help,
+[data-theme="light"] .home-trust-panel article,
+body.light-mode .product-showcase,
+body.light-mode .purchase-facts article,
+body.light-mode .after-purchase-steps li,
+body.light-mode .after-purchase-help,
+body.light-mode .home-trust-panel article {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .showcase-copy h3,
+[data-theme="light"] .purchase-facts h3,
+[data-theme="light"] .after-purchase-steps h3,
+body.light-mode .showcase-copy h3,
+body.light-mode .purchase-facts h3,
+body.light-mode .after-purchase-steps h3 {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .footer,
+body.light-mode .footer {
+  background: #FFFFFF !important;
+  border-top: 1px solid #E2E8F0 !important;
+  color: #1E293B !important;
+}
+
+[data-theme="light"] .footer h3,
+[data-theme="light"] .footer-links a,
+body.light-mode .footer h3,
+body.light-mode .footer-links a {
+  color: #1E293B !important;
+}
+
+[data-theme="light"] .crm-modal-dialog,
+[data-theme="light"] .modal-card,
+[data-theme="light"] .drawer,
+body.light-mode .crm-modal-dialog,
+body.light-mode .modal-card,
+body.light-mode .drawer {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .crm-label,
+body.light-mode .crm-label {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .crm-input,
+body.light-mode .crm-input {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+
 

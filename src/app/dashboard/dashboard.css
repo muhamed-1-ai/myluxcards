@@ -4801,6 +4801,23 @@ body.light-mode .crm-capacity-pill {
   color: #0066FF !important;
 }
 
+[data-theme="light"] .crm-lead-dashboard,
+[data-theme="light"] .dash-main,
+body.light-mode .crm-lead-dashboard,
+body.light-mode .dash-main {
+  background: #F4F7FA !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-section-title,
+[data-theme="light"] .crm-filter-title,
+body.light-mode .crm-section-title,
+body.light-mode .crm-filter-title {
+  color: #0066FF !important;
+  font-weight: 800 !important;
+}
+
+
 
 
 
