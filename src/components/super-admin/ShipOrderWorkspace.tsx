@@ -6,9 +6,20 @@ import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 interface ShipOrderWorkspaceProps {
   orderId: string;
   onBack?: () => void;
+  onViewCustomer?: (userId: string) => void;
 }
 
-export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspaceProps) {
+const OPERATIONAL_LABELS = [
+  "URGENT",
+  "CUSTOM DESIGN",
+  "REPLACEMENT",
+  "GIFT",
+  "PREPAID",
+  "COD",
+  "INTERNATIONAL",
+];
+
+export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer }: ShipOrderWorkspaceProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,6 +35,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
   const [weightKg, setWeightKg] = useState("0.25");
   const [dimensionsCm, setDimensionsCm] = useState("15 x 10 x 2");
   const [status, setStatus] = useState("PENDING");
+  const [activeLabels, setActiveLabels] = useState<string[]>([]);
 
   // Checklists
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
@@ -51,6 +63,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
       setWeightKg(ful.weightKg || "0.25");
       setDimensionsCm(ful.dimensionsCm || "15 x 10 x 2");
       setStatus(json.order?.status || "PENDING");
+      setActiveLabels(ful.labels || []);
       setChecklist(ful.checklist || {});
       setQrVerified(Boolean(ful.checklist?.qrVerified));
       setCardVerified(Boolean(ful.checklist?.cardVerified));
@@ -75,6 +88,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
         trackingUrl: overrides.trackingUrl || trackingUrl,
         weightKg: overrides.weightKg || weightKg,
         dimensionsCm: overrides.dimensionsCm || dimensionsCm,
+        labels: overrides.labels || activeLabels,
         qrVerified: overrides.qrVerified !== undefined ? overrides.qrVerified : qrVerified,
         cardVerified: overrides.cardVerified !== undefined ? overrides.cardVerified : cardVerified,
         checklist: {
@@ -105,7 +119,16 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
     }
   };
 
+  const toggleLabel = (label: string) => {
+    const nextLabels = activeLabels.includes(label)
+      ? activeLabels.filter((l) => l !== label)
+      : [...activeLabels, label];
+    setActiveLabels(nextLabels);
+    void saveFulfillment({ labels: nextLabels });
+  };
+
   const copyToClipboard = (text: string, label: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopyFeedback(`Copied ${label}!`);
     setTimeout(() => setCopyFeedback(""), 2000);
@@ -181,12 +204,12 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
       {/* Top Header */}
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px" }}>
         <div>
-          <button onClick={onBack} style={{ background: "transparent", color: "#d4af37", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: "600", marginBottom: "6px", display: "inline-block" }}>
+          <button onClick={onBack} style={{ background: "transparent", color: "#00E5FF", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: "700", marginBottom: "6px", display: "inline-block" }}>
             ← Back to Orders List
           </button>
-          <h1 style={{ fontSize: "24px", margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+          <h1 style={{ fontSize: "24px", margin: 0, display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             Ship Order #{order.orderNumber}
-            <span style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "20px", background: order.status === "SHIPPED" ? "#52c41a22" : "#d4af3722", color: order.status === "SHIPPED" ? "#52c41a" : "#d4af37", border: `1px solid ${order.status === "SHIPPED" ? "#52c41a" : "#d4af37"}` }}>
+            <span style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "20px", background: order.status === "SHIPPED" || order.status === "DELIVERED" ? "#52c41a22" : "#0066FF22", color: order.status === "SHIPPED" || order.status === "DELIVERED" ? "#52c41a" : "#00E5FF", border: `1px solid ${order.status === "SHIPPED" || order.status === "DELIVERED" ? "#52c41a" : "#0066FF"}` }}>
               {order.status}
             </span>
           </h1>
@@ -194,6 +217,16 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
 
         {/* Quick Action Bar */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {order.userId && onViewCustomer && (
+            <button onClick={() => onViewCustomer(order.userId)} style={{ ...quickBtnStyle, background: "rgba(0, 102, 255, 0.2)", color: "#00E5FF", border: "1px solid rgba(0, 229, 255, 0.4)" }}>
+              👤 View Customer
+            </button>
+          )}
+          {qr?.url && (
+            <a href={qr.url} target="_blank" rel="noreferrer" style={{ ...quickBtnStyle, background: "rgba(46, 204, 113, 0.15)", color: "#2ecc71", border: "1px solid rgba(46, 204, 113, 0.4)", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+              🌐 Open Profile ↗
+            </a>
+          )}
           <button onClick={() => copyToClipboard(fullAddressString, "Full Address")} style={quickBtnStyle}>
             📋 Copy Address
           </button>
@@ -209,7 +242,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
           <button onClick={() => setShowLabelModal(true)} style={quickBtnStyle}>
             🏷️ Generate Label
           </button>
-          <button onClick={() => setShowPrintPack(true)} style={{ ...quickBtnStyle, background: "#d4af37", color: "#000", fontWeight: 700 }}>
+          <button onClick={() => setShowPrintPack(true)} style={{ ...quickBtnStyle, background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800 }}>
             🖨️ Print Shipping Pack
           </button>
         </div>
@@ -220,6 +253,37 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
           ✓ {copyFeedback}
         </div>
       )}
+
+      {/* Internal Operational Labels Selector */}
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
+        <div style={{ fontSize: "12px", fontWeight: 800, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+          🏷️ Internal Operational Labels
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {OPERATIONAL_LABELS.map((lbl) => {
+            const active = activeLabels.includes(lbl);
+            return (
+              <button
+                key={lbl}
+                type="button"
+                onClick={() => toggleLabel(lbl)}
+                style={{
+                  background: active ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "rgba(255,255,255,0.06)",
+                  color: active ? "#fff" : "rgba(255,255,255,0.6)",
+                  border: active ? "1px solid #00E5FF" : "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: "6px",
+                  padding: "4px 10px",
+                  fontSize: "11.5px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {active ? "✓ " : "+ "}{lbl}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Shipping Readiness Indicator Banner */}
       <div style={{ background: readiness.isReadyToShip ? "#13520022" : "#5c220022", border: `1px solid ${readiness.isReadyToShip ? "#52c41a" : "#fa8c16"}`, padding: "16px 20px", borderRadius: "10px", marginBottom: "24px" }}>
@@ -303,7 +367,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
                   .join(", ")}
               </p>
               {shippingAddress.deliveryInstructions && (
-                <p style={{ margin: "6px 0 0", color: "#d4af37", fontSize: "12px" }}>
+                <p style={{ margin: "6px 0 0", color: "#00E5FF", fontSize: "12px" }}>
                   <em>Note: {shippingAddress.deliveryInstructions}</em>
                 </p>
               )}
@@ -352,7 +416,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
                   <strong style={{ color: "#fff", fontSize: "13px" }}>{it.productName}</strong>
                   <div style={{ color: "#888", fontSize: "12px" }}>Qty: {it.quantity} {it.sku ? `| SKU: ${it.sku}` : ""}</div>
                 </div>
-                <div style={{ fontWeight: 700, color: "#d4af37" }}>
+                <div style={{ fontWeight: 700, color: "#00E5FF" }}>
                   ₹{(it.totalMinor / 100).toFixed(2)}
                 </div>
               </li>
@@ -499,10 +563,12 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
               <div>
                 <label style={{ display: "block", color: "#aaa", marginBottom: "4px" }}>Order Status</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value)} style={inputStyle}>
-                  <option value="PENDING">PENDING</option>
-                  <option value="PROCESSING">PROCESSING</option>
-                  <option value="IN_PRODUCTION">IN PRODUCTION</option>
-                  <option value="READY_TO_PACK">READY TO PACK</option>
+                  <option value="NEW">NEW</option>
+                  <option value="PAYMENT_VERIFIED">PAYMENT VERIFIED</option>
+                  <option value="CUSTOMIZATION">CUSTOMIZATION</option>
+                  <option value="QR_READY">QR READY</option>
+                  <option value="CARD_PRODUCTION">CARD PRODUCTION</option>
+                  <option value="PACKAGING">PACKAGING</option>
                   <option value="PACKED">PACKED</option>
                   <option value="READY_TO_SHIP">READY TO SHIP</option>
                   <option value="SHIPPED">SHIPPED</option>
@@ -525,7 +591,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
               </div>
             </div>
 
-            <button disabled={saving} onClick={() => saveFulfillment()} style={{ padding: "8px", background: "#d4af37", color: "#000", fontWeight: 700, border: "none", borderRadius: "6px", cursor: "pointer", marginTop: "6px" }}>
+            <button disabled={saving} onClick={() => saveFulfillment()} style={{ padding: "8px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "6px", cursor: "pointer", marginTop: "6px" }}>
               {saving ? "Saving Updates..." : "Save Shipping Details"}
             </button>
           </div>
@@ -541,7 +607,7 @@ export default function ShipOrderWorkspace({ orderId, onBack }: ShipOrderWorkspa
           {(fulfillment?.timeline || []).map((t: any, idx: number) => (
             <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#111", padding: "8px 12px", borderRadius: "6px", border: "1px solid #222", fontSize: "12px" }}>
               <div>
-                <strong style={{ color: "#d4af37" }}>{t.status}</strong>
+                <strong style={{ color: "#00E5FF" }}>{t.status}</strong>
                 <p style={{ margin: "2px 0 0", color: "#ccc" }}>{t.note}</p>
               </div>
               <div style={{ color: "#888", textAlign: "right" }}>
@@ -727,9 +793,9 @@ const modalContentStyle: React.CSSProperties = {
 
 const primaryBtnStyle: React.CSSProperties = {
   padding: "8px 16px",
-  background: "#d4af37",
-  color: "#000",
-  fontWeight: 700,
+  background: "linear-gradient(135deg, #0066FF, #00E5FF)",
+  color: "#fff",
+  fontWeight: 800,
   border: "none",
   borderRadius: "6px",
   cursor: "pointer",

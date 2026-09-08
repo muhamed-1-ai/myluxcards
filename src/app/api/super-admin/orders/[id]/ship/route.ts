@@ -265,8 +265,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         shippingChargeMinor: ful.shippingChargeMinor || 0,
         shipmentDate: ful.shipmentDate || null,
         expectedDelivery: ful.expectedDelivery || null,
-        shippingStatus: ful.shippingStatus || order.status,
         timeline,
+        labels: ful.labels || [],
       },
     });
   } catch (error) {
@@ -338,6 +338,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       shippingChargeMinor: body.shippingChargeMinor !== undefined ? body.shippingChargeMinor : currentFul.shippingChargeMinor,
       shipmentDate: body.shipmentDate !== undefined ? body.shipmentDate : currentFul.shipmentDate,
       expectedDelivery: body.expectedDelivery !== undefined ? body.expectedDelivery : currentFul.expectedDelivery,
+      labels: Array.isArray(body.labels) ? body.labels : (currentFul.labels || []),
       shippingStatus: nextStatus,
       timeline,
       updatedAt: new Date().toISOString(),

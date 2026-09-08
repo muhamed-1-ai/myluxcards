@@ -31,6 +31,10 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
   const [fulfillmentData, setFulfillmentData] = useState<any | null>(null);
   const [fulfillmentLoading, setFulfillmentLoading] = useState(false);
   const [selectedOrderIdForShip, setSelectedOrderIdForShip] = useState<string | null>(null);
+  const [pipelineFilter, setPipelineFilter] = useState<string>("ALL");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [batchActionLoading, setBatchActionLoading] = useState(false);
 
   // Audit Logs & General Overview
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -150,11 +154,12 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
     }
   };
 
-  // Download Individual QR
+  // Download Single User QR Code
   const downloadUserQr = async (user: any, format: "png" | "svg") => {
-    if (!user.qrUrl) return;
+    if (!user?.qrUrl) return;
     const svgString = buildPremiumQrSvg(user.qrUrl, { label: "3G ZAPPIT" });
-    const filename = `zappit-qr-${user.name ? user.name.replace(/\s+/g, "-").toLowerCase() : user.id}.${format}`;
+    const sanitizedName = (user.name || "user").toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const filename = `zappit-qr-${sanitizedName}.${format}`;
 
     if (format === "svg") {
       const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
@@ -175,22 +180,19 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
     }
   };
 
-  // Bulk Export QR PNGs as ZIP
+  // Export Selected Users' QR Codes as ZIP
   const exportSelectedQrsZip = async () => {
-    if (selectedUserIds.length === 0) {
-      alert("Please select at least one user to export QR codes.");
-      return;
-    }
-
+    if (selectedUserIds.length === 0) return;
     const selectedUsers = users.filter((u) => selectedUserIds.includes(u.id));
     const zip = new JSZip();
     const folder = zip.folder("zappit-qr-codes");
 
     for (const u of selectedUsers) {
-      const svgString = buildPremiumQrSvg(u.qrUrl, { label: "3G ZAPPIT" });
-      const blob = await svgToHighResPngBlob(svgString, 1500);
-      const filename = `zappit-${u.name ? u.name.replace(/\s+/g, "-").toLowerCase() : u.id}.png`;
-      folder?.file(filename, blob);
+      if (u.qrUrl) {
+        const svgString = buildPremiumQrSvg(u.qrUrl, { label: "3G ZAPPIT" });
+        const name = (u.name || "user").toLowerCase().replace(/[^a-z0-9]/g, "-");
+        folder?.file(`zappit-qr-${name}.svg`, svgString);
+      }
     }
 
     const content = await zip.generateAsync({ type: "blob" });
@@ -200,6 +202,61 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
     a.download = `zappit-bulk-qr-export-${new Date().toISOString().slice(0, 10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Bulk Operations API Call
+  const handleBatchOperation = async (action: "qr_zip" | "export_csv" | "bulk_status", statusValue?: string) => {
+    if (selectedOrderIds.length === 0) {
+      alert("Please select at least one order.");
+      return;
+    }
+
+    setBatchActionLoading(true);
+    try {
+      const res = await fetch("/api/super-admin/orders/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          orderIds: selectedOrderIds,
+          status: statusValue,
+        }),
+      });
+
+      if (action === "export_csv") {
+        if (!res.ok) throw new Error("CSV export failed");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `ZAPPIT_Shipping_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (action === "qr_zip") {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || "QR ZIP generation failed");
+        const binary = atob(json.zipBase64);
+        const array = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+        const blob = new Blob([array], { type: "application/zip" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = json.fileName || "ZAPPIT_QRS.zip";
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || "Batch operation failed");
+        alert(json.message || "Updated successfully");
+        setSelectedOrderIds([]);
+        await loadFulfillment();
+      }
+    } catch (e: any) {
+      alert(e.message || "Batch action failed");
+    } finally {
+      setBatchActionLoading(false);
+    }
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -224,16 +281,42 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
           setSection("fulfillment");
           loadFulfillment();
         }}
+        onViewCustomer={(userId) => openUserDetails(userId)}
       />
     );
   }
+
+  const PIPELINE_STAGES = [
+    { key: "ALL", label: "ALL ORDERS" },
+    { key: "NEW", label: "NEW" },
+    { key: "PAYMENT_VERIFIED", label: "PAYMENT VERIFIED" },
+    { key: "CUSTOMIZATION", label: "CUSTOMIZATION" },
+    { key: "QR_READY", label: "QR READY" },
+    { key: "CARD_PRODUCTION", label: "PRODUCTION" },
+    { key: "PACKAGING", label: "PACKAGING" },
+    { key: "READY_TO_SHIP", label: "READY TO SHIP" },
+    { key: "SHIPPED", label: "SHIPPED" },
+    { key: "DELIVERED", label: "DELIVERED" },
+  ];
+
+  const filteredAttentionOrders = (fulfillmentData?.needingAttention || []).filter((o: any) => {
+    const matchesPipeline = pipelineFilter === "ALL" || o.status === pipelineFilter;
+    const q = orderSearchQuery.trim().toLowerCase();
+    const matchesSearch = !q || (
+      o.orderNumber?.toLowerCase().includes(q) ||
+      o.customerName?.toLowerCase().includes(q) ||
+      o.customerEmail?.toLowerCase().includes(q) ||
+      o.customerMobile?.toLowerCase().includes(q)
+    );
+    return matchesPipeline && matchesSearch;
+  });
 
   return (
     <div className="admin-shell" style={{ background: "#050505", minHeight: "100vh", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
       {/* Top Bar */}
       <header className="admin-top" style={{ background: "#111", borderBottom: "1px solid #222", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <a href="/" className="admin-logo" style={{ color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: "18px", letterSpacing: "1px" }}>
-          3G ZAPPIT <span style={{ color: "#d4af37", fontSize: "12px", background: "#d4af3722", padding: "2px 8px", borderRadius: "4px" }}>SUPER ADMIN</span>
+          3G ZAPPIT <span style={{ color: "#00E5FF", fontSize: "12px", background: "rgba(0, 229, 255, 0.15)", padding: "2px 8px", borderRadius: "4px" }}>SUPER ADMIN</span>
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <strong style={{ fontSize: "14px" }}>{identity.name}</strong>
@@ -257,10 +340,10 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                 📊 Overview
               </button>
               <button className={section === "users" ? "active" : ""} onClick={() => setSection("users")} style={navBtnStyle(section === "users")}>
-                👥 Users & QR Management
+                👥 Users & QR Directory
               </button>
               <button className={section === "fulfillment" ? "active" : ""} onClick={() => setSection("fulfillment")} style={navBtnStyle(section === "fulfillment")}>
-                🚚 Order Fulfillment
+                🚚 Fulfillment Center
               </button>
               <button className={section === "audit" ? "active" : ""} onClick={() => setSection("audit")} style={navBtnStyle(section === "audit")}>
                 🛡️ Audit Logs
@@ -292,13 +375,13 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                 </div>
                 <div style={statBoxStyle}>
                   <span style={{ color: "#888", fontSize: "12px" }}>Platform Admins</span>
-                  <h2 style={{ fontSize: "36px", margin: "8px 0", color: "#d4af37" }}>{overviewStats.admins}</h2>
+                  <h2 style={{ fontSize: "36px", margin: "8px 0", color: "#00E5FF" }}>{overviewStats.admins}</h2>
                 </div>
               </div>
             </div>
           )}
 
-          {/* SECTION 2: USERS & QR MANAGEMENT */}
+          {/* SECTION 2: USERS & QR DIRECTORY */}
           {section === "users" && (
             <div>
               <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px" }}>
@@ -311,7 +394,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
 
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   {selectedUserIds.length > 0 && (
-                    <button onClick={exportSelectedQrsZip} style={{ padding: "8px 14px", background: "#d4af37", color: "#000", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>
+                    <button onClick={exportSelectedQrsZip} style={{ padding: "8px 14px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>
                       📦 Download Selected QRs ({selectedUserIds.length} ZIP)
                     </button>
                   )}
@@ -416,7 +499,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                               {u.phone && <div style={{ color: "#666", fontSize: "11px" }}>📞 {u.phone}</div>}
                             </td>
                             <td style={{ padding: "12px" }}>
-                              <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: u.role === "SUPER_ADMIN" ? "#722ed1" : u.role === "ADMIN" ? "#d4af37" : "#333", color: "#fff" }}>
+                              <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: u.role === "SUPER_ADMIN" ? "#722ed1" : u.role === "ADMIN" ? "#0066FF" : "#333", color: "#fff" }}>
                                 {u.role}
                               </span>
                             </td>
@@ -498,11 +581,12 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
           {/* SECTION 3: ORDER FULFILLMENT COMMAND CENTER */}
           {section === "fulfillment" && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <h1 style={{ fontSize: "24px", margin: 0 }}>Order Fulfillment Command Center</h1>
+                  <h1 style={{ fontSize: "24px", margin: 0 }}>Fulfillment Command Center</h1>
                   <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0" }}>
-                    Inspect orders, prepare packaging, verify QR/NFC, and process shipping from a single workspace.
+                    Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.
                   </p>
                 </div>
                 <button onClick={loadFulfillment} style={{ padding: "8px 14px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: "6px", cursor: "pointer" }}>
@@ -510,45 +594,175 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                 </button>
               </div>
 
+              {/* TODAY STATS METRICS BAR */}
+              {fulfillmentData?.today && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+                  <div style={statBoxStyle}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S ORDERS</span>
+                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#fff" }}>{fulfillmentData.today.todayOrders}</h3>
+                  </div>
+                  <div style={statBoxStyle}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S SALES</span>
+                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#2ecc71" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
+                  </div>
+                  <div style={statBoxStyle}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>ORDERS TO FULFILL</span>
+                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#f39c12" }}>{fulfillmentData.today.ordersToFulfill}</h3>
+                  </div>
+                  <div style={statBoxStyle}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>READY TO SHIP</span>
+                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#00E5FF" }}>{fulfillmentData.today.readyToShip}</h3>
+                  </div>
+                  <div style={statBoxStyle}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>SHIPPED TODAY</span>
+                    <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#52c41a" }}>{fulfillmentData.today.shippedToday}</h3>
+                  </div>
+                </div>
+              )}
+
+              {/* FULFILLMENT PIPELINE COUNTER STAGES */}
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 20 }}>
+                {PIPELINE_STAGES.map((st) => {
+                  const count = st.key === "ALL" ? (fulfillmentData?.needingAttention?.length || 0) : (fulfillmentData?.counts?.[st.key] || 0);
+                  const active = pipelineFilter === st.key;
+
+                  return (
+                    <button
+                      key={st.key}
+                      type="button"
+                      onClick={() => setPipelineFilter(st.key)}
+                      style={{
+                        background: active ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "#111",
+                        border: active ? "1px solid #00E5FF" : "1px solid #222",
+                        color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <span>{st.label}</span>
+                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", padding: "2px 7px", borderRadius: 12, fontSize: 11 }}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* MULTI-IDENTIFIER SEARCH & BATCH ACTION BAR */}
+              <div style={{ background: "#111", border: "1px solid #222", borderRadius: 10, padding: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div style={{ position: "relative", minWidth: 280, flex: 1 }}>
+                  <input
+                    type="text"
+                    placeholder="Search Order #, Name, Phone, Email, Slug..."
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px 8px 32px", background: "#050505", border: "1px solid #333", color: "#fff", borderRadius: 8, fontSize: 13 }}
+                  />
+                  <span style={{ position: "absolute", left: 10, top: 9, opacity: 0.5 }}>🔍</span>
+                </div>
+
+                {selectedOrderIds.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#00E5FF" }}>
+                      {selectedOrderIds.length} Selected
+                    </span>
+                    <button
+                      disabled={batchActionLoading}
+                      onClick={() => handleBatchOperation("qr_zip")}
+                      style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      📦 Download QR ZIP
+                    </button>
+                    <button
+                      disabled={batchActionLoading}
+                      onClick={() => handleBatchOperation("export_csv")}
+                      style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      📊 Export Shipping CSV
+                    </button>
+                    <button
+                      disabled={batchActionLoading}
+                      onClick={() => handleBatchOperation("bulk_status", "PACKED")}
+                      style={{ padding: "6px 12px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      ✓ Mark Packed
+                    </button>
+                    <button
+                      disabled={batchActionLoading}
+                      onClick={() => handleBatchOperation("bulk_status", "READY_TO_SHIP")}
+                      style={{ padding: "6px 12px", background: "#52c41a", color: "#000", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                    >
+                      🚀 Mark Ready to Ship
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ORDERS TABLE WITH MULTI-SELECT & QUICK ACTIONS */}
               {fulfillmentLoading ? (
                 <p>Loading fulfillment overview...</p>
               ) : !fulfillmentData ? (
                 <p>No fulfillment data available.</p>
               ) : (
-                <>
-                  {/* Status Overview Counter Grid */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "24px" }}>
-                    {Object.entries(fulfillmentData.counts || {}).map(([st, cnt]: [string, any]) => (
-                      <div key={st} style={{ background: "#111", border: "1px solid #222", padding: "14px", borderRadius: "8px" }}>
-                        <span style={{ fontSize: "11px", color: "#888" }}>{st}</span>
-                        <h3 style={{ margin: "4px 0 0", fontSize: "22px", color: st === "READY_TO_SHIP" ? "#52c41a" : "#fff" }}>{cnt}</h3>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ background: "#111", borderRadius: 10, border: "1px solid #222", padding: 20 }}>
+                  <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>
+                    ⚠️ Orders Needing Operational Attention ({filteredAttentionOrders.length})
+                  </h3>
 
-                  {/* Orders Needing Attention Table */}
-                  <div style={{ background: "#111", borderRadius: "8px", border: "1px solid #222", padding: "20px" }}>
-                    <h3 style={{ margin: "0 0 16px", fontSize: "16px" }}>⚠️ Orders Needing Operational Attention</h3>
-
-                    {fulfillmentData.needingAttention?.length === 0 ? (
-                      <p style={{ color: "#52c41a" }}>✓ All orders are processed and up to date!</p>
-                    ) : (
-                      <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-                          <thead>
-                            <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
-                              <th style={{ padding: "10px" }}>Order #</th>
-                              <th style={{ padding: "10px" }}>Customer</th>
-                              <th style={{ padding: "10px" }}>Amount</th>
-                              <th style={{ padding: "10px" }}>Payment</th>
-                              <th style={{ padding: "10px" }}>Status</th>
-                              <th style={{ padding: "10px" }}>Pending Operational Requirements</th>
-                              <th style={{ padding: "10px" }}>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {fulfillmentData.needingAttention?.map((o: any) => (
+                  {filteredAttentionOrders.length === 0 ? (
+                    <p style={{ color: "#52c41a" }}>✓ All orders are processed and up to date!</p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
+                            <th style={{ padding: "10px" }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedOrderIds.length === filteredAttentionOrders.length && filteredAttentionOrders.length > 0}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedOrderIds(filteredAttentionOrders.map((o: any) => o.id));
+                                  } else {
+                                    setSelectedOrderIds([]);
+                                  }
+                                }}
+                              />
+                            </th>
+                            <th style={{ padding: "10px" }}>Order #</th>
+                            <th style={{ padding: "10px" }}>Customer</th>
+                            <th style={{ padding: "10px" }}>Amount</th>
+                            <th style={{ padding: "10px" }}>Payment</th>
+                            <th style={{ padding: "10px" }}>Status</th>
+                            <th style={{ padding: "10px" }}>Pending Requirements</th>
+                            <th style={{ padding: "10px" }}>Quick Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredAttentionOrders.map((o: any) => {
+                            const isSelected = selectedOrderIds.includes(o.id);
+                            return (
                               <tr key={o.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
+                                <td style={{ padding: "10px" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedOrderIds((prev) => [...prev, o.id]);
+                                      } else {
+                                        setSelectedOrderIds((prev) => prev.filter((id) => id !== o.id));
+                                      }
+                                    }}
+                                  />
+                                </td>
                                 <td style={{ padding: "10px", fontWeight: 700, color: "#fff" }}>#{o.orderNumber}</td>
                                 <td style={{ padding: "10px" }}>
                                   <div>{o.customerName}</div>
@@ -563,27 +777,31 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                   {o.missingFields?.length > 0 ? (
-                                    <span style={{ color: "#ff4d4f", fontSize: "12px" }}>⚠️ {o.missingFields.join(", ")}</span>
+                                    <span style={{ color: o.severity === "CRITICAL" ? "#ff4d4f" : "#f39c12", fontSize: "12px" }}>
+                                      ⚠️ {o.missingFields.join(", ")}
+                                    </span>
                                   ) : (
-                                    <span style={{ color: "#52c41a", fontSize: "12px" }}>✓ Verified & Ready</span>
+                                    <span style={{ color: "#52c41a", fontSize: "12px" }}>✓ Verified &amp; Ready</span>
                                   )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
-                                  <button
-                                    onClick={() => setSelectedOrderIdForShip(o.id)}
-                                    style={{ padding: "6px 12px", background: "#d4af37", color: "#000", fontWeight: 700, border: "none", borderRadius: "4px", cursor: "pointer" }}
-                                  >
-                                    🚀 Ship Order
-                                  </button>
+                                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                    <button
+                                      onClick={() => setSelectedOrderIdForShip(o.id)}
+                                      style={{ padding: "5px 10px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "4px", cursor: "pointer", fontSize: 11.5 }}
+                                    >
+                                      VIEW / SHIP
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -663,7 +881,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
         </div>
       )}
 
-      {/* USER DETAILS DRAWER */}
+      {/* USER DETAILS DRAWER WITH SEAMLESS VIEW ORDERS LINK */}
       {(userDrawerData || userDrawerLoading) && (
         <div style={modalOverlayStyle}>
           <div style={{ ...modalContentStyle, maxWidth: "640px", maxHeight: "90vh", overflowY: "auto" }}>
@@ -680,7 +898,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
               <div>
                 {/* Account info */}
                 <div style={{ background: "#111", padding: "14px", borderRadius: "6px", marginBottom: "14px" }}>
-                  <h4 style={{ margin: "0 0 8px", color: "#d4af37" }}>Account Information</h4>
+                  <h4 style={{ margin: "0 0 8px", color: "#00E5FF" }}>Account Information</h4>
                   <div style={{ fontSize: "13px", lineHeight: "1.6" }}>
                     <div><strong>Name:</strong> {userDrawerData.account.name}</div>
                     <div><strong>Email:</strong> {userDrawerData.account.email}</div>
@@ -706,7 +924,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
 
                 {/* Card info */}
                 <div style={{ background: "#111", padding: "14px", borderRadius: "6px", marginBottom: "14px" }}>
-                  <h4 style={{ margin: "0 0 8px", color: "#52c41a" }}>Card & NFC Details</h4>
+                  <h4 style={{ margin: "0 0 8px", color: "#52c41a" }}>Card &amp; NFC Details</h4>
                   {userDrawerData.card ? (
                     <div style={{ fontSize: "13px" }}>
                       <div><strong>Digital Card ID:</strong> {userDrawerData.card.id}</div>
@@ -719,9 +937,22 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                   )}
                 </div>
 
-                {/* Orders summary */}
+                {/* Orders summary & View Orders button */}
                 <div style={{ background: "#111", padding: "14px", borderRadius: "6px", marginBottom: "14px" }}>
-                  <h4 style={{ margin: "0 0 8px" }}>Recent Orders</h4>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <h4 style={{ margin: 0 }}>Recent Orders ({userDrawerData.orders.length})</h4>
+                    <button
+                      onClick={() => {
+                        const email = userDrawerData.account.email;
+                        setUserDrawerData(null);
+                        setSection("fulfillment");
+                        setOrderSearchQuery(email);
+                      }}
+                      style={{ background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", padding: "4px 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}
+                    >
+                      📦 View Orders
+                    </button>
+                  </div>
                   {userDrawerData.orders.length === 0 ? (
                     <p style={{ fontSize: "12px", color: "#888" }}>No orders placed.</p>
                   ) : (
@@ -754,7 +985,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
       {roleModalUser && (
         <div style={modalOverlayStyle}>
           <div style={{ ...modalContentStyle, maxWidth: "400px" }}>
-            <h3>Manage Account Role & Status</h3>
+            <h3>Manage Account Role &amp; Status</h3>
             <p style={{ color: "#888", fontSize: "13px", marginBottom: "16px" }}>{roleModalUser.email}</p>
 
             <div style={{ marginBottom: "16px" }}>
@@ -867,9 +1098,9 @@ const modalContentStyle: React.CSSProperties = {
 
 const primaryBtnStyle: React.CSSProperties = {
   padding: "8px 16px",
-  background: "#d4af37",
-  color: "#000",
-  fontWeight: 700,
+  background: "linear-gradient(135deg, #0066FF, #00E5FF)",
+  color: "#fff",
+  fontWeight: 800,
   border: "none",
   borderRadius: "6px",
   cursor: "pointer",
