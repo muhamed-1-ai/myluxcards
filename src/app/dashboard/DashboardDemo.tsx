@@ -627,6 +627,26 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [whatsappConnected, setWhatsappConnected] = useState(true);
   const [masterConfigOpen, setMasterConfigOpen] = useState(true);
 
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zappit_theme");
+      if (saved === "light" || saved === "dark") return saved;
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "light") {
+      document.body.classList.add("light-mode");
+      document.body.classList.remove("dark-mode");
+    } else {
+      document.body.classList.add("dark-mode");
+      document.body.classList.remove("light-mode");
+    }
+    localStorage.setItem("zappit_theme", theme);
+  }, [theme]);
+
   // Load user dashboard layout preference
   useEffect(() => {
     let active = true;
@@ -766,6 +786,28 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         </a>
         <span className="crumb">/ &nbsp;{tab === "cards" ? "My Cards" : tab === "dashboard" ? "Dashboard" : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}</span><span className={`save-state ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            aria-label="Toggle Theme"
+            style={{
+              background: theme === "light" ? "#F1F5F9" : "rgba(255,255,255,0.08)",
+              border: theme === "light" ? "1px solid #CBD5E1" : "1px solid rgba(255,255,255,0.18)",
+              color: theme === "light" ? "#0F172A" : "#FFFFFF",
+              padding: "7px 12px",
+              borderRadius: 10,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "all 0.2s ease",
+            }}
+          >
+            {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+          </button>
           <NotificationBell onSelectEntity={(entityType, entityId, actionUrl) => {
             if (actionUrl) {
               window.location.href = actionUrl;

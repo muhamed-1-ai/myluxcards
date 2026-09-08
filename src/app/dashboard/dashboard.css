@@ -4507,6 +4507,200 @@ th {
   }
 }
 
+/* ============================================================
+   LIGHT MODE DESIGN SYSTEM OVERRIDES (WHITE + ZAPPIT BLUE)
+   ============================================================ */
+
+[data-theme="light"] body,
+body.light-mode {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .dash-shell,
+body.light-mode .dash-shell {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .dash-top,
+body.light-mode .dash-top {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .crumb,
+body.light-mode .crumb {
+  color: #64748B !important;
+  border-left-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .avatar,
+body.light-mode .avatar {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25) !important;
+}
+
+[data-theme="light"] .account-popover,
+body.light-mode .account-popover {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .account-popover strong,
+body.light-mode .account-popover strong {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .account-popover span,
+body.light-mode .account-popover span {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .account-popover button,
+body.light-mode .account-popover button {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .dash-side,
+body.light-mode .dash-side {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0 !important;
+  color: #334155 !important;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="light"] .dash-side nav > button,
+body.light-mode .dash-side nav > button {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .dash-side nav > button:hover,
+body.light-mode .dash-side nav > button:hover {
+  background: rgba(0, 102, 255, 0.04) !important;
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .dash-side nav > button.active,
+body.light-mode .dash-side nav > button.active {
+  background: rgba(0, 102, 255, 0.08) !important;
+  color: #0066FF !important;
+  border-left-color: #0066FF !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .side-parent-btn,
+body.light-mode .side-parent-btn {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  color: #1E293B !important;
+}
+
+[data-theme="light"] .side-parent-btn:hover,
+[data-theme="light"] .side-parent-btn.active,
+body.light-mode .side-parent-btn:hover,
+body.light-mode .side-parent-btn.active {
+  background: rgba(0, 102, 255, 0.08) !important;
+  border-color: rgba(0, 102, 255, 0.3) !important;
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .side-config-subnav,
+body.light-mode .side-config-subnav {
+  border-left-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .side-config-subitem,
+body.light-mode .side-config-subitem {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .side-config-subitem:hover,
+body.light-mode .side-config-subitem:hover {
+  color: #0066FF !important;
+  background: rgba(0, 102, 255, 0.04) !important;
+}
+
+[data-theme="light"] .side-config-subitem.active,
+body.light-mode .side-config-subitem.active {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.25) !important;
+}
+
+[data-theme="light"] .mode-settings-block,
+body.light-mode .mode-settings-block {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .mode-settings-block input[type="text"],
+[data-theme="light"] .mode-settings-block input[type="email"],
+[data-theme="light"] .mode-settings-block select,
+[data-theme="light"] .mode-settings-block textarea,
+body.light-mode .mode-settings-block input[type="text"],
+body.light-mode .mode-settings-block input[type="email"],
+body.light-mode .mode-settings-block select,
+body.light-mode .mode-settings-block textarea {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .mode-settings-block input[type="text"]::placeholder,
+[data-theme="light"] .mode-settings-block input[type="email"]::placeholder,
+[data-theme="light"] .mode-settings-block textarea::placeholder,
+body.light-mode .mode-settings-block input[type="text"]::placeholder,
+body.light-mode .mode-settings-block input[type="email"]::placeholder,
+body.light-mode .mode-settings-block textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+[data-theme="light"] .ps-top-header,
+body.light-mode .ps-top-header {
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.06), rgba(0, 229, 255, 0.03)) !important;
+  border: 1px solid rgba(0, 102, 255, 0.18) !important;
+}
+
+[data-theme="light"] .ps-filter-tabs,
+body.light-mode .ps-filter-tabs {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .ps-mobile-card,
+body.light-mode .ps-mobile-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .ps-mobile-card.disabled,
+body.light-mode .ps-mobile-card.disabled {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .ps-mobile-reorder-btn,
+body.light-mode .ps-mobile-reorder-btn {
+  background: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+  color: #1E293B !important;
+}
+
+[data-theme="light"] .ps-mobile-edit-btn,
+body.light-mode .ps-mobile-edit-btn {
+  background: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+  color: #1E293B !important;
+}
+
+
 
 
 
