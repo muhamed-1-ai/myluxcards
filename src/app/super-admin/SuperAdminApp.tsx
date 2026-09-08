@@ -315,15 +315,15 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
   });
 
   return (
-    <div className="admin-shell" style={{ background: "#050505", minHeight: "100vh", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
+    <div className="admin-shell" style={{ background: "var(--admin-bg)", minHeight: "100vh", color: "var(--admin-text)", fontFamily: "system-ui, sans-serif" }}>
       {/* Top Bar */}
-      <header className="admin-top" style={{ background: "#111", borderBottom: "1px solid #222", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <a href="/" className="admin-logo" style={{ color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: "18px", letterSpacing: "1px" }}>
-          3G ZAPPIT <span style={{ color: "#00E5FF", fontSize: "12px", background: "rgba(0, 229, 255, 0.15)", padding: "2px 8px", borderRadius: "4px" }}>SUPER ADMIN</span>
+      <header className="admin-top" style={{ background: "var(--admin-panel)", borderBottom: "1px solid var(--admin-border)", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <a href="/" className="admin-logo" style={{ color: "var(--admin-text)", textDecoration: "none", fontWeight: 800, fontSize: "18px", letterSpacing: "1px" }}>
+          3G ZAPPIT <span style={{ color: "#0066FF", fontSize: "12px", background: "rgba(0, 102, 255, 0.12)", padding: "2px 8px", borderRadius: "4px" }}>SUPER ADMIN</span>
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <strong style={{ fontSize: "14px" }}>{identity.name}</strong>
-          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "4px", background: "#722ed1", color: "#fff", fontWeight: 700 }}>SUPER ADMIN</span>
+          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "4px", background: "#0066FF", color: "#fff", fontWeight: 700 }}>SUPER ADMIN</span>
         </div>
       </header>
 
@@ -335,9 +335,9 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
 
       <div style={{ display: "flex", flex: 1 }}>
         {/* Navigation Sidebar */}
-        <aside style={{ width: "240px", padding: "20px", background: "#0c0c0c", borderRight: "1px solid #222", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <aside style={{ width: "240px", padding: "20px", background: "var(--admin-panel)", borderRight: "1px solid var(--admin-border)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
-            <p style={{ fontSize: "11px", color: "#777", fontWeight: 700, letterSpacing: "1px", marginBottom: "16px" }}>COMMAND CENTER</p>
+            <p style={{ fontSize: "11px", color: "var(--admin-muted)", fontWeight: 700, letterSpacing: "1px", marginBottom: "16px" }}>COMMAND CENTER</p>
             <nav style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <button className={section === "overview" ? "active" : ""} onClick={() => setSection("overview")} style={navBtnStyle(section === "overview")}>
                 📊 Overview
@@ -356,13 +356,13 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
               </button>
             </nav>
           </div>
-          <button className="admin-logout" onClick={logout} style={{ width: "100%", padding: "10px", background: "#2a1215", color: "#ff4d4f", border: "1px solid #ff4d4f", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}>
+          <button className="admin-logout" onClick={logout} style={{ width: "100%", padding: "10px", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}>
             Log out
           </button>
         </aside>
 
         {/* Main Content View */}
-        <main style={{ flex: 1, padding: "28px", background: "#050505", overflowX: "hidden" }}>
+        <main style={{ flex: 1, padding: "28px", background: "var(--admin-bg)", overflowX: "hidden" }}>
           {/* SECTION 1: OVERVIEW */}
           {section === "overview" && (
             <div>
@@ -1170,8 +1170,8 @@ const navBtnStyle = (active: boolean): React.CSSProperties => ({
   textAlign: "left",
   padding: "10px 14px",
   borderRadius: "6px",
-  background: active ? "#222" : "transparent",
-  color: active ? "#fff" : "#aaa",
+  background: active ? "var(--admin-cyan)" : "transparent",
+  color: active ? "#ffffff" : "var(--admin-muted)",
   border: "none",
   cursor: "pointer",
   fontSize: "13px",
@@ -1179,17 +1179,17 @@ const navBtnStyle = (active: boolean): React.CSSProperties => ({
 });
 
 const statBoxStyle: React.CSSProperties = {
-  background: "#111",
-  border: "1px solid #222",
+  background: "var(--admin-panel)",
+  border: "1px solid var(--admin-border)",
   padding: "20px",
   borderRadius: "8px",
 };
 
 const selectStyle: React.CSSProperties = {
   padding: "8px 12px",
-  background: "#050505",
-  border: "1px solid #333",
-  color: "#fff",
+  background: "var(--admin-panel)",
+  border: "1px solid var(--admin-border)",
+  color: "var(--admin-text)",
   borderRadius: "6px",
   fontSize: "13px",
 };
@@ -1197,9 +1197,9 @@ const selectStyle: React.CSSProperties = {
 const tableActionBtnStyle: React.CSSProperties = {
   padding: "4px 8px",
   borderRadius: "4px",
-  background: "#222",
-  color: "#ccc",
-  border: "1px solid #333",
+  background: "var(--admin-panel)",
+  color: "var(--admin-text)",
+  border: "1px solid var(--admin-border)",
   fontSize: "11px",
   cursor: "pointer",
 };
@@ -1207,9 +1207,9 @@ const tableActionBtnStyle: React.CSSProperties = {
 const paginationBtnStyle = (disabled: boolean): React.CSSProperties => ({
   padding: "6px 12px",
   borderRadius: "4px",
-  background: disabled ? "#111" : "#222",
-  color: disabled ? "#444" : "#fff",
-  border: "1px solid #333",
+  background: disabled ? "var(--admin-bg)" : "var(--admin-panel)",
+  color: disabled ? "var(--admin-muted)" : "var(--admin-text)",
+  border: "1px solid var(--admin-border)",
   fontSize: "12px",
   cursor: disabled ? "not-allowed" : "pointer",
 });
@@ -1217,7 +1217,8 @@ const paginationBtnStyle = (disabled: boolean): React.CSSProperties => ({
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.85)",
+  background: "rgba(0,0,0,0.65)",
+  backdropFilter: "blur(4px)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -1226,8 +1227,9 @@ const modalOverlayStyle: React.CSSProperties = {
 };
 
 const modalContentStyle: React.CSSProperties = {
-  background: "#161616",
-  border: "1px solid #333",
+  background: "var(--admin-panel)",
+  border: "1px solid var(--admin-border)",
+  color: "var(--admin-text)",
   padding: "24px",
   borderRadius: "10px",
   width: "100%",
@@ -1246,8 +1248,8 @@ const primaryBtnStyle: React.CSSProperties = {
 const secondaryBtnStyle: React.CSSProperties = {
   padding: "8px 16px",
   background: "transparent",
-  color: "#ccc",
-  border: "1px solid #444",
+  color: "var(--admin-text)",
+  border: "1px solid var(--admin-border)",
   borderRadius: "6px",
   cursor: "pointer",
 };

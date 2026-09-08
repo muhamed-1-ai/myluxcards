@@ -4700,6 +4700,108 @@ body.light-mode .ps-mobile-edit-btn {
   color: #1E293B !important;
 }
 
+/* CRM & Dashboard Widgets Light Mode Overrides */
+[data-theme="light"] .crm-top-toolbar,
+body.light-mode .crm-top-toolbar {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .crm-search-input,
+body.light-mode .crm-search-input {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-search-input::placeholder,
+body.light-mode .crm-search-input::placeholder {
+  color: #94A3B8 !important;
+}
+
+[data-theme="light"] .crm-btn-icon-refresh,
+body.light-mode .crm-btn-icon-refresh {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #64748B !important;
+}
+
+[data-theme="light"] .crm-filter-toolbar,
+body.light-mode .crm-filter-toolbar {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .crm-filter-select,
+[data-theme="light"] .crm-filter-date,
+body.light-mode .crm-filter-select,
+body.light-mode .crm-filter-date {
+  background: #F8FAFC !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-filter-select option,
+body.light-mode .crm-filter-select option {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-kpi-card,
+[data-theme="light"] .crm-capacity-strip,
+[data-theme="light"] .crm-chart-card,
+[data-theme="light"] .crm-pipeline-card,
+[data-theme="light"] .crm-calendar-card,
+[data-theme="light"] .crm-followups-card,
+[data-theme="light"] .crm-activity-card,
+[data-theme="light"] .crm-sources-card,
+body.light-mode .crm-kpi-card,
+body.light-mode .crm-capacity-strip,
+body.light-mode .crm-chart-card,
+body.light-mode .crm-pipeline-card,
+body.light-mode .crm-calendar-card,
+body.light-mode .crm-followups-card,
+body.light-mode .crm-activity-card,
+body.light-mode .crm-sources-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-kpi-value,
+[data-theme="light"] .crm-capacity-title,
+body.light-mode .crm-kpi-value,
+body.light-mode .crm-capacity-title {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-kpi-label,
+[data-theme="light"] .crm-capacity-sub,
+body.light-mode .crm-kpi-label,
+body.light-mode .crm-capacity-sub {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .crm-kpi-badge,
+[data-theme="light"] .crm-capacity-icon-badge,
+body.light-mode .crm-kpi-badge,
+body.light-mode .crm-capacity-icon-badge {
+  background: rgba(0, 102, 255, 0.08) !important;
+  border: 1px solid rgba(0, 102, 255, 0.15) !important;
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .crm-capacity-pill,
+body.light-mode .crm-capacity-pill {
+  background: rgba(0, 102, 255, 0.08) !important;
+  border: 1px solid rgba(0, 102, 255, 0.2) !important;
+  color: #0066FF !important;
+}
+
+
 
 
 
