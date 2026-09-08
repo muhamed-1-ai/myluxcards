@@ -651,11 +651,29 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
                 <div style={{ background: "#111", padding: "12px", borderRadius: "6px", marginBottom: "14px", border: "1px solid #222" }}>
                   <h4 style={{ margin: "0 0 8px", color: "#d4af37" }}>CUSTOMER INFORMATION</h4>
                   <div><strong>Full Name:</strong> {detailsData.user?.name || "Not provided"}</div>
-                  <div><strong>Nickname:</strong> {detailsData.user?.name || "Not provided"}</div>
                   <div><strong>Email:</strong> {detailsData.user?.email || "Not provided"}</div>
                   <div><strong>Phone:</strong> {detailsData.profile?.phone || detailsData.user?.phone || "Not provided"}</div>
                   <div><strong>Alternate Phone:</strong> {detailsData.shippingAddress?.alternatePhone || "Not provided"}</div>
                 </div>
+
+                {detailsData.digitalCard && (
+                  <div style={{ background: "#111", padding: "12px", borderRadius: "6px", marginBottom: "14px", border: "1px solid #222" }}>
+                    <h4 style={{ margin: "0 0 8px", color: "#2ecc71" }}>🟢 PROFILE &amp; FEATURE VISIBILITY</h4>
+                    <div><strong>Profile Status:</strong> <span style={{ color: detailsData.digitalCard.active ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}>{detailsData.digitalCard.active ? "LIVE" : "HIDDEN / DISABLED"}</span></div>
+                    <div><strong>Public URL:</strong> <a href={getPublicCardUrl(detailsData.digitalCard.slug)} target="_blank" rel="noopener noreferrer" style={{ color: "#00E5FF" }}>/card/{detailsData.digitalCard.slug}</a></div>
+                    <div style={{ marginTop: 10, fontSize: 12 }}>
+                      <strong>Active Features State:</strong>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginTop: 6 }}>
+                        {Object.entries(detailsData.digitalCard.profile?.profileFeatures || { BASIC_PROFILE: { enabled: true }, CONTACT: { enabled: true } }).map(([featKey, cfg]: [string, any]) => (
+                          <div key={featKey} style={{ display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: 4 }}>
+                            <span>{featKey.replace("_", " ")}</span>
+                            <span style={{ color: cfg?.enabled !== false ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}>{cfg?.enabled !== false ? "ON" : "OFF"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ background: "#111", padding: "12px", borderRadius: "6px", border: "1px solid #222" }}>
                   <h4 style={{ margin: "0 0 8px", color: "#0066FF" }}>SHIPPING INFORMATION</h4>

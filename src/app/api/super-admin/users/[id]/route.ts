@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // 2. Fetch digital card & physical cards
     const digitalCardRes = await pool.query(
-      `SELECT id, slug, active, activated_at, created_at
+      `SELECT id, slug, profile, active, activated_at, created_at
        FROM digital_cards
        WHERE owner_id = $1
        ORDER BY created_at DESC
@@ -100,6 +100,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         ? {
             id: digitalCard.id,
             slug: digitalCard.slug,
+            profile: digitalCard.profile || {},
             active: digitalCard.active,
             activatedAt: digitalCard.activated_at,
             createdAt: digitalCard.created_at,

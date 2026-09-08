@@ -7,9 +7,46 @@ export const CARD_FIELDS = [
   "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
+  "profileFeatures","featureOrder",
 ] as const;
 
 export type ProfileMode = "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+
+export type ProfileFeatureKey =
+  | "BASIC_PROFILE"
+  | "CONTACT"
+  | "SOCIAL_LINKS"
+  | "WEBSITE"
+  | "EMERGENCY_CONTACT"
+  | "VEHICLE"
+  | "LOST_AND_FOUND";
+
+export interface ProfileFeatureItemConfig {
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export type ProfileFeaturesConfig = Record<ProfileFeatureKey, ProfileFeatureItemConfig>;
+
+export const DEFAULT_PROFILE_FEATURES: ProfileFeaturesConfig = {
+  BASIC_PROFILE: { enabled: true, sortOrder: 0 },
+  CONTACT: { enabled: true, sortOrder: 1 },
+  SOCIAL_LINKS: { enabled: true, sortOrder: 2 },
+  WEBSITE: { enabled: true, sortOrder: 3 },
+  EMERGENCY_CONTACT: { enabled: true, sortOrder: 4 },
+  VEHICLE: { enabled: true, sortOrder: 5 },
+  LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
+};
+
+export const DEFAULT_FEATURE_ORDER: ProfileFeatureKey[] = [
+  "BASIC_PROFILE",
+  "CONTACT",
+  "SOCIAL_LINKS",
+  "WEBSITE",
+  "EMERGENCY_CONTACT",
+  "VEHICLE",
+  "LOST_AND_FOUND",
+];
 
 export interface EnabledFeatures {
   digitalProfile: boolean;
@@ -117,6 +154,8 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
   profileMode: "DIGITAL_PROFILE",
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
+  profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
+  featureOrder: [ ...DEFAULT_FEATURE_ORDER ],
   vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT },
   emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT },
   lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
@@ -146,6 +185,27 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         vehicleConnect: v.vehicleConnect !== false,
         lostAndFound: v.lostAndFound !== false,
       };
+    } else if (field === "profileFeatures" && value && typeof value === "object") {
+      const pfObj = value as Record<string, unknown>;
+      const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND"];
+      const cleanedPF: Partial<ProfileFeaturesConfig> = {};
+      for (const k of validKeys) {
+        const item = pfObj[k] as Record<string, unknown> | undefined;
+        if (item && typeof item === "object") {
+          cleanedPF[k] = {
+            enabled: item.enabled !== false,
+            sortOrder: typeof item.sortOrder === "number" ? Math.max(0, Math.min(100, Math.floor(item.sortOrder))) : DEFAULT_PROFILE_FEATURES[k].sortOrder,
+          };
+        } else {
+          cleanedPF[k] = { ...DEFAULT_PROFILE_FEATURES[k] };
+        }
+      }
+      output.profileFeatures = cleanedPF;
+    } else if (field === "featureOrder" && Array.isArray(value)) {
+      const validKeys: ProfileFeatureKey[] = ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT", "VEHICLE", "LOST_AND_FOUND"];
+      const filtered = value.map(v => String(v)).filter((v): v is ProfileFeatureKey => validKeys.includes(v as ProfileFeatureKey));
+      const missing = validKeys.filter(k => !filtered.includes(k));
+      output.featureOrder = [...filtered, ...missing];
     } else if (field === "vehicleConnect" && value && typeof value === "object") {
       const v = value as Record<string, unknown>;
       output.vehicleConnect = {
@@ -205,6 +265,8 @@ export function completeCardProfile(input: unknown) {
     social: cleaned.social && typeof cleaned.social === "object" ? cleaned.social : {},
     services: Array.isArray(cleaned.services) ? cleaned.services : [],
     enabledFeatures: { ...DEFAULT_ENABLED_FEATURES, ...(cleaned.enabledFeatures as object) },
+    profileFeatures: { ...DEFAULT_PROFILE_FEATURES, ...(cleaned.profileFeatures as object) },
+    featureOrder: Array.isArray(cleaned.featureOrder) && cleaned.featureOrder.length > 0 ? cleaned.featureOrder : [...DEFAULT_FEATURE_ORDER],
     vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT, ...(cleaned.vehicleConnect as object) },
     emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT, ...(cleaned.emergencyContact as object) },
     lostAndFound: { ...DEFAULT_LOST_AND_FOUND, ...(cleaned.lostAndFound as object) },

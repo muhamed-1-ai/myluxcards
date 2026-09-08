@@ -1340,6 +1340,314 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   );
 }
 
+function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { draft: Card; update: (field: string, val: any) => void; onContactsRefresh: () => void }) {
+  const [savingFeature, setSavingFeature] = useState<string | null>(null);
+  const [featureError, setFeatureError] = useState("");
+
+  const featureMetadata: Record<string, { label: string; icon: string; desc: string }> = {
+    BASIC_PROFILE: { label: "Basic Profile", icon: "👤", desc: "Your main profile information, bio, name, designation & services" },
+    CONTACT: { label: "Contact Details", icon: "📞", desc: "Allow visitors to call, WhatsApp, or email you directly" },
+    SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Show your social profiles (Instagram, LinkedIn, X, YouTube)" },
+    WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Link to your company website and share digital brochure PDF" },
+    EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Show emergency contact details for rapid safety response" },
+    VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Share vehicle details, parking notes & direct contact" },
+    LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Allow people to contact you about lost items safely" },
+  };
+
+  const profileFeatures = (draft as any).profileFeatures || {
+    BASIC_PROFILE: { enabled: true, sortOrder: 0 },
+    CONTACT: { enabled: true, sortOrder: 1 },
+    SOCIAL_LINKS: { enabled: true, sortOrder: 2 },
+    WEBSITE: { enabled: true, sortOrder: 3 },
+    EMERGENCY_CONTACT: { enabled: true, sortOrder: 4 },
+    VEHICLE: { enabled: true, sortOrder: 5 },
+    LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
+  };
+
+  const featureOrder = (draft as any).featureOrder || [
+    "BASIC_PROFILE",
+    "CONTACT",
+    "SOCIAL_LINKS",
+    "WEBSITE",
+    "EMERGENCY_CONTACT",
+    "VEHICLE",
+    "LOST_AND_FOUND",
+  ];
+
+  const handleToggleFeature = async (key: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    const updatedFeatures = {
+      ...profileFeatures,
+      [key]: {
+        ...(profileFeatures[key] || { sortOrder: 0 }),
+        enabled: newStatus,
+      },
+    };
+
+    update("profileFeatures", updatedFeatures);
+    setSavingFeature(key);
+    setFeatureError("");
+
+    try {
+      const res = await fetch("/api/profile/features", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: draft.id,
+          featureKey: key,
+          enabled: newStatus,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        update("profileFeatures", profileFeatures);
+        setFeatureError(data.message || `Unable to update feature. Please try again.`);
+      }
+    } catch {
+      update("profileFeatures", profileFeatures);
+      setFeatureError(`Unable to update feature. Please try again.`);
+    } finally {
+      setSavingFeature(null);
+    }
+  };
+
+  const handleMoveFeature = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= featureOrder.length) return;
+
+    const newOrder = [...featureOrder];
+    const temp = newOrder[index];
+    newOrder[index] = newOrder[targetIndex];
+    newOrder[targetIndex] = temp;
+
+    update("featureOrder", newOrder);
+
+    try {
+      await fetch("/api/profile/features", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: draft.id,
+          featureOrder: newOrder,
+        }),
+      });
+    } catch {
+      // ignore
+    }
+  };
+
+  const activeFeatureKeys = featureOrder.filter((k: string) => profileFeatures[k]?.enabled !== false);
+  const availableFeatureKeys = featureOrder.filter((k: string) => profileFeatures[k]?.enabled === false);
+
+  return (
+    <div className="mode-settings-block">
+      {/* ── PROFILE STATUS HEADER ── */}
+      <div style={{ background: "rgba(0, 229, 255, 0.06)", border: "1px solid rgba(0, 229, 255, 0.3)", borderRadius: 14, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 800, color: "#fff" }}>
+            <span style={{ color: "#2ecc71", fontSize: 14 }}>🟢</span> PROFILE LIVE
+          </div>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", margin: "4px 0 0" }}>
+            Your profile features are live on your permanent ZAPPIT QR code and NFC URL.
+          </p>
+        </div>
+        <a
+          href={`/card/${draft.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          View Public Profile ↗
+        </a>
+      </div>
+
+      {featureError && (
+        <div style={{ background: "rgba(231,76,60,0.15)", border: "1px solid #e74c3c", color: "#e74c3c", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+          ⚠️ {featureError}
+        </div>
+      )}
+
+      {/* ── ACTIVE FEATURES SECTION ── */}
+      <div style={{ marginBottom: 28 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 12px" }}>
+          Active Features ({activeFeatureKeys.length})
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {activeFeatureKeys.map((key: string) => {
+            const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "" };
+            const isSaving = savingFeature === key;
+
+            return (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(0, 229, 255, 0.25)",
+                  borderRadius: 12,
+                  padding: "14px 18px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 22 }}>{meta.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{meta.label}</div>
+                    <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{meta.desc}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#2ecc71", background: "rgba(46, 204, 113, 0.15)", padding: "4px 8px", borderRadius: 6 }}>
+                    ON
+                  </span>
+                  <button
+                    type="button"
+                    style={{
+                      background: "rgba(231, 76, 60, 0.15)",
+                      border: "1px solid rgba(231, 76, 60, 0.4)",
+                      color: "#e74c3c",
+                      padding: "6px 14px",
+                      borderRadius: 6,
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      cursor: isSaving ? "wait" : "pointer",
+                      opacity: isSaving ? 0.6 : 1,
+                    }}
+                    onClick={() => handleToggleFeature(key, true)}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Disable"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── AVAILABLE FEATURES SECTION ── */}
+      {availableFeatureKeys.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 12px" }}>
+            Available Features ({availableFeatureKeys.length})
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {availableFeatureKeys.map((key: string) => {
+              const meta = featureMetadata[key] || { label: key, icon: "⚡", desc: "" };
+              const isSaving = savingFeature === key;
+
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    background: "rgba(255,255,255,0.02)",
+                    border: "1px dashed rgba(255,255,255,0.15)",
+                    borderRadius: 12,
+                    padding: "14px 18px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 22, opacity: 0.6 }}>{meta.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.75)" }}>{meta.label}</div>
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{meta.desc}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)", padding: "4px 8px", borderRadius: 6 }}>
+                      OFF
+                    </span>
+                    <button
+                      type="button"
+                      style={{
+                        background: "rgba(0, 102, 255, 0.2)",
+                        border: "1px solid rgba(0, 102, 255, 0.5)",
+                        color: "#00E5FF",
+                        padding: "6px 14px",
+                        borderRadius: 6,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        cursor: isSaving ? "wait" : "pointer",
+                        opacity: isSaving ? 0.6 : 1,
+                      }}
+                      onClick={() => handleToggleFeature(key, false)}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "Saving..." : "+ Enable"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── PUBLIC PROFILE ORDER SECTION ── */}
+      <div>
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 4px" }}>
+          Public Profile Display Order
+        </h3>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "0 0 12px" }}>
+          Control the order in which active profile sections appear on your public card.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {featureOrder.map((key: string, index: number) => {
+            const meta = featureMetadata[key] || { label: key, icon: "⚡" };
+            const isEnabled = profileFeatures[key]?.enabled !== false;
+
+            return (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: isEnabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.01)",
+                  border: isEnabled ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(255,255,255,0.04)",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  opacity: isEnabled ? 1 : 0.4,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#0066FF", width: 20 }}>☰</span>
+                  <span style={{ fontSize: 16 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{meta.label}</span>
+                  {!isEnabled && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>(Hidden)</span>}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: index === 0 ? "not-allowed" : "pointer", opacity: index === 0 ? 0.3 : 1 }}
+                    onClick={() => handleMoveFeature(index, "up")}
+                    disabled={index === 0}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: index === featureOrder.length - 1 ? "not-allowed" : "pointer", opacity: index === featureOrder.length - 1 ? 0.3 : 1 }}
+                    onClick={() => handleMoveFeature(index, "down")}
+                    disabled={index === featureOrder.length - 1}
+                  >
+                    ▼
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [], onContactsRefresh }: any) {
   const enabled = draft.enabledFeatures || { digitalProfile: true, vehicleConnect: true, lostAndFound: true };
 
@@ -1349,6 +1657,8 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
         <h2>Profile Mode &amp; Features</h2>
         <p>Enable features for your single permanent QR code and profile URL. Manage multiple vehicles, tagged items, and contact numbers under your account.</p>
       </div>
+
+      <ProfileFeatureEngineManager draft={draft} update={update} onContactsRefresh={onContactsRefresh} />
 
       <div className="mode-settings-block">
         <div className="mode-settings-title">💎 Permanent Feature Entitlements</div>

@@ -86,6 +86,8 @@ type Card = {
   previewAuthorized?: boolean;
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
   enabledFeatures?: { digitalProfile: boolean; vehicleConnect: boolean; lostAndFound: boolean };
+  profileFeatures?: Record<string, { enabled: boolean; sortOrder: number }>;
+  featureOrder?: string[];
   vehicleConnect?: VehicleConnectSettings;
   emergencyContact?: EmergencyContactSettings;
   lostAndFound?: LostAndFoundSettings;
@@ -604,9 +606,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     Threads:           { subtitle: "Follow me",              icon: <ThreadsIcon />,     iconBg: "#000" },
   };
 
-  const digitalEnabled = card.enabledFeatures?.digitalProfile !== false;
-  const vehicleEnabled = card.enabledFeatures?.vehicleConnect !== false;
-  const lostFoundEnabled = card.enabledFeatures?.lostAndFound !== false;
+  const pf = card?.profileFeatures || {};
+  const digitalEnabled = (pf.BASIC_PROFILE ? pf.BASIC_PROFILE.enabled : true) && card?.enabledFeatures?.digitalProfile !== false;
+  const vehicleEnabled = (pf.VEHICLE ? pf.VEHICLE.enabled : true) && card?.enabledFeatures?.vehicleConnect !== false;
+  const lostFoundEnabled = (pf.LOST_AND_FOUND ? pf.LOST_AND_FOUND.enabled : true) && card?.enabledFeatures?.lostAndFound !== false;
   const availableModesCount = [digitalEnabled, vehicleEnabled, lostFoundEnabled].filter(Boolean).length;
 
   return (
@@ -1099,122 +1102,164 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             )}
           </div>
 
-          {/* About */}
-          {card.about && (
-            <div className="pc-card pc-about">
-              <h2 className="pc-card-heading">About {card.name.split(" ")[0]}</h2>
-              <p className="pc-about-text">{card.about}</p>
-            </div>
-          )}
+          {/* Dynamic Module Ordering for Standard Profile View */}
+          {(() => {
+            const orderKeys = (card.featureOrder || [
+              "BASIC_PROFILE",
+              "CONTACT",
+              "SOCIAL_LINKS",
+              "WEBSITE",
+              "EMERGENCY_CONTACT",
+            ]).filter((key) => key !== "VEHICLE" && key !== "LOST_AND_FOUND");
 
-          {/* Contact details */}
-          {(card.email || card.website || location) && (
-            <div className="pc-links-group">
-              {card.email && (
-                <a href={`mailto:${card.email}`} className="pc-link-row" onClick={() => track("LINK_CLICK", "email")}>
-                  <span className="pc-link-icon" style={{ background: "#c0392b" }}><MailIcon /></span>
-                  <span className="pc-link-text">
-                    <span className="pc-link-name">Email</span>
-                    <span className="pc-link-sub">{card.email}</span>
-                  </span>
-                  <span className="pc-link-arrow">›</span>
-                </a>
-              )}
-              {card.website && (
-                <a href={card.website} className="pc-link-row" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-                  <span className="pc-link-icon" style={{ background: "#444" }}><WebIcon /></span>
-                  <span className="pc-link-text">
-                    <span className="pc-link-name">Website</span>
-                    <span className="pc-link-sub">{card.website.replace(/^https?:\/\//, "")}</span>
-                  </span>
-                  <span className="pc-link-arrow">›</span>
-                </a>
-              )}
-              {location && (
-                <div className="pc-link-row">
-                  <span className="pc-link-icon" style={{ background: "#c0392b" }}><LocationIcon /></span>
-                  <span className="pc-link-text">
-                    <span className="pc-link-name">Address</span>
-                    <span className="pc-link-sub">{location}</span>
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+            return orderKeys.map((featureKey) => {
+              const featureConfig = pf[featureKey];
+              if (featureConfig && featureConfig.enabled === false) return null;
 
-          {/* Social platform rows */}
-          {socials.length > 0 && (
-            <div className="pc-links-group">
-              {socials.map(([name, url]) => {
-                const cfg = SOCIAL[name] || {
-                  subtitle: "Visit",
-                  icon: <span className="pc-brand-letter">{name[0]}</span>,
-                  iconBg: "#555",
-                };
+              if (featureKey === "BASIC_PROFILE") {
                 return (
-                  <a
-                    key={name}
-                    href={url}
-                    className="pc-link-row"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => track("LINK_CLICK", name.toLowerCase())}
-                  >
-                    <span className="pc-link-icon" style={{ background: cfg.iconBg }}>{cfg.icon}</span>
-                    <span className="pc-link-text">
-                      <span className="pc-link-name">{name}</span>
-                      <span className="pc-link-sub">{cfg.subtitle}</span>
-                    </span>
-                    <span className="pc-link-arrow">›</span>
-                  </a>
+                  <div key="BASIC_PROFILE" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {card.about && (
+                      <div className="pc-card pc-about">
+                        <h2 className="pc-card-heading">About {card.name.split(" ")[0]}</h2>
+                        <p className="pc-about-text">{card.about}</p>
+                      </div>
+                    )}
+                    {card.services && card.services.length > 0 && (
+                      <div className="pc-card pc-services">
+                        <h2 className="pc-card-heading">Services / Products</h2>
+                        <ul className="pc-services-list">
+                          {card.services.map((s) => <li key={s}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 );
-              })}
-            </div>
-          )}
+              }
 
-          {/* Services / Products */}
-          {card.services && card.services.length > 0 && (
-            <div className="pc-card pc-services">
-              <h2 className="pc-card-heading">Services / Products</h2>
-              <ul className="pc-services-list">
-                {card.services.map((s) => <li key={s}>{s}</li>)}
-              </ul>
-            </div>
-          )}
+              if (featureKey === "CONTACT") {
+                return (
+                  <div key="CONTACT" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {(phone || card.email || location) && (
+                      <div className="pc-card pc-contact-card">
+                        <div className="pc-contact-header">
+                          {card.cover
+                            ? <img src={card.cover} className="pc-contact-thumb" alt={card.name} />
+                            : card.logo
+                              ? <img src={card.logo} className="pc-contact-thumb pc-contact-thumb--logo" alt={card.name} />
+                              : <div className="pc-contact-thumb pc-contact-initials">{initials}</div>
+                          }
+                          <span className="pc-contact-label">Contact</span>
+                        </div>
+                        <hr className="pc-dashed-rule" />
+                        {phone && (
+                          <div className="pc-contact-row">
+                            <span className="pc-contact-row-label">Call me</span>
+                            <a href={`tel:${phone}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "phone")}>{phone}</a>
+                          </div>
+                        )}
+                        {whatsapp && whatsapp !== phone && (
+                          <div className="pc-contact-row">
+                            <span className="pc-contact-row-label">WhatsApp</span>
+                            <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-contact-row-value" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>{whatsapp}</a>
+                          </div>
+                        )}
+                        {card.email && (
+                          <div className="pc-contact-row">
+                            <span className="pc-contact-row-label">Email</span>
+                            <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
+                          </div>
+                        )}
+                        {location && (
+                          <div className="pc-contact-row">
+                            <span className="pc-contact-row-label">Address</span>
+                            <span className="pc-contact-row-value">{location}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
-          {/* Contact / Call me block */}
-          {(phone || card.email) && (
-            <div className="pc-card pc-contact-card">
-              <div className="pc-contact-header">
-                {card.cover
-                  ? <img src={card.cover} className="pc-contact-thumb" alt={card.name} />
-                  : card.logo
-                    ? <img src={card.logo} className="pc-contact-thumb pc-contact-thumb--logo" alt={card.name} />
-                    : <div className="pc-contact-thumb pc-contact-initials">{initials}</div>
-                }
-                <span className="pc-contact-label">Contact</span>
-              </div>
-              <hr className="pc-dashed-rule" />
-              {phone && (
-                <div className="pc-contact-row">
-                  <span className="pc-contact-row-label">Call me</span>
-                  <a href={`tel:${phone}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "phone")}>{phone}</a>
-                </div>
-              )}
-              {whatsapp && whatsapp !== phone && (
-                <div className="pc-contact-row">
-                  <span className="pc-contact-row-label">WhatsApp</span>
-                  <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-contact-row-value" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>{whatsapp}</a>
-                </div>
-              )}
-              {card.email && (
-                <div className="pc-contact-row">
-                  <span className="pc-contact-row-label">Email</span>
-                  <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
-                </div>
-              )}
-            </div>
-          )}
+              if (featureKey === "WEBSITE") {
+                return (
+                  <div key="WEBSITE" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {card.website && (
+                      <div className="pc-links-group">
+                        <a href={card.website} className="pc-link-row" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+                          <span className="pc-link-icon" style={{ background: "#444" }}><WebIcon /></span>
+                          <span className="pc-link-text">
+                            <span className="pc-link-name">Website</span>
+                            <span className="pc-link-sub">{card.website.replace(/^https?:\/\//, "")}</span>
+                          </span>
+                          <span className="pc-link-arrow">›</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (featureKey === "SOCIAL_LINKS") {
+                return (
+                  <div key="SOCIAL_LINKS" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {socials.length > 0 && (
+                      <div className="pc-links-group">
+                        {socials.map(([name, url]) => {
+                          const cfg = SOCIAL[name] || {
+                            subtitle: "Visit",
+                            icon: <span className="pc-brand-letter">{name[0]}</span>,
+                            iconBg: "#555",
+                          };
+                          return (
+                            <a
+                              key={name}
+                              href={url}
+                              className="pc-link-row"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => track("LINK_CLICK", name.toLowerCase())}
+                            >
+                              <span className="pc-link-icon" style={{ background: cfg.iconBg }}>{cfg.icon}</span>
+                              <span className="pc-link-text">
+                                <span className="pc-link-name">{name}</span>
+                                <span className="pc-link-sub">{cfg.subtitle}</span>
+                              </span>
+                              <span className="pc-link-arrow">›</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (featureKey === "EMERGENCY_CONTACT") {
+                return (
+                  <div key="EMERGENCY_CONTACT" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {(card.emergencyContact?.name || card.hasEmergencyPhone) && (
+                      <div className="pc-card pc-contact-card" style={{ border: "1px solid rgba(255, 69, 58, 0.4)", background: "rgba(255, 69, 58, 0.05)" }}>
+                        <div className="pc-contact-header">
+                          <span className="pc-contact-label" style={{ color: "#ff453a" }}>🚨 Emergency Contact</span>
+                        </div>
+                        <hr className="pc-dashed-rule" />
+                        {card.emergencyContact?.name && (
+                          <div className="pc-contact-row">
+                            <span className="pc-contact-row-label">Contact Name</span>
+                            <span className="pc-contact-row-value">{card.emergencyContact.name} ({card.emergencyContact.relationship || "Emergency"})</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return null;
+            });
+          })()}
         </>
       )}
 
