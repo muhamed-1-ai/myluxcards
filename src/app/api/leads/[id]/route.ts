@@ -22,17 +22,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const companyName = body.companyName !== undefined ? String(body.companyName || "").trim() : null;
     const contactNumber = String(body.contactNumber || "").trim();
     const email = body.email ? String(body.email || "").trim().toLowerCase() : null;
+    const profileImage = body.profileImage || null;
+    const assignedUserId = body.assignedUserId || null;
+    const status = body.status || null;
 
     if (!name || !contactNumber) {
       return Response.json({ message: "Lead name and contact number are required." }, { status: 400 });
     }
 
+    // Ensure they have permission
+    const permCheck = await pool.query(
+      `SELECT id, owner_user_id FROM leads 
+       WHERE id = $1 AND (owner_user_id = $2 OR assigned_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR $3::text = 'SUPER_ADMIN')`,
+      [id, identity.id, identity.role]
+    );
+
+    if (permCheck.rowCount === 0) {
+      return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+    }
+
     const result = await pool.query(
       `UPDATE leads
-       SET name = $1, company_name = $2, contact_number = $3, email = $4, updated_at = NOW()
-       WHERE id = $5 AND owner_user_id = $6
-       RETURNING id, name, company_name, contact_number, email, status, source, updated_at`,
-      [name, companyName || null, contactNumber, email || null, id, identity.id]
+       SET name = $1, company_name = $2, contact_number = $3, email = $4, profile_image = COALESCE($5, profile_image), assigned_user_id = COALESCE($6, assigned_user_id), status = COALESCE($7, status), updated_at = NOW()
+       WHERE id = $8
+       RETURNING id, name, company_name, contact_number, email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", updated_at`,
+      [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id]
     );
 
     const lead = result.rows[0];

@@ -9,13 +9,18 @@ export interface CreateLeadInput {
   contactNumber: string;
   email?: string | null;
   source?: string;
+  profileImage?: string | null;
+  assignedUserId?: string | null;
+  status?: string;
 }
 
 export interface LeadRecord {
   id: string;
   owner_user_id: string;
   card_id: string;
+  assigned_user_id: string | null;
   name: string;
+  profile_image: string | null;
   company_name: string | null;
   contact_number: string;
   contact_number_normalized: string;
@@ -47,6 +52,9 @@ export function validateLeadInput(input: Partial<CreateLeadInput>): {
     contactNumber: string;
     contactNumberNormalized: string;
     email: string | null;
+    profileImage: string | null;
+    assignedUserId: string | null;
+    status: string | null;
   };
 } {
   const errors: Record<string, string> = {};
@@ -89,6 +97,9 @@ export function validateLeadInput(input: Partial<CreateLeadInput>): {
       contactNumber: rawPhone,
       contactNumberNormalized: phoneRes.normalized,
       email,
+      profileImage: input.profileImage || null,
+      assignedUserId: input.assignedUserId || null,
+      status: input.status || null,
     },
   };
 }
@@ -103,16 +114,19 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
     throw new Error(Object.values(validation.errors)[0] || "Invalid lead data.");
   }
 
-  const { name, companyName, contactNumber, contactNumberNormalized, email } = validation.sanitized;
+  const { name, companyName, contactNumber, contactNumberNormalized, email, profileImage, assignedUserId, status } = validation.sanitized;
   const sourceInput = (input.source || "DIRECT").toUpperCase();
-  const allowedSources = ["NFC", "QR", "SHARE", "DIRECT", "UNKNOWN"];
+  const allowedSources = ["NFC", "QR", "SHARE", "DIRECT", "UNKNOWN", "MANUAL", "REFERRAL"];
   const source = allowedSources.includes(sourceInput) ? sourceInput : "DIRECT";
+  const finalStatus = status || 'NEW';
 
   const res = await pool.query<LeadRecord>(
     `INSERT INTO leads (
        owner_user_id,
        card_id,
+       assigned_user_id,
        name,
+       profile_image,
        company_name,
        contact_number,
        contact_number_normalized,
@@ -125,21 +139,26 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
        created_at,
        updated_at
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, 'NEW', $8, NOW(), NOW(), 1, NOW(), NOW()
+       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), 1, NOW(), NOW()
      )
      ON CONFLICT (owner_user_id, contact_number_normalized) DO UPDATE SET
        submission_count = leads.submission_count + 1,
        last_submitted_at = NOW(),
        updated_at = NOW(),
        name = EXCLUDED.name,
+       profile_image = COALESCE(NULLIF(EXCLUDED.profile_image, ''), leads.profile_image),
        company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), leads.company_name),
        email = COALESCE(NULLIF(EXCLUDED.email, ''), leads.email),
-       source = EXCLUDED.source
+       source = EXCLUDED.source,
+       status = COALESCE(NULLIF(EXCLUDED.status, ''), leads.status),
+       assigned_user_id = COALESCE(EXCLUDED.assigned_user_id, leads.assigned_user_id)
      RETURNING
        id,
        owner_user_id,
        card_id,
+       assigned_user_id,
        name,
+       profile_image,
        company_name,
        contact_number,
        contact_number_normalized,
@@ -154,11 +173,14 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
     [
       input.ownerUserId,
       input.cardId,
+      assignedUserId,
       name,
+      profileImage,
       companyName,
       contactNumber,
       contactNumberNormalized,
       email,
+      finalStatus,
       source,
     ]
   );

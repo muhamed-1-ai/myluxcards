@@ -681,7 +681,16 @@ export async function rescheduleFollowUp(
 export async function createManualLead(
   ownerUserId: string,
   cardId: string,
-  input: { name: string; companyName?: string; contactNumber: string; email?: string }
+  input: { 
+    name: string; 
+    companyName?: string; 
+    contactNumber: string; 
+    email?: string;
+    profileImage?: string;
+    assignedUserId?: string;
+    status?: string;
+    source?: string;
+  }
 ) {
   const result = await upsertLead({
     ownerUserId,
@@ -690,7 +699,10 @@ export async function createManualLead(
     companyName: input.companyName,
     contactNumber: input.contactNumber,
     email: input.email,
-    source: "MANUAL",
+    profileImage: input.profileImage,
+    assignedUserId: input.assignedUserId,
+    status: input.status,
+    source: input.source || "MANUAL",
   });
 
   // Log activity

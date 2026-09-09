@@ -22,16 +22,17 @@ model User {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  createdByAdmin     User?    @relation("AdminManagedUsers", fields: [createdByAdminId], references: [id], onDelete: SetNull)
-  managedUsers       User[]   @relation("AdminManagedUsers")
+  createdByAdmin User?  @relation("AdminManagedUsers", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  managedUsers   User[] @relation("AdminManagedUsers")
 
-  digitalCards       DigitalCard[]
-  orders             Order[]
-  accounts           Account[]
-  profile            Profile?
-  leads              Lead[]
-  followUps          LeadFollowUp[]
-  activities         LeadActivity[]
+  digitalCards  DigitalCard[]
+  orders        Order[]
+  accounts      Account[]
+  profile       Profile?
+  leads         Lead[]
+  assignedLeads Lead[]         @relation("LeadAssignedUser")
+  followUps     LeadFollowUp[]
+  activities    LeadActivity[]
 
   @@map("users")
 }
@@ -52,7 +53,7 @@ model Account {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -65,7 +66,7 @@ model Profile {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  user          User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
 
   @@map("profiles")
 }
@@ -83,9 +84,9 @@ model DigitalCard {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
 
-  owner              User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  physicalCards      Card[]
-  leads              Lead[]
+  owner         User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  physicalCards Card[]
+  leads         Lead[]
 
   @@map("digital_cards")
 }
@@ -94,7 +95,9 @@ model Lead {
   id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ownerUserId             String   @map("owner_user_id") @db.Uuid
   cardId                  String   @map("card_id") @db.Uuid
+  assignedUserId          String?  @map("assigned_user_id") @db.Uuid
   name                    String
+  profileImage            String?  @map("profile_image")
   companyName             String?  @map("company_name")
   contactNumber           String   @map("contact_number")
   contactNumberNormalized String   @map("contact_number_normalized")
@@ -107,10 +110,11 @@ model Lead {
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  owner                   User           @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  card                    DigitalCard    @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  followUps               LeadFollowUp[]
-  activities              LeadActivity[]
+  owner        User           @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  assignedUser User?          @relation("LeadAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  card         DigitalCard    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  followUps    LeadFollowUp[]
+  activities   LeadActivity[]
 
   @@unique([ownerUserId, contactNumberNormalized])
   @@index([ownerUserId, status])
@@ -130,8 +134,8 @@ model LeadFollowUp {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
 
-  owner       User      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([ownerUserId, scheduledAt])
   @@index([ownerUserId, status, scheduledAt])
@@ -152,8 +156,8 @@ model LeadActivity {
   occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([ownerUserId, occurredAt])
   @@index([leadId, occurredAt])
@@ -161,63 +165,63 @@ model LeadActivity {
 }
 
 model Card {
-  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  digitalCardId   String      @map("digital_card_id") @db.Uuid
-  status          String      @default("UNASSIGNED")
-  publicTokenHash String?     @map("public_token_hash")
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime    @default(now()) @map("updated_at") @db.Timestamptz
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  digitalCardId   String   @map("digital_card_id") @db.Uuid
+  status          String   @default("UNASSIGNED")
+  publicTokenHash String?  @map("public_token_hash")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  digitalCard     DigitalCard @relation(fields: [digitalCardId], references: [id], onDelete: Cascade)
+  digitalCard DigitalCard @relation(fields: [digitalCardId], references: [id], onDelete: Cascade)
 
   @@map("cards")
 }
 
 model Product {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String      @unique
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
   title       String
   description String?
-  priceMinor  Int         @map("price_minor")
-  currency    String      @default("INR")
+  priceMinor  Int      @map("price_minor")
+  currency    String   @default("INR")
   badge       String?
-  active      Boolean     @default(true)
-  metadata    Json        @default("{}")
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime    @default(now()) @map("updated_at") @db.Timestamptz
+  active      Boolean  @default(true)
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  orderItems  OrderItem[]
+  orderItems OrderItem[]
 
   @@map("products")
 }
 
 model Order {
-  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  number          String      @unique
-  userId          String?     @map("user_id") @db.Uuid
-  customerName    String      @map("customer_name")
-  customerEmail   String      @map("customer_email")
-  customerMobile  String?     @map("customer_mobile")
-  shippingAddress Json        @map("shipping_address")
-  billingAddress  Json?       @map("billing_address")
-  currency        String      @default("INR")
-  subtotalMinor   Int         @map("subtotal_minor")
-  discountMinor   Int         @default(0) @map("discount_minor")
-  taxMinor        Int         @default(0) @map("tax_minor")
-  shippingMinor   Int         @default(0) @map("shipping_minor")
-  totalMinor      Int         @map("total_minor")
-  status          String      @default("PENDING")
-  paymentStatus   String      @default("UNPAID") @map("payment_status")
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number          String   @unique
+  userId          String?  @map("user_id") @db.Uuid
+  customerName    String   @map("customer_name")
+  customerEmail   String   @map("customer_email")
+  customerMobile  String?  @map("customer_mobile")
+  shippingAddress Json     @map("shipping_address")
+  billingAddress  Json?    @map("billing_address")
+  currency        String   @default("INR")
+  subtotalMinor   Int      @map("subtotal_minor")
+  discountMinor   Int      @default(0) @map("discount_minor")
+  taxMinor        Int      @default(0) @map("tax_minor")
+  shippingMinor   Int      @default(0) @map("shipping_minor")
+  totalMinor      Int      @map("total_minor")
+  status          String   @default("PENDING")
+  paymentStatus   String   @default("UNPAID") @map("payment_status")
   courier         String?
-  trackingNumber  String?     @map("tracking_number")
+  trackingNumber  String?  @map("tracking_number")
   notes           String?
-  fulfillmentData Json        @default("{}") @map("fulfillment_data")
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime    @default(now()) @map("updated_at") @db.Timestamptz
+  fulfillmentData Json     @default("{}") @map("fulfillment_data")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items           OrderItem[]
-  payments        Payment[]
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items    OrderItem[]
+  payments Payment[]
 
   @@map("orders")
 }
@@ -233,8 +237,8 @@ model OrderItem {
   customization Json     @default("{}")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@map("order_items")
 }
@@ -253,7 +257,7 @@ model Payment {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
@@ -283,5 +287,3 @@ model AdminAuditLog {
 
   @@map("admin_audit_logs")
 }
-
-

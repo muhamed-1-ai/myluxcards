@@ -33,6 +33,10 @@ export async function POST(request: Request) {
       companyName: body.companyName,
       contactNumber: body.contactNumber,
       email: body.email,
+      profileImage: body.profileImage,
+      assignedUserId: body.assignedUserId,
+      status: body.status,
+      source: body.source,
     });
 
     return Response.json({
