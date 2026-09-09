@@ -123,16 +123,16 @@ export function LeadGrowthChart({
             fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
             fontSize: 17,
             fontWeight: 700,
-            color: "#FFFFFF",
+            color: "var(--text-primary)",
             margin: 0,
             letterSpacing: "-0.01em"
           }}>
-            Growth Velocity <span style={{ fontWeight: 500, color: "#E2E8F0" }}>— Lead Acquisition</span>
+            Growth Velocity <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}>— Lead Acquisition</span>
           </h2>
           <p style={{
             fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
             fontSize: 13,
-            color: "#8E8EA0",
+            color: "var(--text-muted)",
             margin: "4px 0 0",
             fontWeight: 400
           }}>
@@ -145,8 +145,8 @@ export function LeadGrowthChart({
           display: "flex",
           alignItems: "center",
           gap: 3,
-          background: "#161722",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border-color)",
           padding: 3,
           borderRadius: 12
         }}>
@@ -168,8 +168,8 @@ export function LeadGrowthChart({
                   border: "none",
                   cursor: "pointer",
                   background: isActive ? "#0066FF" : "transparent",
-                  color: isActive ? "#08080A" : "#8E8EA0",
-                  boxShadow: isActive ? "0 2px 8px rgba(0, 229, 255, 0.25)" : "none",
+                  color: isActive ? "#FFFFFF" : "var(--text-muted)",
+                  boxShadow: isActive ? "0 2px 8px rgba(0, 102, 255, 0.25)" : "none",
                   transition: "all 0.15s ease",
                 }}
               >
@@ -203,7 +203,7 @@ export function LeadGrowthChart({
             return (
               <g key={idx}>
                 {stepVal === 0 ? (
-                  // Solid Zero Baseline in Gold (matching 1:1 reference line)
+                  // Solid Zero Baseline in Zappit Blue
                   <line
                     x1={paddingLeft}
                     y1={y}
@@ -220,7 +220,7 @@ export function LeadGrowthChart({
                     y1={y}
                     x2={svgWidth - paddingRight}
                     y2={y}
-                    stroke="rgba(255, 255, 255, 0.08)"
+                    stroke="var(--border-color)"
                     strokeDasharray="4 4"
                     strokeWidth="1"
                   />
@@ -229,7 +229,7 @@ export function LeadGrowthChart({
                 <text
                   x={paddingLeft - 12}
                   y={y + 4}
-                  fill="#8E8EA0"
+                  fill="var(--text-muted)"
                   fontSize="12"
                   fontWeight="500"
                   fontFamily="Inter, system-ui, sans-serif"
@@ -254,13 +254,13 @@ export function LeadGrowthChart({
             strokeLinejoin="round"
           />
 
-          {/* X-Axis Ticks & Labels (Positioned directly below y=0 baseline line) */}
+          {/* X-Axis Ticks & Labels */}
           {points.map((pt, idx) => (
             <text
               key={`xlabel-${idx}`}
               x={pt.x}
               y={zeroY + 22}
-              fill="#8E8EA0"
+              fill="var(--text-muted)"
               fontSize="12"
               fontWeight="500"
               fontFamily="Inter, system-ui, sans-serif"
@@ -291,7 +291,7 @@ export function LeadGrowthChart({
                     cy={pt.y}
                     r="5"
                     fill="#0066FF"
-                    stroke="#08080A"
+                    stroke="var(--surface)"
                     strokeWidth="2.5"
                     style={{ pointerEvents: "none" }}
                   />
@@ -308,12 +308,12 @@ export function LeadGrowthChart({
               position: "absolute",
               zIndex: 30,
               pointerEvents: "none",
-              background: "#161722",
-              border: "1px solid rgba(0, 229, 255, 0.6)",
-              color: "#FFF",
+              background: "var(--surface)",
+              border: "1px solid var(--primary)",
+              color: "var(--text-primary)",
               padding: "6px 12px",
               borderRadius: 8,
-              boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
+              boxShadow: "var(--card-shadow)",
               fontSize: 12,
               fontFamily: "Inter, system-ui, sans-serif",
               transform: "translate(-50%, -100%)",
@@ -323,7 +323,7 @@ export function LeadGrowthChart({
             }}
           >
             <div style={{ fontWeight: 700, color: "#0066FF" }}>{hoveredPoint.count} New Leads</div>
-            <div style={{ fontSize: 10, color: "#8E8EA0" }}>{hoveredPoint.label}</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{hoveredPoint.label}</div>
           </div>
         )}
       </div>

@@ -109,35 +109,35 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
-          <h2 style={{ fontSize: 16, fontWeight: 800, color: "#FFFFFF", margin: 0 }}>CRM Calendar</h2>
-          <p style={{ fontSize: 12, color: "#94A3B8", margin: "2px 0 0" }}>Activity timeline & schedule</p>
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>CRM Calendar</h2>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>Activity timeline & schedule</p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
             type="button"
             onClick={goToToday}
-            style={{ padding: "4px 10px", fontSize: 12, fontWeight: 700, borderRadius: 8, background: "#181924", color: "#0066FF", border: "1px solid rgba(0, 229, 255,0.3)", cursor: "pointer" }}
+            style={{ padding: "4px 10px", fontSize: 12, fontWeight: 700, borderRadius: 8, background: "var(--bg-secondary)", color: "#0066FF", border: "1px solid var(--border-color)", cursor: "pointer" }}
           >
             Today
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#181924", border: "1px solid rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", padding: "2px 6px", borderRadius: 8 }}>
             <button
               type="button"
               onClick={prevMonth}
               aria-label="Previous Month"
-              style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", padding: 2 }}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 2 }}
             >
               <ChevronLeft style={{ width: 16, height: 16 }} />
             </button>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF", padding: "0 4px" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", padding: "0 4px" }}>
               {monthName} {year}
             </span>
             <button
               type="button"
               onClick={nextMonth}
               aria-label="Next Month"
-              style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", padding: 2 }}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 2 }}
             >
               <ChevronRight style={{ width: 16, height: 16 }} />
             </button>
@@ -146,7 +146,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
       </div>
 
       {/* Weekdays */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94A3B8", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: 6, marginBottom: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", borderBottom: "1px solid var(--border-color)", paddingBottom: 6, marginBottom: 6 }}>
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div key={d}>{d}</div>
         ))}
@@ -155,7 +155,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
       {/* Grid Cells */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, flex: 1 }}>
         {Array.from({ length: adjustedFirstDay }).map((_, idx) => (
-          <div key={`empty-${idx}`} style={{ background: "rgba(11,12,16,0.4)", borderRadius: 6, minHeight: 44 }} />
+          <div key={`empty-${idx}`} style={{ background: "var(--bg-secondary)", opacity: 0.5, borderRadius: 6, minHeight: 44 }} />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, idx) => {
@@ -178,14 +178,14 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
                 border: isToday
                   ? "1px solid #0066FF"
                   : isSelected
-                  ? "1px solid rgba(0, 229, 255,0.6)"
-                  : "1px solid rgba(255,255,255,0.05)",
+                  ? "1px solid #0066FF"
+                  : "1px solid var(--border-color)",
                 background: isToday
-                  ? "rgba(0, 229, 255,0.15)"
+                  ? "rgba(0, 102, 255, 0.1)"
                   : isSelected
-                  ? "#181924"
-                  : "#12131A",
-                color: "#FFFFFF",
+                  ? "rgba(0, 102, 255, 0.05)"
+                  : "var(--surface)",
+                color: "var(--text-primary)",
                 textAlign: "left",
                 display: "flex",
                 flexDirection: "column",
@@ -195,9 +195,9 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: isToday ? "#0066FF" : "#FFF" }}>{dayNum}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: isToday ? "#0066FF" : "var(--text-primary)" }}>{dayNum}</span>
                 {totalEvents > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(0, 229, 255,0.2)", color: "#0066FF", padding: "1px 5px", borderRadius: 50, border: "1px solid rgba(0, 229, 255,0.4)" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "1px 5px", borderRadius: 50, border: "1px solid rgba(0, 102, 255, 0.25)" }}>
                     {totalEvents}
                   </span>
                 )}
@@ -233,15 +233,15 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
 
       {/* Selected Day Activity Slide-Out Drawer */}
       {selectedDateStr && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedDateStr(null)}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedDateStr(null)}>
           <div
-            style={{ width: "100%", maxWidth: 440, background: "#12131A", borderLeft: "1px solid rgba(0, 229, 255,0.3)", height: "100%", padding: 24, display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "-10px 0 40px rgba(0,0,0,0.6)" }}
+            style={{ width: "100%", maxWidth: 440, background: "var(--surface)", borderLeft: "1px solid var(--border-color)", height: "100%", padding: 24, display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "var(--card-shadow)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 16, borderBottom: "1px solid var(--border-color)" }}>
               <div>
                 <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>DAY TIMELINE ACTIVITY</span>
-                <h3 style={{ fontSize: 20, fontWeight: 700, color: "#FFF", margin: "4px 0 0" }}>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "4px 0 0" }}>
                   {new Date(selectedDateStr).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "short",
@@ -252,7 +252,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               </div>
               <button
                 type="button"
-                style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", padding: 4 }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 4 }}
                 onClick={() => setSelectedDateStr(null)}
                 aria-label="Close day panel"
               >
@@ -262,31 +262,31 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
 
             <div className="scrollbar-thin" style={{ flex: 1, overflowY: "auto", padding: "16px 0" }}>
               {loadingDayDetails ? (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "#94A3B8", fontSize: 13 }}>Loading timeline activities...</div>
+                <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 13 }}>Loading timeline activities...</div>
               ) : dayDetails.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "48px 0", color: "#64748B" }}>
-                  <CalendarIcon style={{ width: 32, height: 32, color: "#475569", margin: "0 auto 8px" }} />
-                  <p style={{ fontWeight: 700, color: "#FFF", margin: 0 }}>No activity logged on this date.</p>
-                  <span style={{ fontSize: 12, color: "#64748B" }}>Activities automatically record when leads are created or follow-ups occur.</span>
+                <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)" }}>
+                  <CalendarIcon style={{ width: 32, height: 32, color: "var(--text-muted)", margin: "0 auto 8px" }} />
+                  <p style={{ fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>No activity logged on this date.</p>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Activities automatically record when leads are created or follow-ups occur.</span>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {dayDetails.map((evt) => (
-                    <div key={evt.id} style={{ padding: 12, background: "#181924", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, display: "flex", gap: 12 }}>
-                      <div style={{ padding: 8, borderRadius: 8, background: "rgba(255,255,255,0.04)", height: "fit-content" }}>{getActivityIcon(evt.type)}</div>
+                    <div key={evt.id} style={{ padding: 12, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 12, display: "flex", gap: 12 }}>
+                      <div style={{ padding: 8, borderRadius: 8, background: "var(--surface)", height: "fit-content" }}>{getActivityIcon(evt.type)}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: "rgba(0, 229, 255,0.15)", color: "#0066FF", border: "1px solid rgba(0, 229, 255,0.3)" }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: "rgba(0, 102, 255, 0.08)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.2)" }}>
                             {evt.type.replace(/_/g, " ")}
                           </span>
-                          <span style={{ fontSize: 11, color: "#64748B" }}>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                             {new Date(evt.occurredAt).toLocaleTimeString("en-US", {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
                           </span>
                         </div>
-                        <h4 style={{ fontSize: 14, fontWeight: 700, color: "#FFF", margin: 0 }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
                           {onSelectLead ? (
                             <button
                               type="button"
@@ -299,7 +299,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
                             evt.leadName
                           )}
                         </h4>
-                        {evt.description && <p style={{ fontSize: 12, color: "#CBD5E1", margin: "4px 0 0" }}>{evt.description}</p>}
+                        {evt.description && <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 0" }}>{evt.description}</p>}
                       </div>
                     </div>
                   ))}

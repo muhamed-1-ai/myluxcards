@@ -178,20 +178,20 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
   const canShip = Boolean(trackingNumber.trim() && orderData?.shippingAddress?.pinCode);
 
   return (
-    <div style={{ background: "#090d16", minHeight: "85vh", borderRadius: 12, padding: "20px", color: "#fff", border: "1px solid #1c2638" }}>
+    <div style={{ background: "var(--admin-bg, #090d16)", minHeight: "85vh", borderRadius: 12, padding: "20px", color: "var(--admin-text, #fff)", border: "1px solid var(--admin-border, #1c2638)" }}>
       {/* HEADER BAR */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1f2a3e", paddingBottom: 16, marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--admin-border, #1f2a3e)", paddingBottom: 16, marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 900, fontSize: 11, padding: "4px 10px", borderRadius: 6 }}>
             🚚 SHIPPING MODE
           </span>
           {orderData?.order && (
-            <h2 style={{ fontSize: 20, margin: 0, fontWeight: 800, letterSpacing: -0.5 }}>
+            <h2 style={{ fontSize: 20, margin: 0, fontWeight: 800, letterSpacing: -0.5, color: "var(--admin-text, #fff)" }}>
               ORDER #{orderData.order.orderNumber}
             </h2>
           )}
           {queueOrders.length > 0 && (
-            <span style={{ background: "#1e293b", color: "#00E5FF", fontSize: 12, padding: "3px 9px", borderRadius: 12, border: "1px solid #0066FF" }}>
+            <span style={{ background: "rgba(0, 102, 255, 0.1)", color: "#0066FF", fontSize: 12, padding: "3px 9px", borderRadius: 12, border: "1px solid rgba(0, 102, 255, 0.3)" }}>
               {queueOrders.length} Ready to Ship
             </span>
           )}
@@ -200,7 +200,7 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <button
             onClick={() => loadOrder(null)}
-            style={{ background: "#111827", border: "1px solid #374151", color: "#e5e7eb", padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+            style={{ background: "var(--admin-panel, #111827)", border: "1px solid var(--admin-border, #374151)", color: "var(--admin-text, #e5e7eb)", padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
           >
             NEXT ORDER ➔
           </button>
@@ -224,12 +224,12 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
       )}
 
       {loading ? (
-        <div style={{ padding: "60px 0", textAlign: "center", color: "#94a3b8" }}>
+        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--admin-muted, #94a3b8)" }}>
           <div style={{ fontSize: 24, marginBottom: 12 }}>🔄</div>
           Fetching next order ready to ship...
         </div>
       ) : error ? (
-        <div style={{ padding: "40px", background: "#451a1a", border: "1px solid #7f1d1d", borderRadius: 8, color: "#fca5a5" }}>
+        <div style={{ padding: "40px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid #7f1d1d", borderRadius: 8, color: "#fca5a5" }}>
           <h3 style={{ margin: "0 0 8px" }}>Error Loading Shipping Order</h3>
           <p>{error}</p>
           <button onClick={() => loadOrder(null)} style={{ padding: "8px 16px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700 }}>
@@ -237,10 +237,10 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
           </button>
         </div>
       ) : !orderData ? (
-        <div style={{ padding: "60px 20px", textAlign: "center", background: "#0f172a", borderRadius: 10, border: "1px solid #1e293b" }}>
+        <div style={{ padding: "60px 20px", textAlign: "center", background: "var(--admin-panel, #0f172a)", borderRadius: 10, border: "1px solid var(--admin-border, #1e293b)" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
           <h3 style={{ margin: "0 0 8px", fontSize: 20, color: "#52c41a" }}>No Orders Waiting to Ship!</h3>
-          <p style={{ color: "#94a3b8", maxWidth: 450, margin: "0 auto 20px" }}>
+          <p style={{ color: "var(--admin-muted, #94a3b8)", maxWidth: 450, margin: "0 auto 20px" }}>
             All packed orders have been dispatched. Return to fulfillment command center to manage other stages.
           </p>
           <button onClick={onExit} style={{ padding: "10px 20px", background: "#0066FF", color: "#fff", border: "none", borderRadius: 8, fontWeight: 800, cursor: "pointer" }}>
@@ -253,53 +253,53 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* NEXT ACTION BANNER */}
             {nextAction && (
-              <div style={{ background: "#0f172a", border: `1px solid ${nextAction.color}`, borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 800, letterSpacing: 0.5, marginBottom: 4 }}>CALCULATED NEXT ACTION</div>
+              <div style={{ background: "var(--admin-panel, #0f172a)", border: `1px solid ${nextAction.color}`, borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 10, color: "var(--admin-muted, #94a3b8)", fontWeight: 800, letterSpacing: 0.5, marginBottom: 4 }}>CALCULATED NEXT ACTION</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ background: nextAction.color, color: "#000", fontWeight: 900, fontSize: 11, padding: "3px 8px", borderRadius: 4 }}>
                     {nextAction.label}
                   </span>
-                  <span style={{ fontSize: 12, color: "#e2e8f0" }}>{nextAction.subtext}</span>
+                  <span style={{ fontSize: 12, color: "var(--admin-text, #e2e8f0)" }}>{nextAction.subtext}</span>
                 </div>
               </div>
             )}
 
             {/* CUSTOMER RECIPIENT BOX */}
-            <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, padding: 16 }}>
+            <div style={{ background: "var(--admin-panel, #0f172a)", border: "1px solid var(--admin-border, #1e293b)", borderRadius: 10, padding: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 800 }}>RECIPIENT CUSTOMER</span>
+                <span style={{ fontSize: 11, color: "var(--admin-muted, #64748b)", fontWeight: 800 }}>RECIPIENT CUSTOMER</span>
                 {orderData.order?.userId && (
                   <button
                     onClick={() => onOpenWorkspace(orderData.order.id)}
-                    style={{ background: "transparent", border: "none", color: "#38bdf8", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
+                    style={{ background: "transparent", border: "none", color: "#0066FF", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
                   >
                     Inspect Workspace ↗
                   </button>
                 )}
               </div>
-              <h3 style={{ margin: "0 0 4px", fontSize: 18, color: "#f8fafc" }}>{orderData.customer?.name}</h3>
-              <div style={{ color: "#94a3b8", fontSize: 13 }}>📞 {orderData.customer?.phone || "N/A"}</div>
-              <div style={{ color: "#94a3b8", fontSize: 13 }}>✉️ {orderData.customer?.email}</div>
+              <h3 style={{ margin: "0 0 4px", fontSize: 18, color: "var(--admin-text, #f8fafc)" }}>{orderData.customer?.name}</h3>
+              <div style={{ color: "var(--admin-muted, #94a3b8)", fontSize: 13 }}>📞 {orderData.customer?.phone || "N/A"}</div>
+              <div style={{ color: "var(--admin-muted, #94a3b8)", fontSize: 13 }}>✉️ {orderData.customer?.email}</div>
             </div>
 
             {/* FULL SHIPPING ADDRESS & 1-CLICK COPY */}
-            <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, padding: 16 }}>
+            <div style={{ background: "var(--admin-panel, #0f172a)", border: "1px solid var(--admin-border, #1e293b)", borderRadius: 10, padding: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 800 }}>DESTINATION ADDRESS</span>
+                <span style={{ fontSize: 11, color: "var(--admin-muted, #64748b)", fontWeight: 800 }}>DESTINATION ADDRESS</span>
                 <button
                   onClick={handleCopyAddress}
-                  style={{ background: "#38bdf8", color: "#000", border: "none", padding: "4px 10px", borderRadius: 4, fontWeight: 800, fontSize: 11, cursor: "pointer" }}
+                  style={{ background: "#0066FF", color: "#fff", border: "none", padding: "4px 10px", borderRadius: 4, fontWeight: 800, fontSize: 11, cursor: "pointer" }}
                 >
                   {copyNotice || "📋 COPY FULL ADDRESS"}
                 </button>
               </div>
               {orderData.shippingAddress ? (
-                <div style={{ fontSize: 13, color: "#cbd5e1", lineHeight: 1.5, background: "#1e293b", padding: 12, borderRadius: 8, border: "1px solid #334155" }}>
-                  <div style={{ fontWeight: 800, color: "#fff", fontSize: 14, marginBottom: 4 }}>{orderData.shippingAddress.recipientName}</div>
+                <div style={{ fontSize: 13, color: "var(--admin-text, #cbd5e1)", lineHeight: 1.5, background: "var(--admin-bg, #1e293b)", padding: 12, borderRadius: 8, border: "1px solid var(--admin-border, #334155)" }}>
+                  <div style={{ fontWeight: 800, color: "var(--admin-text, #fff)", fontSize: 14, marginBottom: 4 }}>{orderData.shippingAddress.recipientName}</div>
                   <div>Phone: {orderData.shippingAddress.phone}</div>
                   <div>{orderData.shippingAddress.house} {orderData.shippingAddress.street}</div>
                   {orderData.shippingAddress.locality && <div>{orderData.shippingAddress.locality}</div>}
-                  <div style={{ color: "#38bdf8", fontWeight: 700 }}>
+                  <div style={{ color: "#0066FF", fontWeight: 700 }}>
                     {orderData.shippingAddress.city}, {orderData.shippingAddress.state} - {orderData.shippingAddress.pinCode}
                   </div>
                   <div>{orderData.shippingAddress.country}</div>
@@ -310,13 +310,13 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
             </div>
 
             {/* ORDER ITEMS SUMMARY */}
-            <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, padding: 16 }}>
-              <span style={{ fontSize: 11, color: "#64748b", fontWeight: 800, display: "block", marginBottom: 10 }}>ORDER CONTENTS</span>
+            <div style={{ background: "var(--admin-panel, #0f172a)", border: "1px solid var(--admin-border, #1e293b)", borderRadius: 10, padding: 16 }}>
+              <span style={{ fontSize: 11, color: "var(--admin-muted, #64748b)", fontWeight: 800, display: "block", marginBottom: 10 }}>ORDER CONTENTS</span>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {orderData.items?.map((it: any) => (
-                  <div key={it.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#cbd5e1" }}>
+                  <div key={it.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--admin-text, #cbd5e1)" }}>
                     <span>{it.productName}</span>
-                    <span style={{ fontWeight: 700, color: "#fff" }}>×{it.quantity}</span>
+                    <span style={{ fontWeight: 700, color: "var(--admin-text, #fff)" }}>×{it.quantity}</span>
                   </div>
                 ))}
               </div>
@@ -326,15 +326,15 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
           {/* COLUMN 2: DISPATCH & TRACKING ENTRY */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* COURIER & TRACKING INPUT BOX */}
-            <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, padding: 20 }}>
-              <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>COURIER &amp; TRACKING DETAILS</h3>
+            <div style={{ background: "var(--admin-panel, #0f172a)", border: "1px solid var(--admin-border, #1e293b)", borderRadius: 10, padding: 20 }}>
+              <h3 style={{ margin: "0 0 16px", fontSize: 16, color: "var(--admin-text, #fff)" }}>COURIER &amp; TRACKING DETAILS</h3>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>COURIER SERVICE</label>
+                <label style={{ display: "block", fontSize: 12, color: "var(--admin-muted, #94a3b8)", fontWeight: 700, marginBottom: 6 }}>COURIER SERVICE</label>
                 <select
                   value={courier}
                   onChange={(e) => setCourier(e.target.value)}
-                  style={{ width: "100%", padding: "10px", background: "#1e293b", border: "1px solid #334155", color: "#fff", borderRadius: 6, fontSize: 13 }}
+                  style={{ width: "100%", padding: "10px", background: "var(--admin-bg, #1e293b)", border: "1px solid var(--admin-border, #334155)", color: "var(--admin-text, #fff)", borderRadius: 6, fontSize: 13 }}
                 >
                   {COMMON_COURIERS.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -343,19 +343,19 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 12, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>AWB / TRACKING NUMBER</label>
+                <label style={{ display: "block", fontSize: 12, color: "var(--admin-muted, #94a3b8)", fontWeight: 700, marginBottom: 6 }}>AWB / TRACKING NUMBER</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     type="text"
                     placeholder="Enter Tracking Number e.g. TRK-987654"
                     value={trackingNumber}
                     onChange={(e) => setTrackingNumber(e.target.value)}
-                    style={{ flex: 1, padding: "10px", background: "#1e293b", border: trackingNumber.trim() ? "1px solid #059669" : "1px solid #eab308", color: "#fff", borderRadius: 6, fontSize: 13, fontWeight: 700 }}
+                    style={{ flex: 1, padding: "10px", background: "var(--admin-bg, #1e293b)", border: trackingNumber.trim() ? "1px solid #059669" : "1px solid #eab308", color: "var(--admin-text, #fff)", borderRadius: 6, fontSize: 13, fontWeight: 700 }}
                   />
                   <button
                     disabled={saving}
                     onClick={handleSaveTracking}
-                    style={{ padding: "10px 14px", background: "#334155", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    style={{ padding: "10px 14px", background: "var(--admin-border, #334155)", color: "var(--admin-text, #fff)", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                   >
                     Save
                   </button>
@@ -371,7 +371,7 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
                 <button
                   onClick={() => setShowLabelModal(true)}
-                  style={{ padding: "12px", background: "#1e293b", border: "1px solid #334155", color: "#38bdf8", borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
+                  style={{ padding: "12px", background: "var(--admin-bg, #1e293b)", border: "1px solid var(--admin-border, #334155)", color: "#0066FF", borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
                 >
                   🖨️ PRINT SHIPPING LABEL
                 </button>
@@ -381,8 +381,8 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
                   onClick={handleMarkShipped}
                   style={{
                     padding: "14px",
-                    background: canShip ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "#334155",
-                    color: canShip ? "#fff" : "#94a3b8",
+                    background: canShip ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "var(--admin-border, #334155)",
+                    color: canShip ? "#fff" : "var(--admin-muted, #94a3b8)",
                     border: "none",
                     borderRadius: 8,
                     fontWeight: 900,
@@ -398,8 +398,8 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
 
             {/* READY TO SHIP QUEUE PREVIEW */}
             {queueOrders.length > 0 && (
-              <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, padding: 16 }}>
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 800, display: "block", marginBottom: 10 }}>READY TO SHIP QUEUE</span>
+              <div style={{ background: "var(--admin-panel, #0f172a)", border: "1px solid var(--admin-border, #1e293b)", borderRadius: 10, padding: 16 }}>
+                <span style={{ fontSize: 11, color: "var(--admin-muted, #64748b)", fontWeight: 800, display: "block", marginBottom: 10 }}>READY TO SHIP QUEUE</span>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
                   {queueOrders.map((q) => {
                     const isCurrent = q.id === currentOrderId;
@@ -409,8 +409,8 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
                         onClick={() => loadOrder(q.id)}
                         style={{
                           padding: "8px 12px",
-                          background: isCurrent ? "#1e293b" : "#090d16",
-                          border: isCurrent ? "1px solid #00E5FF" : "1px solid #1f2a3e",
+                          background: isCurrent ? "rgba(0, 102, 255, 0.1)" : "var(--admin-bg, #090d16)",
+                          border: isCurrent ? "1px solid #0066FF" : "1px solid var(--admin-border, #1f2a3e)",
                           borderRadius: 6,
                           fontSize: 12,
                           display: "flex",
@@ -418,8 +418,8 @@ export default function ShippingMode({ initialOrderId, onExit, onOpenWorkspace }
                           cursor: "pointer",
                         }}
                       >
-                        <span style={{ fontWeight: 700, color: isCurrent ? "#00E5FF" : "#fff" }}>#{q.orderNumber}</span>
-                        <span style={{ color: "#94a3b8" }}>{q.customerName}</span>
+                        <span style={{ fontWeight: 700, color: isCurrent ? "#0066FF" : "var(--admin-text, #fff)" }}>#{q.orderNumber}</span>
+                        <span style={{ color: "var(--admin-muted, #94a3b8)" }}>{q.customerName}</span>
                       </div>
                     );
                   })}

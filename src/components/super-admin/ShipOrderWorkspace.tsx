@@ -209,7 +209,7 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
     .join("\n");
 
   return (
-    <div style={{ background: "#050505", color: "#fff", minHeight: "100vh", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ background: "var(--admin-bg, #050505)", color: "var(--admin-text, #fff)", minHeight: "100vh", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
       {/* Top Header */}
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px" }}>
         <div>
@@ -765,10 +765,11 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
 
 // Styling helpers
 const cardBoxStyle: React.CSSProperties = {
-  background: "#141414",
-  border: "1px solid #262626",
+  background: "var(--admin-panel, #141414)",
+  border: "1px solid var(--admin-border, #262626)",
   padding: "20px",
   borderRadius: "10px",
+  color: "var(--admin-text, #fff)",
 };
 
 const cardHeaderStyle: React.CSSProperties = {
@@ -776,15 +777,15 @@ const cardHeaderStyle: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   marginBottom: "14px",
-  borderBottom: "1px solid #222",
+  borderBottom: "1px solid var(--admin-border, #222)",
   paddingBottom: "8px",
 };
 
 const quickBtnStyle: React.CSSProperties = {
   padding: "8px 12px",
-  background: "#222",
-  color: "#fff",
-  border: "1px solid #444",
+  background: "var(--bg-secondary, #222)",
+  color: "var(--admin-text, #fff)",
+  border: "1px solid var(--admin-border, #444)",
   borderRadius: "6px",
   fontSize: "12px",
   cursor: "pointer",
@@ -793,9 +794,9 @@ const quickBtnStyle: React.CSSProperties = {
 
 const miniBtnStyle: React.CSSProperties = {
   padding: "4px 8px",
-  background: "#333",
-  color: "#fff",
-  border: "none",
+  background: "var(--bg-secondary, #333)",
+  color: "var(--admin-text, #fff)",
+  border: "1px solid var(--admin-border, #444)",
   borderRadius: "4px",
   fontSize: "11px",
   cursor: "pointer",
@@ -804,9 +805,9 @@ const miniBtnStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px",
-  background: "#111",
-  color: "#fff",
-  border: "1px solid #333",
+  background: "var(--admin-bg, #111)",
+  color: "var(--admin-text, #fff)",
+  border: "1px solid var(--admin-border, #333)",
   borderRadius: "6px",
   fontSize: "12px",
 };
@@ -814,7 +815,7 @@ const inputStyle: React.CSSProperties = {
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.85)",
+  background: "rgba(0,0,0,0.5)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -823,11 +824,12 @@ const modalOverlayStyle: React.CSSProperties = {
 };
 
 const modalContentStyle: React.CSSProperties = {
-  background: "#1a1a1a",
-  border: "1px solid #333",
+  background: "var(--admin-panel, #1a1a1a)",
+  border: "1px solid var(--admin-border, #333)",
   borderRadius: "10px",
   padding: "24px",
   width: "100%",
+  color: "var(--admin-text, #fff)",
 };
 
 const primaryBtnStyle: React.CSSProperties = {
@@ -843,8 +845,8 @@ const primaryBtnStyle: React.CSSProperties = {
 const secondaryBtnStyle: React.CSSProperties = {
   padding: "8px 16px",
   background: "transparent",
-  color: "#ccc",
-  border: "1px solid #444",
+  color: "var(--admin-text, #ccc)",
+  border: "1px solid var(--admin-border, #444)",
   borderRadius: "6px",
   cursor: "pointer",
 };

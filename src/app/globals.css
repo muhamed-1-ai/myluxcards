@@ -4918,9 +4918,11 @@ body.light-mode .footer-links a {
 [data-theme="light"] .crm-modal-dialog,
 [data-theme="light"] .modal-card,
 [data-theme="light"] .drawer,
+[data-theme="light"] .crm-modal-content,
 body.light-mode .crm-modal-dialog,
 body.light-mode .modal-card,
-body.light-mode .drawer {
+body.light-mode .drawer,
+body.light-mode .crm-modal-content {
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
   color: #0F172A !important;
@@ -4933,11 +4935,60 @@ body.light-mode .crm-label {
 }
 
 [data-theme="light"] .crm-input,
-body.light-mode .crm-input {
+[data-theme="light"] .crm-select-dark,
+[data-theme="light"] .crm-filter-select,
+body.light-mode .crm-input,
+body.light-mode .crm-select-dark,
+body.light-mode .crm-filter-select {
   background: #FFFFFF !important;
   border: 1px solid #CBD5E1 !important;
   color: #0F172A !important;
 }
+
+[data-theme="light"] .crm-select-dark option,
+[data-theme="light"] .crm-filter-select option,
+body.light-mode .crm-select-dark option,
+body.light-mode .crm-filter-select option {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+/* Light Mode Tables */
+[data-theme="light"] table,
+body.light-mode table {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] th,
+body.light-mode th {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border-bottom: 2px solid #E2E8F0 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] td,
+body.light-mode td {
+  color: #0F172A !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] tr:hover,
+body.light-mode tr:hover {
+  background: #F1F5F9 !important;
+}
+
+/* Light Mode Badges & Status */
+[data-theme="light"] .badge,
+[data-theme="light"] .crm-kpi-badge,
+body.light-mode .badge,
+body.light-mode .crm-kpi-badge {
+  background: rgba(0, 102, 255, 0.08) !important;
+  border: 1px solid rgba(0, 102, 255, 0.2) !important;
+  color: #0066FF !important;
+}
+
 
 
 

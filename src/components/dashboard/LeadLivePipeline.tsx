@@ -30,8 +30,8 @@ export function LeadLivePipeline({
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
       {/* Header matching reference */}
       <div style={{ marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#FFFFFF", margin: 0 }}>Pipeline Stages</h2>
-        <p style={{ fontSize: 12, color: "#94A3B8", margin: "2px 0 0" }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Pipeline Stages</h2>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>
           Lead stage distribution and funnels
         </p>
       </div>
@@ -53,8 +53,8 @@ export function LeadLivePipeline({
                 gap: 4,
                 padding: 10,
                 borderRadius: 10,
-                border: "1px solid rgba(255, 255, 255, 0.05)",
-                background: "#181924",
+                border: "1px solid var(--border-color)",
+                background: "var(--surface)",
                 cursor: onSelectStage ? "pointer" : "default",
                 minHeight: 54,
                 justifyContent: "center",
@@ -65,19 +65,19 @@ export function LeadLivePipeline({
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: stg.accentColor }} />
-                  <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", color: "#FFFFFF" }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", color: "var(--text-primary)" }}>
                     {stg.label}
                   </span>
                 </div>
 
-                <div style={{ background: "#12131A", border: "1px solid rgba(0, 229, 255, 0.3)", color: "#0066FF", padding: "2px 10px", borderRadius: 50, fontSize: 11, fontWeight: 800 }}>
+                <div style={{ background: "rgba(0, 102, 255, 0.08)", border: "1px solid rgba(0, 102, 255, 0.2)", color: "#0066FF", padding: "2px 10px", borderRadius: 50, fontSize: 11, fontWeight: 800 }}>
                   {count} {isSingular ? "Lead" : "Leads"}
                 </div>
               </div>
 
               {/* Progress Bar Track */}
               <div
-                style={{ position: "relative", width: "100%", height: 7, background: "#0B0C10", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 999, overflow: "hidden", margin: "2px 0" }}
+                style={{ position: "relative", width: "100%", height: 7, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 999, overflow: "hidden", margin: "2px 0" }}
                 role="progressbar"
                 aria-valuenow={percentage}
                 aria-valuemin={0}
@@ -96,7 +96,7 @@ export function LeadLivePipeline({
               </div>
 
               {/* Flex Meta: Percentage (Left) & View Link (Right) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "#94A3B8" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "var(--text-muted)" }}>
                 <span>{percentage}% of total Leads</span>
                 {onSelectStage && (
                   <span style={{ color: "#0066FF", display: "flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700 }}>

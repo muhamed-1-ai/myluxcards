@@ -54,7 +54,7 @@ test("PublicCardClient renders clean Vehicle Connect and Lost & Found direct con
 
 test("DashboardDemo provides multi-vehicle, multi-item, and normalized contact management", () => {
   assert.match(dashboardDemo, /ModesForm/);
-  assert.match(dashboardDemo, /Permanent Feature Entitlements/);
+  assert.match(dashboardDemo, /Profile Mode &(?:amp;)? Features/);
   assert.match(dashboardDemo, /enabledFeatures/);
   assert.match(dashboardDemo, /MY VEHICLES/);
   assert.match(dashboardDemo, /MY LOST &(?:amp;)? FOUND ITEMS/);
