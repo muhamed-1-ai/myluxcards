@@ -21,7 +21,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const name = String(body.name || "").trim();
     const companyName = body.companyName !== undefined ? String(body.companyName || "").trim() : null;
     const contactNumber = String(body.contactNumber || "").trim();
-    const email = body.email ? String(body.email || "").trim().toLowerCase() : null;
+    const email = body.email ? String(body.email || "").trim() : null;
     const profileImage = body.profileImage || null;
     const assignedUserId = body.assignedUserId || null;
     const status = body.status || null;

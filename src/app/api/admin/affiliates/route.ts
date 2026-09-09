@@ -38,13 +38,15 @@ export async function GET(request: Request) {
   } catch (error) { return safeError(error); }
 }
 
+import { normalizeEmail } from "@/lib/repositories/users";
+
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) return Response.json({ message: "Invalid request origin." }, { status: 403 });
   const actor = await requireAdmin();
   if (!actor) return Response.json({ message: "Forbidden" }, { status: 403 });
   try {
     const body = await request.json().catch(() => ({}));
-    const email = cleanText(body.email, 320).toLowerCase();
+    const email = normalizeEmail(cleanText(body.email, 320));
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Response.json({ message: "Enter a valid invitation email." }, { status: 400 });
     const eventKey = `affiliate-invitation:${createHash(email)}:${Date.now()}`;
     await sendAffiliateEmail({

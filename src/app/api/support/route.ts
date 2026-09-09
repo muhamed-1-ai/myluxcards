@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     // Quietly accept bot-filled honeypots without creating admin noise.
     if (text(body.companyWebsite, 200)) return Response.json({ ok: true, reference: "TKT-RECEIVED" }, { status: 202 });
     const name = text(body.name, 120);
-    const email = text(body.email, 254).toLowerCase();
+    const email = text(body.email, 254);
     const topic = text(body.topic, 32);
     const contactTime = text(body.contactTime, 160);
     const message = text(body.message, 4000);

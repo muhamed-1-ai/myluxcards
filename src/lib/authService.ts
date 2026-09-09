@@ -40,8 +40,9 @@ export function isApprovedGoogleAdminEmail(email: string): boolean {
 }
 
 export async function createCredentialUser(input: { name: string; email: string; password: string }) {
-  const name = input.name.trim(),
-    email = normalizeEmail(input.email);
+  const name = input.name.trim();
+  const displayEmail = input.email.trim();
+  const email = normalizeEmail(input.email);
   if (name.length < 2 || name.length > 100 || !validEmail(email) || !validPassword(input.password)) {
     throw new Error("INVALID_SIGNUP");
   }
@@ -50,8 +51,8 @@ export async function createCredentialUser(input: { name: string; email: string;
     const user = (
       await db.query<Pick<UserRow, "id" | "email" | "name" | "role" | "session_version">>(
         `insert into users(email,normalized_email,name,password_hash,feature_permissions,role)
-      values($1,$1,$2,$3,$4::jsonb,'USER') returning id,email,name,role,session_version`,
-        [email, name, passwordHash, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
+      values($1,$2,$3,$4,$5::jsonb,'USER') returning id,email,name,role,session_version`,
+        [displayEmail, email, name, passwordHash, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
       )
     ).rows[0];
     await db.query("insert into profiles(id) values($1)", [user.id]);
@@ -68,6 +69,7 @@ export async function createAdminManagedUser(input: {
   featurePermissions?: Partial<FeaturePermissions>;
 }) {
   const name = input.name.trim();
+  const displayEmail = input.email.trim();
   const email = normalizeEmail(input.email);
   if (name.length < 2 || name.length > 100 || !validEmail(email)) {
     throw new Error("INVALID_MANAGED_USER_INPUT");
@@ -90,9 +92,9 @@ export async function createAdminManagedUser(input: {
     const user = (
       await db.query<Pick<UserRow, "id" | "email" | "name" | "role" | "status" | "created_by_admin_id" | "feature_permissions" | "session_version">>(
         `insert into users(email, normalized_email, name, password_hash, role, status, disabled, created_by_admin_id, feature_permissions)
-        values($1, $1, $2, $3, 'USER', $4, $5, $6, $7::jsonb)
+        values($1, $2, $3, $4, 'USER', $5, $6, $7, $8::jsonb)
         returning id, email, name, role, status, created_by_admin_id, feature_permissions, session_version`,
-        [email, name, passwordHash, status, disabled, input.adminId, JSON.stringify(permissions)]
+        [displayEmail, email, name, passwordHash, status, disabled, input.adminId, JSON.stringify(permissions)]
       )
     ).rows[0];
 
@@ -111,8 +113,9 @@ export async function authenticateCredentials(email: string, password: string) {
 }
 
 async function linkGoogleIdentityOnce(input: { providerAccountId: string; email: string; name: string; image?: string | null }) {
-  const email = normalizeEmail(input.email),
-    name = input.name.trim().slice(0, 100) || email.split("@")[0];
+  const displayEmail = input.email.trim();
+  const email = normalizeEmail(input.email);
+  const name = input.name.trim().slice(0, 100) || email.split("@")[0];
   if (!validEmail(email)) throw new Error("INVALID_GOOGLE_EMAIL");
 
   const isAdminEmail = isApprovedGoogleAdminEmail(email);
@@ -145,8 +148,8 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
       user = (
         await db.query<{ id: string; email: string; name: string; session_version: number; role: string }>(
           `insert into users(email,normalized_email,name,role,feature_permissions)
-        values($1,$1,$2,$3,$4::jsonb) returning id,email,name,session_version,role`,
-          [email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
+        values($1,$2,$3,$4,$5::jsonb) returning id,email,name,session_version,role`,
+          [displayEmail, email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
       await db.query("insert into profiles(id) values($1)", [user.id]);
