@@ -338,6 +338,28 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const lastSavedRef = useRef("");
 
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("zappit_theme") as "light" | "dark" | null;
+      if (stored === "dark" || stored === "light") return stored;
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "light") {
+      document.body.classList.add("light-mode");
+      document.body.classList.remove("dark-mode");
+    } else {
+      document.body.classList.add("dark-mode");
+      document.body.classList.remove("light-mode");
+    }
+    try {
+      localStorage.setItem("zappit_theme", theme);
+    } catch { }
+  }, [theme]);
+
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
   const [nicknameError, setNicknameError] = useState("");
@@ -627,25 +649,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [whatsappConnected, setWhatsappConnected] = useState(true);
   const [masterConfigOpen, setMasterConfigOpen] = useState(true);
 
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("zappit_theme");
-      if (saved === "light" || saved === "dark") return saved;
-    }
-    return "light";
-  });
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    if (theme === "light") {
-      document.body.classList.add("light-mode");
-      document.body.classList.remove("dark-mode");
-    } else {
-      document.body.classList.add("dark-mode");
-      document.body.classList.remove("light-mode");
-    }
-    localStorage.setItem("zappit_theme", theme);
-  }, [theme]);
 
   // Load user dashboard layout preference
   useEffect(() => {

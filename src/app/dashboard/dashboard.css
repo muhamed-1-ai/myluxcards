@@ -4817,6 +4817,244 @@ body.light-mode .crm-filter-title {
   font-weight: 800 !important;
 }
 
+/* --- CRM CALENDAR LIGHT/DARK MODE STYLING --- */
+[data-theme="light"] .crm-cal-btn-today,
+body.light-mode .crm-cal-btn-today {
+  background: #F1F5F9 !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .crm-cal-month-pill,
+body.light-mode .crm-cal-month-pill {
+  background: #F1F5F9 !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-cal-nav-btn,
+body.light-mode .crm-cal-nav-btn {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .crm-cal-month-title,
+body.light-mode .crm-cal-month-title {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-cal-empty-cell,
+body.light-mode .crm-cal-empty-cell {
+  background: #F1F5F9 !important;
+  opacity: 0.6 !important;
+}
+
+[data-theme="light"] .crm-cal-day-cell,
+body.light-mode .crm-cal-day-cell {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-cal-day-cell:hover,
+body.light-mode .crm-cal-day-cell:hover {
+  background: #F8FAFC !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .crm-cal-day-cell.is-today,
+body.light-mode .crm-cal-day-cell.is-today {
+  background: rgba(0, 102, 255, 0.08) !important;
+  border: 1px solid #0066FF !important;
+}
+
+[data-theme="light"] .crm-cal-day-cell.is-selected,
+body.light-mode .crm-cal-day-cell.is-selected {
+  background: rgba(0, 102, 255, 0.05) !important;
+  border: 1px solid #0066FF !important;
+}
+
+[data-theme="light"] .crm-cal-day-num,
+body.light-mode .crm-cal-day-num {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-cal-day-num.is-today,
+body.light-mode .crm-cal-day-num.is-today {
+  color: #0066FF !important;
+}
+
+/* Dark mode CRM Calendar rules */
+[data-theme="dark"] .crm-cal-btn-today,
+body.dark-mode .crm-cal-btn-today {
+  background: #071426 !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+  color: #0066FF !important;
+}
+
+[data-theme="dark"] .crm-cal-month-pill,
+body.dark-mode .crm-cal-month-pill {
+  background: #071426 !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-cal-nav-btn,
+body.dark-mode .crm-cal-nav-btn {
+  color: #A7B6CC !important;
+}
+
+[data-theme="dark"] .crm-cal-month-title,
+body.dark-mode .crm-cal-month-title {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-cal-empty-cell,
+body.dark-mode .crm-cal-empty-cell {
+  background: #071426 !important;
+  opacity: 0.5 !important;
+}
+
+[data-theme="dark"] .crm-cal-day-cell,
+body.dark-mode .crm-cal-day-cell {
+  background: #0B172A !important;
+  border: 1px solid rgba(0, 229, 255, 0.15) !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-cal-day-num,
+body.dark-mode .crm-cal-day-num {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-cal-day-num.is-today,
+body.dark-mode .crm-cal-day-num.is-today {
+  color: #0066FF !important;
+}
+
+
+/* --- PIPELINE STAGE ROWS LIGHT/DARK MODE STYLING --- */
+[data-theme="light"] .crm-pipeline-stage-row,
+body.light-mode .crm-pipeline-stage-row {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="light"] .crm-pipeline-stage-row:hover,
+body.light-mode .crm-pipeline-stage-row:hover {
+  background: #F8FAFC !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .crm-pipeline-stage-label,
+body.light-mode .crm-pipeline-stage-label {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-pipeline-progress-track,
+body.light-mode .crm-pipeline-progress-track {
+  background: #F1F5F9 !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="dark"] .crm-pipeline-stage-row,
+body.dark-mode .crm-pipeline-stage-row {
+  background: #0B172A !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-pipeline-stage-label,
+body.dark-mode .crm-pipeline-stage-label {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-pipeline-progress-track,
+body.dark-mode .crm-pipeline-progress-track {
+  background: #071426 !important;
+  border: 1px solid rgba(0, 229, 255, 0.2) !important;
+}
+
+
+/* --- TODAY'S FOLLOW-UPS TASKS LIGHT/DARK MODE STYLING --- */
+[data-theme="light"] .crm-followups-title,
+body.light-mode .crm-followups-title {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-followup-item,
+body.light-mode .crm-followup-item {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-theme="light"] .crm-followup-item-overdue,
+body.light-mode .crm-followup-item-overdue {
+  background: #FEF2F2 !important;
+  border: 1px solid #FCA5A5 !important;
+}
+
+[data-theme="light"] .crm-followup-item-today,
+body.light-mode .crm-followup-item-today {
+  background: #FFFBEB !important;
+  border: 1px solid #FDE68A !important;
+}
+
+[data-theme="light"] .crm-followup-lead-name,
+body.light-mode .crm-followup-lead-name {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-followup-subtext,
+body.light-mode .crm-followup-subtext {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .crm-followup-empty-title,
+body.light-mode .crm-followup-empty-title {
+  color: #0F172A !important;
+}
+
+[data-theme="dark"] .crm-followups-title,
+body.dark-mode .crm-followups-title {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-followup-item,
+body.dark-mode .crm-followup-item {
+  background: #181924 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .crm-followup-item-overdue,
+body.dark-mode .crm-followup-item-overdue {
+  background: #181924 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="dark"] .crm-followup-item-today,
+body.dark-mode .crm-followup-item-today {
+  background: #181924 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .crm-followup-lead-name,
+body.dark-mode .crm-followup-lead-name {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-followup-subtext,
+body.dark-mode .crm-followup-subtext {
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .crm-followup-empty-title,
+body.dark-mode .crm-followup-empty-title {
+  color: #FFFFFF !important;
+}
+
 
 
 

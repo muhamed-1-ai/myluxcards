@@ -117,27 +117,30 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
           <button
             type="button"
             onClick={goToToday}
-            style={{ padding: "4px 10px", fontSize: 12, fontWeight: 700, borderRadius: 8, background: "var(--bg-secondary)", color: "#0066FF", border: "1px solid var(--border-color)", cursor: "pointer" }}
+            className="crm-cal-btn-today"
+            style={{ padding: "4px 10px", fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}
           >
             Today
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", padding: "2px 6px", borderRadius: 8 }}>
+          <div className="crm-cal-month-pill" style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 6px", borderRadius: 8 }}>
             <button
               type="button"
               onClick={prevMonth}
               aria-label="Previous Month"
-              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 2 }}
+              className="crm-cal-nav-btn"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
             >
               <ChevronLeft style={{ width: 16, height: 16 }} />
             </button>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", padding: "0 4px" }}>
+            <span className="crm-cal-month-title" style={{ fontSize: 12, fontWeight: 700, padding: "0 4px" }}>
               {monthName} {year}
             </span>
             <button
               type="button"
               onClick={nextMonth}
               aria-label="Next Month"
-              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 2 }}
+              className="crm-cal-nav-btn"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
             >
               <ChevronRight style={{ width: 16, height: 16 }} />
             </button>
@@ -155,7 +158,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
       {/* Grid Cells */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, flex: 1 }}>
         {Array.from({ length: adjustedFirstDay }).map((_, idx) => (
-          <div key={`empty-${idx}`} style={{ background: "var(--bg-secondary)", opacity: 0.5, borderRadius: 6, minHeight: 44 }} />
+          <div key={`empty-${idx}`} className="crm-cal-empty-cell" style={{ borderRadius: 6, minHeight: 44 }} />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, idx) => {
@@ -172,20 +175,10 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               key={`day-${dateStr}-${idx}`}
               type="button"
               onClick={() => handleDateClick(dateStr)}
+              className={`crm-cal-day-cell ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}`}
               style={{
                 padding: 6,
                 borderRadius: 8,
-                border: isToday
-                  ? "1px solid #0066FF"
-                  : isSelected
-                  ? "1px solid #0066FF"
-                  : "1px solid var(--border-color)",
-                background: isToday
-                  ? "rgba(0, 102, 255, 0.1)"
-                  : isSelected
-                  ? "rgba(0, 102, 255, 0.05)"
-                  : "var(--surface)",
-                color: "var(--text-primary)",
                 textAlign: "left",
                 display: "flex",
                 flexDirection: "column",
@@ -195,7 +188,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: isToday ? "#0066FF" : "var(--text-primary)" }}>{dayNum}</span>
+                <span className={`crm-cal-day-num ${isToday ? "is-today" : ""}`} style={{ fontSize: 12, fontWeight: 700 }}>{dayNum}</span>
                 {totalEvents > 0 && (
                   <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "1px 5px", borderRadius: 50, border: "1px solid rgba(0, 102, 255, 0.25)" }}>
                     {totalEvents}

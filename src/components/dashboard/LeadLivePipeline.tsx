@@ -47,14 +47,13 @@ export function LeadLivePipeline({
             <div
               key={stg.key}
               onClick={() => onSelectStage && onSelectStage(stg.key)}
+              className="crm-pipeline-stage-row"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 4,
                 padding: 10,
                 borderRadius: 10,
-                border: "1px solid var(--border-color)",
-                background: "var(--surface)",
                 cursor: onSelectStage ? "pointer" : "default",
                 minHeight: 54,
                 justifyContent: "center",
@@ -65,7 +64,7 @@ export function LeadLivePipeline({
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: stg.accentColor }} />
-                  <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", color: "var(--text-primary)" }}>
+                  <span className="crm-pipeline-stage-label" style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em" }}>
                     {stg.label}
                   </span>
                 </div>
@@ -77,7 +76,8 @@ export function LeadLivePipeline({
 
               {/* Progress Bar Track */}
               <div
-                style={{ position: "relative", width: "100%", height: 7, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 999, overflow: "hidden", margin: "2px 0" }}
+                className="crm-pipeline-progress-track"
+                style={{ position: "relative", width: "100%", height: 7, borderRadius: 999, overflow: "hidden", margin: "2px 0" }}
                 role="progressbar"
                 aria-valuenow={percentage}
                 aria-valuemin={0}

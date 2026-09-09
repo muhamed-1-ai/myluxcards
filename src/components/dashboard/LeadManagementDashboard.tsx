@@ -456,9 +456,9 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div>
                 <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>TASKS</span>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>Today's Follow-Ups</h2>
+                <h2 className="crm-followups-title" style={{ fontSize: 18, fontWeight: 800, margin: "2px 0 0" }}>Today's Follow-Ups</h2>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, background: "rgba(0, 229, 255, 0.15)", color: "#0066FF", border: "1px solid rgba(0, 229, 255, 0.3)", padding: "2px 10px", borderRadius: 50 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, background: "rgba(0, 102, 255, 0.1)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.25)", padding: "2px 10px", borderRadius: 50 }}>
                 {totalDueFollowUps} Due
               </span>
             </div>
@@ -466,19 +466,19 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
             <div className="scrollbar-thin" style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
               {/* Overdue Follow-Ups */}
               {overdueFollowUps.map((fu) => (
-                <div key={fu.id} style={{ padding: 12, background: "#181924", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 12 }}>
+                <div key={fu.id} className="crm-followup-item crm-followup-item-overdue" style={{ padding: 12, borderRadius: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <span style={{ fontSize: 9, fontWeight: 900, background: "rgba(239, 68, 68, 0.2)", color: "#F87171", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>OVERDUE</span>
-                      <h4 style={{ fontSize: 14, fontWeight: 700, color: "#FFF", margin: "4px 0 0" }}>{fu.leadName}</h4>
-                      {fu.companyName && <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>{fu.companyName}</p>}
+                      <h4 className="crm-followup-lead-name" style={{ fontSize: 14, fontWeight: 700, margin: "4px 0 0" }}>{fu.leadName}</h4>
+                      {fu.companyName && <p className="crm-followup-subtext" style={{ fontSize: 12, margin: 0 }}>{fu.companyName}</p>}
                     </div>
                     <a href={`tel:${fu.contactNumber}`} style={{ fontSize: 12, color: "#0066FF", display: "flex", alignItems: "center", gap: 4 }}>
                       <Phone style={{ width: 12, height: 12 }} />
                       {fu.contactNumber}
                     </a>
                   </div>
-                  {fu.note && <p style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic", margin: "6px 0 8px" }}>"{fu.note}"</p>}
+                  {fu.note && <p className="crm-followup-subtext" style={{ fontSize: 12, fontStyle: "italic", margin: "6px 0 8px" }}>"{fu.note}"</p>}
                   <button
                     type="button"
                     onClick={() => handleCompleteFollowUp(fu.id)}
@@ -491,19 +491,19 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
 
               {/* Today's Follow-Ups */}
               {todaysFollowUps.map((fu) => (
-                <div key={fu.id} style={{ padding: 12, background: "#181924", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: 12 }}>
+                <div key={fu.id} className="crm-followup-item crm-followup-item-today" style={{ padding: 12, borderRadius: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <span style={{ fontSize: 9, fontWeight: 900, background: "rgba(245, 158, 11, 0.2)", color: "#FBBF24", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>TODAY</span>
-                      <h4 style={{ fontSize: 14, fontWeight: 700, color: "#FFF", margin: "4px 0 0" }}>{fu.leadName}</h4>
-                      {fu.companyName && <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>{fu.companyName}</p>}
+                      <h4 className="crm-followup-lead-name" style={{ fontSize: 14, fontWeight: 700, margin: "4px 0 0" }}>{fu.leadName}</h4>
+                      {fu.companyName && <p className="crm-followup-subtext" style={{ fontSize: 12, margin: 0 }}>{fu.companyName}</p>}
                     </div>
                     <a href={`tel:${fu.contactNumber}`} style={{ fontSize: 12, color: "#0066FF", display: "flex", alignItems: "center", gap: 4 }}>
                       <Phone style={{ width: 12, height: 12 }} />
                       {fu.contactNumber}
                     </a>
                   </div>
-                  {fu.note && <p style={{ fontSize: 12, color: "#CBD5E1", fontStyle: "italic", margin: "6px 0 8px" }}>"{fu.note}"</p>}
+                  {fu.note && <p className="crm-followup-subtext" style={{ fontSize: 12, fontStyle: "italic", margin: "6px 0 8px" }}>"{fu.note}"</p>}
                   <button
                     type="button"
                     onClick={() => handleCompleteFollowUp(fu.id)}
@@ -515,10 +515,10 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
               ))}
 
               {todaysFollowUps.length === 0 && overdueFollowUps.length === 0 && (
-                <div style={{ textAlign: "center", padding: "36px 0", color: "#64748B" }}>
+                <div style={{ textAlign: "center", padding: "36px 0", color: "var(--text-muted)" }}>
                   <CheckCircle2 style={{ width: 32, height: 32, color: "#10B981", margin: "0 auto 8px" }} />
-                  <p style={{ fontWeight: 700, color: "#FFF", margin: 0 }}>You're all caught up!</p>
-                  <span style={{ fontSize: 12 }}>No follow-ups scheduled for today.</span>
+                  <p className="crm-followup-empty-title" style={{ fontWeight: 700, margin: 0 }}>You're all caught up!</p>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>No follow-ups scheduled for today.</span>
                 </div>
               )}
             </div>

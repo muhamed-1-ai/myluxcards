@@ -55,7 +55,8 @@ export interface DashboardDataProps {
   onOpenCardPreview: () => void;
 }
 
-/* ═══════════════════════════════════════════�export function BusinessKpiGrid({
+/* ═══════════════════════════════════════════ */
+export function BusinessKpiGrid({
   analytics,
   leadsCount,
   unreadReplies,
@@ -535,45 +536,6 @@ export function QuickActionsGrid({
               fontSize: 12.5,
               fontWeight: 700,
               color: "var(--text-primary)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-          >
-            {act.icon}
-            {act.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}k className="w-4 h-4 text-blue-400" />, onClick: onOpenCardPreview },
-    { label: "Edit Card", icon: <Edit3 className="w-4 h-4 text-amber-400" />, onClick: () => onNavigateTab("contact") },
-    { label: "Share QR", icon: <QrCode className="w-4 h-4 text-emerald-400" />, onClick: () => onNavigateTab("modes") },
-  ];
-
-  return (
-    <div style={{ background: "#0B0C10", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 16, padding: 18, marginBottom: 20 }}>
-      <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 12 }}>
-        QUICK ACTIONS
-      </span>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
-        {actions.map((act, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={act.onClick}
-            style={{
-              background: "#12131A",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 12,
-              padding: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 12.5,
-              fontWeight: 700,
-              color: "#FFF",
               cursor: "pointer",
               transition: "all 0.15s ease",
             }}
