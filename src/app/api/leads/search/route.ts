@@ -20,6 +20,21 @@ export async function GET(request: NextRequest) {
   const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "25")));
   const offset = (page - 1) * limit;
 
+  const sortBy = searchParams.get("sortBy") || "created_at";
+  const sortOrder = searchParams.get("sortOrder") === "asc" ? "ASC" : "DESC";
+
+  const allowedSortColumns: Record<string, string> = {
+    "name": "l.name",
+    "company": "l.company_name",
+    "contact": "l.contact_number",
+    "stage": "l.status",
+    "assigned": "u.name",
+    "source": "l.source",
+    "created_at": "l.created_at"
+  };
+
+  const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
+
   try {
     let whereClause = "1=1";
     const params: any[] = [];
@@ -84,6 +99,15 @@ export async function GET(request: NextRequest) {
 
     // Execute queries
     const countQuery = `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`;
+    const kpiQuery = `
+      SELECT 
+        SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN 1 ELSE 0 END)::int as open_pipeline,
+        SUM(CASE WHEN l.status = 'WON' THEN 1 ELSE 0 END)::int as won_leads,
+        (SELECT COUNT(*)::int FROM lead_follow_ups f JOIN leads fl ON fl.id = f.lead_id WHERE ${whereClause.replace(/l\./g, 'fl.')} AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
+      FROM leads l
+      WHERE ${whereClause}
+    `;
+
     const dataQuery = `
       SELECT 
         l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
@@ -96,22 +120,31 @@ export async function GET(request: NextRequest) {
       FROM leads l
       LEFT JOIN users u ON u.id = l.assigned_user_id
       WHERE ${whereClause}
-      ORDER BY l.created_at DESC
+      ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
     params.push(limit, offset);
 
-    const [countRes, dataRes] = await Promise.all([
-      pool.query(countQuery, params.slice(0, paramIndex - 1)), // Use params without limit/offset for count
+    const [countRes, kpiRes, dataRes] = await Promise.all([
+      pool.query(countQuery, params.slice(0, paramIndex - 1)),
+      pool.query(kpiQuery, params.slice(0, paramIndex - 1)),
       pool.query(dataQuery, params)
     ]);
 
     const total = countRes.rows[0]?.total || 0;
+    const kpis = {
+      total,
+      openPipeline: kpiRes.rows[0]?.open_pipeline || 0,
+      wonLeads: kpiRes.rows[0]?.won_leads || 0,
+      dueToday: kpiRes.rows[0]?.due_today || 0,
+    };
+    
     const leads = dataRes.rows;
 
     return Response.json({
       leads,
+      kpis,
       pagination: {
         total,
         page,

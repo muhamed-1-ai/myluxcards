@@ -13,13 +13,16 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [kpis, setKpis] = useState({ openPipeline: 0, wonLeads: 0, dueToday: 0 });
   
-  // Filters
+  // Filters and Sorting
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [stage, setStage] = useState("");
   const [source, setSource] = useState("");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const limit = 25;
 
   // UI State
@@ -42,18 +45,21 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         source,
         page: page.toString(),
         limit: limit.toString(),
+        sortBy,
+        sortOrder,
       });
       const res = await fetch(`/api/leads/search?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch leads");
       const data = await res.json();
       setLeads(data.leads || []);
       setTotal(data.pagination?.total || 0);
+      if (data.kpis) setKpis(data.kpis);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, stage, source, page]);
+  }, [debouncedSearch, stage, source, page, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchLeads();
@@ -104,15 +110,15 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           </div>
           <div className="p-4 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] shadow-sm">
             <div className="text-sm text-[var(--text-muted)] mb-1">Open Pipeline</div>
-            <div className="text-2xl font-bold text-blue-500">-</div>
+            <div className="text-2xl font-bold text-blue-500">{kpis.openPipeline}</div>
           </div>
           <div className="p-4 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] shadow-sm">
             <div className="text-sm text-[var(--text-muted)] mb-1">Won Leads</div>
-            <div className="text-2xl font-bold text-green-500">-</div>
+            <div className="text-2xl font-bold text-green-500">{kpis.wonLeads}</div>
           </div>
           <div className="p-4 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] shadow-sm">
             <div className="text-sm text-[var(--text-muted)] mb-1">Due Today</div>
-            <div className="text-2xl font-bold text-orange-500">-</div>
+            <div className="text-2xl font-bold text-orange-500">{kpis.dueToday}</div>
           </div>
         </div>
 
@@ -166,12 +172,36 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border-color)] text-sm text-[var(--text-muted)] bg-[var(--table-header-bg)]">
-                    <th className="px-6 py-4 font-medium whitespace-nowrap">Lead Name</th>
-                    <th className="px-6 py-4 font-medium whitespace-nowrap">Company</th>
-                    <th className="px-6 py-4 font-medium whitespace-nowrap">Contact</th>
-                    <th className="px-6 py-4 font-medium whitespace-nowrap">Stage</th>
-                    <th className="px-6 py-4 font-medium whitespace-nowrap">Assigned To</th>
-                    <th className="px-6 py-4 font-medium whitespace-nowrap">Source</th>
+                    {[
+                      { key: "name", label: "Lead Name" },
+                      { key: "company", label: "Company" },
+                      { key: "contact", label: "Contact" },
+                      { key: "stage", label: "Stage" },
+                      { key: "assigned", label: "Assigned To" },
+                      { key: "source", label: "Source" },
+                    ].map((col) => (
+                      <th 
+                        key={col.key}
+                        onClick={() => {
+                          if (sortBy === col.key) {
+                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                          } else {
+                            setSortBy(col.key);
+                            setSortOrder("asc");
+                          }
+                        }}
+                        className="px-6 py-4 font-medium whitespace-nowrap cursor-pointer hover:bg-[var(--hover-bg)] select-none"
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>{col.label}</span>
+                          {sortBy === col.key && (
+                            <span className="text-blue-500 text-xs">
+                              {sortOrder === "asc" ? "▲" : "▼"}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-color)]">
