@@ -40,8 +40,16 @@ export const authOptions:NextAuthOptions={
   callbacks:{
     async signIn({user,account,profile}){
       if(account?.provider!=="google")return true;
-      if(!user.email||(profile as {email_verified?:boolean}|undefined)?.email_verified!==true)return false;
-      try{const linked=await linkGoogleIdentity({providerAccountId:account.providerAccountId,email:user.email,name:user.name||"",image:user.image});Object.assign(user,{id:linked.id,sessionVersion:linked.session_version});return true}catch{return false}
+      const isVerified = profile && ((profile as any).email_verified === true || String((profile as any).email_verified) === "true");
+      if(!user.email || !isVerified) return false;
+      try {
+        const linked = await linkGoogleIdentity({ providerAccountId: account.providerAccountId, email: user.email, name: user.name || "", image: user.image });
+        Object.assign(user, { id: linked.id, sessionVersion: linked.session_version });
+        return true;
+      } catch (e) {
+        console.error("Google OAuth signIn error:", e);
+        return false;
+      }
     },
     async jwt({token,user}){if(user){token.userId=user.id;token.sessionVersion=(user as typeof user&{sessionVersion?:number}).sessionVersion}return token},
     async session({session,token}){if(session.user)Object.assign(session.user,{id:token.userId,sessionVersion:token.sessionVersion});return session},

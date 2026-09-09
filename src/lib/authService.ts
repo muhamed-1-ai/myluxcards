@@ -144,9 +144,9 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
       const assignedRole = isAdminEmail ? "ADMIN" : "USER";
       user = (
         await db.query<{ id: string; email: string; name: string; session_version: number; role: string }>(
-          `insert into users(email,normalized_email,name,email_verified_at,image,role,feature_permissions)
-        values($1,$1,$2,now(),$3,$4,$5::jsonb) returning id,email,name,session_version,role`,
-          [email, name, input.image ?? null, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
+          `insert into users(email,normalized_email,name,role,feature_permissions)
+        values($1,$1,$2,$3,$4::jsonb) returning id,email,name,session_version,role`,
+          [email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
       await db.query("insert into profiles(id) values($1)", [user.id]);
