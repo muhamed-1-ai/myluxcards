@@ -38,7 +38,7 @@ test("TEST 5: GOOGLE ACCOUNT LINKING", () => {
 });
 
 test("TEST 6: ROLE ASSIGNMENT (SUPER_ADMIN protection)", () => {
-  assert.match(authService, /const assignedRole = isAdminEmail \? "ADMIN" : "USER"/);
+  assert.match(authService, /const assignedRole = isAdminEmail \? "ADMIN" : "CUSTOMER"/);
   assert.match(authService, /role !== "SUPER_ADMIN"/);
   assert.match(authService, /update users set role='ADMIN'/);
   assert.doesNotMatch(authService, /role='SUPER_ADMIN'/);
@@ -57,8 +57,8 @@ test("TEST 9 & 10: EMAIL/PASSWORD & LOGOUT", () => {
 });
 
 test("TEST 11: CALLBACK URL SECURITY", () => {
-  assert.match(auth, /const canonicalBase=process\.env\.NODE_ENV==="production"\?"https:\/\/3gzappit\.com":baseUrl/);
-  assert.match(auth, /new URL\(url\)\.origin===new URL\(baseUrl\)\.origin/);
+  assert.match(auth, /const canonicalBase = process\.env\.NODE_ENV === "production" \? "https:\/\/3gzappit\.com" : baseUrl/);
+  assert.match(auth, /new URL\(url\)\.origin\s*===\s*new URL\(baseUrl\)\.origin/);
 });
 
 test("TEST 12: MIDDLEWARE PROTECTION", () => {

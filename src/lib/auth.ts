@@ -53,7 +53,23 @@ export const authOptions:NextAuthOptions={
     },
     async jwt({token,user}){if(user){token.userId=user.id;token.sessionVersion=(user as typeof user&{sessionVersion?:number}).sessionVersion}return token},
     async session({session,token}){if(session.user)Object.assign(session.user,{id:token.userId,sessionVersion:token.sessionVersion});return session},
-    async redirect({url,baseUrl}){const canonicalBase=process.env.NODE_ENV==="production"?"https://3gzappit.com":baseUrl;if(url.startsWith("/")&&!url.startsWith("//"))return `${canonicalBase}${url}`;try{return new URL(url).origin===new URL(baseUrl).origin?url:`${canonicalBase}/dashboard`}catch{return `${canonicalBase}/dashboard`}},
+    async redirect({ url, baseUrl }) {
+      const canonicalBase = process.env.NODE_ENV === "production" ? "https://3gzappit.com" : baseUrl;
+      let finalUrl = url;
+      if (url.startsWith("/") && !url.startsWith("//")) {
+        finalUrl = `${canonicalBase}${url}`;
+      } else {
+        try {
+          finalUrl = new URL(url).origin===new URL(baseUrl).origin ? url : `${canonicalBase}/dashboard`;
+        } catch {
+          finalUrl = `${canonicalBase}/dashboard`;
+        }
+      }
+      if (finalUrl === canonicalBase || finalUrl === `${canonicalBase}/`) {
+        return `${canonicalBase}/dashboard`;
+      }
+      return finalUrl;
+    },
   },
 };
 
