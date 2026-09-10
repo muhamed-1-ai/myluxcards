@@ -24,6 +24,7 @@ export const authOptions:NextAuthOptions={
   },
   logger: {
     error(code, metadata) {
+      console.error("[OAuth][TRACE][LOGGER_ERROR]", { code, error: metadata instanceof Error ? metadata.message : String(metadata) });
       console.error("[OAuth][callback][ERROR]", { code, error: metadata instanceof Error ? metadata.message : String(metadata) });
     },
     warn(code) {
@@ -48,32 +49,57 @@ export const authOptions:NextAuthOptions={
   callbacks:{
     async signIn({user,account,profile}){
       if(account?.provider!=="google")return true;
+      console.log("[OAuth][TRACE][SIGNIN_ENTER]", { provider: account?.provider, providerAccountIdExists: Boolean(account?.providerAccountId) });
       console.log("[OAuth][signIn][START]", { provider: account?.provider, providerAccountIdExists: Boolean(account?.providerAccountId) });
 
       const emailDomain = user.email ? user.email.split("@")[1] || "unknown" : null;
+      console.log("[OAuth][TRACE][EMAIL_CHECK]", { hasEmail: Boolean(user.email), emailDomain });
       console.log("[OAuth][signIn][PROFILE]", { hasEmail: Boolean(user.email), emailDomain, providerAccountIdExists: Boolean(account?.providerAccountId) });
 
       const isVerified = profile && ((profile as any).email_verified === true || String((profile as any).email_verified) === "true");
+      console.log("[OAuth][TRACE][EMAIL_CHECK_RESULT]", { email_verified_raw: (profile as any)?.email_verified, isVerified: Boolean(isVerified) });
       console.log("[OAuth][signIn][EMAIL_VERIFICATION]", { email_verified_raw: (profile as any)?.email_verified, isVerified: Boolean(isVerified) });
 
-      if(!user.email || !isVerified) {
-        console.warn("[OAuth][signIn][REJECT]", { reason: "EMAIL_NOT_VERIFIED", hasEmail: Boolean(user.email), isVerified: Boolean(isVerified) });
+      if (!user.email || !isVerified) {
+        const reason = !user.email ? "EMAIL_MISSING" : "EMAIL_NOT_VERIFIED";
+        console.warn("[OAuth][TRACE][SIGNIN_RETURN_FALSE]", { reason });
+        console.warn("[OAuth][signIn][REJECT]", { reason });
         return false;
       }
+
       try {
+        console.log("[OAuth][TRACE][LINK_ENTER]", { providerAccountIdExists: Boolean(account?.providerAccountId) });
         const linked = await linkGoogleIdentity({ providerAccountId: account.providerAccountId, email: user.email, name: user.name || "", image: user.image });
         Object.assign(user, { id: linked.id, sessionVersion: linked.session_version });
+        console.log("[OAuth][TRACE][LINK_SUCCESS]", { userId: linked.id, role: linked.role });
         console.log("[OAuth][signIn][SUCCESS]", { userId: linked.id, role: linked.role });
+        console.log("[OAuth][TRACE][SIGNIN_RETURN_TRUE]", { userId: linked.id });
         return true;
       } catch (e) {
-        const reason = e instanceof Error ? e.message : "ACCOUNT_LINK_FAILED";
+        const rawReason = e instanceof Error ? e.message : "OTHER";
+        const reason = rawReason === "USER_ACCOUNT_DISABLED" ? "ACCOUNT_DISABLED" : rawReason;
+        console.error("[OAuth][TRACE][SIGNIN_RETURN_FALSE]", { reason, rawError: e instanceof Error ? e.message : String(e) });
         console.error("[OAuth][signIn][REJECT]", { reason, error: e instanceof Error ? e.message : String(e) });
         return false;
       }
     },
-    async jwt({token,user}){if(user){token.userId=user.id;token.sessionVersion=(user as typeof user&{sessionVersion?:number}).sessionVersion}return token},
-    async session({session,token}){if(session.user)Object.assign(session.user,{id:token.userId,sessionVersion:token.sessionVersion});return session},
+    async jwt({token,user}){
+      console.log("[OAuth][TRACE][JWT_ENTER]", { hasUser: Boolean(user) });
+      if(user){
+        token.userId=user.id;
+        token.sessionVersion=(user as typeof user&{sessionVersion?:number}).sessionVersion;
+      }
+      console.log("[OAuth][TRACE][JWT_SUCCESS]", { userIdExists: Boolean(token.userId) });
+      return token;
+    },
+    async session({session,token}){
+      console.log("[OAuth][TRACE][SESSION_ENTER]", { userIdExists: Boolean(token.userId) });
+      if(session.user)Object.assign(session.user,{id:token.userId,sessionVersion:token.sessionVersion});
+      console.log("[OAuth][TRACE][SESSION_SUCCESS]", { userIdExists: Boolean(session.user?.id) });
+      return session;
+    },
     async redirect({ url, baseUrl }) {
+      console.log("[OAuth][TRACE][REDIRECT_ENTER]", { url, baseUrl });
       const canonicalBase = process.env.NODE_ENV === "production" ? "https://3gzappit.com" : baseUrl;
       let finalUrl = url;
       if (url.startsWith("/") && !url.startsWith("//")) {
@@ -86,8 +112,9 @@ export const authOptions:NextAuthOptions={
         }
       }
       if (finalUrl === canonicalBase || finalUrl === `${canonicalBase}/`) {
-        return `${canonicalBase}/dashboard`;
+        finalUrl = `${canonicalBase}/dashboard`;
       }
+      console.log("[OAuth][TRACE][REDIRECT_SUCCESS]", { finalUrl });
       return finalUrl;
     },
   },

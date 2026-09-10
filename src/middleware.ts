@@ -17,6 +17,9 @@ async function getSessionToken(req: NextRequest) {
 export async function middleware(request: NextRequest) {
   const accountRoute = isAccountRoute(request.nextUrl.pathname);
   const session = accountRoute ? await getSessionToken(request) : null;
+  if (accountRoute) {
+    console.log("[OAuth][TRACE][MIDDLEWARE_CHECK]", { pathname: request.nextUrl.pathname, hasSession: Boolean(session?.userId) });
+  }
   if (accountRoute && !session?.userId) {
     const origin = getAppOrigin(request);
     const destination = `${request.nextUrl.pathname}${request.nextUrl.search}`;

@@ -7,6 +7,7 @@ const nextAuthHandler = NextAuth(authOptions);
 async function handler(req: NextRequest, context: any) {
   try {
     if (req.url.includes("/api/auth/callback/")) {
+      console.log("[OAuth][TRACE][CALLBACK_ENTER]", { method: req.method });
       console.log("[OAuth][callback][START]", { method: req.method });
     }
     if (process.env.NODE_ENV === "production") {
