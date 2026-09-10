@@ -122,14 +122,18 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
 
   return withTransaction(async (db) => {
     const linked = (
-      await db.query<{ id: string; email: string; name: string; session_version: number; role: string }>(
-        `select u.id,u.email,u.name,u.session_version,u.role from accounts a join users u on u.id=a.user_id
+      await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
+        `select u.id,u.email,u.name,u.session_version,u.role,u.disabled,u.status from accounts a join users u on u.id=a.user_id
       where a.provider='google' and a.provider_account_id=$1 for update`,
         [input.providerAccountId]
       )
     ).rows[0];
 
     if (linked) {
+      if (linked.disabled || linked.status === "DISABLED" || linked.status === "SUSPENDED") {
+        console.warn("[OAuth] Google sign-in attempt on disabled account", { userId: linked.id });
+        throw new Error("USER_ACCOUNT_DISABLED");
+      }
       if (isAdminEmail && linked.role !== "ADMIN" && linked.role !== "SUPER_ADMIN") {
         await db.query("update users set role='ADMIN', updated_at=now() where id=$1", [linked.id]);
       }
@@ -137,18 +141,25 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
     }
 
     let user = (
-      await db.query<{ id: string; email: string; name: string; session_version: number; role: string }>(
-        "select id,email,name,session_version,role from users where normalized_email=$1 for update",
+      await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
+        "select id,email,name,session_version,role,disabled,status from users where normalized_email=$1 for update",
         [email]
       )
     ).rows[0];
 
+    if (user) {
+      if (user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
+        console.warn("[OAuth] Google account link attempt on disabled account", { userId: user.id });
+        throw new Error("USER_ACCOUNT_DISABLED");
+      }
+    }
+
     if (!user) {
       const assignedRole = isAdminEmail ? "ADMIN" : "CUSTOMER";
       user = (
-        await db.query<{ id: string; email: string; name: string; session_version: number; role: string }>(
+        await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
           `insert into users(email,normalized_email,name,role,feature_permissions)
-        values($1,$2,$3,$4,$5::jsonb) returning id,email,name,session_version,role`,
+        values($1,$2,$3,$4,$5::jsonb) returning id,email,name,session_version,role,disabled,status`,
           [displayEmail, email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
@@ -165,7 +176,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
     );
 
     const owner = (await db.query<{ user_id: string }>("select user_id from accounts where provider='google' and provider_account_id=$1", [input.providerAccountId])).rows[0];
-    if (owner.user_id !== user.id) throw new Error("GOOGLE_IDENTITY_CONFLICT");
+    if (owner?.user_id !== user.id) throw new Error("GOOGLE_IDENTITY_CONFLICT");
     return user;
   }, "serializable");
 }

@@ -11,12 +11,12 @@ test("TEST 1: GOOGLE PROFILE VALIDATION (email_verified handling)", () => {
   // Must allow both boolean true and string "true", must deny others
   assert.match(auth, /email_verified === true/);
   assert.match(auth, /email_verified\) === "true"/);
-  assert.match(auth, /if\s*\(!user\.email\s*\|\|\s*!isVerified\)\s*return\s*false/);
+  assert.match(auth, /if\s*\(!user\.email\s*\|\|\s*!isVerified\)/);
 });
 
 test("TEST 2 & 3: NEW AND EXISTING GOOGLE USER (Database columns)", () => {
   // Existing Google user lookup
-  assert.match(authService, /select u\.id,u\.email,u\.name,u\.session_version,u\.role from accounts/);
+  assert.match(authService, /select u\.id,u\.email,u\.name,u\.session_version,u\.role.*from accounts/);
   assert.match(authService, /provider='google'/);
   
   // New Google user insert

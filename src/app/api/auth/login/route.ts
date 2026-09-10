@@ -15,6 +15,6 @@ export async function POST(request:Request){
     return await authenticatedResponse(user);
   } catch (error) {
     console.error("[Login API Error]:", error);
-    return Response.json({ message: "Login failed. Please try again." }, { status: 500 });
+    return Response.json({ message: "Login failed. Please try again.", error: String(error), stack: (error as Error)?.stack }, { status: 500 });
   }
 }

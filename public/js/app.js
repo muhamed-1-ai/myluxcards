@@ -178,6 +178,7 @@ class LuxApp {
         callback: (response) => this.handleGoogleOneTapResponse(response),
         auto_select: false,
         cancel_on_tap_outside: true,
+        use_fedcm_for_prompt: true,
         context: 'signin'
       });
 
@@ -210,7 +211,15 @@ class LuxApp {
       }
 
       if (isSecureContext) {
-        window.google.accounts.id.prompt();
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed?.()) {
+            console.info('[Google Auth] FedCM/One Tap prompt not displayed:', notification.getNotDisplayedReason?.());
+          } else if (notification.isSkippedMoment?.()) {
+            console.info('[Google Auth] FedCM/One Tap prompt skipped:', notification.getSkippedReason?.());
+          } else if (notification.isDismissedMoment?.()) {
+            console.info('[Google Auth] FedCM/One Tap prompt dismissed:', notification.getDismissedReason?.());
+          }
+        });
       }
 
 
@@ -275,8 +284,6 @@ class LuxApp {
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       hideLoader();
     }
-
-    this.initGoogleOneTap();
 
     // 3. Render Initial Catalog Grid
     this.renderCatalog();

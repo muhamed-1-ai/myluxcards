@@ -41,13 +41,16 @@ export const authOptions:NextAuthOptions={
     async signIn({user,account,profile}){
       if(account?.provider!=="google")return true;
       const isVerified = profile && ((profile as any).email_verified === true || String((profile as any).email_verified) === "true");
-      if(!user.email || !isVerified) return false;
+      if(!user.email || !isVerified) {
+        console.warn("[OAuth] Google sign-in rejected: missing email or email_verified is not true", { emailProvided: Boolean(user.email), isVerified: Boolean(isVerified) });
+        return false;
+      }
       try {
         const linked = await linkGoogleIdentity({ providerAccountId: account.providerAccountId, email: user.email, name: user.name || "", image: user.image });
         Object.assign(user, { id: linked.id, sessionVersion: linked.session_version });
         return true;
       } catch (e) {
-        console.error("Google OAuth signIn error:", e);
+        console.error("[OAuth] Google OAuth link error during signIn:", e instanceof Error ? e.message : String(e));
         return false;
       }
     },
