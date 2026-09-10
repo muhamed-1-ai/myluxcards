@@ -119,8 +119,10 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
   if (!validEmail(email)) throw new Error("INVALID_GOOGLE_EMAIL");
 
   const isAdminEmail = isApprovedGoogleAdminEmail(email);
+  const emailDomain = email.split("@")[1] || "unknown";
 
   return withTransaction(async (db) => {
+    console.log("[OAuth][signIn][USER_LOOKUP]", { providerAccountIdExists: Boolean(input.providerAccountId), emailDomain });
     const linked = (
       await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
         `select u.id,u.email,u.name,u.session_version,u.role,u.disabled,u.status from accounts a join users u on u.id=a.user_id
@@ -130,8 +132,9 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
     ).rows[0];
 
     if (linked) {
+      console.log("[OAuth][signIn][ACCOUNT_STATUS]", { existingAccount: true, userId: linked.id, disabled: linked.disabled, status: linked.status });
       if (linked.disabled || linked.status === "DISABLED" || linked.status === "SUSPENDED") {
-        console.warn("[OAuth] Google sign-in attempt on disabled account", { userId: linked.id });
+        console.warn("[OAuth][signIn][REJECT]", { reason: "USER_ACCOUNT_DISABLED", userId: linked.id });
         throw new Error("USER_ACCOUNT_DISABLED");
       }
       if (isAdminEmail && linked.role !== "ADMIN" && linked.role !== "SUPER_ADMIN") {
@@ -148,8 +151,9 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
     ).rows[0];
 
     if (user) {
+      console.log("[OAuth][signIn][ACCOUNT_STATUS]", { existingUserByEmail: true, userId: user.id, disabled: user.disabled, status: user.status });
       if (user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
-        console.warn("[OAuth] Google account link attempt on disabled account", { userId: user.id });
+        console.warn("[OAuth][signIn][REJECT]", { reason: "USER_ACCOUNT_DISABLED", userId: user.id });
         throw new Error("USER_ACCOUNT_DISABLED");
       }
     }
@@ -169,6 +173,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
       user.role = "ADMIN";
     }
 
+    console.log("[OAuth][signIn][ACCOUNT_LINK]", { userId: user.id, providerAccountIdExists: Boolean(input.providerAccountId) });
     await db.query(
       `insert into accounts(user_id,type,provider,provider_account_id) values($1,'oauth','google',$2)
       on conflict(provider,provider_account_id) do nothing`,

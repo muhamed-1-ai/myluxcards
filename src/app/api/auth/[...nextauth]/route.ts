@@ -6,6 +6,9 @@ const nextAuthHandler = NextAuth(authOptions);
 
 async function handler(req: NextRequest, context: any) {
   try {
+    if (req.url.includes("/api/auth/callback/")) {
+      console.log("[OAuth][callback][START]", { method: req.method });
+    }
     if (process.env.NODE_ENV === "production") {
       const headers = new Headers(req.headers);
       headers.set("host", "3gzappit.com");

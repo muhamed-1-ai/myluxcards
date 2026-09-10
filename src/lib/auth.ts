@@ -22,6 +22,14 @@ export const authOptions:NextAuthOptions={
       options:{httpOnly:true,sameSite:"lax",path:"/",secure:process.env.NODE_ENV==="production"},
     },
   },
+  logger: {
+    error(code, metadata) {
+      console.error("[OAuth][callback][ERROR]", { code, error: metadata instanceof Error ? metadata.message : String(metadata) });
+    },
+    warn(code) {
+      console.warn("[OAuth][WARN]", code);
+    },
+  },
   session:{strategy:"jwt",maxAge:60*60*24*30},
   providers:[
     CredentialsProvider({name:"Email and password",credentials:{email:{type:"email"},password:{type:"password"}},async authorize(credentials){
@@ -40,17 +48,26 @@ export const authOptions:NextAuthOptions={
   callbacks:{
     async signIn({user,account,profile}){
       if(account?.provider!=="google")return true;
+      console.log("[OAuth][signIn][START]", { provider: account?.provider, providerAccountIdExists: Boolean(account?.providerAccountId) });
+
+      const emailDomain = user.email ? user.email.split("@")[1] || "unknown" : null;
+      console.log("[OAuth][signIn][PROFILE]", { hasEmail: Boolean(user.email), emailDomain, providerAccountIdExists: Boolean(account?.providerAccountId) });
+
       const isVerified = profile && ((profile as any).email_verified === true || String((profile as any).email_verified) === "true");
+      console.log("[OAuth][signIn][EMAIL_VERIFICATION]", { email_verified_raw: (profile as any)?.email_verified, isVerified: Boolean(isVerified) });
+
       if(!user.email || !isVerified) {
-        console.warn("[OAuth] Google sign-in rejected: missing email or email_verified is not true", { emailProvided: Boolean(user.email), isVerified: Boolean(isVerified) });
+        console.warn("[OAuth][signIn][REJECT]", { reason: "EMAIL_NOT_VERIFIED", hasEmail: Boolean(user.email), isVerified: Boolean(isVerified) });
         return false;
       }
       try {
         const linked = await linkGoogleIdentity({ providerAccountId: account.providerAccountId, email: user.email, name: user.name || "", image: user.image });
         Object.assign(user, { id: linked.id, sessionVersion: linked.session_version });
+        console.log("[OAuth][signIn][SUCCESS]", { userId: linked.id, role: linked.role });
         return true;
       } catch (e) {
-        console.error("[OAuth] Google OAuth link error during signIn:", e instanceof Error ? e.message : String(e));
+        const reason = e instanceof Error ? e.message : "ACCOUNT_LINK_FAILED";
+        console.error("[OAuth][signIn][REJECT]", { reason, error: e instanceof Error ? e.message : String(e) });
         return false;
       }
     },
