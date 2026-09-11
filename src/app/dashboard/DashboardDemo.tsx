@@ -11,6 +11,7 @@ import {
 } from "@/components/dashboard/DashboardLayoutSelector";
 import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDashboard";
 import LegalConsentModal from "@/components/auth/LegalConsentModal";
+import { getPublicCardUrl } from "@/lib/url";
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -533,7 +534,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     if (saveStatus === "unsaved") {
       void save("dashboard", undefined, true);
     }
-    window.open(`/card/${card.slug}`, "_blank", "noopener,noreferrer");
+    window.open(`/${card.slug}`, "_blank", "noopener,noreferrer");
   };
   const validate = (section: Tab) => {
     const next: Record<string, string> = {};
@@ -1682,7 +1683,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
           </button>
           <div className="ps-secondary-actions">
             <a
-              href={`/card/${draft.slug}`}
+              href={`/${draft.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "9px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
@@ -1693,7 +1694,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
               type="button"
               onClick={() => {
                 if (navigator.clipboard) {
-                  const link = `${window.location.origin}/card/${draft.slug}`;
+                  const link = getPublicCardUrl(draft.slug);
                   void navigator.clipboard.writeText(link);
                   alert("Profile URL copied to clipboard!");
                 }
@@ -4172,9 +4173,9 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
   const qrPngUrlRef = useRef<string | null>(null);
-  const displayHost = typeof window !== "undefined" && window.location?.host
-    ? (process.env.NODE_ENV === "production" && /localhost|127\.0\.0\.1/i.test(window.location.host) ? "3gzappit.com" : window.location.host)
-    : "3gzappit.com";
+  const displayHost = process.env.NODE_ENV === "production"
+    ? "3gzappit.com"
+    : (typeof window !== "undefined" && window.location?.host ? window.location.host : "3gzappit.com");
 
   useEffect(() => {
     setQrOpen(false);
@@ -4344,7 +4345,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg>
             QR Code
           </div>
-          <p className="qr-modal-slug">{displayHost}/card/{card.slug}</p>
+          <p className="qr-modal-slug">{displayHost}/{card.slug}</p>
           <div className="qr-modal-img">
             {qrLoading ? <span className="qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="qr-loading">{qrError || "QR code unavailable"}</span>}
           </div>
@@ -4361,7 +4362,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
                 </button>
               </>
             )}
-            <a className="qr-open-link" href={`/card/${card.slug}`} target="_blank" rel="noopener noreferrer">Open Card ↗</a>
+            <a className="qr-open-link" href={`/${card.slug}`} target="_blank" rel="noopener noreferrer">Open Card ↗</a>
           </div>
         </div>
       </div>
@@ -4372,9 +4373,9 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
         <i aria-label="Card is live">LIVE</i>
       </div>
       <div className="url-card-controls">
-        <button className="public-url" type="button" onClick={() => onOpen(card)} title={`Open ${displayHost}/card/${card.slug}`}>
+        <button className="public-url" type="button" onClick={() => onOpen(card)} title={`Open ${displayHost}/${card.slug}`}>
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" /></svg>
-          <span>{displayHost}/card/{card.slug}</span>
+          <span>{displayHost}/{card.slug}</span>
         </button>
         <div className="url-card-actions">
           <button type="button" className="qr-btn" onClick={openQr} title="Generate QR Code"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg> QR</button>

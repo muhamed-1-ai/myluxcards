@@ -1,39 +1,20 @@
 /**
- * Canonical URL utilities for MyLuxCards.
+ * Canonical URL utilities for 3G ZAPPIT.
  * Prevents deployment provider lock-in and guarantees consistent origin generation
- * across Vercel, Coolify, Hetzner, or any host.
+ * across Coolify, Vercel, Hetzner, or any host.
  */
 
+export const CANONICAL_PRODUCTION_DOMAIN = "https://3gzappit.com";
+
+/**
+ * Returns the canonical application origin.
+ * In production mode, public destinations ALWAYS prioritize the permanent production domain
+ * (https://3gzappit.com) or explicit APP_URL over temporary Coolify / proxy hostnames.
+ */
 export function getAppOrigin(request?: Request): string {
   const isProd = process.env.NODE_ENV === "production";
 
-  // 1. Browser runtime context (always accurate for client interactions)
-  if (typeof window !== "undefined" && window.location?.origin) {
-    const isBrowserLocal = /localhost|127\.0\.0\.1/i.test(window.location.origin);
-    if (!isProd || !isBrowserLocal) {
-      return window.location.origin;
-    }
-  }
-
-  // 2. Derive from incoming Request headers (reverse-proxy aware for Coolify / Hetzner)
-  if (request) {
-    try {
-      const forwardedHost = request.headers.get("x-forwarded-host");
-      const host = forwardedHost || request.headers.get("host");
-      if (host) {
-        const cleanHost = host.split(",")[0].trim();
-        const isHostLocal = /localhost|127\.0\.0\.1/i.test(cleanHost);
-        if (!isHostLocal || !isProd) {
-          const proto = request.headers.get("x-forwarded-proto") || (cleanHost.includes("localhost") ? "http" : "https");
-          return `${proto}://${cleanHost}`;
-        }
-      }
-    } catch {
-      // Fallback below
-    }
-  }
-
-  // 3. Environmental override (server or build-time client env)
+  // 1. Environmental override (server or build-time client env)
   const envUrl =
     process.env.APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -43,24 +24,56 @@ export function getAppOrigin(request?: Request): string {
   if (envUrl) {
     const cleaned = envUrl.trim().replace(/\/$/, "");
     const isLocal = /localhost|127\.0\.0\.1/i.test(cleaned);
-    if (cleaned && /^https?:\/\//i.test(cleaned) && (!isProd || !isLocal)) {
+    const isCoolifyTemp = /coolify|ssli|preview|docker|local/i.test(cleaned);
+    if (cleaned && /^https?:\/\//i.test(cleaned) && (!isProd || (!isLocal && !isCoolifyTemp))) {
       return cleaned;
     }
   }
 
-  // 4. Default canonical production domain (Never vercel.app, never localhost in production)
-  return "https://3gzappit.com";
+  // 2. Production default: Always return canonical public domain
+  if (isProd) {
+    return CANONICAL_PRODUCTION_DOMAIN;
+  }
+
+  // 3. Browser runtime context (for local dev interaction)
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  // 4. Derive from incoming Request headers (reverse-proxy aware for local dev)
+  if (request) {
+    try {
+      const forwardedHost = request.headers.get("x-forwarded-host");
+      const host = forwardedHost || request.headers.get("host");
+      if (host) {
+        const cleanHost = host.split(",")[0].trim();
+        const proto = request.headers.get("x-forwarded-proto") || (cleanHost.includes("localhost") ? "http" : "https");
+        return `${proto}://${cleanHost}`;
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return CANONICAL_PRODUCTION_DOMAIN;
 }
 
-export function getPublicCardUrl(slug: string, request?: Request): string {
-  const cleanSlug = String(slug || "")
+export function cleanSlugString(slug: string): string {
+  return String(slug || "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/**
+ * Returns the permanent public card profile URL: https://3gzappit.com/<profile-slug>
+ */
+export function getPublicCardUrl(slug: string, request?: Request): string {
+  const cleanSlug = cleanSlugString(slug);
   const origin = getAppOrigin(request);
-  return `${origin}/card/${cleanSlug}`;
+  return `${origin}/${cleanSlug}`;
 }
 
 export function getPublicCardQrUrl(slug: string, request?: Request): string {
@@ -71,14 +84,18 @@ export function getPublicCardNfcUrl(slug: string, request?: Request): string {
   return `${getPublicCardUrl(slug, request)}?src=nfc`;
 }
 
+/**
+ * Legacy card URL format: https://3gzappit.com/card/<profile-slug>
+ */
+export function getLegacyCardUrl(slug: string, request?: Request): string {
+  const cleanSlug = cleanSlugString(slug);
+  const origin = getAppOrigin(request);
+  return `${origin}/card/${cleanSlug}`;
+}
+
 export function getRelativeCardUrl(slug: string): string {
-  const cleanSlug = String(slug || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return `/card/${cleanSlug}`;
+  const cleanSlug = cleanSlugString(slug);
+  return `/${cleanSlug}`;
 }
 
 export function getCanonicalUserQrUrl(userOrSlug: any, request?: Request): string {
@@ -95,4 +112,5 @@ export function getCanonicalUserQrUrl(userOrSlug: any, request?: Request): strin
 
   return getPublicCardQrUrl(String(slug), request);
 }
+
 

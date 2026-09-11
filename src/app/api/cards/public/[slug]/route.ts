@@ -5,9 +5,12 @@ import { pool } from "@/lib/db";
 
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  console.log("[PUBLIC_CARD][REQUEST]", { slug });
   try {
     const cleaned = cleanSlug(slug);
-    const result = await pool.query<{
+    console.log("[PUBLIC_CARD][SLUG]", { raw: slug, cleaned });
+
+    let result = await pool.query<{
       id: string;
       owner_id: string;
       slug: string;
@@ -20,8 +23,28 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       [cleaned]
     );
 
-    const row = result.rows[0];
-    if (!row) return Response.json({ message: "Card not found." }, { status: 404 });
+    let row = result.rows[0];
+    if (!row && /^[0-9a-f-]{36}$/i.test(slug.trim())) {
+      const fallbackByUuid = await pool.query<{
+        id: string;
+        owner_id: string;
+        slug: string;
+        profile: unknown;
+        active: boolean;
+        activated_at: Date | null;
+        expires_at: Date | null;
+      }>(
+        `select id, owner_id, slug, profile, active, activated_at, expires_at from digital_cards where id = $1 limit 1`,
+        [slug.trim()]
+      );
+      row = fallbackByUuid.rows[0];
+    }
+
+    console.log("[PUBLIC_CARD][LOOKUP]", { slug, found: Boolean(row), cardId: row?.id });
+    if (!row) {
+      console.log("[PUBLIC_CARD][ERROR] Card not found", { slug });
+      return Response.json({ message: "Card not found." }, { status: 404 });
+    }
 
     const publiclyActive = Boolean(row.active && (row.activated_at || row.active));
     let previewAuthorized = false;
@@ -29,12 +52,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       const identity = await currentIdentity();
       previewAuthorized = identity?.id === row.owner_id;
       if (!previewAuthorized) {
+        console.log("[PUBLIC_CARD][CARD_STATUS] Inactive card requested", { cardId: row.id, active: row.active });
         return Response.json({
           message: "Card unavailable.",
           reason: !row.active ? "SWITCHED_OFF" : "UNAVAILABLE",
         }, { status: 404 });
       }
     }
+    console.log("[PUBLIC_CARD][SUCCESS]", { cardId: row.id, slug: row.slug });
 
     const profileObj = (row.profile && typeof row.profile === "object" ? row.profile : {}) as Record<string, any>;
     const safeCard = safePublicCard(row);
@@ -557,7 +582,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       profileAchievements,
       profileCertifications,
     });
-  } catch {
+  } catch (err: any) {
+    console.error("[PUBLIC_CARD][ERROR]", err?.message || err);
     return Response.json({ message: "Card unavailable." }, { status: 503 });
   }
 }

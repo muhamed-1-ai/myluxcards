@@ -511,7 +511,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                             </td>
                             <td style={{ padding: "12px" }}>
                               {u.digitalCard ? (
-                                <span style={{ color: "#0066FF", fontFamily: "monospace", fontSize: "12px" }}>/card/{u.digitalCard.slug}</span>
+                                <span style={{ color: "#0066FF", fontFamily: "monospace", fontSize: "12px" }}>/{u.digitalCard.slug}</span>
                               ) : (
                                 <span style={{ color: "#555" }}>Unassigned</span>
                               )}

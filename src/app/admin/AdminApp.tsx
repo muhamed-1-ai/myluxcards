@@ -242,7 +242,7 @@ function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,err
 
           <h3>Digital cards ({data.cards?.length || 0})</h3>
           {data.cards?.length ? <Table heads={["Card", "Profile information", "Activation", "Published", "Updated", "QR"]} rows={data.cards.map((card: Row) => ([
-            <><b>{card.profile?.name || card.slug}</b><small>/card/{card.slug}</small></>,
+            <><b>{card.profile?.name || card.slug}</b><small>/{card.slug}</small></>,
             <><span>{card.profile?.title || "No title"}{card.profile?.business ? ` · ${card.profile.business}` : ""}</span><small>{card.profile?.email || "No public email"} · {card.profile?.mobile || "No public phone"}</small><small>{[card.profile?.city, card.profile?.state, card.profile?.countryIso].filter(Boolean).join(", ") || "No location"}</small></>,
             card.activated_at ? "Activated" : "Not activated",
             card.active && card.activated_at ? "Yes" : "No",
@@ -660,7 +660,7 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
                   <div style={{ background: "#111", padding: "12px", borderRadius: "6px", marginBottom: "14px", border: "1px solid #222" }}>
                     <h4 style={{ margin: "0 0 8px", color: "#2ecc71" }}>🟢 PROFILE &amp; FEATURE VISIBILITY</h4>
                     <div><strong>Profile Status:</strong> <span style={{ color: detailsData.digitalCard.active ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}>{detailsData.digitalCard.active ? "LIVE" : "HIDDEN / DISABLED"}</span></div>
-                    <div><strong>Public URL:</strong> <a href={getPublicCardUrl(detailsData.digitalCard.slug)} target="_blank" rel="noopener noreferrer" style={{ color: "#00E5FF" }}>/card/{detailsData.digitalCard.slug}</a></div>
+                    <div><strong>Public URL:</strong> <a href={getPublicCardUrl(detailsData.digitalCard.slug)} target="_blank" rel="noopener noreferrer" style={{ color: "#00E5FF" }}>/{detailsData.digitalCard.slug}</a></div>
                     <div style={{ marginTop: 10, fontSize: 12 }}>
                       <strong>Active Features State:</strong>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginTop: 6 }}>

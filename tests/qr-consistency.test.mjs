@@ -7,7 +7,7 @@ import QRCode from "qrcode";
 test("getPublicCardUrl generates canonical absolute URL", () => {
   const slug = "adhil-134642";
   const url = getPublicCardUrl(slug);
-  assert.ok(url.endsWith(`/card/${slug}`), `Expected URL to end with /card/${slug}, got: ${url}`);
+  assert.ok(url.endsWith(`/${slug}`), `Expected URL to end with /${slug}, got: ${url}`);
   assert.ok(/^https?:\/\//i.test(url), `Expected absolute URL with protocol, got: ${url}`);
 });
 
