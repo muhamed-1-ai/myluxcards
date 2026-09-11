@@ -68,10 +68,14 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const getStageColor = (s: string) => {
     switch (s) {
       case "NEW": return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      case "ACTIVE": return "bg-teal-500/20 text-teal-400 border-teal-500/30";
       case "CONTACTED": return "bg-purple-500/20 text-purple-400 border-purple-500/30";
       case "INTERESTED": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
       case "FOLLOW_UP": return "bg-orange-500/20 text-orange-400 border-orange-500/30";
+      case "QUALIFIED": return "bg-indigo-500/20 text-indigo-400 border-indigo-500/30";
+      case "CONVERTED":
       case "WON": return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "INACTIVE": return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
       case "LOST": return "bg-red-500/20 text-red-400 border-red-500/30";
       default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
     }
@@ -83,12 +87,6 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
         <h1 className="text-2xl font-semibold tracking-tight">All Leads</h1>
         <div className="flex items-center space-x-3">
-          <button className="p-2 rounded-lg border border-[var(--border-color)] hover:bg-[var(--hover-bg)] transition-colors">
-            <Upload className="w-4 h-4" />
-          </button>
-          <button className="p-2 rounded-lg border border-[var(--border-color)] hover:bg-[var(--hover-bg)] transition-colors">
-            <Download className="w-4 h-4" />
-          </button>
           <button 
             onClick={() => setIsAddOpen(true)}
             className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
@@ -134,7 +132,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               className="pl-10 pr-4 py-2 w-full md:w-80 rounded-lg border border-[var(--border-color)] bg-[var(--input-bg)] text-[var(--text-color)] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             />
           </div>
-          <div className="flex items-center space-x-3 w-full md:w-auto">
+          <div className="flex items-center space-x-3 w-full md:w-auto flex-wrap gap-2">
             <select 
               value={stage} 
               onChange={(e) => setStage(e.target.value)}
@@ -142,11 +140,26 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             >
               <option value="">All Stages</option>
               <option value="NEW">New</option>
+              <option value="ACTIVE">Active</option>
               <option value="CONTACTED">Contacted</option>
               <option value="INTERESTED">Interested</option>
               <option value="FOLLOW_UP">Follow Up</option>
-              <option value="WON">Won</option>
+              <option value="QUALIFIED">Qualified</option>
+              <option value="CONVERTED">Converted / Won</option>
+              <option value="INACTIVE">Inactive</option>
               <option value="LOST">Lost</option>
+            </select>
+            <select 
+              value={source} 
+              onChange={(e) => setSource(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--input-bg)] text-sm"
+            >
+              <option value="">All Sources</option>
+              <option value="PROFILE_SHARE_DETAILS">Share Details</option>
+              <option value="NFC">NFC Tap</option>
+              <option value="QR">QR Scan</option>
+              <option value="MANUAL">Manual</option>
+              <option value="DIRECT">Direct</option>
             </select>
             <div className="flex border border-[var(--border-color)] rounded-lg overflow-hidden">
               <button 

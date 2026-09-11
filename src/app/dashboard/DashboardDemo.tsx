@@ -37,6 +37,10 @@ const LobReasonsConfig = dynamic(
   () => import("@/components/dashboard/config/LobReasonsConfig").then((mod) => mod.LobReasonsConfig),
   { ssr: false }
 );
+const LeadsWorkspace = dynamic(
+  () => import("@/components/leads/LeadsWorkspace"),
+  { ssr: false }
+);
 import {
   BusinessKpiGrid,
   DigitalCardKpiGrid,
@@ -72,7 +76,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
-type Tab = "dashboard" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons";
+type Tab = "dashboard" | "leads" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -320,6 +324,15 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [selectedId, setSelectedId] = useState(emptyCard.id);
   const [draft, setDraft] = useState<Card>(emptyCard);
   const [tab, setTab] = useState<Tab>("dashboard");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const qTab = new URLSearchParams(window.location.search).get("tab");
+      if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons"].includes(qTab)) {
+        setTab(qTab as Tab);
+      }
+    }
+  }, []);
   const [sidebar, setSidebar] = useState(false);
   const [toast, setToast] = useState("");
   const [sameAsMobile, setSameAsMobile] = useState(true);
@@ -833,12 +846,13 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         </div>
       </header>
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard", "analytics", "modes", "contact", "social", "company", "appearance", "cards"] as Tab[]).map(item => <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>{item === "dashboard" ? "Home" : item === "analytics" ? "QR Activity" : item === "modes" ? "Modes" : item === "contact" ? "Contact" : item === "social" ? "Links" : item === "company" ? "Company" : item === "appearance" ? "Design" : "My Cards"}</button>)}
+        {(["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards"] as Tab[]).map(item => <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>{item === "dashboard" ? "Home" : item === "leads" ? "All Leads" : item === "analytics" ? "QR Activity" : item === "modes" ? "Modes" : item === "contact" ? "Contact" : item === "social" ? "Links" : item === "company" ? "Company" : item === "appearance" ? "Design" : "My Cards"}</button>)}
       </nav>
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <nav>
           <button className={tab === "dashboard" ? "active" : ""} onClick={() => selectTab("dashboard")}><I>⌂</I> Dashboard</button>
+          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>👥</I> All Leads</button>
           <button className={tab === "analytics" ? "active" : ""} onClick={() => selectTab("analytics")}><I>📊</I> QR Activity</button>
 
           {/* Master Configuration Sidebar Accordion */}
@@ -928,6 +942,12 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               userName={currentUser.name}
               onNavigateTab={(t) => selectTab(t as Tab)}
             />
+          </section>
+        )}
+
+        {tab === "leads" && (
+          <section>
+            <LeadsWorkspace identity={{ id: currentUser.id || identity?.id || "", name: currentUser.name || null, email: currentUser.email || "", role: currentUser.role || "CUSTOMER" }} />
           </section>
         )}
 

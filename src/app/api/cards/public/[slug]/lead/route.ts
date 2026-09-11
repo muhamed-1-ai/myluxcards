@@ -72,7 +72,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     // Determine source
     const rawSource = String(body.source || body.channel || "").toUpperCase();
-    const source = ["NFC", "QR", "SHARE", "DIRECT", "UNKNOWN"].includes(rawSource) ? rawSource : "DIRECT";
+    const allowedSources = ["PROFILE_SHARE_DETAILS", "NFC", "QR", "SHARE", "DIRECT", "UNKNOWN"];
+    const source = allowedSources.includes(rawSource) ? rawSource : "PROFILE_SHARE_DETAILS";
 
     // Upsert Lead securely (using resolved card.owner_id and card.id)
     const result = await upsertLead({
@@ -90,7 +91,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const companyText = result.lead.company_name ? ` (${result.lead.company_name})` : "";
     const title = result.isNew ? "NEW LEAD" : "LEAD DETAILS UPDATED";
     const bodyText = result.isNew
-      ? `${leadName}${companyText} shared contact details via ${source}.`
+      ? `${leadName}${companyText} shared contact details.`
       : `${leadName}${companyText} submitted contact details again.`;
 
     void createNotification({
@@ -100,7 +101,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       body: bodyText,
       entityType: "lead",
       entityId: result.lead.id,
-      actionUrl: "/dashboard",
+      actionUrl: "/dashboard?tab=leads",
       metadata: {
         source,
         contactNumber: result.lead.contact_number,

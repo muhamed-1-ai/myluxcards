@@ -30,16 +30,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ message: "Lead name and contact number are required." }, { status: 400 });
     }
 
+    const note = body.note ? String(body.note).trim() : null;
+
     // Ensure they have permission
-    const permCheck = await pool.query(
-      `SELECT id, owner_user_id FROM leads 
+    const permCheck = await pool.query<{ id: string; owner_user_id: string; status: string }>(
+      `SELECT id, owner_user_id, status FROM leads 
        WHERE id = $1 AND (owner_user_id = $2 OR assigned_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR $3::text = 'SUPER_ADMIN')`,
       [id, identity.id, identity.role]
     );
 
-    if (permCheck.rowCount === 0) {
+    const existingLead = permCheck.rows[0];
+    if (!existingLead) {
       return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
     }
+
+    const previousStatus = existingLead.status;
 
     const result = await pool.query(
       `UPDATE leads
@@ -55,11 +60,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // Log update activity
-    void pool.query(
-      `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, occurred_at, created_at)
-       VALUES ($1, $2, 'LEAD_UPDATED', $3, NOW(), NOW())`,
-      [identity.id, id, `Updated lead details for ${lead.name}`]
-    );
+    if (status && status !== previousStatus) {
+      const activityType = status === "CONVERTED" || status === "WON" ? "LEAD_WON" : status === "LOST" ? "LEAD_LOST" : "STAGE_CHANGED";
+      void pool.query(
+        `INSERT INTO lead_activities (owner_user_id, lead_id, type, from_value, to_value, description, occurred_at, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+        [existingLead.owner_user_id, id, activityType, previousStatus, status, `Stage updated from ${previousStatus} to ${status}`]
+      );
+    } else {
+      void pool.query(
+        `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, occurred_at, created_at)
+         VALUES ($1, $2, 'LEAD_UPDATED', $3, NOW(), NOW())`,
+        [existingLead.owner_user_id, id, `Updated lead details for ${lead.name}`]
+      );
+    }
+
+    if (note) {
+      void pool.query(
+        `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, occurred_at, created_at)
+         VALUES ($1, $2, 'NOTE_ADDED', $3, NOW(), NOW())`,
+        [existingLead.owner_user_id, id, note]
+      );
+    }
 
     return Response.json({
       ok: true,

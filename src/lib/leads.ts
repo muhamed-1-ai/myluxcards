@@ -115,9 +115,9 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   }
 
   const { name, companyName, contactNumber, contactNumberNormalized, email, profileImage, assignedUserId, status } = validation.sanitized;
-  const sourceInput = (input.source || "DIRECT").toUpperCase();
-  const allowedSources = ["NFC", "QR", "SHARE", "DIRECT", "UNKNOWN", "MANUAL", "REFERRAL"];
-  const source = allowedSources.includes(sourceInput) ? sourceInput : "DIRECT";
+  const sourceInput = (input.source || "PROFILE_SHARE_DETAILS").toUpperCase();
+  const allowedSources = ["PROFILE_SHARE_DETAILS", "NFC", "QR", "SHARE", "DIRECT", "UNKNOWN", "MANUAL", "REFERRAL", "WEBSITE", "CAMPAIGN"];
+  const source = allowedSources.includes(sourceInput) ? sourceInput : "PROFILE_SHARE_DETAILS";
   const finalStatus = status || 'NEW';
 
   const res = await pool.query<LeadRecord>(

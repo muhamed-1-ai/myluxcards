@@ -55,7 +55,7 @@ test("PublicCardClient provides visitId session deduplication, preview suppressi
 });
 
 test("DashboardDemo renders authoritative server analytics for Overview and QR Activity with source cards", () => {
-  assert.match(dashboardDemo, /type Tab = "dashboard" \| "analytics"/);
+  assert.match(dashboardDemo, /type Tab = "dashboard"/);
   assert.match(dashboardDemo, /TOTAL PROFILE OPENS/i);
   assert.match(dashboardDemo, /NFC CARD TAPS/);
   assert.match(dashboardDemo, /QR SCANS/);
