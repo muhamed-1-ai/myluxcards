@@ -4920,15 +4920,24 @@ body.light-mode .footer-links a {
 [data-theme="light"] .crm-modal-dialog,
 [data-theme="light"] .modal-card,
 [data-theme="light"] .drawer,
+[data-theme="light"] .crm-drawer,
 [data-theme="light"] .crm-modal-content,
 body.light-mode .crm-modal-dialog,
 body.light-mode .modal-card,
 body.light-mode .drawer,
+body.light-mode .crm-drawer,
 body.light-mode .crm-modal-content {
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
   color: #0F172A !important;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .crm-modal-title,
+[data-theme="light"] .crm-drawer-title,
+body.light-mode .crm-modal-title,
+body.light-mode .crm-drawer-title {
+  color: #0F172A !important;
 }
 
 [data-theme="light"] .crm-label,

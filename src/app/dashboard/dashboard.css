@@ -3529,7 +3529,7 @@ th {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(6px);
   display: flex;
   justify-content: flex-end;
@@ -3537,43 +3537,43 @@ th {
 }
 
 .crm-drawer {
-  width: min(560px, 100vw);
+  width: min(760px, 100vw);
   height: 100vh;
-  background: #0B0B0B;
-  color: #ffffff;
+  background: var(--surface, #FFFFFF);
+  color: var(--text-primary, #0F172A);
   padding: 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: -10px 0 40px rgba(0,0,0,0.8);
-  border-left: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: -10px 0 40px rgba(0,0,0,0.12);
+  border-left: 1px solid var(--border-color, #E2E8F0);
 }
 
 .crm-drawer-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 1px solid rgba(0, 229, 255, 0.25);
+  border-bottom: 1px solid var(--border-color, #E2E8F0);
   padding-bottom: 16px;
 }
 
 .crm-drawer-title {
   font-size: 22px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary, #0F172A);
 }
 
 .crm-drawer-subtitle {
   font-size: 14px;
-  color: #0066FF;
+  color: var(--text-secondary, #64748B);
   font-weight: 600;
   margin-top: 2px;
 }
 
 .crm-drawer-section {
-  background: #121212;
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: var(--background, #F8FAFC);
+  border: 1px solid var(--border-color, #E2E8F0);
   border-radius: 14px;
   padding: 16px;
   display: flex;
