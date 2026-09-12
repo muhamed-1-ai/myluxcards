@@ -8,6 +8,7 @@ const SECTION_CONFIG: Record<string, { table: string; auditPrefix: string }> = {
   gallery: { table: "card_profile_gallery", auditPrefix: "PROFILE_GALLERY" },
   videos: { table: "card_profile_videos", auditPrefix: "PROFILE_VIDEO" },
   "payment-links": { table: "card_profile_payment_links", auditPrefix: "PROFILE_PAYMENT_LINK" },
+  "payment_links": { table: "card_profile_payment_links", auditPrefix: "PROFILE_PAYMENT_LINK" },
   documents: { table: "card_profile_documents", auditPrefix: "PROFILE_DOCUMENT" },
   achievements: { table: "card_profile_achievements", auditPrefix: "PROFILE_ACHIEVEMENT" },
   certifications: { table: "card_profile_certifications", auditPrefix: "PROFILE_CERTIFICATION" },

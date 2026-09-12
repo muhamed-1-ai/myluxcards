@@ -223,20 +223,23 @@ const cacheCards = (accountId: string, cards: Card[]) => {
     } catch { /* Cloud storage remains the source of truth. */ }
   }
 };
-const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "my-card";
-const accountSuffix = (email: string) => {
+const slugify = (value?: string | null) => String(value ?? "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "my-card";
+const accountSuffix = (email?: string | null) => {
+  const safeEmail = String(email ?? "user@zappit.link");
   let hash = 0;
-  for (const character of email) hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0;
+  for (const character of safeEmail) hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0;
   return Math.abs(hash).toString().slice(0, 6).padStart(4, "0");
 };
-const createBlankCard = (user: CurrentUser): Card => {
+const createBlankCard = (user?: CurrentUser | null): Card => {
+  const safeEmail = String(user?.email ?? "user@zappit.link");
+  const safeName = String(user?.name || safeEmail.split("@")[0] || "User");
   const today = new Date();
   const expiry = new Date(today);
   expiry.setFullYear(expiry.getFullYear() + 1);
-  const suffix = accountSuffix(user.email);
+  const suffix = accountSuffix(safeEmail);
   return {
-    id: `card-${suffix}`, ownerId: user.email.toLowerCase(), name: user.name, slug: `${slugify(user.name)}-${suffix}`,
-    title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: "", website: "",
+    id: `card-${suffix}`, ownerId: safeEmail.toLowerCase(), name: safeName, slug: `${slugify(safeName)}-${suffix}`,
+    title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: safeEmail, website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
     logo: "", cover: "", profileBackground: "#020202", profileAccent: "#0066FF", profileText: "#ffffff",
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
@@ -250,12 +253,15 @@ const createBlankCard = (user: CurrentUser): Card => {
     lostAndFound: { itemName: "", itemCategory: "Other", rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!", returnInstructions: "Please contact me using the form below or drop this item off at building reception.", allowAnonymousMessage: true },
   };
 };
-const normalizeCard = (value: Partial<Card> | null | undefined, user: CurrentUser): Card => {
+const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUser | null): Card => {
   const fallback = createBlankCard(user);
   const card = value && typeof value === "object" ? value : {};
   return {
     ...fallback,
     ...card,
+    name: card.name || fallback.name,
+    email: card.email || fallback.email,
+    slug: card.slug || fallback.slug,
     social: { ...blankSocial, ...(card.social && typeof card.social === "object" ? card.social : {}) },
     services: Array.isArray(card.services) ? card.services.filter((item): item is string => typeof item === "string") : [],
     active: Boolean(card.active),
@@ -317,7 +323,7 @@ const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight:
   });
 };
 export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(identity || null);
   const [authReady, setAuthReady] = useState(false);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
@@ -451,6 +457,10 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   useEffect(() => {
     try {
       const user = identity;
+      if (!user) {
+        setAuthReady(true);
+        return;
+      }
       const consentValid = Boolean(
         (user as any).terms_accepted &&
         (user as any).privacy_accepted &&
@@ -462,19 +472,24 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
       if (!consentValid) {
         setConsentModalOpen(true);
       }
-      localStorage.setItem("myluxcards_current_user", JSON.stringify(user));
+      try {
+        localStorage.setItem("myluxcards_current_user", JSON.stringify(user));
+      } catch {}
       setCurrentUser(user);
-      const key = storageKey(user.id);
-      const stored = localStorage.getItem(key);
+      const accountId = user.id || user.email || "user";
+      const key = storageKey(accountId);
       let accountCards: Card[] = [];
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          accountCards = parsed
-            .filter((card): card is Partial<Card> => Boolean(card) && card.ownerId === user.id)
-            .map((card) => normalizeCard(card, user));
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            accountCards = parsed
+              .filter((card): card is Partial<Card> => Boolean(card) && (card.ownerId === user.id || card.ownerId === user.email || !card.ownerId))
+              .map((card) => normalizeCard(card, user));
+          }
         }
-      }
+      } catch {}
       const firstCard = accountCards[0] || createBlankCard(user);
       setCards(accountCards.length ? accountCards : [firstCard]);
       setSelectedId(firstCard.id);
@@ -500,14 +515,14 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
           setSelectedId(cloudCards[0].id);
           setDraft(cloudCards[0]);
           lastSavedRef.current = JSON.stringify(cloudCards[0]);
-          cacheCards(user.id, cloudCards);
+          cacheCards(accountId, cloudCards);
         } else {
           const blank = createBlankCard(user);
           setCards([blank]);
           setSelectedId(blank.id);
           setDraft(blank);
           lastSavedRef.current = "";
-          cacheCards(user.id, [blank]);
+          cacheCards(accountId, [blank]);
           fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(blank) }).then(async (res) => {
             if (!res.ok) return;
             const data = await res.json().catch(() => ({}));
@@ -517,14 +532,14 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               setSelectedId(savedCard.id);
               setDraft(savedCard);
               lastSavedRef.current = JSON.stringify(savedCard);
-              cacheCards(user.id, [savedCard]);
+              cacheCards(accountId, [savedCard]);
             }
           }).catch(() => { });
         }
       }).catch(() => { setSaveStatus("error"); notify("Cloud connection failed. Refresh the page and try again."); });
-    } catch {
-      localStorage.removeItem("myluxcards_current_user");
-      window.location.replace("/?login=1");
+    } catch (err) {
+      console.error("[DashboardDemo] Initialization error:", err);
+      setAuthReady(true);
     }
   }, []);
 
@@ -832,16 +847,34 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
             }
           }} />
           <div className="account-menu">
-            <button className="avatar" title={currentUser.email} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>{currentUser.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "ML"}</button>
-            {accountMenu && <div className="account-popover">
-              <strong>{currentUser.name}</strong>
-              <span>{currentUser.email}</span>
-              {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
-                <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
-              )}
-              <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
-              <button type="button" onClick={logout}>Log out</button>
-            </div>}
+            {(() => {
+              const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
+              const userInitials = userDisplayName
+                .split(" ")
+                .filter(Boolean)
+                .map((part) => part[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase() || "ML";
+              return (
+                <>
+                  <button className="avatar" title={currentUser?.email || ""} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>
+                    {userInitials}
+                  </button>
+                  {accountMenu && (
+                    <div className="account-popover">
+                      <strong>{userDisplayName}</strong>
+                      <span>{currentUser?.email || ""}</span>
+                      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
+                        <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
+                      )}
+                      <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
+                      <button type="button" onClick={logout}>Log out</button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </header>
@@ -1510,17 +1543,19 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
 
         // Modular sections counts
         const modularTypes = ["services", "portfolio", "gallery", "videos", "payment_links", "documents", "achievements", "certifications"];
-        await Promise.all(modularTypes.map(async (sec) => {
-          try {
-            const res = await fetch(`/api/cards/profile-sections/${sec}?cardId=${encodeURIComponent(draft.id)}`);
-            if (res.ok) {
-              const d = await res.json();
-              if (Array.isArray(d.items)) counts[sec.toUpperCase()] = d.items.length;
+        if (draft?.id && /^[0-9a-f-]{36}$/i.test(draft.id)) {
+          await Promise.all(modularTypes.map(async (sec) => {
+            try {
+              const res = await fetch(`/api/cards/profile-sections/${sec}?cardId=${encodeURIComponent(draft.id)}`);
+              if (res.ok) {
+                const d = await res.json();
+                if (Array.isArray(d.items)) counts[sec.toUpperCase()] = d.items.length;
+              }
+            } catch {
+              // ignore
             }
-          } catch {
-            // ignore
-          }
-        }));
+          }));
+        }
 
         // Social links count
         if (draft.social && typeof draft.social === "object") {
@@ -4455,7 +4490,10 @@ function GenericProfileSectionManager({
   const [saveError, setSaveError] = useState("");
 
   const loadItems = async () => {
-    if (!cardId) return;
+    if (!cardId || !/^[0-9a-f-]{36}$/i.test(cardId)) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`/api/cards/profile-sections/${section}?cardId=${encodeURIComponent(cardId)}`);
       const data = await res.json().catch(() => ({}));

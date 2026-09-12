@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentIdentity, requirePermission } from "@/lib/adminAuth";
 import LeadsWorkspace from "@/components/leads/LeadsWorkspace";
+import "./leads.css";
 
 export const metadata: Metadata = {
   title: "CRM Leads | ZAPPIT",
@@ -23,7 +24,7 @@ export default async function LeadsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
+    <div className="min-h-screen bg-[var(--background,#F8FAFC)] text-[var(--text-primary,#0F172A)]">
       <LeadsWorkspace identity={{ id: identity.id, name: identity.name, email: identity.email, role: identity.role }} />
     </div>
   );

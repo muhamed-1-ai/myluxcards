@@ -7,6 +7,7 @@ const SECTION_TABLES: Record<string, string> = {
   gallery: "card_profile_gallery",
   videos: "card_profile_videos",
   "payment-links": "card_profile_payment_links",
+  "payment_links": "card_profile_payment_links",
   documents: "card_profile_documents",
   achievements: "card_profile_achievements",
   certifications: "card_profile_certifications",

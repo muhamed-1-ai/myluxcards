@@ -1,0 +1,416 @@
+/* --- All Leads CRM & Pipeline Control Room Styles --- */
+.leads-page-container {
+  min-height: 100vh;
+  background-color: var(--background, #F8FAFC);
+  color: var(--text-primary, #0F172A);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 36px 40px;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@media (max-width: 1024px) {
+  .leads-page-container {
+    padding: 24px;
+  }
+}
+@media (max-width: 640px) {
+  .leads-page-container {
+    padding: 16px;
+  }
+}
+
+.pipeline-control-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background-color: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #059669;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.crm-header-title {
+  font-size: 34px;
+  font-weight: 900;
+  color: var(--text-primary, #0F172A);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.crm-btn-white {
+  background-color: var(--surface, #FFFFFF);
+  border: 1px solid var(--border-color, #E2E8F0);
+  color: var(--text-primary, #334155);
+  font-weight: 600;
+  font-size: 13px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.crm-btn-white:hover {
+  background-color: var(--bg-secondary, #F8FAFC);
+  border-color: var(--border-color, #CBD5E1);
+}
+
+.crm-btn-navy {
+  background-color: var(--text-primary, #0F172A);
+  color: var(--surface, #FFFFFF);
+  font-weight: 600;
+  font-size: 13px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+.crm-btn-navy:hover {
+  opacity: 0.9;
+}
+
+.crm-btn-emerald {
+  background-color: #10B981;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 13px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+.crm-btn-emerald:hover {
+  background-color: #059669;
+}
+
+/* KPI Cards */
+.kpi-card {
+  position: relative;
+  background-color: var(--surface, #FFFFFF);
+  border-radius: 16px;
+  padding: 18px 22px;
+  border: 1px solid var(--border-color, #E2E8F0);
+  box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 96px;
+  overflow: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.kpi-accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+.kpi-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-secondary, #94A3B8);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.kpi-value {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text-primary, #0F172A);
+  letter-spacing: -0.02em;
+}
+
+/* Filter Card */
+.filter-card {
+  background-color: var(--surface, #FFFFFF);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-color, #E2E8F0);
+  box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05));
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.crm-input, .crm-select {
+  background-color: var(--input-bg, #F8FAFC);
+  border: 1px solid var(--border-color, #E2E8F0);
+  color: var(--text-primary, #0F172A);
+  font-size: 13px;
+  font-weight: 500;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.crm-input:focus, .crm-select:focus {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+.crm-select option {
+  background-color: var(--surface, #FFFFFF);
+  color: var(--text-primary, #0F172A);
+}
+
+/* Table Card */
+.crm-table-card {
+  background-color: var(--surface, #FFFFFF);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, #E2E8F0);
+  box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05));
+  overflow: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.crm-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.crm-table th {
+  background-color: var(--bg-secondary, #F8FAFC);
+  border-bottom: 1px solid var(--border-color, #E2E8F0);
+  color: var(--text-secondary, #94A3B8);
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 16px 20px;
+}
+.crm-table td {
+  padding: 20px 20px;
+  border-bottom: 1px solid var(--border-color, #F1F5F9);
+  color: var(--text-primary, #1E293B);
+  vertical-align: middle;
+}
+.crm-table tr {
+  min-height: 88px;
+}
+.crm-table tr:hover {
+  background-color: var(--surface-soft, #F8FAFC);
+}
+
+/* Dynamic Stage Badges */
+.badge-stage-emerald {
+  background-color: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-stage-blue {
+  background-color: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-stage-purple {
+  background-color: #F5F3FF;
+  color: #7C3AED;
+  border: 1px solid #DDD6FE;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-stage-amber {
+  background-color: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-stage-red {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FCA5A5;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Explicit Dark Mode Overrides for All Leads --- */
+[data-theme="dark"] .leads-page-container,
+body.dark-mode .leads-page-container {
+  background-color: #020617 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .pipeline-control-badge,
+body.dark-mode .pipeline-control-badge {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #34D399 !important;
+}
+
+[data-theme="dark"] .crm-header-title,
+body.dark-mode .crm-header-title {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .kpi-card,
+body.dark-mode .kpi-card,
+[data-theme="dark"] .filter-card,
+body.dark-mode .filter-card,
+[data-theme="dark"] .crm-table-card,
+body.dark-mode .crm-table-card {
+  background-color: #0B172A !important;
+  border-color: rgba(0, 229, 255, 0.18) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .kpi-label,
+body.dark-mode .kpi-label {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .kpi-value,
+body.dark-mode .kpi-value {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-input,
+body.dark-mode .crm-input,
+[data-theme="dark"] .crm-select,
+body.dark-mode .crm-select {
+  background-color: #071426 !important;
+  border-color: rgba(0, 229, 255, 0.18) !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .crm-select option,
+body.dark-mode .crm-select option {
+  background-color: #071426 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .crm-btn-white,
+body.dark-mode .crm-btn-white {
+  background-color: #0B172A !important;
+  border-color: rgba(0, 229, 255, 0.2) !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .crm-btn-white:hover,
+body.dark-mode .crm-btn-white:hover {
+  background-color: #162942 !important;
+}
+
+[data-theme="dark"] .crm-btn-navy,
+body.dark-mode .crm-btn-navy {
+  background-color: #0066FF !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .crm-table th,
+body.dark-mode .crm-table th {
+  background-color: #071426 !important;
+  border-bottom-color: rgba(0, 229, 255, 0.18) !important;
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .crm-table td,
+body.dark-mode .crm-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  color: #E2E8F0 !important;
+}
+
+[data-theme="dark"] .crm-table tr:hover,
+body.dark-mode .crm-table tr:hover {
+  background-color: rgba(0, 102, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .badge-stage-emerald,
+body.dark-mode .badge-stage-emerald {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34D399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-stage-blue,
+body.dark-mode .badge-stage-blue {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #60A5FA !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-stage-purple,
+body.dark-mode .badge-stage-purple {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  color: #A78BFA !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-stage-amber,
+body.dark-mode .badge-stage-amber {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #FBBF24 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-stage-red,
+body.dark-mode .badge-stage-red {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #F87171 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
