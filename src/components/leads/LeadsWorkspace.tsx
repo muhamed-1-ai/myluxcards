@@ -1,20 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { 
-  Plus, 
-  Download, 
-  Calendar, 
-  Star, 
-  Phone, 
-  MessageSquare, 
+import {
+  Plus,
+  Download,
+  Star,
+  Phone,
+  MessageSquare,
   ArrowUpDown,
   MoreVertical,
   Eye,
   Trash2,
-  Users,
-  Building2,
-  Tag
+  Users
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
@@ -29,7 +26,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [kpis, setKpis] = useState({ openPipeline: 0, wonLeads: 0, dueToday: 0 });
-  
+
   // Sorting & Pagination
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("created_at");
@@ -141,7 +138,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
   return (
     <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none space-y-6">
-      
+
       {/* Native Module Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -203,8 +200,8 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           </div>
         ) : (
           leads.map(lead => (
-            <div 
-              key={lead.id} 
+            <div
+              key={lead.id}
               onClick={() => setSelectedLeadId(lead.id)}
               className="bg-[var(--surface,#FFFFFF)] rounded-2xl p-4 border border-[var(--border-color,#E2E8F0)] shadow-sm space-y-3 cursor-pointer hover:border-emerald-500 transition-all"
             >
@@ -245,7 +242,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 <th>SOURCE</th>
                 <th>STAGE</th>
                 <th>ASSIGNED TO</th>
-                <th 
+                <th
                   className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
                   onClick={() => { setSortBy("totalAmount"); setSortOrder(sortOrder === "asc" ? "desc" : "asc"); }}
                 >
@@ -289,8 +286,8 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                   const avatarLetter = leadName.charAt(0).toUpperCase();
 
                   return (
-                    <tr 
-                      key={lead.id} 
+                    <tr
+                      key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
                       className="cursor-pointer group"
                     >
@@ -303,9 +300,9 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
                           <div className="space-y-0.5">
                             <div className="flex items-center space-x-2">
-                              <Star 
+                              <Star
                                 onClick={(e) => toggleStar(e, lead.id)}
-                                className={`w-3.5 h-3.5 transition-colors cursor-pointer ${isStarred ? "text-amber-400 fill-amber-400" : "text-[var(--text-secondary,#94A3B8)] hover:text-amber-400"}`} 
+                                className={`w-3.5 h-3.5 transition-colors cursor-pointer ${isStarred ? "text-amber-400 fill-amber-400" : "text-[var(--text-secondary,#94A3B8)] hover:text-amber-400"}`}
                               />
                               <span className="font-bold text-[var(--text-primary,#0F172A)] text-sm group-hover:text-emerald-500 transition-colors">
                                 {leadName}
@@ -322,7 +319,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                               <span>{lead.contactNumber || "No phone"}</span>
                               {lead.contactNumber && (
                                 <>
-                                  <a 
+                                  <a
                                     href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, '')}`}
                                     target="_blank"
                                     rel="noreferrer"
@@ -332,7 +329,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                                   >
                                     <MessageSquare className="w-3.5 h-3.5 fill-emerald-500/20" />
                                   </a>
-                                  <a 
+                                  <a
                                     href={`tel:${lead.contactNumber}`}
                                     onClick={(e) => e.stopPropagation()}
                                     title="Call Lead"
@@ -399,18 +396,18 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                           </button>
 
                           {activeActionMenuId === lead.id && (
-                            <div 
+                            <div
                               className="absolute right-0 mt-1 w-36 bg-[var(--surface,#FFFFFF)] rounded-xl border border-[var(--border-color,#E2E8F0)] shadow-xl z-30 py-1 font-medium text-xs text-[var(--text-primary,#0F172A)]"
                               onClick={() => setActiveActionMenuId(null)}
                             >
-                              <button 
+                              <button
                                 onClick={() => setSelectedLeadId(lead.id)}
                                 className="w-full text-left px-3 py-2 hover:bg-[var(--bg-secondary,#F8FAFC)] flex items-center space-x-2"
                               >
                                 <Eye className="w-3.5 h-3.5 text-blue-500" />
                                 <span>View Details</span>
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleDeleteLead(lead.id)}
                                 className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 flex items-center space-x-2"
                               >
@@ -431,10 +428,10 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
       </div>
 
       {/* Drawers */}
-      <AddLeadDrawer 
-        isOpen={isAddOpen} 
-        onClose={() => setIsAddOpen(false)} 
-        onSuccess={() => { setIsAddOpen(false); fetchLeads(); }} 
+      <AddLeadDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSuccess={() => { setIsAddOpen(false); fetchLeads(); }}
         identity={identity}
       />
 

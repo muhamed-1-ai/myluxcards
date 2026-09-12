@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
     "stage": "l.status",
     "assigned": "u.name",
     "source": "l.source",
-    "created_at": "l.created_at"
+    "created_at": "l.created_at",
+    "totalAmount": "l.total_amount"
   };
 
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
