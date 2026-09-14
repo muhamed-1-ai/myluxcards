@@ -307,11 +307,13 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
 
             {/* Profile Image Row */}
             <div className="flex items-center space-x-5 py-1">
-              <div className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-[var(--input-bg,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] flex items-center justify-center text-[var(--text-secondary,#64748B)] overflow-hidden flex-shrink-0 shadow-sm">
+              <div className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-amber-500 text-white font-extrabold text-xl flex items-center justify-center border border-[var(--border-color,#E2E8F0)] overflow-hidden flex-shrink-0 shadow-sm">
                 {profileImage ? (
                   <img src={profileImage} alt="Profile preview" className="w-full h-full object-cover" />
+                ) : formData.name.trim() ? (
+                  <span>{formData.name.trim().charAt(0).toUpperCase()}</span>
                 ) : (
-                  <User className="w-7 h-7 opacity-40" />
+                  <User className="w-7 h-7 text-white opacity-90" />
                 )}
               </div>
 
