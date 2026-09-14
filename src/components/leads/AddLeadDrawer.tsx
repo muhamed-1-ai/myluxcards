@@ -260,12 +260,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-[720px] h-full bg-slate-50/70 dark:bg-[#070D18] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-[720px] h-full bg-slate-50/80 dark:bg-[#070D18] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
         
         {/* 1. FIXED HEADER */}
-        <div className="flex-shrink-0 flex items-start justify-between px-6 sm:px-7 pt-7 pb-5 bg-white dark:bg-[#0D1726] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20 shadow-sm">
-          <div className="space-y-1.5 pr-6">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold tracking-wider uppercase mb-1">
+        <div className="flex-shrink-0 flex items-start justify-between px-8 sm:px-9 md:px-10 pt-7 pb-6 bg-white dark:bg-[#0D1726] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20 shadow-sm">
+          <div className="space-y-2 pr-6">
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold tracking-wider uppercase mb-0.5">
               <span>✨</span>
               <span>NEW LEAD</span>
             </div>
@@ -281,14 +281,14 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
             type="button"
             onClick={onClose} 
             aria-label="Close drawer"
-            className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-500 mt-1"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 2. SCROLLABLE FORM BODY */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 sm:px-7 py-6 space-y-5 sm:space-y-6 pb-28 bg-slate-50/60 dark:bg-[#070D18] font-sans">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 sm:px-9 md:px-10 py-7 space-y-6 sm:space-y-7 pb-36 bg-slate-50/60 dark:bg-[#070D18] font-sans">
           
           {error && (
             <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
@@ -298,18 +298,18 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           )}
 
           {/* CARD 1: GENERAL */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-5 sm:p-6 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-5">
+          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
             
             {/* Section Title & Subtitle */}
-            <div>
-              <h3 className="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white tracking-tight">General</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">General</h3>
+              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
                 Core contact details, company, address, source, and owner.
               </p>
             </div>
 
             {/* Profile Image Row */}
-            <div className="flex items-center space-x-4 p-4 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+            <div className="flex items-center space-x-4 sm:space-x-5 p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
               <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 text-white font-extrabold text-xl flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-md overflow-hidden flex-shrink-0">
                 {profileImage ? (
                   <img src={profileImage} alt="Profile preview" className="w-full h-full object-cover" />
@@ -320,7 +320,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 )}
               </div>
 
-              <div className="space-y-1 flex-1">
+              <div className="space-y-1.5 flex-1">
                 <div className="flex items-center space-x-3">
                   <label className="inline-flex items-center space-x-2 px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-sm transition-all">
                     <Upload className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
@@ -348,10 +348,10 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4 sm:gap-y-5 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 sm:gap-y-6 pt-1">
               
               {/* Lead Name * */}
-              <div className="md:col-span-2 space-y-1.5">
+              <div className="md:col-span-2 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Lead Name <span className="text-rose-500 font-bold">*</span>
                 </label>
@@ -366,7 +366,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               {/* Mobile * */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Mobile <span className="text-rose-500 font-bold">*</span>
                 </label>
@@ -401,7 +401,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               {/* Email */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Email
                 </label>
@@ -415,7 +415,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               {/* Company Name */}
-              <div className="md:col-span-1 space-y-1.5">
+              <div className="md:col-span-1 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Company Name
                 </label>
@@ -429,7 +429,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               {/* Source */}
-              <div className="md:col-span-1 space-y-1.5">
+              <div className="md:col-span-1 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Source
                 </label>
@@ -453,7 +453,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               {/* Address */}
-              <div className="md:col-span-2 space-y-1.5">
+              <div className="md:col-span-2 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Address
                 </label>
@@ -462,12 +462,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.address}
                   onChange={e => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Street, city, state, PIN"
-                  className="w-full p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm min-h-[90px] resize-none"
+                  className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm min-h-[92px] max-h-[120px] resize-none"
                 />
               </div>
 
               {/* Assigned To & Lead Life Cycle */}
-              <div className="md:col-span-1 space-y-1.5">
+              <div className="md:col-span-1 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Assigned To
                 </label>
@@ -486,7 +486,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 </div>
               </div>
 
-              <div className="md:col-span-1 space-y-1.5">
+              <div className="md:col-span-1 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Lead Life Cycle
                 </label>
@@ -507,7 +507,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               {/* Stage Dropdown */}
-              <div className="md:col-span-2 space-y-1.5">
+              <div className="md:col-span-2 space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
                   Stage
                 </label>
@@ -533,11 +533,11 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 2: REMARKS HISTORY */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-5 sm:p-6 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-5">
+          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white tracking-tight">Remarks History</h3>
-                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Remarks History</h3>
+                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
                   Initial notes about this lead.
                 </p>
               </div>
@@ -546,29 +546,29 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </span>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <textarea 
                 rows={4}
                 maxLength={1000}
                 value={formData.remark}
                 onChange={e => setFormData({ ...formData, remark: e.target.value })}
                 placeholder="Add specific context, notes from call, or client requirements..."
-                className="w-full p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[100px] resize-none shadow-sm"
+                className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px] sm:min-h-[125px] resize-none shadow-sm"
               />
             </div>
           </div>
 
           {/* CARD 3: FOLLOW-UP */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-5 sm:p-6 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-5">
-            <div>
-              <h3 className="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white tracking-tight">Follow-up</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Follow-up</h3>
+              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
                 Keep the next touchpoint visible directly in the leads table.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Next Follow-up</label>
                 <input 
                   type="datetime-local"
@@ -578,7 +578,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Follow-up Type</label>
                 <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
                   <select 
@@ -596,7 +596,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 </div>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Follow-up Note</label>
                 <input 
                   type="text"
@@ -610,10 +610,10 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 4: PRODUCT SELECTION */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-5 sm:p-6 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-5">
-            <div>
-              <h3 className="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white tracking-tight">Product Selection</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Product Selection</h3>
+              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
                 Selected products calculate total lead value automatically.
               </p>
             </div>
@@ -705,16 +705,16 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 5: PAYMENT INFORMATION */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-5 sm:p-6 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-5">
-            <div>
-              <h3 className="text-base sm:text-[17px] font-bold text-slate-900 dark:text-white tracking-tight">Payment Information</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Payment Information</h3>
+              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
                 Agreed revenue terms, advance deposits, and balance calculations.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Total Amount (₹)</label>
                 <input 
                   type="number"
@@ -732,7 +732,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Advance Payments (₹)</label>
                 <input 
                   type="number"
@@ -744,7 +744,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Balance Amount (₹)</label>
                 <div className="h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm flex items-center justify-between shadow-sm">
                   <span>Remaining:</span>
@@ -757,11 +757,11 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
         </form>
 
         {/* 3. STICKY ACTION FOOTER */}
-        <div className="flex-shrink-0 px-6 sm:px-7 py-3 sm:py-3.5 bg-white/95 dark:bg-[#0D1726]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20 sticky bottom-0">
+        <div className="flex-shrink-0 px-8 sm:px-9 md:px-10 py-4 sm:py-5 bg-white/95 dark:bg-[#0D1726]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20 sticky bottom-0">
           <span className="hidden sm:inline-block text-xs font-medium text-slate-400 dark:text-slate-500">
             Press Esc to dismiss
           </span>
-          <div className="flex items-center space-x-3.5 w-full sm:w-auto justify-end">
+          <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
             <button 
               type="button" 
               onClick={onClose}
