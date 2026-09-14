@@ -118,7 +118,6 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           if (data.data) {
             setAvailableProducts(data.data);
           } else {
-            // Fallback default products
             setAvailableProducts([
               { id: "prod-1", name: "ZAPPIT NFC Metal Card", price_minor: 199900 },
               { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price_minor: 99900 },
@@ -252,26 +251,27 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Translucent Backdrop */}
+      {/* Translucent Backdrop Overlay */}
       <div 
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" 
+        className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/75 backdrop-blur-sm transition-opacity duration-300" 
         onClick={onClose} 
+        aria-hidden="true"
       />
 
-      {/* Semantic Theme-Consuming Drawer Panel */}
-      <div className="relative w-full max-w-[760px] md:w-[760px] h-full bg-[var(--background,#F8FAFC)] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-[var(--border-color,#E2E8F0)] z-10 text-[var(--text-primary,#0F172A)] transition-all">
+      {/* Slide-over Drawer Panel */}
+      <div className="relative w-full max-w-[720px] h-full bg-[var(--surface,#FFFFFF)] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-[var(--border-color,#E2E8F0)] z-10 text-[var(--text-primary,#0F172A)] transition-colors">
         
-        {/* 1. Header Section */}
-        <div className="flex-shrink-0 flex items-start justify-between px-8 pt-8 pb-6 bg-[var(--surface,#FFFFFF)] border-b border-[var(--border-color,#E2E8F0)]">
+        {/* 1. FIXED HEADER */}
+        <div className="flex-shrink-0 flex items-start justify-between px-4 sm:px-5 md:px-7 pt-6 pb-5 bg-[var(--surface,#FFFFFF)] border-b border-[var(--border-color,#E2E8F0)]">
           <div className="space-y-1.5 pr-4">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wide">
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wider">
               <span>✨</span>
               <span>NEW LEAD</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary,#0F172A)] tracking-tight">
+            <h2 className="text-2xl sm:text-[26px] font-serif font-semibold text-[var(--text-primary,#0F172A)] tracking-tight">
               Add a new pipeline opportunity
             </h2>
-            <p className="text-sm font-medium text-[var(--text-secondary,#64748B)] leading-relaxed">
+            <p className="text-xs sm:text-sm font-medium text-[var(--text-secondary,#64748B)] leading-relaxed">
               Capture general lead details, follow-up cadence, and any active advanced fields defined by the workspace.
             </p>
           </div>
@@ -279,43 +279,44 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           <button 
             type="button"
             onClick={onClose} 
-            className="w-10 h-10 rounded-full border border-[var(--border-color,#E2E8F0)] flex items-center justify-center text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--bg-secondary,#F8FAFC)] transition-colors flex-shrink-0"
+            aria-label="Close drawer"
+            className="w-9 h-9 rounded-full border border-[var(--border-color,#E2E8F0)] flex items-center justify-center text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--surface-soft,#F8FAFC)] transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* 2. Scrollable Body (Theme-aware card boxes) */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+        {/* 2. SCROLLABLE FORM BODY */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 sm:px-5 md:px-7 py-6 space-y-6">
           
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 rounded-2xl flex items-start space-x-3 text-xs font-medium">
+            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-500" />
               <span>{error}</span>
             </div>
           )}
 
           {/* CARD 1: GENERAL */}
-          <div className="bg-[var(--surface,#FFFFFF)] rounded-[24px] p-7 border border-[var(--border-color,#E2E8F0)] shadow-[var(--card-shadow,0_2px_12px_rgba(0,0,0,0.03))] space-y-5">
+          <div className="bg-[var(--surface-soft,#F8FAFC)] rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-[var(--border-color,#E2E8F0)] space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-[var(--text-primary,#0F172A)]">General</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary,#0F172A)] tracking-tight">General</h3>
               <p className="text-xs font-medium text-[var(--text-secondary,#64748B)] mt-0.5">
                 Core contact details, company, address, source, and owner.
               </p>
             </div>
 
             {/* Profile Image Row */}
-            <div className="flex items-center space-x-5 py-2">
-              <div className="relative w-16 h-16 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] flex items-center justify-center text-[var(--text-secondary,#64748B)] overflow-hidden flex-shrink-0">
+            <div className="flex items-center space-x-5 py-1">
+              <div className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-[var(--input-bg,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] flex items-center justify-center text-[var(--text-secondary,#64748B)] overflow-hidden flex-shrink-0 shadow-sm">
                 {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profileImage} alt="Profile preview" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-7 h-7 opacity-50" />
+                  <User className="w-7 h-7 opacity-40" />
                 )}
               </div>
 
               <div className="space-y-1">
-                <label className="inline-flex items-center space-x-2 px-4 py-2 bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] hover:bg-[var(--bg-secondary,#F8FAFC)] text-[var(--text-primary,#0F172A)] text-xs font-bold rounded-2xl cursor-pointer shadow-sm transition-all">
+                <label className="inline-flex items-center space-x-2 px-4 py-2 bg-[var(--input-bg,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] hover:bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] text-xs font-bold rounded-xl sm:rounded-2xl cursor-pointer shadow-sm transition-all">
                   <Upload className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)]" />
                   <span>Upload Image</span>
                   <input 
@@ -331,10 +332,10 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-2">
               {/* Lead Name * */}
               <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Lead Name <span className="text-red-500">*</span>
                 </label>
                 <input 
@@ -343,43 +344,44 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter lead or account name"
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
 
-              {/* Mobile & Email Row */}
+              {/* Mobile * */}
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Mobile <span className="text-red-500">*</span>
                 </label>
                 <div className="flex space-x-2">
                   <select 
                     value={countryCode}
                     onChange={e => setCountryCode(e.target.value)}
-                    className="h-12 px-3.5 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-bold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    className="h-11 sm:h-12 px-3 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
                   >
                     {COUNTRY_CODES.map(c => (
                       <option key={c.code} value={c.code} className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">
-                        {c.label}
+                        {c.label} {c.code}
                       </option>
                     ))}
                   </select>
-                  <div className="flex-1 flex items-center rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] px-4 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all">
-                    <span className="text-sm font-bold text-[var(--text-secondary,#64748B)] mr-2">{countryCode}</span>
+                  <div className="flex-1 flex items-center h-11 sm:h-12 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] px-4 focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500 transition-all">
+                    <span className="text-xs sm:text-sm font-bold text-[var(--text-secondary,#64748B)] mr-2 flex-shrink-0">{countryCode}</span>
                     <input 
                       type="tel" 
                       required
                       value={phoneNumber}
                       onChange={e => setPhoneNumber(e.target.value)}
                       placeholder="Mobile Number"
-                      className="w-full h-11 bg-transparent text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none"
+                      className="w-full bg-transparent text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Email */}
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Email
                 </label>
                 <input 
@@ -387,13 +389,13 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   placeholder="lead@company.com"
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
 
               {/* Company Name */}
               <div className="md:col-span-1 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Company Name
                 </label>
                 <input 
@@ -401,19 +403,19 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.companyName}
                   onChange={e => setFormData({ ...formData, companyName: e.target.value })}
                   placeholder="Acme Pvt Ltd"
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                 />
               </div>
 
               {/* Source */}
               <div className="md:col-span-1 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Source
                 </label>
                 <select 
                   value={formData.source}
                   onChange={e => setFormData({ ...formData, source: e.target.value })}
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer transition-all"
                 >
                   <option value="MANUAL" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Manual Entry</option>
                   <option value="PROFILE_SHARE_DETAILS" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Share Details</option>
@@ -428,7 +430,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
 
               {/* Address */}
               <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Address
                 </label>
                 <textarea 
@@ -436,19 +438,19 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.address}
                   onChange={e => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Street, city, state, PIN"
-                  className="w-full p-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[100px]"
+                  className="w-full p-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all min-h-[96px] resize-none"
                 />
               </div>
 
               {/* Assigned To & Lead Life Cycle */}
               <div className="md:col-span-1 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Assigned To
                 </label>
                 <select 
                   value={formData.assignedUserId}
                   onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer transition-all"
                 >
                   <option value={identity.id} className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">{identity.name || identity.email}</option>
                   {managedUsers.map(u => (
@@ -458,13 +460,13 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
 
               <div className="md:col-span-1 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Lead Life Cycle
                 </label>
                 <select 
                   value={formData.lifecycleStage}
                   onChange={e => setFormData({ ...formData, lifecycleStage: e.target.value })}
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer transition-all"
                 >
                   <option value="Lead" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Lead</option>
                   <option value="Marketing Qualified Lead" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Marketing Qualified Lead</option>
@@ -476,13 +478,13 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
 
               {/* Stage Dropdown */}
               <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-bold text-[var(--text-primary,#0F172A)]">
+                <label className="block text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)]">
                   Stage
                 </label>
                 <select 
                   value={formData.status}
                   onChange={e => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer transition-all"
                 >
                   <option value="NEW" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">New</option>
                   <option value="CONTACTED" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Contacted</option>
@@ -498,47 +500,48 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 2: REMARKS HISTORY */}
-          <div className="bg-[var(--surface,#FFFFFF)] rounded-[24px] p-7 border border-[var(--border-color,#E2E8F0)] shadow-[var(--card-shadow,0_2px_12px_rgba(0,0,0,0.03))] space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-[var(--text-primary,#0F172A)]">Remarks History</h3>
-              <p className="text-xs font-medium text-[var(--text-secondary,#64748B)] mt-0.5">
-                Initial notes about this lead.
-              </p>
+          <div className="bg-[var(--surface-soft,#F8FAFC)] rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-[var(--border-color,#E2E8F0)] space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary,#0F172A)] tracking-tight">Remarks History</h3>
+                <p className="text-xs font-medium text-[var(--text-secondary,#64748B)] mt-0.5">
+                  Initial notes about this lead.
+                </p>
+              </div>
+              <span className="font-mono text-xs font-normal text-[var(--text-secondary,#64748B)] bg-[var(--input-bg,#FFFFFF)] px-2.5 py-1 rounded-lg border border-[var(--border-color,#E2E8F0)]">
+                {formData.remark.length}/1000
+              </span>
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm font-bold text-[var(--text-primary,#0F172A)]">
-                <span>Remarks</span>
-                <span className="font-mono text-xs font-normal text-[var(--text-secondary,#94A3B8)]">{formData.remark.length}/1000</span>
-              </div>
               <textarea 
                 rows={4}
                 maxLength={1000}
                 value={formData.remark}
                 onChange={e => setFormData({ ...formData, remark: e.target.value })}
-                placeholder="Enter any additional information or important notes about this lead..."
-                className="w-full p-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px]"
+                placeholder="Add specific context, notes from call, or client requirements..."
+                className="w-full p-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-sm font-medium text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all min-h-[110px] resize-none"
               />
             </div>
           </div>
 
           {/* CARD 3: FOLLOW-UP */}
-          <div className="bg-[var(--surface,#FFFFFF)] rounded-[24px] p-7 border border-[var(--border-color,#E2E8F0)] shadow-[var(--card-shadow,0_2px_12px_rgba(0,0,0,0.03))] space-y-5">
+          <div className="bg-[var(--surface-soft,#F8FAFC)] rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-[var(--border-color,#E2E8F0)] space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-[var(--text-primary,#0F172A)]">Follow-up</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary,#0F172A)] tracking-tight">Follow-up</h3>
               <p className="text-xs font-medium text-[var(--text-secondary,#64748B)] mt-0.5">
                 Keep the next touchpoint visible directly in the leads table.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-[var(--text-primary,#0F172A)]">Next Follow-up</label>
                 <input 
                   type="datetime-local"
                   value={formData.followUpDate}
                   onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
-                  className="w-full h-12 px-3.5 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-xs font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500"
+                  className="w-full h-11 sm:h-12 px-3.5 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
 
@@ -547,7 +550,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <select 
                   value={formData.followUpType}
                   onChange={e => setFormData({ ...formData, followUpType: e.target.value })}
-                  className="w-full h-12 px-3.5 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-xs font-semibold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  className="w-full h-11 sm:h-12 px-3.5 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs font-semibold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
                 >
                   <option value="Call" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Call</option>
                   <option value="WhatsApp" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">WhatsApp</option>
@@ -564,16 +567,16 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.followUpNote}
                   onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
                   placeholder="Call back regarding proposal..."
-                  className="w-full h-12 px-3.5 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-xs font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500"
+                  className="w-full h-11 sm:h-12 px-3.5 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs font-medium text-[var(--text-primary,#0F172A)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
             </div>
           </div>
 
           {/* CARD 4: PRODUCT SELECTION */}
-          <div className="bg-[var(--surface,#FFFFFF)] rounded-[24px] p-7 border border-[var(--border-color,#E2E8F0)] shadow-[var(--card-shadow,0_2px_12px_rgba(0,0,0,0.03))] space-y-5">
+          <div className="bg-[var(--surface-soft,#F8FAFC)] rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-[var(--border-color,#E2E8F0)] space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-[var(--text-primary,#0F172A)]">Product Selection</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary,#0F172A)] tracking-tight">Product Selection</h3>
               <p className="text-xs font-medium text-[var(--text-secondary,#64748B)] mt-0.5">
                 Selected products calculate the total amount automatically.
               </p>
@@ -583,7 +586,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               <select 
                 value={selectedProductIdToAdd}
                 onChange={e => setSelectedProductIdToAdd(e.target.value)}
-                className="w-full sm:flex-1 h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-xs font-semibold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                className="w-full sm:flex-1 h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs font-semibold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500 cursor-pointer"
               >
                 <option value="" className="bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)]">Select a product to add...</option>
                 {availableProducts.map(p => (
@@ -597,7 +600,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 type="button"
                 onClick={handleAddProduct}
                 disabled={!selectedProductIdToAdd}
-                className="w-full sm:w-auto h-12 px-5 bg-[#10B981] hover:bg-[#059669] text-white font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-sm transition-all disabled:opacity-40 flex-shrink-0"
+                className="w-full sm:w-auto h-11 sm:h-12 px-5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl sm:rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-sm transition-all disabled:opacity-40 flex-shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Product</span>
@@ -605,10 +608,10 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
             </div>
 
             {selectedProducts.length > 0 ? (
-              <div className="border border-[var(--border-color,#E2E8F0)] rounded-2xl overflow-hidden bg-[var(--input-bg,#F8FAFC)]">
+              <div className="border border-[var(--border-color,#E2E8F0)] rounded-xl sm:rounded-2xl overflow-hidden bg-[var(--input-bg,#FFFFFF)]">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-[var(--bg-secondary,#F1F5F9)] text-[var(--text-secondary,#64748B)] font-bold border-b border-[var(--border-color,#E2E8F0)]">
+                    <tr className="bg-[var(--surface-soft,#F8FAFC)] text-[var(--text-secondary,#64748B)] font-bold border-b border-[var(--border-color,#E2E8F0)]">
                       <th className="px-4 py-3">Product Name</th>
                       <th className="px-4 py-3">Qty</th>
                       <th className="px-4 py-3">Unit Price</th>
@@ -616,16 +619,16 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                       <th className="px-4 py-3 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[var(--border-color,#E2E8F0)]/60 font-medium">
+                  <tbody className="divide-y divide-[var(--border-color,#E2E8F0)] font-medium text-[var(--text-primary,#0F172A)]">
                     {selectedProducts.map(p => (
-                      <tr key={p.id} className="hover:bg-[var(--surface,#FFFFFF)] transition-colors">
+                      <tr key={p.id} className="hover:bg-[var(--surface-soft,#F8FAFC)] transition-colors">
                         <td className="px-4 py-3 font-bold text-[var(--text-primary,#0F172A)]">{p.name}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center space-x-1">
                             <button 
                               type="button" 
                               onClick={() => handleUpdateQuantity(p.id, p.quantity - 1)}
-                              className="w-6 h-6 rounded-md border border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] flex items-center justify-center font-bold hover:bg-[var(--bg-secondary,#F1F5F9)]"
+                              className="w-6 h-6 rounded-md border border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] flex items-center justify-center font-bold hover:bg-[var(--surface-soft,#F8FAFC)]"
                             >
                               -
                             </button>
@@ -633,19 +636,19 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                             <button 
                               type="button" 
                               onClick={() => handleUpdateQuantity(p.id, p.quantity + 1)}
-                              className="w-6 h-6 rounded-md border border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] flex items-center justify-center font-bold hover:bg-[var(--bg-secondary,#F1F5F9)]"
+                              className="w-6 h-6 rounded-md border border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] flex items-center justify-center font-bold hover:bg-[var(--surface-soft,#F8FAFC)]"
                             >
                               +
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[var(--text-primary,#0F172A)]">₹{p.unitPrice}</td>
+                        <td className="px-4 py-3">₹{p.unitPrice}</td>
                         <td className="px-4 py-3 font-bold text-[var(--text-primary,#0F172A)]">₹{p.unitPrice * p.quantity}</td>
                         <td className="px-4 py-3 text-right">
                           <button 
                             type="button" 
                             onClick={() => handleRemoveProduct(p.id)}
-                            className="p-1.5 text-[var(--text-secondary,#64748B)] hover:text-red-500 transition-colors"
+                            className="p-1.5 text-[var(--text-secondary,#64748B)] hover:text-red-500 dark:hover:text-red-400 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -656,22 +659,22 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 </table>
               </div>
             ) : (
-              <div className="p-4 text-center text-xs font-semibold text-[var(--text-secondary,#94A3B8)] bg-[var(--input-bg,#F8FAFC)] border border-dashed border-[var(--border-color,#E2E8F0)] rounded-2xl">
+              <div className="p-4 text-center text-xs font-medium text-[var(--text-secondary,#64748B)] bg-[var(--input-bg,#FFFFFF)] border border-dashed border-[var(--border-color,#E2E8F0)] rounded-xl sm:rounded-2xl">
                 No products selected for this lead.
               </div>
             )}
           </div>
 
           {/* CARD 5: PAYMENT INFORMATION */}
-          <div className="bg-[var(--surface,#FFFFFF)] rounded-[24px] p-7 border border-[var(--border-color,#E2E8F0)] shadow-[var(--card-shadow,0_2px_12px_rgba(0,0,0,0.03))] space-y-5">
+          <div className="bg-[var(--surface-soft,#F8FAFC)] rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-[var(--border-color,#E2E8F0)] space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-[var(--text-primary,#0F172A)]">Payment Information</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary,#0F172A)] tracking-tight">Payment Information</h3>
               <p className="text-xs font-medium text-[var(--text-secondary,#64748B)] mt-0.5">
                 Agreed revenue terms, advance payments, and outstanding balances.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-[var(--text-primary,#0F172A)]">Total Amount (₹)</label>
                 <input 
@@ -686,7 +689,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     }
                   }}
                   placeholder="0"
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-xs font-bold text-[var(--text-primary,#0F172A)] focus:outline-none"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs font-bold text-[var(--text-primary,#0F172A)] focus:outline-none"
                 />
               </div>
 
@@ -698,7 +701,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.advanceAmount}
                   onChange={e => setFormData({ ...formData, advanceAmount: Number(e.target.value) })}
                   placeholder="0"
-                  className="w-full h-12 px-4 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#F8FAFC)] text-xs font-bold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--input-bg,#FFFFFF)] text-xs font-bold text-[var(--text-primary,#0F172A)] focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -708,7 +711,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   type="number"
                   readOnly
                   value={balanceAmount}
-                  className="w-full h-12 px-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-black text-emerald-600 dark:text-emerald-400 focus:outline-none"
+                  className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -716,12 +719,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
 
         </form>
 
-        {/* 3. Sticky Action Footer (Semantic Theme Tokens) */}
-        <div className="flex-shrink-0 p-5 px-8 bg-[var(--surface,#FFFFFF)] border-t border-[var(--border-color,#E2E8F0)] flex items-center justify-end space-x-3 shadow-lg z-30">
+        {/* 3. STICKY ACTION FOOTER */}
+        <div className="flex-shrink-0 px-4 sm:px-5 md:px-7 py-4 sm:py-5 bg-[var(--surface,#FFFFFF)] border-t border-[var(--border-color,#E2E8F0)] flex items-center justify-end space-x-3 shadow-lg z-20">
           <button 
             type="button" 
             onClick={onClose}
-            className="h-11 px-6 rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] hover:bg-[var(--bg-secondary,#F1F5F9)] text-sm font-bold text-[var(--text-primary,#0F172A)] transition-all shadow-sm"
+            className="h-11 px-6 rounded-xl sm:rounded-2xl border border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] hover:bg-[var(--surface-soft,#F8FAFC)] text-xs sm:text-sm font-bold text-[var(--text-primary,#0F172A)] transition-all shadow-sm"
           >
             Cancel
           </button>
@@ -730,7 +733,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="h-11 px-6 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white text-sm font-bold shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center space-x-2"
+            className="h-11 px-6 rounded-xl sm:rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center space-x-2"
           >
             {loading ? (
               <>
@@ -750,3 +753,4 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
     </div>
   );
 }
+
