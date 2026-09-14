@@ -272,11 +272,11 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-[720px] h-full bg-white dark:bg-[#0D1726] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-[760px] h-full bg-white dark:bg-[#080E1A] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
         
         {/* 1. FIXED HEADER */}
-        <div className="flex-shrink-0 flex items-start justify-between px-6 sm:px-7 md:px-8 pt-7 pb-5 bg-white dark:bg-[#0D1726] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20">
-          <div className="space-y-1 pr-4">
+        <div className="flex-shrink-0 flex items-start justify-between px-8 sm:px-10 md:px-12 pt-8 pb-6 bg-white dark:bg-[#080E1A] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20">
+          <div className="space-y-1.5 pr-6">
             <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold tracking-wider uppercase shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
               <span>NEW LEAD</span>
@@ -293,14 +293,14 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
             type="button"
             onClick={onClose} 
             aria-label="Close drawer"
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800/80 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 2. SCROLLABLE FORM BODY */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 sm:px-7 md:px-8 py-7 space-y-6 bg-slate-50/60 dark:bg-[#070D19] font-sans">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 sm:px-10 md:px-12 py-8 space-y-8 bg-slate-50/70 dark:bg-[#040812] font-sans">
           
           {error && (
             <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
@@ -310,23 +310,23 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           )}
 
           {/* CARD 1: GENERAL INFORMATION */}
-          <div className="bg-white dark:bg-slate-900/80 rounded-2xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-6 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-7 sm:p-8 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-7 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
             
             {/* Section Header */}
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="flex items-center space-x-3.5">
+              <div className="p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">General Information</h3>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">General Information</h3>
+                <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                   Core contact details, company information, source, and owner assignment.
                 </p>
               </div>
             </div>
 
             {/* Profile Image Row */}
-            <div className="flex items-center space-x-5 p-4 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+            <div className="flex items-center space-x-5 p-5 bg-slate-50 dark:bg-slate-950/70 rounded-2xl border border-slate-200/70 dark:border-slate-800/70">
               <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 text-white font-extrabold text-xl flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-md ring-4 ring-amber-500/10 overflow-hidden flex-shrink-0">
                 {profileImage ? (
                   <img src={profileImage} alt="Profile preview" className="w-full h-full object-cover" />
@@ -365,24 +365,22 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-7 pt-1">
               
               {/* Lead Name * */}
               <div className="md:col-span-2 space-y-2">
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Lead Name <span className="text-rose-500 font-bold">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <User className="w-4 h-4" />
-                  </div>
+                <div className="flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <User className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3" />
                   <input 
                     type="text" 
                     required
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Enter lead or account name"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:border-emerald-500 transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -392,12 +390,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Mobile <span className="text-rose-500 font-bold">*</span>
                 </label>
-                <div className="flex rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 shadow-sm transition-all overflow-hidden">
-                  <div className="relative">
+                <div className="flex rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 shadow-sm transition-all overflow-hidden h-12">
+                  <div className="relative flex items-center bg-slate-100 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-700 px-3">
                     <select 
                       value={countryCode}
                       onChange={e => setCountryCode(e.target.value)}
-                      className="h-11 pl-3 pr-7 appearance-none bg-slate-100 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+                      className="appearance-none bg-transparent pr-5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
                     >
                       {COUNTRY_CODES.map(c => (
                         <option key={c.code} value={c.code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
@@ -405,19 +403,17 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2 pointer-events-none" />
                   </div>
-                  <div className="flex-1 relative flex items-center">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-slate-500">
-                      <Phone className="w-4 h-4" />
-                    </div>
+                  <div className="flex-1 flex items-center px-4">
+                    <Phone className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3" />
                     <input 
                       type="tel" 
                       required
                       value={phoneNumber}
                       onChange={e => setPhoneNumber(e.target.value)}
                       placeholder="Mobile Number"
-                      className="w-full h-11 pl-9 pr-3.5 bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
+                      className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -428,16 +424,14 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Email
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <Mail className="w-4 h-4" />
-                  </div>
+                <div className="flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3" />
                   <input 
                     type="email" 
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="lead@company.com"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -447,16 +441,14 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Company Name
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <Building2 className="w-4 h-4" />
-                  </div>
+                <div className="flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3" />
                   <input 
                     type="text" 
                     value={formData.companyName}
                     onChange={e => setFormData({ ...formData, companyName: e.target.value })}
                     placeholder="Acme Pvt Ltd"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -466,14 +458,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Source
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
+                <div className="relative flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <Sparkles className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3 pointer-events-none" />
                   <select 
                     value={formData.source}
                     onChange={e => setFormData({ ...formData, source: e.target.value })}
-                    className="w-full h-11 pl-10 pr-9 appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none appearance-none pr-6 cursor-pointer"
                   >
                     <option value="MANUAL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Manual Entry</option>
                     <option value="PROFILE_SHARE_DETAILS" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Share Details</option>
@@ -484,7 +474,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     <option value="CAMPAIGN" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Campaign</option>
                     <option value="DIRECT" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Direct Contact</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-4 pointer-events-none flex-shrink-0" />
                 </div>
               </div>
 
@@ -493,16 +483,14 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Address
                 </label>
-                <div className="relative">
-                  <div className="absolute top-3.5 left-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
-                    <MapPin className="w-4 h-4" />
-                  </div>
+                <div className="flex items-start p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3 mt-1" />
                   <textarea 
                     rows={3}
                     value={formData.address}
                     onChange={e => setFormData({ ...formData, address: e.target.value })}
                     placeholder="Street, city, state, PIN"
-                    className="w-full pl-10 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm min-h-[90px] resize-none"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none min-h-[85px] resize-none"
                   />
                 </div>
               </div>
@@ -512,21 +500,19 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Assigned To
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <UserCheck className="w-4 h-4" />
-                  </div>
+                <div className="relative flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <UserCheck className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3 pointer-events-none" />
                   <select 
                     value={formData.assignedUserId}
                     onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
-                    className="w-full h-11 pl-10 pr-9 appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none appearance-none pr-6 cursor-pointer"
                   >
                     <option value={identity.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{identity.name || identity.email}</option>
                     {managedUsers.map(u => (
                       <option key={u.id} value={u.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{u.name || u.email}</option>
                     ))}
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-4 pointer-events-none flex-shrink-0" />
                 </div>
               </div>
 
@@ -534,14 +520,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Lead Life Cycle
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <Layers className="w-4 h-4" />
-                  </div>
+                <div className="relative flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <Layers className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3 pointer-events-none" />
                   <select 
                     value={formData.lifecycleStage}
                     onChange={e => setFormData({ ...formData, lifecycleStage: e.target.value })}
-                    className="w-full h-11 pl-10 pr-9 appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none appearance-none pr-6 cursor-pointer"
                   >
                     <option value="Lead" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Lead</option>
                     <option value="Marketing Qualified Lead" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Marketing Qualified Lead</option>
@@ -549,7 +533,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     <option value="Opportunity" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Opportunity</option>
                     <option value="Customer" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Customer</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-4 pointer-events-none flex-shrink-0" />
                 </div>
               </div>
 
@@ -558,14 +542,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <label className="block text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                   Stage
                 </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <Kanban className="w-4 h-4" />
-                  </div>
+                <div className="relative flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
+                  <Kanban className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0 mr-3 pointer-events-none" />
                   <select 
                     value={formData.status}
                     onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full h-11 pl-10 pr-9 appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition-all shadow-sm"
+                    className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none appearance-none pr-6 cursor-pointer"
                   >
                     <option value="NEW" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">New</option>
                     <option value="CONTACTED" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Contacted</option>
@@ -576,22 +558,22 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     <option value="WON" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Won</option>
                     <option value="LOST" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Lost</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-4 pointer-events-none flex-shrink-0" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* CARD 2: REMARKS HISTORY */}
-          <div className="bg-white dark:bg-slate-900/80 rounded-2xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-5 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-7 sm:p-8 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <div className="flex items-center space-x-3.5">
+                <div className="p-3 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">Remarks History</h3>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Remarks History</h3>
+                  <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                     Initial notes and requirement context for this lead.
                   </p>
                 </div>
@@ -608,45 +590,43 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 value={formData.remark}
                 onChange={e => setFormData({ ...formData, remark: e.target.value })}
                 placeholder="Add specific context, notes from call, or client requirements..."
-                className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px] resize-none shadow-sm"
+                className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px] resize-none shadow-sm"
               />
             </div>
           </div>
 
           {/* CARD 3: FOLLOW-UP */}
-          <div className="bg-white dark:bg-slate-900/80 rounded-2xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-5 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-7 sm:p-8 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
+            <div className="flex items-center space-x-3.5">
+              <div className="p-3 rounded-2xl bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">Follow-up Cadence</h3>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Follow-up Cadence</h3>
+                <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                   Schedule the next touchpoint directly in the CRM pipeline.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">Next Follow-up</label>
-                <div className="relative">
-                  <input 
-                    type="datetime-local"
-                    value={formData.followUpDate}
-                    onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
-                    className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                  />
-                </div>
+                <input 
+                  type="datetime-local"
+                  value={formData.followUpDate}
+                  onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">Follow-up Type</label>
-                <div className="relative">
+                <div className="relative flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
                   <select 
                     value={formData.followUpType}
                     onChange={e => setFormData({ ...formData, followUpType: e.target.value })}
-                    className="w-full h-11 pl-3.5 pr-9 appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-sm"
+                    className="w-full bg-transparent text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none appearance-none pr-6 cursor-pointer"
                   >
                     <option value="Call" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Call</option>
                     <option value="WhatsApp" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">WhatsApp</option>
@@ -654,7 +634,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     <option value="Meeting" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Meeting</option>
                     <option value="Other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Other</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-4 pointer-events-none flex-shrink-0" />
                 </div>
               </div>
 
@@ -665,32 +645,32 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                   value={formData.followUpNote}
                   onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
                   placeholder="Call back regarding proposal..."
-                  className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
                 />
               </div>
             </div>
           </div>
 
           {/* CARD 4: PRODUCT SELECTION */}
-          <div className="bg-white dark:bg-slate-900/80 rounded-2xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-5 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-7 sm:p-8 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
+            <div className="flex items-center space-x-3.5">
+              <div className="p-3 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <Package className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">Product Selection</h3>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Product Selection</h3>
+                <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                   Selected products calculate total lead value automatically.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative w-full sm:flex-1">
+            <div className="flex flex-col sm:flex-row items-center gap-3.5">
+              <div className="relative flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm w-full sm:flex-1">
                 <select 
                   value={selectedProductIdToAdd}
                   onChange={e => setSelectedProductIdToAdd(e.target.value)}
-                  className="w-full h-11 pl-4 pr-9 appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-sm"
+                  className="w-full bg-transparent text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none appearance-none pr-6 cursor-pointer"
                 >
                   <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select a product to add...</option>
                   {availableProducts.map(p => (
@@ -699,14 +679,14 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-4 pointer-events-none flex-shrink-0" />
               </div>
 
               <button 
                 type="button"
                 onClick={handleAddProduct}
                 disabled={!selectedProductIdToAdd}
-                className="w-full sm:w-auto h-11 px-5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-sm transition-all disabled:opacity-40 flex-shrink-0"
+                className="w-full sm:w-auto h-12 px-6 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-sm transition-all disabled:opacity-40 flex-shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Product</span>
@@ -718,18 +698,18 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800/80 uppercase text-[10px] tracking-wider">
-                      <th className="px-4 py-3">Product Name</th>
-                      <th className="px-4 py-3">Qty</th>
-                      <th className="px-4 py-3">Unit Price</th>
-                      <th className="px-4 py-3">Subtotal</th>
-                      <th className="px-4 py-3 text-right">Action</th>
+                      <th className="px-4 py-3.5">Product Name</th>
+                      <th className="px-4 py-3.5">Qty</th>
+                      <th className="px-4 py-3.5">Unit Price</th>
+                      <th className="px-4 py-3.5">Subtotal</th>
+                      <th className="px-4 py-3.5 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium text-slate-900 dark:text-slate-100">
                     {selectedProducts.map(p => (
                       <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-slate-100">{p.name}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5 font-bold text-slate-900 dark:text-slate-100">{p.name}</td>
+                        <td className="px-4 py-3.5">
                           <div className="flex items-center space-x-1.5">
                             <button 
                               type="button" 
@@ -748,9 +728,9 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">₹{p.unitPrice}</td>
-                        <td className="px-4 py-3 font-bold text-emerald-600 dark:text-emerald-400">₹{p.unitPrice * p.quantity}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300">₹{p.unitPrice}</td>
+                        <td className="px-4 py-3.5 font-bold text-emerald-600 dark:text-emerald-400">₹{p.unitPrice * p.quantity}</td>
+                        <td className="px-4 py-3.5 text-right">
                           <button 
                             type="button" 
                             onClick={() => handleRemoveProduct(p.id)}
@@ -765,30 +745,30 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 </table>
               </div>
             ) : (
-              <div className="p-4 text-center text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl">
+              <div className="p-5 text-center text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl">
                 No products added yet. Select a product above to automatically calculate deal value.
               </div>
             )}
           </div>
 
           {/* CARD 5: PAYMENT INFORMATION */}
-          <div className="bg-white dark:bg-slate-900/80 rounded-2xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-5 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-7 sm:p-8 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all">
+            <div className="flex items-center space-x-3.5">
+              <div className="p-3 rounded-2xl bg-cyan-500/10 dark:bg-cyan-500/15 border border-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">Payment Information</h3>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Payment Information</h3>
+                <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                   Agreed revenue terms, advance deposits, and balance calculations.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">Total Amount (₹)</label>
-                <div className="relative">
+                <div className="flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
                   <input 
                     type="number"
                     min={0}
@@ -801,28 +781,28 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                       }
                     }}
                     placeholder="0"
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none shadow-sm"
+                    className="w-full bg-transparent text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">Advance Payments (₹)</label>
-                <div className="relative">
+                <div className="flex items-center h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-sm">
                   <input 
                     type="number"
                     min={0}
                     value={formData.advanceAmount}
                     onChange={e => setFormData({ ...formData, advanceAmount: Number(e.target.value) })}
                     placeholder="0"
-                    className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                    className="w-full bg-transparent text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">Balance Amount (₹)</label>
-                <div className="h-11 px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm flex items-center justify-between shadow-sm">
+                <div className="h-12 px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm flex items-center justify-between shadow-sm">
                   <span>Remaining:</span>
                   <span>₹{balanceAmount.toLocaleString()}</span>
                 </div>
@@ -833,15 +813,15 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
         </form>
 
         {/* 3. STICKY ACTION FOOTER */}
-        <div className="flex-shrink-0 px-6 sm:px-7 md:px-8 py-4 bg-white/90 dark:bg-[#0D1726]/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20">
+        <div className="flex-shrink-0 px-8 sm:px-10 md:px-12 py-5 bg-white/95 dark:bg-[#080E1A]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20">
           <span className="hidden sm:inline-block text-xs font-medium text-slate-400 dark:text-slate-500">
             Press Esc to dismiss
           </span>
-          <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
+          <div className="flex items-center space-x-4 w-full sm:w-auto justify-end">
             <button 
               type="button" 
               onClick={onClose}
-              className="h-11 px-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+              className="h-11 px-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
             >
               Cancel
             </button>
@@ -850,7 +830,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="h-11 px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="h-11 px-7 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {loading ? (
                 <>
