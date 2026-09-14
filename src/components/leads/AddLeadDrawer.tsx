@@ -240,10 +240,10 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-[760px] h-full bg-slate-50 dark:bg-[#070D18] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-[760px] h-full bg-slate-100/90 dark:bg-[#030712] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
         
         {/* 1. FIXED HEADER */}
-        <div className="flex-shrink-0 flex items-start justify-between px-8 sm:px-10 md:px-12 pt-8 pb-6 bg-white dark:bg-[#0D1726] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20">
+        <div className="flex-shrink-0 flex items-start justify-between px-10 sm:px-14 md:px-16 pt-8 pb-6 bg-white dark:bg-[#0B132B] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20 shadow-sm">
           <div className="space-y-1.5 pr-6">
             <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold tracking-wider uppercase shadow-sm">
               <span>✨</span>
@@ -268,7 +268,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
         </div>
 
         {/* 2. SCROLLABLE FORM BODY */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 sm:px-10 md:px-12 py-8 space-y-8 bg-slate-50/70 dark:bg-[#070D18] font-sans">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-10 sm:px-14 md:px-16 py-9 space-y-9 bg-slate-100/70 dark:bg-[#030712] font-sans">
           
           {error && (
             <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
@@ -278,7 +278,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           )}
 
           {/* CARD 1: GENERAL */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-3xl p-8 sm:p-9 md:p-10 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-7">
+          <div className="bg-white dark:bg-[#0B132B] rounded-[28px] p-8 sm:p-10 border border-slate-200/90 dark:border-slate-800/90 shadow-md space-y-7">
             
             {/* Section Title & Subtitle */}
             <div className="mb-2">
@@ -474,7 +474,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 2: REMARKS HISTORY */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-3xl p-8 sm:p-9 md:p-10 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-7">
+          <div className="bg-white dark:bg-[#0B132B] rounded-[28px] p-8 sm:p-10 border border-slate-200/90 dark:border-slate-800/90 shadow-md space-y-7">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">Remarks History</h3>
@@ -500,7 +500,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 3: FOLLOW-UP Cadence */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-3xl p-8 sm:p-9 md:p-10 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-7">
+          <div className="bg-white dark:bg-[#0B132B] rounded-[28px] p-8 sm:p-10 border border-slate-200/90 dark:border-slate-800/90 shadow-md space-y-7">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">Follow-up</h3>
               <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-1">
@@ -551,7 +551,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 4: PRODUCT SELECTION */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-3xl p-8 sm:p-9 md:p-10 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-7">
+          <div className="bg-white dark:bg-[#0B132B] rounded-[28px] p-8 sm:p-10 border border-slate-200/90 dark:border-slate-800/90 shadow-md space-y-7">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">Product Selection</h3>
               <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-1">
@@ -646,7 +646,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </div>
 
           {/* CARD 5: PAYMENT INFORMATION */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-3xl p-8 sm:p-9 md:p-10 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-7">
+          <div className="bg-white dark:bg-[#0B132B] rounded-[28px] p-8 sm:p-10 border border-slate-200/90 dark:border-slate-800/90 shadow-md space-y-7">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">Payment Information</h3>
               <p className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 mt-1">
@@ -698,7 +698,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
         </form>
 
         {/* 3. STICKY ACTION FOOTER */}
-        <div className="flex-shrink-0 px-8 sm:px-10 md:px-12 py-5 bg-white dark:bg-[#0D1726] border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20">
+        <div className="flex-shrink-0 px-10 sm:px-14 md:px-16 py-5 bg-white dark:bg-[#0B132B] border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20">
           <span className="hidden sm:inline-block text-xs font-medium text-slate-400 dark:text-slate-500">
             Press Esc to dismiss
           </span>
