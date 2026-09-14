@@ -288,8 +288,11 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
         </div>
 
         {/* 2. SCROLLABLE FORM BODY */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 sm:px-9 md:px-10 py-7 space-y-6 sm:space-y-7 pb-36 bg-slate-50/60 dark:bg-[#070D18] font-sans">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-[#070D18] font-sans">
           
+          {/* Inner Content Canvas Wrapper (Fixes WebKit/Chrome overflow-y-auto right-padding truncation) */}
+          <div className="px-8 sm:px-9 md:px-10 py-7 space-y-6 sm:space-y-7 pb-36">
+
           {error && (
             <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
@@ -320,7 +323,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                 )}
               </div>
 
-              <div className="space-y-1.5 flex-1">
+              <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center space-x-3">
                   <label className="inline-flex items-center space-x-2 px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-sm transition-all">
                     <Upload className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
@@ -386,7 +389,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2.5 pointer-events-none" />
                   </div>
 
-                  <div className="flex items-center flex-1 h-full px-3.5">
+                  <div className="flex items-center flex-1 h-full px-3.5 min-w-0">
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-2 flex-shrink-0">{countryCode}</span>
                     <input 
                       type="tel" 
@@ -394,7 +397,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
                       value={phoneNumber}
                       onChange={e => setPhoneNumber(e.target.value)}
                       placeholder="Mobile Number"
-                      className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none h-full"
+                      className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none h-full min-w-0"
                     />
                   </div>
                 </div>
@@ -619,11 +622,11 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm w-full sm:flex-1">
+              <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm w-full sm:flex-1 min-w-0">
                 <select 
                   value={selectedProductIdToAdd}
                   onChange={e => setSelectedProductIdToAdd(e.target.value)}
-                  className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
+                  className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9 min-w-0"
                 >
                   <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select a product to add...</option>
                   {availableProducts.map(p => (
@@ -754,6 +757,7 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
             </div>
           </div>
 
+          </div>
         </form>
 
         {/* 3. STICKY ACTION FOOTER */}
