@@ -3,30 +3,30 @@
 import React, { useState, useEffect } from "react";
 import { 
   X, 
-  Upload, 
   AlertCircle, 
-  User, 
-  Plus, 
-  Trash2, 
   Save,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  Clock
 } from "lucide-react";
 
-interface AddLeadDrawerProps {
+export interface AddLeadDrawerProps {
   isOpen: boolean;
+  mode?: "create" | "edit";
+  leadData?: any;
   onClose: () => void;
   onSuccess: () => void;
   identity: { id: string; name: string | null; email: string; role: string };
 }
 
-interface SelectedProduct {
-  id: string;
-  name: string;
-  unitPrice: number;
-  quantity: number;
+interface CountryCode {
+  code: string;
+  country: string;
+  flag: string;
+  label: string;
 }
 
-const COUNTRY_CODES = [
+const COUNTRY_CODES: CountryCode[] = [
   { code: "+91", country: "IN", flag: "🇮🇳", label: "IN" },
   { code: "+1", country: "US", flag: "🇺🇸", label: "US" },
   { code: "+44", country: "GB", flag: "🇬🇧", label: "UK" },
@@ -34,163 +34,281 @@ const COUNTRY_CODES = [
   { code: "+65", country: "SG", flag: "🇸🇬", label: "SG" },
 ];
 
-export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: AddLeadDrawerProps) {
+export default function AddLeadDrawer({ 
+  isOpen, 
+  mode = "create", 
+  leadData = null, 
+  onClose, 
+  onSuccess, 
+  identity 
+}: AddLeadDrawerProps) {
   const [loading, setLoading] = useState(false);
+  const [fetchingConfig, setFetchingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamic Master Config Data
+  const [sources, setSources] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [products, setProducts] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [stages, setStages] = useState<{ id: string; name: string; key: string }[]>([]);
   const [managedUsers, setManagedUsers] = useState<any[]>([]);
-  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
 
   // Form State
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     companyName: "",
     address: "",
-    source: "MANUAL",
-    status: "NEW",
-    lifecycleStage: "Lead",
-    assignedUserId: identity.id,
-    remark: "",
-    followUpDate: "",
-    followUpNote: "",
-    followUpType: "Call",
+    source: "",
+    productId: "",
+    productPrice: 0,
     advanceAmount: 0,
+    remark: "",
+    assignedUserId: identity?.id || "",
+    status: "",
+    followUpDate: "",
+    followUpTime: "",
   });
 
-  // Products State
-  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
-  const [selectedProductIdToAdd, setSelectedProductIdToAdd] = useState("");
-  const [manualTotalAmount, setManualTotalAmount] = useState<number | "">(0);
+  // Calculate Total & Balance
+  const totalAmount = formData.productPrice;
+  const advanceAmount = Number(formData.advanceAmount || 0);
+  const balanceAmount = Math.max(0, totalAmount - advanceAmount);
 
-  // Lock background body scroll when drawer is active
+  // Load Master Configuration Data dynamically
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!isOpen) return;
+
+    // Lock background scroll
+    document.body.style.overflow = "hidden";
+
+    const loadMasterConfig = async () => {
+      setFetchingConfig(true);
+      try {
+        // 1. Sources (Master Config local storage or defaults)
+        try {
+          const storedSources = localStorage.getItem("myluxcards_lead_sources_data_v1");
+          if (storedSources) {
+            const parsed = JSON.parse(storedSources);
+            const activeSources = parsed.filter((s: any) => s.active !== false);
+            if (activeSources.length > 0) {
+              setSources(activeSources.map((s: any) => ({ id: s.id, name: s.name, code: s.code || s.name })));
+            } else {
+              setSources([
+                { id: "src-1", name: "Manual Entry", code: "MANUAL" },
+                { id: "src-2", name: "NFC Tap", code: "NFC" },
+                { id: "src-3", name: "QR Code Scan", code: "QR" },
+                { id: "src-4", name: "Website", code: "WEBSITE" },
+                { id: "src-5", name: "Referral", code: "REFERRAL" },
+                { id: "src-6", name: "Direct Contact", code: "DIRECT" },
+              ]);
+            }
+          } else {
+            setSources([
+              { id: "src-1", name: "Manual Entry", code: "MANUAL" },
+              { id: "src-2", name: "NFC Tap", code: "NFC" },
+              { id: "src-3", name: "QR Code Scan", code: "QR" },
+              { id: "src-4", name: "Website", code: "WEBSITE" },
+              { id: "src-5", name: "Referral", code: "REFERRAL" },
+              { id: "src-6", name: "Direct Contact", code: "DIRECT" },
+            ]);
+          }
+        } catch {
+          setSources([
+            { id: "src-1", name: "Manual Entry", code: "MANUAL" },
+            { id: "src-2", name: "NFC Tap", code: "NFC" },
+            { id: "src-3", name: "QR Code Scan", code: "QR" },
+            { id: "src-4", name: "Website", code: "WEBSITE" },
+            { id: "src-5", name: "Referral", code: "REFERRAL" },
+            { id: "src-6", name: "Direct Contact", code: "DIRECT" },
+          ]);
+        }
+
+        // 2. Products (API + Catalog fallback)
+        try {
+          const res = await fetch("/api/admin/products");
+          const data = await res.json();
+          if (res.ok && data.data && data.data.length > 0) {
+            const activeProds = data.data.filter((p: any) => p.active !== false);
+            setProducts(activeProds.map((p: any) => ({
+              id: p.id,
+              name: p.name || p.title,
+              price: p.priceMinor ? Math.round(p.priceMinor / 100) : (p.price_minor ? Math.round(p.price_minor / 100) : 0),
+            })));
+          } else {
+            const storedProds = localStorage.getItem("myluxcards_products_catalog_v1");
+            if (storedProds) {
+              const parsed = JSON.parse(storedProds);
+              setProducts(parsed.map((p: any) => ({ id: p.id, name: p.name || p.title, price: p.price || 0 })));
+            } else {
+              setProducts([
+                { id: "prod-1", name: "ZAPPIT NFC Metal Card", price: 1999 },
+                { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price: 999 },
+                { id: "prod-3", name: "Custom Branded NFC Tag", price: 499 },
+              ]);
+            }
+          }
+        } catch {
+          setProducts([
+            { id: "prod-1", name: "ZAPPIT NFC Metal Card", price: 1999 },
+            { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price: 999 },
+            { id: "prod-3", name: "Custom Branded NFC Tag", price: 499 },
+          ]);
+        }
+
+        // 3. Lead Stages (Master Config local storage or defaults)
+        try {
+          const storedStages = localStorage.getItem("myluxcards_lead_stages_catalog_v1");
+          if (storedStages) {
+            const parsed = JSON.parse(storedStages);
+            const activeStages = parsed.filter((s: any) => s.active !== false);
+            if (activeStages.length > 0) {
+              setStages(activeStages.map((s: any) => ({ id: s.id, name: s.name, key: s.key || s.name })));
+            } else {
+              setStages([
+                { id: "stg-1", name: "New Lead", key: "NEW" },
+                { id: "stg-2", name: "Contacted", key: "CONTACTED" },
+                { id: "stg-3", name: "Interested", key: "INTERESTED" },
+                { id: "stg-4", name: "Follow Up", key: "FOLLOW_UP" },
+                { id: "stg-5", name: "Qualified", key: "QUALIFIED" },
+                { id: "stg-6", name: "Proposal", key: "PROPOSAL" },
+                { id: "stg-7", name: "Won", key: "WON" },
+                { id: "stg-8", name: "Lost", key: "LOST" },
+              ]);
+            }
+          } else {
+            setStages([
+              { id: "stg-1", name: "New Lead", key: "NEW" },
+              { id: "stg-2", name: "Contacted", key: "CONTACTED" },
+              { id: "stg-3", name: "Interested", key: "INTERESTED" },
+              { id: "stg-4", name: "Follow Up", key: "FOLLOW_UP" },
+              { id: "stg-5", name: "Qualified", key: "QUALIFIED" },
+              { id: "stg-6", name: "Proposal", key: "PROPOSAL" },
+              { id: "stg-7", name: "Won", key: "WON" },
+              { id: "stg-8", name: "Lost", key: "LOST" },
+            ]);
+          }
+        } catch {
+          setStages([
+            { id: "stg-1", name: "New Lead", key: "NEW" },
+            { id: "stg-2", name: "Contacted", key: "CONTACTED" },
+            { id: "stg-3", name: "Interested", key: "INTERESTED" },
+            { id: "stg-4", name: "Follow Up", key: "FOLLOW_UP" },
+            { id: "stg-5", name: "Qualified", key: "QUALIFIED" },
+            { id: "stg-6", name: "Proposal", key: "PROPOSAL" },
+            { id: "stg-7", name: "Won", key: "WON" },
+            { id: "stg-8", name: "Lost", key: "LOST" },
+          ]);
+        }
+
+        // 4. Managed Users (API)
+        if (identity.role === "ADMIN" || identity.role === "SUPER_ADMIN") {
+          try {
+            const res = await fetch("/api/admin/managed-users");
+            const data = await res.json();
+            if (res.ok && data.users) {
+              setManagedUsers(data.users);
+            }
+          } catch (err) {
+            console.error("Failed to fetch managed users", err);
+          }
+        }
+      } finally {
+        setFetchingConfig(false);
+      }
+    };
+
+    loadMasterConfig();
+
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, identity.role]);
 
+  // Populate data when editing or creating
   useEffect(() => {
-    if (isOpen) {
-      // Reset form
+    if (!isOpen) return;
+
+    setError(null);
+
+    if (mode === "edit" && leadData) {
+      // Parse phone number into country code + number
+      let rawPhone = leadData.contactNumber || leadData.phone || "";
+      let matchedCode = "+91";
+      let mainPhone = rawPhone;
+
+      for (const c of COUNTRY_CODES) {
+        if (rawPhone.startsWith(c.code)) {
+          matchedCode = c.code;
+          mainPhone = rawPhone.slice(c.code.length).trim();
+          break;
+        }
+      }
+
+      setCountryCode(matchedCode);
+      setPhoneNumber(mainPhone);
+
+      // Parse followUpDate into date string and time string
+      let fDate = "";
+      let fTime = "";
+      if (leadData.followUpDate) {
+        const d = new Date(leadData.followUpDate);
+        if (!isNaN(d.getTime())) {
+          fDate = d.toISOString().split("T")[0];
+          fTime = d.toTimeString().slice(0, 5);
+        }
+      }
+
+      setFormData({
+        name: leadData.name || "",
+        email: leadData.email || "",
+        companyName: leadData.companyName || leadData.company || "",
+        address: leadData.address || "",
+        source: leadData.source || "MANUAL",
+        productId: leadData.productId || "",
+        productPrice: Number(leadData.totalAmount || leadData.total_amount || 0),
+        advanceAmount: Number(leadData.advanceAmount || leadData.advance_amount || 0),
+        remark: leadData.remark || leadData.notes || "",
+        assignedUserId: leadData.assignedUserId || identity.id,
+        status: leadData.status || leadData.stage || "NEW",
+        followUpDate: fDate,
+        followUpTime: fTime,
+      });
+    } else {
+      // Reset form for Create Mode
+      setCountryCode("+91");
+      setPhoneNumber("");
       setFormData({
         name: "",
         email: "",
         companyName: "",
         address: "",
-        source: "MANUAL",
-        status: "NEW",
-        lifecycleStage: "Lead",
-        assignedUserId: identity.id,
-        remark: "",
-        followUpDate: "",
-        followUpNote: "",
-        followUpType: "Call",
+        source: sources.length > 0 ? sources[0].code : "MANUAL",
+        productId: "",
+        productPrice: 0,
         advanceAmount: 0,
+        remark: "",
+        assignedUserId: identity.id,
+        status: stages.length > 0 ? stages[0].key : "NEW",
+        followUpDate: "",
+        followUpTime: "",
       });
-      setPhoneNumber("");
-      setProfileImage(null);
-      setSelectedProducts([]);
-      setManualTotalAmount(0);
-      setError(null);
-
-      // Fetch managed users if admin
-      if (identity.role === "ADMIN" || identity.role === "SUPER_ADMIN") {
-        fetch("/api/admin/managed-users")
-          .then(res => res.json())
-          .then(data => {
-            if (data.users) setManagedUsers(data.users);
-          })
-          .catch(err => console.error("Failed to fetch managed users", err));
-      }
-
-      // Fetch available products
-      fetch("/api/admin/products")
-        .then(res => res.json())
-        .then(data => {
-          if (data.data) {
-            setAvailableProducts(data.data);
-          } else {
-            setAvailableProducts([
-              { id: "prod-1", name: "ZAPPIT NFC Metal Card", price_minor: 199900 },
-              { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price_minor: 99900 },
-              { id: "prod-3", name: "Custom Branded NFC Tag", price_minor: 49900 },
-            ]);
-          }
-        })
-        .catch(() => {
-          setAvailableProducts([
-            { id: "prod-1", name: "ZAPPIT NFC Metal Card", price_minor: 199900 },
-            { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price_minor: 99900 },
-            { id: "prod-3", name: "Custom Branded NFC Tag", price_minor: 49900 },
-          ]);
-        });
     }
-  }, [identity.id, identity.role, isOpen]);
+  }, [isOpen, mode, leadData, identity.id, sources, stages]);
 
-  // Product Calculations
-  const calculatedTotalAmount = selectedProducts.length > 0
-    ? selectedProducts.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-    : (typeof manualTotalAmount === "number" ? manualTotalAmount : 0);
-
-  const balanceAmount = Math.max(0, calculatedTotalAmount - Number(formData.advanceAmount || 0));
-
-  const handleAddProduct = () => {
-    if (!selectedProductIdToAdd) return;
-    const prod = availableProducts.find(p => p.id === selectedProductIdToAdd);
-    if (!prod) return;
-
-    const unitPrice = prod.price_minor ? Math.round(prod.price_minor / 100) : 1000;
-    const existingIndex = selectedProducts.findIndex(p => p.id === prod.id);
-
-    if (existingIndex >= 0) {
-      const updated = [...selectedProducts];
-      updated[existingIndex].quantity += 1;
-      setSelectedProducts(updated);
-    } else {
-      setSelectedProducts(prev => [
-        ...prev,
-        { id: prod.id, name: prod.name || prod.title || "Custom Product", unitPrice, quantity: 1 }
-      ]);
-    }
-    setSelectedProductIdToAdd("");
+  // Handle Product Selection change
+  const handleProductChange = (prodId: string) => {
+    const found = products.find(p => p.id === prodId);
+    setFormData(prev => ({
+      ...prev,
+      productId: prodId,
+      productPrice: found ? found.price : 0,
+    }));
   };
 
-  const handleUpdateQuantity = (id: string, qty: number) => {
-    if (qty <= 0) {
-      setSelectedProducts(prev => prev.filter(p => p.id !== id));
-    } else {
-      setSelectedProducts(prev => prev.map(p => p.id === id ? { ...p, quantity: qty } : p));
-    }
-  };
-
-  const handleRemoveProduct = (id: string) => {
-    setSelectedProducts(prev => prev.filter(p => p.id !== id));
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Image file size must be less than 5MB");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
+  // Submit Handler (Create vs Edit)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -209,40 +327,77 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
       return;
     }
 
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
     const fullContactNumber = `${countryCode} ${phoneNumber.trim()}`;
 
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          contactNumber: fullContactNumber,
-          email: formData.email.trim() || undefined,
-          companyName: formData.companyName.trim() || undefined,
-          address: formData.address.trim() || undefined,
-          assignedUserId: formData.assignedUserId,
-          status: formData.status,
-          source: formData.source,
-          profileImage: profileImage || undefined,
-          remark: formData.remark.trim() || undefined,
-          followUpDate: formData.followUpDate || undefined,
-          followUpNote: formData.followUpNote.trim() || undefined,
-          followUpType: formData.followUpType,
-          totalAmount: calculatedTotalAmount,
-          advanceAmount: Number(formData.advanceAmount || 0),
-          products: selectedProducts,
-        }),
-      });
+    // Format follow-up date-time if provided
+    let combinedFollowUpIso: string | undefined = undefined;
+    if (formData.followUpDate) {
+      const timePart = formData.followUpTime || "10:00";
+      const d = new Date(`${formData.followUpDate}T${timePart}:00`);
+      if (!isNaN(d.getTime())) {
+        combinedFollowUpIso = d.toISOString();
+      }
+    }
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to create lead");
+    try {
+      if (mode === "edit" && leadData?.id) {
+        // PATCH /api/leads/[id]
+        const res = await fetch(`/api/leads/${leadData.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            contactNumber: fullContactNumber,
+            email: formData.email.trim() || undefined,
+            companyName: formData.companyName.trim() || undefined,
+            address: formData.address.trim() || undefined,
+            source: formData.source,
+            assignedUserId: formData.assignedUserId,
+            status: formData.status,
+            totalAmount,
+            advanceAmount,
+            remark: formData.remark.trim() || undefined,
+            followUpDate: combinedFollowUpIso,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to update lead.");
+      } else {
+        // POST /api/leads
+        const res = await fetch("/api/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            contactNumber: fullContactNumber,
+            email: formData.email.trim() || undefined,
+            companyName: formData.companyName.trim() || undefined,
+            address: formData.address.trim() || undefined,
+            source: formData.source || "MANUAL",
+            assignedUserId: formData.assignedUserId,
+            status: formData.status || "NEW",
+            totalAmount,
+            advanceAmount,
+            remark: formData.remark.trim() || undefined,
+            followUpDate: combinedFollowUpIso,
+            followUpType: "Call",
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to create lead.");
       }
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message || "Failed to create lead.");
+      setError(err.message || "Operation failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -250,30 +405,34 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
 
   if (!isOpen) return null;
 
+  const isEdit = mode === "edit";
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end font-sans">
-      {/* Translucent Backdrop Overlay */}
+      {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in" 
-        onClick={onClose} 
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+        onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-[720px] h-full bg-slate-50/80 dark:bg-[#070D18] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-[720px] h-full bg-slate-50/90 dark:bg-[#070D18] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
         
-        {/* 1. FIXED HEADER */}
+        {/* FIXED HEADER */}
         <div className="flex-shrink-0 flex items-start justify-between px-8 sm:px-9 md:px-10 pt-7 pb-6 bg-white dark:bg-[#0D1726] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20 shadow-sm">
-          <div className="space-y-2 pr-6">
+          <div className="space-y-1.5 pr-6">
             <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold tracking-wider uppercase mb-0.5">
               <span>✨</span>
-              <span>NEW LEAD</span>
+              <span>{isEdit ? "EDIT LEAD" : "NEW LEAD"}</span>
             </div>
-            <h2 className="text-2xl sm:text-[28px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15] font-sans">
-              Add a new pipeline opportunity
+            <h2 className="text-2xl sm:text-[28px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15]">
+              {isEdit ? "Edit lead opportunity" : "Add a new lead opportunity"}
             </h2>
-            <p className="text-xs sm:text-[13.5px] font-normal text-slate-500 dark:text-slate-400 leading-relaxed font-sans pt-0.5">
-              Capture general lead details, follow-up cadence, and any active advanced fields defined by the workspace.
+            <p className="text-xs sm:text-[13.5px] font-normal text-slate-500 dark:text-slate-400 leading-relaxed pt-0.5">
+              {isEdit 
+                ? "Update contact details, lead stage, owner, and deal amounts." 
+                : "Create a new opportunity and keep all lead information organized."}
             </p>
           </div>
 
@@ -287,480 +446,375 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
           </button>
         </div>
 
-        {/* 2. SCROLLABLE FORM BODY */}
+        {/* SCROLLABLE FORM BODY */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-[#070D18] font-sans">
           
-          {/* Inner Content Canvas Wrapper (Fixes WebKit/Chrome overflow-y-auto right-padding truncation) */}
+          {/* Inner Canvas Wrapper (32px-40px horizontal padding) */}
           <div className="px-8 sm:px-9 md:px-10 py-7 space-y-6 sm:space-y-7 pb-36">
-
-          {error && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* CARD 1: GENERAL */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
             
-            {/* Section Title & Subtitle */}
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">General</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                Core contact details, company, address, source, and owner.
-              </p>
-            </div>
-
-            {/* Profile Image Row */}
-            <div className="flex items-center space-x-4 sm:space-x-5 p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-              <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 text-white font-extrabold text-xl flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-md overflow-hidden flex-shrink-0">
-                {profileImage ? (
-                  <img src={profileImage} alt="Profile preview" className="w-full h-full object-cover" />
-                ) : formData.name.trim() ? (
-                  <span>{formData.name.trim().charAt(0).toUpperCase()}</span>
-                ) : (
-                  <User className="w-7 h-7 text-white opacity-90" />
-                )}
+            {error && (
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
+                <span>{error}</span>
               </div>
+            )}
 
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <div className="flex items-center space-x-3">
-                  <label className="inline-flex items-center space-x-2 px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-sm transition-all">
-                    <Upload className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                    <span>Upload Image</span>
-                    <input 
-                      type="file" 
-                      accept="image/jpeg,image/png,image/webp" 
-                      onChange={handleImageUpload}
-                      className="hidden" 
-                    />
-                  </label>
-                  {profileImage && (
-                    <button
-                      type="button"
-                      onClick={() => setProfileImage(null)}
-                      className="text-xs font-medium text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-                  Supported formats: JPG, PNG, WEBP (Max 5MB)
+            {/* SECTION 1: GENERAL INFORMATION */}
+            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">GENERAL INFORMATION</h3>
+                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
+                  Core lead and contact information.
                 </p>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 sm:gap-y-6">
+                
+                {/* 1. Lead Name * */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Lead Name <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter lead or account name"
+                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                  />
+                </div>
+
+                {/* 2. Mobile * */}
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Mobile <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <div className="flex items-center rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 shadow-sm transition-all overflow-hidden h-11 sm:h-12">
+                    <div className="relative flex items-center bg-slate-100/80 dark:bg-slate-800/60 border-r border-slate-200/80 dark:border-slate-700/80 px-3 h-full w-[95px] flex-shrink-0">
+                      <select 
+                        value={countryCode}
+                        onChange={e => setCountryCode(e.target.value)}
+                        className="appearance-none bg-transparent pr-5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer h-full w-full"
+                      >
+                        {COUNTRY_CODES.map(c => (
+                          <option key={c.code} value={c.code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                            {c.label} {c.code}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2.5 pointer-events-none" />
+                    </div>
+
+                    <div className="flex items-center flex-1 h-full px-3.5 min-w-0">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-2 flex-shrink-0">{countryCode}</span>
+                      <input 
+                        type="tel" 
+                        required
+                        value={phoneNumber}
+                        onChange={e => setPhoneNumber(e.target.value)}
+                        placeholder="Mobile Number"
+                        className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none h-full min-w-0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Email */}
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Email
+                  </label>
+                  <input 
+                    type="email" 
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="lead@company.com"
+                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                  />
+                </div>
+
+                {/* 4. Company Name */}
+                <div className="md:col-span-1 space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Company Name
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.companyName}
+                    onChange={e => setFormData({ ...formData, companyName: e.target.value })}
+                    placeholder="Acme Pvt Ltd"
+                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                  />
+                </div>
+
+                {/* 5. Source (Dynamic from Master Config) */}
+                <div className="md:col-span-1 space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Source
+                  </label>
+                  <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
+                    <select 
+                      value={formData.source}
+                      onChange={e => setFormData({ ...formData, source: e.target.value })}
+                      className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
+                    >
+                      {fetchingConfig ? (
+                        <option value="">Loading sources...</option>
+                      ) : sources.length === 0 ? (
+                        <option value="">No lead sources configured</option>
+                      ) : (
+                        sources.map(s => (
+                          <option key={s.id} value={s.code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                            {s.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* 6. Address */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Address
+                  </label>
+                  <textarea 
+                    rows={3}
+                    value={formData.address}
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Street, city, state, PIN"
+                    className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm min-h-[92px] max-h-[120px] resize-none"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 sm:gap-y-6 pt-1">
-              
-              {/* Lead Name * */}
-              <div className="md:col-span-2 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Lead Name <span className="text-rose-500 font-bold">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter lead or account name"
-                  className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
-                />
+            {/* SECTION 2: SALES INFORMATION */}
+            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">SALES INFORMATION</h3>
+                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
+                  Select product package and revenue breakdown.
+                </p>
               </div>
 
-              {/* Mobile * */}
+              {/* 7. Product Select (Dynamic from Master Config) */}
               <div className="space-y-2">
                 <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Mobile <span className="text-rose-500 font-bold">*</span>
+                  Product
                 </label>
-                <div className="flex items-center rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 shadow-sm transition-all overflow-hidden h-11 sm:h-12">
-                  <div className="relative flex items-center bg-slate-100/80 dark:bg-slate-800/60 border-r border-slate-200/80 dark:border-slate-700/80 px-3 h-full w-[95px] flex-shrink-0">
+                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
+                  <select 
+                    value={formData.productId}
+                    onChange={e => handleProductChange(e.target.value)}
+                    className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9 min-w-0"
+                  >
+                    <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select Product...</option>
+                    {fetchingConfig ? (
+                      <option value="">Loading products...</option>
+                    ) : products.length === 0 ? (
+                      <option value="">No products configured</option>
+                    ) : (
+                      products.map(p => (
+                        <option key={p.id} value={p.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                          {p.name} (₹{p.price.toLocaleString("en-IN")})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 8, 9, 10. Payment Calculation Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                
+                {/* 8. Total Amount (READ ONLY) */}
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Total Amount (₹)
+                  </label>
+                  <input 
+                    type="text"
+                    readOnly
+                    value={`₹ ${totalAmount.toLocaleString("en-IN")}`}
+                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-100/70 dark:bg-[#040810] text-xs font-extrabold text-slate-900 dark:text-slate-100 cursor-not-allowed shadow-sm"
+                  />
+                </div>
+
+                {/* 9. Advance (Editable) */}
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Advance (₹)
+                  </label>
+                  <input 
+                    type="number"
+                    min={0}
+                    value={formData.advanceAmount}
+                    onChange={e => setFormData({ ...formData, advanceAmount: Math.max(0, Number(e.target.value)) })}
+                    placeholder="0"
+                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                  />
+                </div>
+
+                {/* 10. Balance (READ ONLY) */}
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Balance (₹)
+                  </label>
+                  <div className="h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-sm">
+                    <span>Remaining:</span>
+                    <span>₹ {balanceAmount.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: LEAD MANAGEMENT */}
+            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">LEAD MANAGEMENT</h3>
+                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
+                  Assign owner and update pipeline stage.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 sm:gap-y-6">
+                
+                {/* 12. Assigned To */}
+                <div className="md:col-span-1 space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Assigned To
+                  </label>
+                  <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
                     <select 
-                      value={countryCode}
-                      onChange={e => setCountryCode(e.target.value)}
-                      className="appearance-none bg-transparent pr-5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer h-full w-full"
+                      value={formData.assignedUserId}
+                      onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
+                      className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
                     >
-                      {COUNTRY_CODES.map(c => (
-                        <option key={c.code} value={c.code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                          {c.label} {c.code}
+                      <option value={identity.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        {identity.name || identity.email} (You)
+                      </option>
+                      {managedUsers.map(u => (
+                        <option key={u.id} value={u.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                          {u.name || u.email}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2.5 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
                   </div>
+                </div>
 
-                  <div className="flex items-center flex-1 h-full px-3.5 min-w-0">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-2 flex-shrink-0">{countryCode}</span>
-                    <input 
-                      type="tel" 
-                      required
-                      value={phoneNumber}
-                      onChange={e => setPhoneNumber(e.target.value)}
-                      placeholder="Mobile Number"
-                      className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none h-full min-w-0"
-                    />
+                {/* 13. Lead Stage (Dynamic from Master Config) */}
+                <div className="md:col-span-1 space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                    Lead Stage
+                  </label>
+                  <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
+                    <select 
+                      value={formData.status}
+                      onChange={e => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
+                    >
+                      {fetchingConfig ? (
+                        <option value="">Loading stages...</option>
+                      ) : stages.length === 0 ? (
+                        <option value="">No lead stages configured</option>
+                      ) : (
+                        stages.map(stg => (
+                          <option key={stg.id} value={stg.key} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                            {stg.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Email */}
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Email
-                </label>
-                <input 
-                  type="email" 
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="lead@company.com"
-                  className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
-                />
-              </div>
-
-              {/* Company Name */}
-              <div className="md:col-span-1 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Company Name
-                </label>
-                <input 
-                  type="text" 
-                  value={formData.companyName}
-                  onChange={e => setFormData({ ...formData, companyName: e.target.value })}
-                  placeholder="Acme Pvt Ltd"
-                  className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
-                />
-              </div>
-
-              {/* Source */}
-              <div className="md:col-span-1 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Source
-                </label>
-                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                  <select 
-                    value={formData.source}
-                    onChange={e => setFormData({ ...formData, source: e.target.value })}
-                    className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
+            {/* SECTION 4: FOLLOW-UP */}
+            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">FOLLOW-UP</h3>
+                  <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
+                    Next follow-up date and time cadence.
+                  </p>
+                </div>
+                {(formData.followUpDate || formData.followUpTime) && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, followUpDate: "", followUpTime: "" }))}
+                    className="text-xs font-medium text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
                   >
-                    <option value="MANUAL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Manual Entry</option>
-                    <option value="PROFILE_SHARE_DETAILS" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Share Details</option>
-                    <option value="NFC" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">NFC Tap</option>
-                    <option value="QR" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">QR Code Scan</option>
-                    <option value="WEBSITE" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Website</option>
-                    <option value="REFERRAL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Referral</option>
-                    <option value="CAMPAIGN" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Campaign</option>
-                    <option value="DIRECT" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Direct Contact</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                </div>
+                    Clear
+                  </button>
+                )}
               </div>
 
-              {/* Address */}
-              <div className="md:col-span-2 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Address
-                </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Select Date</span>
+                  </label>
+                  <input 
+                    type="date"
+                    value={formData.followUpDate}
+                    onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
+                    className="w-full h-11 sm:h-12 px-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Select Time</span>
+                  </label>
+                  <input 
+                    type="time"
+                    value={formData.followUpTime}
+                    onChange={e => setFormData({ ...formData, followUpTime: e.target.value })}
+                    className="w-full h-11 sm:h-12 px-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 5: REMARKS */}
+            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">REMARKS</h3>
+                  <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
+                    Initial context, notes from call, or specific client requirements.
+                  </p>
+                </div>
+                <span className="font-mono text-xs font-normal text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/80">
+                  {formData.remark.length}/1000
+                </span>
+              </div>
+
+              <div className="space-y-2">
                 <textarea 
-                  rows={3}
-                  value={formData.address}
-                  onChange={e => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Street, city, state, PIN"
-                  className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm min-h-[92px] max-h-[120px] resize-none"
-                />
-              </div>
-
-              {/* Assigned To & Lead Life Cycle */}
-              <div className="md:col-span-1 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Assigned To
-                </label>
-                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                  <select 
-                    value={formData.assignedUserId}
-                    onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
-                    className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
-                  >
-                    <option value={identity.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{identity.name || identity.email}</option>
-                    {managedUsers.map(u => (
-                      <option key={u.id} value={u.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{u.name || u.email}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="md:col-span-1 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Lead Life Cycle
-                </label>
-                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                  <select 
-                    value={formData.lifecycleStage}
-                    onChange={e => setFormData({ ...formData, lifecycleStage: e.target.value })}
-                    className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
-                  >
-                    <option value="Lead" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Lead</option>
-                    <option value="Marketing Qualified Lead" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Marketing Qualified Lead</option>
-                    <option value="Sales Qualified Lead" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Sales Qualified Lead</option>
-                    <option value="Opportunity" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Opportunity</option>
-                    <option value="Customer" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Customer</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Stage Dropdown */}
-              <div className="md:col-span-2 space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Stage
-                </label>
-                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                  <select 
-                    value={formData.status}
-                    onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
-                  >
-                    <option value="NEW" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">New</option>
-                    <option value="CONTACTED" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Contacted</option>
-                    <option value="INTERESTED" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Interested</option>
-                    <option value="FOLLOW_UP" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Follow Up</option>
-                    <option value="QUALIFIED" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Qualified</option>
-                    <option value="PROPOSAL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Proposal</option>
-                    <option value="WON" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Won</option>
-                    <option value="LOST" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Lost</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 2: REMARKS HISTORY */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Remarks History</h3>
-                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                  Initial notes about this lead.
-                </p>
-              </div>
-              <span className="font-mono text-xs font-normal text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/80">
-                {formData.remark.length}/1000
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <textarea 
-                rows={4}
-                maxLength={1000}
-                value={formData.remark}
-                onChange={e => setFormData({ ...formData, remark: e.target.value })}
-                placeholder="Add specific context, notes from call, or client requirements..."
-                className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px] sm:min-h-[125px] resize-none shadow-sm"
-              />
-            </div>
-          </div>
-
-          {/* CARD 3: FOLLOW-UP */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Follow-up</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                Keep the next touchpoint visible directly in the leads table.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Next Follow-up</label>
-                <input 
-                  type="datetime-local"
-                  value={formData.followUpDate}
-                  onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
-                  className="w-full h-11 sm:h-12 px-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Follow-up Type</label>
-                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                  <select 
-                    value={formData.followUpType}
-                    onChange={e => setFormData({ ...formData, followUpType: e.target.value })}
-                    className="w-full h-full px-3.5 appearance-none bg-transparent text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
-                  >
-                    <option value="Call" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Call</option>
-                    <option value="WhatsApp" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">WhatsApp</option>
-                    <option value="Email" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Email</option>
-                    <option value="Meeting" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Meeting</option>
-                    <option value="Other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Other</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Follow-up Note</label>
-                <input 
-                  type="text"
-                  value={formData.followUpNote}
-                  onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
-                  placeholder="Call back regarding proposal..."
-                  className="w-full h-11 sm:h-12 px-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
+                  rows={4}
+                  maxLength={1000}
+                  value={formData.remark}
+                  onChange={e => setFormData({ ...formData, remark: e.target.value })}
+                  placeholder="Add initial remarks or client notes..."
+                  className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px] sm:min-h-[125px] resize-none shadow-sm"
                 />
               </div>
             </div>
-          </div>
-
-          {/* CARD 4: PRODUCT SELECTION */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Product Selection</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                Selected products calculate total lead value automatically.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm w-full sm:flex-1 min-w-0">
-                <select 
-                  value={selectedProductIdToAdd}
-                  onChange={e => setSelectedProductIdToAdd(e.target.value)}
-                  className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9 min-w-0"
-                >
-                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select a product to add...</option>
-                  {availableProducts.map(p => (
-                    <option key={p.id} value={p.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      {p.name || p.title} (₹{Math.round((p.price_minor || 100000) / 100)})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-              </div>
-
-              <button 
-                type="button"
-                onClick={handleAddProduct}
-                disabled={!selectedProductIdToAdd}
-                className="w-full sm:w-auto h-11 sm:h-12 px-5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-sm transition-all disabled:opacity-40 flex-shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Product</span>
-              </button>
-            </div>
-
-            {selectedProducts.length > 0 ? (
-              <div className="border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800/80 uppercase text-[10px] tracking-wider">
-                      <th className="px-4 py-3">Product Name</th>
-                      <th className="px-4 py-3">Qty</th>
-                      <th className="px-4 py-3">Unit Price</th>
-                      <th className="px-4 py-3">Subtotal</th>
-                      <th className="px-4 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium text-slate-900 dark:text-slate-100">
-                    {selectedProducts.map(p => (
-                      <tr key={p.id} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-slate-100">{p.name}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center space-x-1.5">
-                            <button 
-                              type="button" 
-                              onClick={() => handleUpdateQuantity(p.id, p.quantity - 1)}
-                              className="w-6 h-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                              -
-                            </button>
-                            <span className="w-6 text-center font-bold text-slate-900 dark:text-slate-100">{p.quantity}</span>
-                            <button 
-                              type="button" 
-                              onClick={() => handleUpdateQuantity(p.id, p.quantity + 1)}
-                              className="w-6 h-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">₹{p.unitPrice}</td>
-                        <td className="px-4 py-3 font-bold text-emerald-600 dark:text-emerald-400">₹{p.unitPrice * p.quantity}</td>
-                        <td className="px-4 py-3 text-right">
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveProduct(p.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-4 text-center text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-[#070E1A] border border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl">
-                No products added yet. Select a product above to automatically calculate deal value.
-              </div>
-            )}
-          </div>
-
-          {/* CARD 5: PAYMENT INFORMATION */}
-          <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">Payment Information</h3>
-              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                Agreed revenue terms, advance deposits, and balance calculations.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Total Amount (₹)</label>
-                <input 
-                  type="number"
-                  min={0}
-                  readOnly={selectedProducts.length > 0}
-                  value={selectedProducts.length > 0 ? calculatedTotalAmount : manualTotalAmount}
-                  onChange={e => {
-                    if (selectedProducts.length === 0) {
-                      const val = e.target.value === "" ? "" : Math.max(0, Number(e.target.value));
-                      setManualTotalAmount(val);
-                    }
-                  }}
-                  placeholder="0"
-                  className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none shadow-sm"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Advance Payments (₹)</label>
-                <input 
-                  type="number"
-                  min={0}
-                  value={formData.advanceAmount}
-                  onChange={e => setFormData({ ...formData, advanceAmount: Number(e.target.value) })}
-                  placeholder="0"
-                  className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">Balance Amount (₹)</label>
-                <div className="h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm flex items-center justify-between shadow-sm">
-                  <span>Remaining:</span>
-                  <span>₹{balanceAmount.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           </div>
         </form>
 
-        {/* 3. STICKY ACTION FOOTER */}
+        {/* FIXED STICKY ACTION FOOTER */}
         <div className="flex-shrink-0 px-8 sm:px-9 md:px-10 py-4 sm:py-5 bg-white/95 dark:bg-[#0D1726]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20 sticky bottom-0">
           <span className="hidden sm:inline-block text-xs font-medium text-slate-400 dark:text-slate-500">
             Press Esc to dismiss
@@ -783,12 +837,12 @@ export default function AddLeadDrawer({ isOpen, onClose, onSuccess, identity }: 
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Creating Lead...</span>
+                  <span>{isEdit ? "Saving..." : "Creating Lead..."}</span>
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4 stroke-[2.5]" />
-                  <span>Create Lead</span>
+                  <span>{isEdit ? "Save Changes" : "Create Lead"}</span>
                 </>
               )}
             </button>

@@ -10,6 +10,7 @@ import {
   ArrowUpDown,
   MoreVertical,
   Eye,
+  Edit2,
   Trash2,
   Users
 } from "lucide-react";
@@ -35,6 +36,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
   // UI State
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
@@ -408,6 +410,13 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                                 <span>View Details</span>
                               </button>
                               <button
+                                onClick={() => setEditingLead(lead)}
+                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-secondary,#F8FAFC)] flex items-center space-x-2 text-emerald-600 dark:text-emerald-400"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Edit Lead</span>
+                              </button>
+                              <button
                                 onClick={() => handleDeleteLead(lead.id)}
                                 className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 flex items-center space-x-2"
                               >
@@ -430,10 +439,22 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
       {/* Drawers */}
       <AddLeadDrawer
         isOpen={isAddOpen}
+        mode="create"
         onClose={() => setIsAddOpen(false)}
         onSuccess={() => { setIsAddOpen(false); fetchLeads(); }}
         identity={identity}
       />
+
+      {editingLead && (
+        <AddLeadDrawer
+          isOpen={!!editingLead}
+          mode="edit"
+          leadData={editingLead}
+          onClose={() => setEditingLead(null)}
+          onSuccess={() => { setEditingLead(null); fetchLeads(); }}
+          identity={identity}
+        />
+      )}
 
       {selectedLeadId && (
         <LeadDetailsDrawer
