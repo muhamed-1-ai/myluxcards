@@ -584,7 +584,7 @@ export function CalendarConfig() {
             </p>
           </div>
 
-          {/* Nav Controls: < August 2026 > + Today Button */}
+          {/* Nav Controls: < August 2026 > + Month Button */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#181924", border: "1px solid rgba(255, 255, 255, 0.08)", padding: 4, borderRadius: 10 }}>
             <button
               type="button"
@@ -601,8 +601,9 @@ export function CalendarConfig() {
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
+              title="Go to Current Month"
             >
-              Today
+              Month
             </button>
             <button
               type="button"

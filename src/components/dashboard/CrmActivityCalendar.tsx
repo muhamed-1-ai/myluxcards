@@ -119,8 +119,9 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
             onClick={goToToday}
             className="crm-cal-btn-today"
             style={{ padding: "4px 10px", fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}
+            title="Go to Current Month"
           >
-            Today
+            Month
           </button>
           <div className="crm-cal-month-pill" style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 6px", borderRadius: 8 }}>
             <button
