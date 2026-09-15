@@ -11,6 +11,13 @@ const allowed = new Map([
   ["application/pdf", "pdf"],
 ]);
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export async function GET() {
+  return Response.json({ message: "Media API endpoint requires POST method for uploads." }, { status: 405 });
+}
+
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });

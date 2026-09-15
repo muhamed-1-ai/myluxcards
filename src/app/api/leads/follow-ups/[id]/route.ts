@@ -1,5 +1,5 @@
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
-import { completeFollowUp, rescheduleFollowUp } from "@/lib/crm";
+import { completeFollowUp, rescheduleFollowUp, cancelFollowUp } from "@/lib/crm";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
@@ -20,6 +20,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const success = await completeFollowUp(identity.id, id);
       if (!success) return Response.json({ message: "Follow-up not found or already completed." }, { status: 404 });
       return Response.json({ ok: true, message: "Follow-up completed." });
+    }
+
+    if (action === "cancel") {
+      const success = await cancelFollowUp(identity.id, id);
+      if (!success) return Response.json({ message: "Follow-up not found." }, { status: 404 });
+      return Response.json({ ok: true, message: "Follow-up cancelled." });
     }
 
     if (action === "reschedule") {

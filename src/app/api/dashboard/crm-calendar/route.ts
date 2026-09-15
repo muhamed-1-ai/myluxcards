@@ -12,9 +12,10 @@ export async function GET(request: Request) {
   const defaultYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const yearMonth = searchParams.get("month") || defaultYearMonth;
   const dateStr = searchParams.get("date") || undefined;
+  const ownership = searchParams.get("ownership") || "MY";
 
   try {
-    const data = await getCrmCalendarData(identity.id, yearMonth, dateStr);
+    const data = await getCrmCalendarData(identity.id, yearMonth, dateStr, ownership, identity.role);
     return Response.json(data);
   } catch (error) {
     console.error("[CRM Calendar API] Error:", error);

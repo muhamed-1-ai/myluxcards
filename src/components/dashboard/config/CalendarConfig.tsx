@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -19,14 +19,21 @@ import {
   Check,
   RotateCcw,
   Sparkles,
+  MapPin,
+  Video,
+  List,
+  Grid,
+  MoreHorizontal,
+  CalendarDays,
+  Loader2,
 } from "lucide-react";
 
 export interface LeadOption {
   id: string;
   name: string;
-  company?: string;
-  phone?: string;
-  email?: string;
+  companyName?: string | null;
+  contactNumber?: string;
+  email?: string | null;
   stageKey: string;
   stageColor: string;
 }
@@ -35,200 +42,302 @@ export interface FollowUpEvent {
   id: string;
   leadId: string;
   leadName: string;
-  leadCompany?: string;
+  leadCompany?: string | null;
+  contactNumber?: string | null;
+  leadEmail?: string | null;
   type: "CALL" | "VISIT" | "MEETING";
   scheduledAt: string; // ISO string
-  description?: string;
+  description?: string | null;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
-  completedAt?: string;
+  completedAt?: string | null;
   stageShortForm?: string;
   stageColor?: string;
   createdBy: string;
-  createdAt: string;
+  ownerUserId?: string;
+  createdAt?: string;
 }
 
-const INITIAL_LEADS: LeadOption[] = [
-  { id: "lead-101", name: "Rahul Nair", company: "Apex Technologies", phone: "+91 98765 43210", email: "rahul@apex.com", stageKey: "FOLLOW_UP", stageColor: "#F59E0B" },
-  { id: "lead-102", name: "Ananya Sharma", company: "Vanguard Design", phone: "+91 98123 45678", email: "ananya@vanguard.in", stageKey: "INTERESTED", stageColor: "#EC4899" },
-  { id: "lead-103", name: "Vikram Malhotra", company: "Luxury Living Ltd", phone: "+91 99887 76655", email: "vikram@luxliving.com", stageKey: "NEW", stageColor: "#0066FF" },
-  { id: "lead-104", name: "Priya Patel", company: "Starlight Digital", phone: "+91 97654 32109", email: "priya@starlight.io", stageKey: "CONTACTED", stageColor: "#3B82F6" },
-  { id: "lead-105", name: "Siddharth Rao", company: "Matrix Systems", phone: "+91 98989 89898", email: "siddharth@matrix.com", stageKey: "WON", stageColor: "#10B981" },
-];
+// Stage color map helper
+const getStageColor = (stage?: string): string => {
+  switch (stage) {
+    case "NEW":
+      return "#0066FF";
+    case "CONTACTED":
+      return "#3B82F6";
+    case "INTERESTED":
+      return "#EC4899";
+    case "FOLLOW_UP":
+      return "#F59E0B";
+    case "WON":
+      return "#10B981";
+    case "LOST":
+      return "#EF4444";
+    default:
+      return "#0066FF";
+  }
+};
 
-const INITIAL_FOLLOWUPS: FollowUpEvent[] = [
-  {
-    id: "fw-1",
-    leadId: "lead-101",
-    leadName: "Rahul Nair",
-    leadCompany: "Apex Technologies",
-    type: "CALL",
-    scheduledAt: "2026-08-31T10:30:00.000Z",
-    description: "Call regarding 24k Gold Executive Card bulk pricing",
-    status: "SCHEDULED",
-    stageShortForm: "FU",
-    stageColor: "#F59E0B",
-    createdBy: "Muhammed Febin",
-    createdAt: "2026-08-25T09:00:00.000Z",
-  },
-  {
-    id: "fw-2",
-    leadId: "lead-102",
-    leadName: "Ananya Sharma",
-    leadCompany: "Vanguard Design",
-    type: "MEETING",
-    scheduledAt: "2026-08-31T14:00:00.000Z",
-    description: "In-person product demo of Metal NFC Cards",
-    status: "SCHEDULED",
-    stageShortForm: "INT",
-    stageColor: "#EC4899",
-    createdBy: "Muhammed Febin",
-    createdAt: "2026-08-26T11:20:00.000Z",
-  },
-  {
-    id: "fw-3",
-    leadId: "lead-104",
-    leadName: "Priya Patel",
-    leadCompany: "Starlight Digital",
-    type: "VISIT",
-    scheduledAt: "2026-08-28T11:00:00.000Z",
-    description: "Office visit for sample card presentation",
-    status: "COMPLETED",
-    completedAt: "2026-08-28T11:45:00.000Z",
-    stageShortForm: "CNT",
-    stageColor: "#3B82F6",
-    createdBy: "Muhammed Febin",
-    createdAt: "2026-08-20T15:30:00.000Z",
-  },
-  {
-    id: "fw-4",
-    leadId: "lead-103",
-    leadName: "Vikram Malhotra",
-    leadCompany: "Luxury Living Ltd",
-    type: "CALL",
-    scheduledAt: "2026-08-25T16:30:00.000Z",
-    description: "Follow up on initial NFC QR proposal",
-    status: "SCHEDULED",
-    stageShortForm: "NEW",
-    stageColor: "#0066FF",
-    createdBy: "System",
-    createdAt: "2026-08-18T10:00:00.000Z",
-  },
-  {
-    id: "fw-5",
-    leadId: "lead-105",
-    leadName: "Siddharth Rao",
-    leadCompany: "Matrix Systems",
-    type: "CALL",
-    scheduledAt: "2026-09-02T11:30:00.000Z",
-    description: "Post-onboarding check-in for digital profile activation",
-    status: "SCHEDULED",
-    stageShortForm: "WON",
-    stageColor: "#10B981",
-    createdBy: "Muhammed Febin",
-    createdAt: "2026-08-29T14:00:00.000Z",
-  },
-];
+const getStageShortForm = (stage?: string): string => {
+  switch (stage) {
+    case "NEW":
+      return "NEW";
+    case "CONTACTED":
+      return "CNT";
+    case "INTERESTED":
+      return "INT";
+    case "FOLLOW_UP":
+      return "FU";
+    case "WON":
+      return "WON";
+    case "LOST":
+      return "LST";
+    default:
+      return "LEAD";
+  }
+};
 
-const LOCAL_STORAGE_KEY = "myluxcards_calendar_followups_v1";
+// Local timezone helpers
+const getLocalDateString = (input: Date | string): string => {
+  const d = typeof input === "string" ? new Date(input) : input;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatLocalTime = (input: Date | string): string => {
+  try {
+    const d = typeof input === "string" ? new Date(input) : input;
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  } catch {
+    return "10:30 AM";
+  }
+};
+
+const createISOFromLocal = (dateStr: string, timeStr: string): string => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return localDate.toISOString();
+};
 
 export function CalendarConfig() {
-  const [followUps, setFollowUps] = useState<FollowUpEvent[]>(INITIAL_FOLLOWUPS);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Active Date / View State (Default to August 2026 for demonstration matching prompt)
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // August 2026
+  // Navigation & Date State
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeView, setActiveView] = useState<"MONTH" | "WEEK" | "DAY" | "LIST">("MONTH");
-  const [eventTypeFilter, setEventTypeFilter] = useState<"ALL" | "FOLLOWUPS" | "ENTRIES" | "COMPLETED" | "OVERDUE">("FOLLOWUPS");
+  const [eventTypeFilter, setEventTypeFilter] = useState<"ALL" | "SCHEDULED" | "COMPLETED" | "OVERDUE" | "CALL" | "VISIT" | "MEETING">("ALL");
   const [ownershipFilter, setOwnershipFilter] = useState<"MY" | "ALL">("MY");
 
-  // Modal & Form States
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: string; events: FollowUpEvent[] } | null>(null);
+  // Data States
+  const [followUps, setFollowUps] = useState<FollowUpEvent[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string>("");
+
+  // Modal States
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [activeEventDetail, setActiveEventDetail] = useState<FollowUpEvent | null>(null);
 
-  // Form Fields State
+  // Reschedule Form State
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+
+  // Schedule Modal Form States
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
+  const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
+  const [isSearchingLeads, setIsSearchingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadOption | null>(null);
   const [followUpType, setFollowUpType] = useState<"CALL" | "VISIT" | "MEETING">("CALL");
-  const [scheduledDateStr, setScheduledDateStr] = useState("2026-08-31");
+  const [scheduledDateStr, setScheduledDateStr] = useState(getLocalDateString(new Date()));
   const [scheduledTimeStr, setScheduledTimeStr] = useState("10:30");
   const [descriptionText, setDescriptionText] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // Load from localStorage on mount
-  useEffect(() => {
+  // List View Search
+  const [listSearchQuery, setListSearchQuery] = useState("");
+
+  const yearMonthStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}`;
+
+  // Fetch Calendar Data from DB API
+  const fetchCalendarEvents = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFollowUps(parsed);
-        }
+      const res = await fetch(`/api/dashboard/crm-calendar?month=${yearMonthStr}&ownership=${ownershipFilter}`);
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && Array.isArray(data.followUps)) {
+        const parsed: FollowUpEvent[] = data.followUps.map((item: any) => {
+          const rawDesc = String(item.description || item.note || "");
+          let type: "CALL" | "VISIT" | "MEETING" = "CALL";
+          let cleanDesc = rawDesc;
+
+          if (rawDesc.startsWith("[VISIT]")) {
+            type = "VISIT";
+            cleanDesc = rawDesc.replace(/^\[VISIT\]\s*/, "");
+          } else if (rawDesc.startsWith("[MEETING]")) {
+            type = "MEETING";
+            cleanDesc = rawDesc.replace(/^\[MEETING\]\s*/, "");
+          } else if (rawDesc.startsWith("[CALL]")) {
+            type = "CALL";
+            cleanDesc = rawDesc.replace(/^\[CALL\]\s*/, "");
+          }
+
+          const stage = item.leadStage || "NEW";
+          return {
+            id: item.id,
+            leadId: item.leadId,
+            leadName: item.leadName,
+            leadCompany: item.leadCompany,
+            contactNumber: item.contactNumber,
+            leadEmail: item.leadEmail,
+            type,
+            scheduledAt: item.scheduledAt,
+            description: cleanDesc,
+            status: item.status || "SCHEDULED",
+            completedAt: item.completedAt,
+            stageShortForm: getStageShortForm(stage),
+            stageColor: getStageColor(stage),
+            createdBy: item.createdBy || "User",
+            ownerUserId: item.ownerUserId,
+            createdAt: item.createdAt,
+          };
+        });
+        setFollowUps(parsed);
+      } else {
+        setFollowUps([]);
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      console.error("[Calendar] Error loading data:", err);
+      setLoadError("Failed to connect to follow-up database.");
+      setFollowUps([]);
     } finally {
-      setIsLoaded(true);
+      setIsLoading(false);
     }
-  }, []);
+  }, [yearMonthStr, ownershipFilter]);
 
-  // Save to localStorage when followups change
   useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(followUps));
-    } catch {
-      // Ignore storage errors
-    }
-  }, [followUps, isLoaded]);
+    void fetchCalendarEvents();
+  }, [fetchCalendarEvents]);
 
-  // Month navigation handlers
-  const handlePrevMonth = () => {
-    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
+  // Live Lead Search for Schedule Follow-Up Modal
+  useEffect(() => {
+    if (!isScheduleModalOpen) return;
+    let active = true;
 
-  const handleNextMonth = () => {
-    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
-
-  const handleToday = () => {
-    setCurrentDate(new Date(2026, 7, 31)); // Aug 31, 2026
-  };
-
-  // Month & Year Label
-  const monthYearLabel = useMemo(() => {
-    return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  }, [currentDate]);
-
-  // Filtered Follow-Ups based on event type & ownership
-  const filteredEvents = useMemo(() => {
-    const nowIso = "2026-08-31T23:59:59.000Z";
-    return followUps.filter((item) => {
-      // Ownership filter
-      if (ownershipFilter === "MY" && item.createdBy !== "Muhammed Febin" && item.createdBy !== "System") {
-        return false;
+    const searchLeadsApi = async () => {
+      setIsSearchingLeads(true);
+      try {
+        const res = await fetch(`/api/leads/search?q=${encodeURIComponent(leadSearchQuery)}&limit=15`);
+        const data = await res.json().catch(() => ({}));
+        if (active && res.ok && Array.isArray(data.leads)) {
+          const mapped: LeadOption[] = data.leads.map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            companyName: l.companyName,
+            contactNumber: l.contactNumber,
+            email: l.email,
+            stageKey: l.stage || "NEW",
+            stageColor: getStageColor(l.stage),
+          }));
+          setLeadOptions(mapped);
+        }
+      } catch {
+        if (active) setLeadOptions([]);
+      } finally {
+        if (active) setIsSearchingLeads(false);
       }
+    };
 
-      // Event Type filter
-      if (eventTypeFilter === "FOLLOWUPS" && item.status === "CANCELLED") return false;
+    const timer = setTimeout(() => {
+      void searchLeadsApi();
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [leadSearchQuery, isScheduleModalOpen]);
+
+  // Navigation Handlers
+  const handlePrev = () => {
+    setSelectedDate((prev) => {
+      const copy = new Date(prev);
+      if (activeView === "MONTH" || activeView === "LIST") {
+        copy.setMonth(copy.getMonth() - 1);
+      } else if (activeView === "WEEK") {
+        copy.setDate(copy.getDate() - 7);
+      } else if (activeView === "DAY") {
+        copy.setDate(copy.getDate() - 1);
+      }
+      return copy;
+    });
+  };
+
+  const handleNext = () => {
+    setSelectedDate((prev) => {
+      const copy = new Date(prev);
+      if (activeView === "MONTH" || activeView === "LIST") {
+        copy.setMonth(copy.getMonth() + 1);
+      } else if (activeView === "WEEK") {
+        copy.setDate(copy.getDate() + 7);
+      } else if (activeView === "DAY") {
+        copy.setDate(copy.getDate() + 1);
+      }
+      return copy;
+    });
+  };
+
+  const handleGoToToday = () => {
+    setSelectedDate(new Date());
+  };
+
+  // Title Label based on View
+  const titleHeaderLabel = useMemo(() => {
+    if (activeView === "MONTH" || activeView === "LIST") {
+      return selectedDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    } else if (activeView === "DAY") {
+      return selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+    } else {
+      // WEEK View: calculate week range Mon - Sun
+      const dayOfWeek = selectedDate.getDay();
+      const startOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monDate = new Date(selectedDate);
+      monDate.setDate(selectedDate.getDate() - startOffset);
+      const sunDate = new Date(monDate);
+      sunDate.setDate(monDate.getDate() + 6);
+
+      const monStr = monDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const sunStr = sunDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return `${monStr} – ${sunStr}`;
+    }
+  }, [selectedDate, activeView]);
+
+  // Filtered Events
+  const filteredEvents = useMemo(() => {
+    const nowIso = new Date().toISOString();
+    return followUps.filter((item) => {
+      // Status & Type Filter
+      if (eventTypeFilter === "SCHEDULED" && item.status !== "SCHEDULED") return false;
       if (eventTypeFilter === "COMPLETED" && item.status !== "COMPLETED") return false;
       if (eventTypeFilter === "OVERDUE") {
-        const isOverdue = item.status === "SCHEDULED" && item.scheduledAt < nowIso && !item.scheduledAt.startsWith("2026-08-31");
+        const isOverdue = item.status === "SCHEDULED" && item.scheduledAt < nowIso;
         if (!isOverdue) return false;
       }
-      if (eventTypeFilter === "ENTRIES") {
-        if (item.type !== "VISIT" && item.type !== "MEETING") return false;
-      }
+      if (eventTypeFilter === "CALL" && item.type !== "CALL") return false;
+      if (eventTypeFilter === "VISIT" && item.type !== "VISIT") return false;
+      if (eventTypeFilter === "MEETING" && item.type !== "MEETING") return false;
 
       return true;
     });
-  }, [followUps, eventTypeFilter, ownershipFilter]);
+  }, [followUps, eventTypeFilter]);
 
-  // Dynamic KPI Metrics for selected month view
+  // Dynamic KPI Metrics
   const metrics = useMemo(() => {
-    const activeYear = currentDate.getFullYear();
-    const activeMonth = currentDate.getMonth();
+    const nowIso = new Date().toISOString();
+    const activeYear = selectedDate.getFullYear();
+    const activeMonth = selectedDate.getMonth();
 
     const monthEvents = filteredEvents.filter((e) => {
       const d = new Date(e.scheduledAt);
@@ -237,12 +346,10 @@ export function CalendarConfig() {
 
     const stageFollowUps = monthEvents.filter((e) => e.status === "SCHEDULED").length;
     const stageEntries = monthEvents.length;
-    const overdueCount = followUps.filter(
-      (e) => e.status === "SCHEDULED" && e.scheduledAt < "2026-08-31T00:00:00.000Z"
-    ).length;
+    const overdueCount = followUps.filter((e) => e.status === "SCHEDULED" && e.scheduledAt < nowIso).length;
     const completedCount = followUps.filter((e) => e.status === "COMPLETED").length;
     const totalFinished = completedCount + overdueCount;
-    const delayRate = totalFinished > 0 ? Math.round((completedCount / totalFinished) * 100) : 94;
+    const delayRate = totalFinished > 0 ? Math.round((completedCount / totalFinished) * 100) : 100;
 
     return {
       stageFollowUps,
@@ -250,89 +357,92 @@ export function CalendarConfig() {
       overdueCount,
       delayRate: `${delayRate}% On-time`,
     };
-  }, [currentDate, filteredEvents, followUps]);
+  }, [selectedDate, filteredEvents, followUps]);
 
-  // Calendar Grid Days Calculation
+  // Month Grid Days Calculation (Monday start)
   const calendarGrid = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
 
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
 
-    // Get day of week for 1st of month (Monday = 0, Sunday = 6)
     let startDayOfWeek = firstDayOfMonth.getDay() - 1;
     if (startDayOfWeek === -1) startDayOfWeek = 6; // Sunday fix
 
     const days: { date: Date; dateStr: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
+    const todayStr = getLocalDateString(new Date());
 
     // Previous month padding days
     for (let i = startDayOfWeek; i > 0; i--) {
       const d = new Date(year, month, 1 - i);
-      const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      days.push({ date: d, dateStr: isoDate, isCurrentMonth: false, isToday: false });
+      const isoDate = getLocalDateString(d);
+      days.push({ date: d, dateStr: isoDate, isCurrentMonth: false, isToday: isoDate === todayStr });
     }
 
     // Current month days
     for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
       const d = new Date(year, month, i);
-      const isoDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
-      const isToday = isoDate === "2026-08-31";
-      days.push({ date: d, dateStr: isoDate, isCurrentMonth: true, isToday });
+      const isoDate = getLocalDateString(d);
+      days.push({ date: d, dateStr: isoDate, isCurrentMonth: true, isToday: isoDate === todayStr });
     }
 
     // Next month padding days to complete 35 or 42 grid cells
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const d = new Date(year, month + 1, i);
-      const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      days.push({ date: d, dateStr: isoDate, isCurrentMonth: false, isToday: false });
+      const isoDate = getLocalDateString(d);
+      days.push({ date: d, dateStr: isoDate, isCurrentMonth: false, isToday: isoDate === todayStr });
     }
 
     return days;
-  }, [currentDate]);
+  }, [selectedDate]);
 
   // Map events by dateStr
   const eventsByDate = useMemo(() => {
     const map: Record<string, FollowUpEvent[]> = {};
     for (const ev of filteredEvents) {
-      const datePart = ev.scheduledAt.split("T")[0];
+      const datePart = getLocalDateString(ev.scheduledAt);
       if (!map[datePart]) map[datePart] = [];
       map[datePart].push(ev);
     }
     return map;
   }, [filteredEvents]);
 
-  // Search Lead Options
-  const filteredLeadOptions = useMemo(() => {
-    if (!leadSearchQuery.trim()) return INITIAL_LEADS;
-    const q = leadSearchQuery.toLowerCase().trim();
-    return INITIAL_LEADS.filter(
-      (l) =>
-        l.name.toLowerCase().includes(q) ||
-        (l.company && l.company.toLowerCase().includes(q)) ||
-        (l.phone && l.phone.includes(q)) ||
-        (l.email && l.email.toLowerCase().includes(q))
-    );
-  }, [leadSearchQuery]);
+  // Week Grid Days Calculation
+  const weekGridDays = useMemo(() => {
+    const dayOfWeek = selectedDate.getDay();
+    const startOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monDate = new Date(selectedDate);
+    monDate.setDate(selectedDate.getDate() - startOffset);
 
-  // Handlers
+    const todayStr = getLocalDateString(new Date());
+    const days: { date: Date; dateStr: string; dayName: string; isToday: boolean }[] = [];
+    const dayNames = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monDate);
+      d.setDate(monDate.getDate() + i);
+      const dateStr = getLocalDateString(d);
+      days.push({ date: d, dateStr, dayName: dayNames[i], isToday: dateStr === todayStr });
+    }
+    return days;
+  }, [selectedDate]);
+
+  // Open Schedule Modal Handler
   const handleOpenScheduleModal = (datePrefill?: string) => {
     setSelectedLead(null);
     setLeadSearchQuery("");
     setFollowUpType("CALL");
-    if (datePrefill) {
-      setScheduledDateStr(datePrefill);
-    } else {
-      setScheduledDateStr("2026-08-31");
-    }
+    setScheduledDateStr(datePrefill || getLocalDateString(selectedDate));
     setScheduledTimeStr("10:30");
     setDescriptionText("");
     setFormError("");
-    setIsCreateModalOpen(true);
+    setIsScheduleModalOpen(true);
   };
 
-  const handleSaveFollowUp = (e: React.FormEvent) => {
+  // Submit Schedule Follow-Up Form to DB API
+  const handleSaveFollowUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
@@ -342,68 +452,106 @@ export function CalendarConfig() {
     }
 
     if (!scheduledDateStr || !scheduledTimeStr) {
-      setFormError("Please choose a valid Date and Time.");
+      setFormError("Please enter a valid Date and Time.");
       return;
     }
 
-    setIsSaving(true);
+    setIsSavingFollowUp(true);
 
-    setTimeout(() => {
-      const isoScheduled = `${scheduledDateStr}T${scheduledTimeStr}:00.000Z`;
-      const nowIso = new Date().toISOString();
-
-      const newEvent: FollowUpEvent = {
-        id: `fw-${Date.now()}`,
-        leadId: selectedLead.id,
-        leadName: selectedLead.name,
-        leadCompany: selectedLead.company,
-        type: followUpType,
-        scheduledAt: isoScheduled,
-        description: descriptionText.trim() || undefined,
-        status: "SCHEDULED",
-        stageShortForm: selectedLead.stageKey === "NEW" ? "NEW" : selectedLead.stageKey === "CONTACTED" ? "CNT" : "FU",
-        stageColor: selectedLead.stageColor || "#0066FF",
-        createdBy: "Muhammed Febin",
-        createdAt: nowIso,
-      };
-
-      setFollowUps((prev) => [newEvent, ...prev]);
-      setIsSaving(false);
-      setIsCreateModalOpen(false);
-    }, 200);
-  };
-
-  const handleCompleteEvent = (eventId: string) => {
-    const nowIso = new Date().toISOString();
-    setFollowUps((prev) =>
-      prev.map((item) =>
-        item.id === eventId
-          ? { ...item, status: "COMPLETED", completedAt: nowIso }
-          : item
-      )
-    );
-    setActiveEventDetail(null);
-  };
-
-  const handleCancelEvent = (eventId: string) => {
-    setFollowUps((prev) =>
-      prev.map((item) =>
-        item.id === eventId
-          ? { ...item, status: "CANCELLED" }
-          : item
-      )
-    );
-    setActiveEventDetail(null);
-  };
-
-  const formatTimeStr = (isoStr: string) => {
     try {
-      const d = new Date(isoStr);
-      return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-    } catch {
-      return "10:30 AM";
+      const isoScheduled = createISOFromLocal(scheduledDateStr, scheduledTimeStr);
+      const fullNote = `[${followUpType}] ${descriptionText.trim()}`;
+
+      const res = await fetch(`/api/leads/${selectedLead.id}/follow-ups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledAt: isoScheduled,
+          note: fullNote,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.ok) {
+        setIsScheduleModalOpen(false);
+        await fetchCalendarEvents();
+      } else {
+        setFormError(data.message || "Failed to schedule follow-up.");
+      }
+    } catch (err: any) {
+      console.error("[Schedule Follow-Up] Submit Error:", err);
+      setFormError("Network error. Please try again.");
+    } finally {
+      setIsSavingFollowUp(false);
     }
   };
+
+  // Action: Mark Complete
+  const handleCompleteEvent = async (eventId: string) => {
+    try {
+      const res = await fetch(`/api/leads/follow-ups/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete" }),
+      });
+      if (res.ok) {
+        setActiveEventDetail(null);
+        await fetchCalendarEvents();
+      }
+    } catch (err) {
+      console.error("Failed to complete event:", err);
+    }
+  };
+
+  // Action: Cancel Event
+  const handleCancelEvent = async (eventId: string) => {
+    try {
+      const res = await fetch(`/api/leads/follow-ups/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      if (res.ok) {
+        setActiveEventDetail(null);
+        await fetchCalendarEvents();
+      }
+    } catch (err) {
+      console.error("Failed to cancel event:", err);
+    }
+  };
+
+  // Action: Reschedule Event
+  const handleRescheduleEvent = async (eventId: string) => {
+    if (!rescheduleDate || !rescheduleTime) return;
+    try {
+      const isoScheduled = createISOFromLocal(rescheduleDate, rescheduleTime);
+      const res = await fetch(`/api/leads/follow-ups/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reschedule", scheduledAt: isoScheduled }),
+      });
+      if (res.ok) {
+        setIsRescheduling(false);
+        setActiveEventDetail(null);
+        await fetchCalendarEvents();
+      }
+    } catch (err) {
+      console.error("Failed to reschedule event:", err);
+    }
+  };
+
+  // Filtered List View Events
+  const listViewEvents = useMemo(() => {
+    if (!listSearchQuery.trim()) return filteredEvents;
+    const q = listSearchQuery.toLowerCase().trim();
+    return filteredEvents.filter(
+      (e) =>
+        e.leadName.toLowerCase().includes(q) ||
+        (e.leadCompany && e.leadCompany.toLowerCase().includes(q)) ||
+        (e.description && e.description.toLowerCase().includes(q))
+    );
+  }, [filteredEvents, listSearchQuery]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%", maxWidth: 1400, margin: "0 auto", paddingBottom: 40 }}>
@@ -429,18 +577,18 @@ export function CalendarConfig() {
               CALENDAR LEADS VIEW
             </div>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: "#FFF", margin: "2px 0 0", fontFamily: "Inter, system-ui, sans-serif" }}>
-              {monthYearLabel}
+              {titleHeaderLabel}
             </h1>
             <p style={{ fontSize: 12, color: "#94A3B8", margin: "2px 0 0" }}>
               Track pending and completed Follow-Ups with a calendar-first workflow.
             </p>
           </div>
 
-          {/* Today & Arrows */}
+          {/* Nav Controls: < August 2026 > + Today Button */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#181924", border: "1px solid rgba(255, 255, 255, 0.08)", padding: 4, borderRadius: 10 }}>
             <button
               type="button"
-              onClick={handleToday}
+              onClick={handleGoToToday}
               style={{
                 height: 32,
                 padding: "0 14px",
@@ -451,13 +599,14 @@ export function CalendarConfig() {
                 background: "#0066FF",
                 color: "#08080A",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               Today
             </button>
             <button
               type="button"
-              onClick={handlePrevMonth}
+              onClick={handlePrev}
               style={{
                 width: 32,
                 height: 32,
@@ -470,12 +619,13 @@ export function CalendarConfig() {
                 alignItems: "center",
                 justifyContent: "center",
               }}
+              title="Previous"
             >
               <ChevronLeft style={{ width: 16, height: 16 }} />
             </button>
             <button
               type="button"
-              onClick={handleNextMonth}
+              onClick={handleNext}
               style={{
                 width: 32,
                 height: 32,
@@ -488,6 +638,7 @@ export function CalendarConfig() {
                 alignItems: "center",
                 justifyContent: "center",
               }}
+              title="Next"
             >
               <ChevronRight style={{ width: 16, height: 16 }} />
             </button>
@@ -516,6 +667,7 @@ export function CalendarConfig() {
                     background: isActive ? "#0066FF" : "transparent",
                     color: isActive ? "#08080A" : "#8E8EA0",
                     cursor: "pointer",
+                    transition: "all 0.15s ease",
                   }}
                 >
                   {label}
@@ -541,11 +693,13 @@ export function CalendarConfig() {
               cursor: "pointer",
             }}
           >
-            <option value="FOLLOWUPS">Follow-Ups</option>
-            <option value="ALL">All Activities</option>
-            <option value="ENTRIES">Lead Stage Entries</option>
-            <option value="COMPLETED">Completed Follow-Ups</option>
+            <option value="ALL">All Follow-Ups</option>
+            <option value="SCHEDULED">Scheduled Only</option>
+            <option value="COMPLETED">Completed Only</option>
             <option value="OVERDUE">Overdue Tasks</option>
+            <option value="CALL">Calls Only</option>
+            <option value="VISIT">Visits Only</option>
+            <option value="MEETING">Meetings Only</option>
           </select>
 
           {/* Ownership Filter */}
@@ -588,14 +742,6 @@ export function CalendarConfig() {
               cursor: "pointer",
               boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
               transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#E6C200";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#0066FF";
-              e.currentTarget.style.transform = "translateY(0)";
             }}
           >
             <Plus style={{ width: 18, height: 18, strokeWidth: 3 }} />
@@ -717,7 +863,7 @@ export function CalendarConfig() {
         </div>
       </div>
 
-      {/* 3. MONTH CALENDAR GRID */}
+      {/* 3. CALENDAR CONTENT CONTAINER */}
       <div
         style={{
           background: "#12131A",
@@ -725,135 +871,478 @@ export function CalendarConfig() {
           borderRadius: 18,
           padding: 20,
           boxShadow: "0 8px 28px rgba(0, 0, 0, 0.35)",
+          position: "relative",
+          minHeight: 500,
         }}
       >
-        {/* DAY HEADERS (MON, TUE, WED, THU, FRI, SAT, SUN) */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1, marginBottom: 8, textAlign: "center" }}>
-          {(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const).map((dayName) => (
-            <div key={dayName} style={{ padding: "10px 0", fontSize: 11, fontWeight: 800, color: "#0066FF", letterSpacing: "0.06em" }}>
-              {dayName}
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 10,
+              background: "rgba(18, 19, 26, 0.6)",
+              backdropFilter: "blur(2px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 18,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0066FF", fontWeight: 700, fontSize: 14 }}>
+              <Loader2 className="animate-spin" style={{ width: 22, height: 22 }} />
+              Loading follow-ups...
             </div>
-          ))}
-        </div>
+          </div>
+        )}
 
-        {/* 7-COLUMN MONTH GRID */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
-          {calendarGrid.map((dayItem, gridIdx) => {
-            const dayEvents = eventsByDate[dayItem.dateStr] || [];
-            const isToday = dayItem.isToday;
+        {/* VIEW 1: MONTH GRID VIEW */}
+        {activeView === "MONTH" && (
+          <div>
+            {/* WEEKDAY HEADERS (MON, TUE, WED, THU, FRI, SAT, SUN) */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 8, marginBottom: 8, textAlign: "center", width: "100%" }}>
+              {(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const).map((dayName) => (
+                <div key={dayName} style={{ padding: "10px 0", fontSize: 11, fontWeight: 800, color: "#0066FF", letterSpacing: "0.06em", minWidth: 0 }}>
+                  {dayName}
+                </div>
+              ))}
+            </div>
 
-            return (
-              <div
-                key={`cell-${dayItem.dateStr}-${dayItem.isCurrentMonth ? "curr" : "pad"}-${gridIdx}`}
-                style={{
-                  minHeight: 140,
-                  background: dayItem.isCurrentMonth ? "#181924" : "rgba(18, 19, 26, 0.5)",
-                  border: isToday ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.06)",
-                  borderRadius: 12,
-                  padding: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  transition: "all 0.15s ease",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (dayEvents.length > 0) {
-                    setSelectedDayEvents({ date: dayItem.dateStr, events: dayEvents });
-                  } else {
-                    handleOpenScheduleModal(dayItem.dateStr);
-                  }
-                }}
-                onMouseEnter={(e) => {
-                  if (dayItem.isCurrentMonth) e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  if (dayItem.isCurrentMonth && !isToday) e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
-                }}
-              >
-                {/* Date Cell Top Number */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span
+            {/* 7-COLUMN MONTH GRID */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 8, width: "100%" }}>
+              {calendarGrid.map((dayItem, gridIdx) => {
+                const dayEvents = eventsByDate[dayItem.dateStr] || [];
+                const isToday = dayItem.isToday;
+                const nowIso = new Date().toISOString();
+
+                return (
+                  <div
+                    key={`cell-${dayItem.dateStr}-${gridIdx}`}
                     style={{
-                      fontSize: 13,
-                      fontWeight: isToday ? 900 : 700,
-                      color: isToday ? "#0066FF" : dayItem.isCurrentMonth ? "#FFFFFF" : "#64748B",
-                      background: isToday ? "rgba(0, 229, 255, 0.15)" : "transparent",
-                      width: 24,
-                      height: 24,
-                      borderRadius: "50%",
+                      minHeight: 140,
+                      minWidth: 0,
+                      background: dayItem.isCurrentMonth ? "#181924" : "rgba(18, 19, 26, 0.4)",
+                      border: isToday ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.06)",
+                      borderRadius: 12,
+                      padding: 10,
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      transition: "all 0.15s ease",
+                      cursor: "pointer",
+                      overflow: "hidden",
+                    }}
+                    onClick={() => {
+                      if (dayEvents.length > 0) {
+                        setSelectedDate(dayItem.date);
+                        setActiveView("DAY");
+                      } else {
+                        handleOpenScheduleModal(dayItem.dateStr);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (dayItem.isCurrentMonth) e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (dayItem.isCurrentMonth && !isToday) e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
                     }}
                   >
-                    {dayItem.date.getDate()}
-                  </span>
+                    {/* Date Cell Top Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: isToday ? 900 : 700,
+                          color: isToday ? "#0066FF" : dayItem.isCurrentMonth ? "#FFFFFF" : "#64748B",
+                          background: isToday ? "rgba(0, 229, 255, 0.15)" : "transparent",
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {dayItem.date.getDate()}
+                      </span>
 
-                  {dayEvents.length > 0 && (
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.15)", padding: "1px 6px", borderRadius: 10 }}>
-                      {dayEvents.length}
-                    </span>
-                  )}
-                </div>
+                      {dayEvents.length > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.15)", padding: "1px 6px", borderRadius: 10, flexShrink: 0 }}>
+                          {dayEvents.length}
+                        </span>
+                      )}
+                    </div>
 
-                {/* Event Chips (Up to 3) */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "6px 0", flex: 1, overflow: "hidden" }}>
-                  {dayEvents.slice(0, 3).map((ev) => {
-                    const isOverdue = ev.status === "SCHEDULED" && ev.scheduledAt < "2026-08-31T00:00:00.000Z";
+                    {/* Event Chips (Up to 3 visible) */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "6px 0", flex: 1, overflow: "hidden", minWidth: 0 }}>
+                      {dayEvents.slice(0, 3).map((ev) => {
+                        const isOverdue = ev.status === "SCHEDULED" && ev.scheduledAt < nowIso;
+                        return (
+                          <div
+                            key={ev.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveEventDetail(ev);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 6,
+                              background: ev.status === "COMPLETED" ? "rgba(16,185,129,0.15)" : isOverdue ? "rgba(239,68,68,0.15)" : "rgba(0, 229, 255,0.12)",
+                              border: `1px solid ${ev.stageColor || "#0066FF"}40`,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#FFF",
+                              minWidth: 0,
+                              overflow: "hidden",
+                            }}
+                            title={`${ev.type}: ${ev.leadName} (${formatLocalTime(ev.scheduledAt)})`}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: ev.stageColor || "#0066FF", flexShrink: 0 }} />
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                                {ev.type} · {ev.leadName}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 10, color: "#94A3B8", flexShrink: 0 }}>
+                              {formatLocalTime(ev.scheduledAt)}
+                            </span>
+                          </div>
+                        );
+                      })}
+
+                      {dayEvents.length > 3 && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDate(dayItem.date);
+                            setActiveView("DAY");
+                          }}
+                          style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textAlign: "center", padding: "2px 0", cursor: "pointer" }}
+                        >
+                          +{dayEvents.length - 3} more
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Date Cell Bottom Plus Hint */}
+                    <div
+                      style={{ fontSize: 10, color: "#64748B", textAlign: "right", opacity: 0.6 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenScheduleModal(dayItem.dateStr);
+                      }}
+                    >
+                      + Add task
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 2: WEEK VIEW */}
+        {activeView === "WEEK" && (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 10, width: "100%" }}>
+              {weekGridDays.map((wDay) => {
+                const dayEvents = eventsByDate[wDay.dateStr] || [];
+                const nowIso = new Date().toISOString();
+
+                return (
+                  <div
+                    key={wDay.dateStr}
+                    style={{
+                      background: "#181924",
+                      border: wDay.isToday ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: 14,
+                      padding: 12,
+                      minHeight: 450,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                      minWidth: 0,
+                    }}
+                  >
+                    {/* Header for Day in Week */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 8 }}>
+                      <div>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: wDay.isToday ? "#0066FF" : "#94A3B8" }}>{wDay.dayName}</span>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#FFF" }}>{wDay.date.getDate()}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenScheduleModal(wDay.dateStr)}
+                        style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(0, 229, 255, 0.15)", border: "none", color: "#0066FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Plus style={{ width: 14, height: 14 }} />
+                      </button>
+                    </div>
+
+                    {/* Events List for Day */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
+                      {dayEvents.length === 0 ? (
+                        <div style={{ fontSize: 11, color: "#64748B", textAlign: "center", marginTop: 20 }}>No tasks scheduled</div>
+                      ) : (
+                        dayEvents.map((ev) => {
+                          const isOverdue = ev.status === "SCHEDULED" && ev.scheduledAt < nowIso;
+                          return (
+                            <div
+                              key={ev.id}
+                              onClick={() => setActiveEventDetail(ev)}
+                              style={{
+                                background: "rgba(18, 19, 26, 0.7)",
+                                border: `1px solid ${ev.stageColor || "#0066FF"}40`,
+                                borderRadius: 8,
+                                padding: 10,
+                                cursor: "pointer",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: 10, fontWeight: 800, color: ev.stageColor || "#0066FF", background: `${ev.stageColor || "#0066FF"}20`, padding: "2px 6px", borderRadius: 4 }}>
+                                  {ev.type}
+                                </span>
+                                <span style={{ fontSize: 11, color: "#94A3B8" }}>{formatLocalTime(ev.scheduledAt)}</span>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {ev.leadName}
+                              </div>
+                              {ev.leadCompany && <div style={{ fontSize: 11, color: "#94A3B8" }}>{ev.leadCompany}</div>}
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: ev.status === "COMPLETED" ? "#10B981" : isOverdue ? "#EF4444" : "#0066FF" }}>
+                                  {isOverdue ? "OVERDUE" : ev.status}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: DAY VIEW */}
+        {activeView === "DAY" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#181924", padding: 16, borderRadius: 12 }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase" }}>DAY SCHEDULE</span>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
+                  {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenScheduleModal(getLocalDateString(selectedDate))}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "#0066FF", color: "#08080A", fontWeight: 800, borderRadius: 8, border: "none", cursor: "pointer" }}
+              >
+                <Plus style={{ width: 16, height: 16 }} />
+                Add Follow-Up
+              </button>
+            </div>
+
+            {/* Day Events List */}
+            {(() => {
+              const dayStr = getLocalDateString(selectedDate);
+              const dayEvents = eventsByDate[dayStr] || [];
+              const nowIso = new Date().toISOString();
+
+              if (dayEvents.length === 0) {
+                return (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#94A3B8" }}>
+                    <CalendarIcon style={{ width: 40, height: 40, color: "#64748B", margin: "0 auto 12px" }} />
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#FFF", margin: 0 }}>No follow-ups scheduled for this day</h3>
+                    <p style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>Click "Add Follow-Up" to schedule a new call, visit, or meeting.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {dayEvents.map((ev) => {
+                    const isOverdue = ev.status === "SCHEDULED" && ev.scheduledAt < nowIso;
                     return (
                       <div
                         key={ev.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveEventDetail(ev);
-                        }}
+                        onClick={() => setActiveEventDetail(ev)}
                         style={{
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          gap: 6,
-                          background: ev.status === "COMPLETED" ? "rgba(16,185,129,0.15)" : isOverdue ? "rgba(239,68,68,0.15)" : "rgba(0, 229, 255,0.12)",
+                          padding: 16,
+                          background: "#181924",
                           border: `1px solid ${ev.stageColor || "#0066FF"}40`,
-                          padding: "4px 8px",
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#FFF",
+                          borderRadius: 12,
+                          cursor: "pointer",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", whiteSpace: "nowrap" }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: ev.stageColor || "#0066FF", flexShrink: 0 }} />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {ev.stageShortForm ? `${ev.stageShortForm} ` : ""}{ev.type} - {ev.leadName}
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                          <div
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 10,
+                              background: `${ev.stageColor || "#0066FF"}20`,
+                              border: `1px solid ${ev.stageColor || "#0066FF"}40`,
+                              color: ev.stageColor || "#0066FF",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontWeight: 800,
+                              fontSize: 12,
+                            }}
+                          >
+                            {ev.type === "CALL" ? <Phone style={{ width: 20, height: 20 }} /> : ev.type === "VISIT" ? <MapPin style={{ width: 20, height: 20 }} /> : <Video style={{ width: 20, height: 20 }} />}
+                          </div>
+
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#FFF", margin: 0 }}>{ev.leadName}</h3>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: ev.stageColor || "#0066FF", background: `${ev.stageColor || "#0066FF"}20`, padding: "2px 8px", borderRadius: 4 }}>
+                                {ev.stageShortForm}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
+                              {ev.leadCompany ? `${ev.leadCompany} · ` : ""}{ev.description || "No description added"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: "#FFF" }}>{formatLocalTime(ev.scheduledAt)}</div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: ev.status === "COMPLETED" ? "#10B981" : isOverdue ? "#EF4444" : "#0066FF" }}>
+                            {isOverdue ? "OVERDUE" : ev.status}
                           </span>
                         </div>
-                        <span style={{ fontSize: 10, color: "#94A3B8", flexShrink: 0 }}>
-                          {formatTimeStr(ev.scheduledAt)}
-                        </span>
                       </div>
                     );
                   })}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
-                  {dayEvents.length > 3 && (
-                    <div style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textAlign: "center", padding: "2px 0" }}>
-                      +{dayEvents.length - 3} more
-                    </div>
+        {/* VIEW 4: LIST VIEW */}
+        {activeView === "LIST" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* List Search Bar */}
+            <div style={{ position: "relative" }}>
+              <Search style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: "#0066FF" }} />
+              <input
+                type="text"
+                placeholder="Filter follow-ups by lead name, company, or note..."
+                value={listSearchQuery}
+                onChange={(e) => setListSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: 42,
+                  paddingLeft: 42,
+                  paddingRight: 16,
+                  background: "#181924",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: 10,
+                  color: "#FFF",
+                  fontSize: 13,
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {/* List Table */}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#0066FF", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                    <th style={{ padding: "12px 14px" }}>Date & Time</th>
+                    <th style={{ padding: "12px 14px" }}>Lead Name</th>
+                    <th style={{ padding: "12px 14px" }}>Type</th>
+                    <th style={{ padding: "12px 14px" }}>Stage</th>
+                    <th style={{ padding: "12px 14px" }}>Status</th>
+                    <th style={{ padding: "12px 14px" }}>Created By</th>
+                    <th style={{ padding: "12px 14px", textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listViewEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94A3B8" }}>
+                        No follow-ups matching the selected criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    listViewEvents.map((ev) => {
+                      const nowIso = new Date().toISOString();
+                      const isOverdue = ev.status === "SCHEDULED" && ev.scheduledAt < nowIso;
+
+                      return (
+                        <tr
+                          key={ev.id}
+                          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}
+                          onClick={() => setActiveEventDetail(ev)}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 229, 255, 0.05)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td style={{ padding: "14px", color: "#FFF", fontWeight: 700 }}>
+                            {new Date(ev.scheduledAt).toLocaleDateString()} {formatLocalTime(ev.scheduledAt)}
+                          </td>
+                          <td style={{ padding: "14px" }}>
+                            <div style={{ fontWeight: 800, color: "#FFF" }}>{ev.leadName}</div>
+                            {ev.leadCompany && <div style={{ fontSize: 11, color: "#94A3B8" }}>{ev.leadCompany}</div>}
+                          </td>
+                          <td style={{ padding: "14px" }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", background: "rgba(255,255,255,0.08)", padding: "4px 8px", borderRadius: 6 }}>
+                              {ev.type}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px" }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: ev.stageColor || "#0066FF", background: `${ev.stageColor || "#0066FF"}20`, padding: "3px 8px", borderRadius: 4 }}>
+                              {ev.stageShortForm}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px" }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: ev.status === "COMPLETED" ? "#10B981" : isOverdue ? "#EF4444" : "#0066FF" }}>
+                              {isOverdue ? "OVERDUE" : ev.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px", color: "#94A3B8" }}>{ev.createdBy}</td>
+                          <td style={{ padding: "14px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
+                            {ev.status !== "COMPLETED" && (
+                              <button
+                                type="button"
+                                onClick={() => handleCompleteEvent(ev.id)}
+                                style={{ padding: "6px 12px", fontSize: 11, fontWeight: 800, background: "#10B981", color: "#FFF", border: "none", borderRadius: 6, cursor: "pointer" }}
+                              >
+                                Complete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
-                </div>
-
-                {/* Date Cell Bottom Plus hint */}
-                <div style={{ fontSize: 10, color: "#64748B", textAlign: "right", opacity: 0.6 }}>
-                  + Add task
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* CREATE FOLLOW-UP MODAL (Matching Reference Layout) */}
-      {isCreateModalOpen && (
+      {/* CREATE FOLLOW-UP MODAL */}
+      {isScheduleModalOpen && (
         <div
           style={{
             position: "fixed",
@@ -866,12 +1355,12 @@ export function CalendarConfig() {
             justifyContent: "center",
             padding: 16,
           }}
-          onClick={() => setIsCreateModalOpen(false)}
+          onClick={() => setIsScheduleModalOpen(false)}
         >
           <div
             style={{
               width: "100%",
-              maxWidth: 660,
+              maxWidth: 640,
               background: "#12131A",
               border: "1px solid rgba(0, 229, 255, 0.3)",
               borderRadius: 18,
@@ -888,7 +1377,7 @@ export function CalendarConfig() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "22px 28px",
+                padding: "20px 24px",
                 borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
                 background: "#161722",
               }}
@@ -898,27 +1387,13 @@ export function CalendarConfig() {
                   CRM SCHEDULING
                 </span>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
-                  Create Follow-Up
+                  Schedule Follow-Up
                 </h2>
-                <p style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}>
-                  Schedule a new call, visit, or meeting for a Lead.
-                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                style={{
-                  background: "#181924",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: 8,
-                  width: 32,
-                  height: 32,
-                  color: "#94A3B8",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                onClick={() => setIsScheduleModalOpen(false)}
+                style={{ background: "#181924", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 8, width: 32, height: 32, color: "#94A3B8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
@@ -929,20 +1404,19 @@ export function CalendarConfig() {
               id="createFollowUpForm"
               onSubmit={handleSaveFollowUp}
               style={{
-                padding: "26px 28px",
+                padding: "24px",
                 display: "flex",
                 flexDirection: "column",
-                gap: 20,
+                gap: 18,
               }}
             >
-              {/* Error Banner */}
               {formError && (
                 <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#F87171", fontSize: 12, fontWeight: 600 }}>
                   {formError}
                 </div>
               )}
 
-              {/* FIELD 1: LEAD (Searchable Selector) */}
+              {/* FIELD 1: LEAD SELECTOR */}
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
                   LEAD *
@@ -960,8 +1434,8 @@ export function CalendarConfig() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#FFF" }}>{selectedLead.name}</div>
-                      <div style={{ fontSize: 11, color: "#94A3B8" }}>{selectedLead.company || selectedLead.email}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#FFF" }}>{selectedLead.name}</div>
+                      <div style={{ fontSize: 11, color: "#94A3B8" }}>{selectedLead.companyName || selectedLead.email || selectedLead.contactNumber}</div>
                     </div>
                     <button
                       type="button"
@@ -993,52 +1467,58 @@ export function CalendarConfig() {
                           outline: "none",
                         }}
                       />
+                      {isSearchingLeads && (
+                        <Loader2 className="animate-spin" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: "#0066FF" }} />
+                      )}
                     </div>
 
-                    <div style={{ maxHeight: 150, overflowY: "auto", background: "#181924", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: 10, padding: 4 }}>
-                      {filteredLeadOptions.map((l) => (
-                        <div
-                          key={l.id}
-                          onClick={() => setSelectedLead(l)}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 229, 255, 0.15)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <div>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>{l.name}</span>
-                            <span style={{ fontSize: 11, color: "#94A3B8", marginLeft: 8 }}>{l.company}</span>
-                          </div>
-                          <span style={{ fontSize: 10, fontWeight: 800, color: l.stageColor, background: `${l.stageColor}20`, padding: "2px 6px", borderRadius: 4 }}>
-                            {l.stageKey}
-                          </span>
+                    <div style={{ maxHeight: 160, overflowY: "auto", background: "#181924", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: 10, padding: 4 }}>
+                      {leadOptions.length === 0 ? (
+                        <div style={{ padding: 12, fontSize: 12, color: "#94A3B8", textAlign: "center" }}>
+                          {isSearchingLeads ? "Searching leads..." : "No leads found. Type a name to search."}
                         </div>
-                      ))}
+                      ) : (
+                        leadOptions.map((l) => (
+                          <div
+                            key={l.id}
+                            onClick={() => setSelectedLead(l)}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: 6,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 229, 255, 0.15)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <div>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>{l.name}</span>
+                              <span style={{ fontSize: 11, color: "#94A3B8", marginLeft: 8 }}>{l.companyName}</span>
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: l.stageColor, background: `${l.stageColor}20`, padding: "2px 6px", borderRadius: 4 }}>
+                              {l.stageKey}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
-                <span style={{ fontSize: 11, color: "#94A3B8", marginTop: 4, display: "block" }}>
-                  Pick the Lead by name, email, or phone. The system will submit the correct Lead ID automatically.
-                </span>
               </div>
 
-              {/* FIELD 2: TYPE (Dropdown: Call, Visit, Meeting) */}
+              {/* FIELD 2: TYPE */}
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                  TYPE *
+                  FOLLOW-UP TYPE *
                 </label>
                 <select
                   value={followUpType}
                   onChange={(e) => setFollowUpType(e.target.value as any)}
                   style={{
                     width: "100%",
-                    height: 46,
+                    height: 44,
                     padding: "0 14px",
                     background: "#181924",
                     border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -1046,17 +1526,16 @@ export function CalendarConfig() {
                     color: "#FFFFFF",
                     fontSize: 13,
                     outline: "none",
-                    cursor: "pointer",
                   }}
                 >
-                  <option value="CALL">Call</option>
-                  <option value="VISIT">Visit</option>
-                  <option value="MEETING">Meeting</option>
+                  <option value="CALL">Phone Call</option>
+                  <option value="VISIT">Office / Field Visit</option>
+                  <option value="MEETING">Video / In-person Meeting</option>
                 </select>
               </div>
 
-              {/* FIELD 3: SCHEDULED AT (Date & Time) */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* FIELD 3: SCHEDULED DATE & TIME */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
                     SCHEDULED DATE *
@@ -1067,7 +1546,7 @@ export function CalendarConfig() {
                     onChange={(e) => setScheduledDateStr(e.target.value)}
                     style={{
                       width: "100%",
-                      height: 46,
+                      height: 44,
                       padding: "0 14px",
                       background: "#181924",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -1090,7 +1569,7 @@ export function CalendarConfig() {
                     onChange={(e) => setScheduledTimeStr(e.target.value)}
                     style={{
                       width: "100%",
-                      height: 46,
+                      height: 44,
                       padding: "0 14px",
                       background: "#181924",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -1107,11 +1586,11 @@ export function CalendarConfig() {
               {/* FIELD 4: DESCRIPTION */}
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                  DESCRIPTION
+                  REMARKS / NOTES
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Add context for the upcoming interaction"
+                  placeholder="Context, agenda, or notes for the follow-up..."
                   value={descriptionText}
                   onChange={(e) => setDescriptionText(e.target.value)}
                   style={{
@@ -1135,14 +1614,14 @@ export function CalendarConfig() {
                 display: "flex",
                 justifyContent: "flex-end",
                 gap: 12,
-                padding: "18px 28px",
+                padding: "16px 24px",
                 borderTop: "1px solid rgba(255, 255, 255, 0.08)",
                 background: "#161722",
               }}
             >
               <button
                 type="button"
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={() => setIsScheduleModalOpen(false)}
                 style={{
                   padding: "10px 20px",
                   fontSize: 13,
@@ -1159,7 +1638,7 @@ export function CalendarConfig() {
               <button
                 type="submit"
                 form="createFollowUpForm"
-                disabled={isSaving}
+                disabled={isSavingFollowUp}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1171,19 +1650,28 @@ export function CalendarConfig() {
                   background: "#0066FF",
                   color: "#07080B",
                   border: "none",
-                  cursor: isSaving ? "not-allowed" : "pointer",
+                  cursor: isSavingFollowUp ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 14px rgba(0, 229, 255, 0.25)",
                 }}
               >
-                <CalendarIcon style={{ width: 16, height: 16 }} />
-                {isSaving ? "Scheduling..." : "Schedule Follow-Up"}
+                {isSavingFollowUp ? (
+                  <>
+                    <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CalendarIcon style={{ width: 16, height: 16 }} />
+                    Schedule Follow-Up
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* EVENT DETAIL / COMPLETE MODAL */}
+      {/* EVENT DETAIL & ACTION MODAL */}
       {activeEventDetail && (
         <div
           style={{
@@ -1197,12 +1685,15 @@ export function CalendarConfig() {
             justifyContent: "center",
             padding: 16,
           }}
-          onClick={() => setActiveEventDetail(null)}
+          onClick={() => {
+            setActiveEventDetail(null);
+            setIsRescheduling(false);
+          }}
         >
           <div
             style={{
               width: "100%",
-              maxWidth: 480,
+              maxWidth: 500,
               background: "#12131A",
               border: "1px solid rgba(0, 229, 255, 0.3)",
               padding: 24,
@@ -1213,10 +1704,10 @@ export function CalendarConfig() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
-                <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase" }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: activeEventDetail.stageColor || "#0066FF", textTransform: "uppercase" }}>
                   {activeEventDetail.type} TASK
                 </span>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
+                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
                   {activeEventDetail.leadName}
                 </h3>
                 {activeEventDetail.leadCompany && (
@@ -1225,17 +1716,25 @@ export function CalendarConfig() {
               </div>
               <button
                 type="button"
-                onClick={() => setActiveEventDetail(null)}
+                onClick={() => {
+                  setActiveEventDetail(null);
+                  setIsRescheduling(false);
+                }}
                 style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer" }}
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "#181924", borderRadius: 12, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: "#CBD5E1" }}>
-                <strong>Scheduled:</strong> {new Date(activeEventDetail.scheduledAt).toLocaleString()}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, background: "#181924", borderRadius: 12, marginBottom: 20 }}>
+              <div style={{ fontSize: 13, color: "#CBD5E1" }}>
+                <strong>Scheduled:</strong> {new Date(activeEventDetail.scheduledAt).toLocaleDateString()} at {formatLocalTime(activeEventDetail.scheduledAt)}
               </div>
+              {activeEventDetail.contactNumber && (
+                <div style={{ fontSize: 12, color: "#CBD5E1" }}>
+                  <strong>Phone:</strong> {activeEventDetail.contactNumber}
+                </div>
+              )}
               {activeEventDetail.description && (
                 <div style={{ fontSize: 12, color: "#94A3B8" }}>
                   <strong>Notes:</strong> {activeEventDetail.description}
@@ -1243,20 +1742,75 @@ export function CalendarConfig() {
               )}
               <div style={{ fontSize: 12, color: "#CBD5E1" }}>
                 <strong>Status:</strong>{" "}
-                <span style={{ color: activeEventDetail.status === "COMPLETED" ? "#10B981" : "#0066FF", fontWeight: 700 }}>
+                <span style={{ color: activeEventDetail.status === "COMPLETED" ? "#10B981" : activeEventDetail.status === "CANCELLED" ? "#EF4444" : "#0066FF", fontWeight: 800 }}>
                   {activeEventDetail.status}
                 </span>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => handleCancelEvent(activeEventDetail.id)}
-                style={{ padding: "8px 16px", fontSize: 12, fontWeight: 600, background: "#181924", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 8, color: "#EF4444", cursor: "pointer" }}
-              >
-                Cancel Task
-              </button>
+            {/* Reschedule Form Box */}
+            {isRescheduling ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "#181924", padding: 14, borderRadius: 12, marginBottom: 20 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#0066FF" }}>Pick New Date & Time</span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <input
+                    type="date"
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    style={{ background: "#12131A", border: "1px solid rgba(255,255,255,0.1)", color: "#FFF", padding: 8, borderRadius: 8, fontSize: 12 }}
+                  />
+                  <input
+                    type="time"
+                    value={rescheduleTime}
+                    onChange={(e) => setRescheduleTime(e.target.value)}
+                    style={{ background: "#12131A", border: "1px solid rgba(255,255,255,0.1)", color: "#FFF", padding: 8, borderRadius: 8, fontSize: 12 }}
+                  />
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsRescheduling(false)}
+                    style={{ padding: "6px 12px", fontSize: 12, background: "none", border: "none", color: "#94A3B8", cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRescheduleEvent(activeEventDetail.id)}
+                    style={{ padding: "6px 14px", fontSize: 12, fontWeight: 800, background: "#0066FF", color: "#08080A", border: "none", borderRadius: 6, cursor: "pointer" }}
+                  >
+                    Confirm Reschedule
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Modal Actions */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+              {activeEventDetail.status === "SCHEDULED" && !isRescheduling && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRescheduleDate(getLocalDateString(activeEventDetail.scheduledAt));
+                    setRescheduleTime("10:30");
+                    setIsRescheduling(true);
+                  }}
+                  style={{ padding: "8px 14px", fontSize: 12, fontWeight: 700, background: "#181924", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 8, color: "#FFF", cursor: "pointer" }}
+                >
+                  Reschedule
+                </button>
+              )}
+
+              {activeEventDetail.status === "SCHEDULED" && (
+                <button
+                  type="button"
+                  onClick={() => handleCancelEvent(activeEventDetail.id)}
+                  style={{ padding: "8px 14px", fontSize: 12, fontWeight: 700, background: "#181924", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 8, color: "#EF4444", cursor: "pointer" }}
+                >
+                  Cancel Task
+                </button>
+              )}
+
               {activeEventDetail.status !== "COMPLETED" && (
                 <button
                   type="button"

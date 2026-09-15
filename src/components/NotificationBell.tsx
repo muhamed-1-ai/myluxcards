@@ -74,10 +74,21 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
 
     let eventSource: EventSource | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
 
     const connectSSE = () => {
       try {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+
         eventSource = new EventSource("/api/notifications/stream");
+
+        eventSource.onopen = () => {
+          reconnectAttempts = 0;
+        };
 
         eventSource.onmessage = (event) => {
           try {
@@ -98,8 +109,11 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
             eventSource.close();
             eventSource = null;
           }
-          // Reconnect SSE after 5s if disconnected
-          reconnectTimeout = setTimeout(connectSSE, 5000);
+          if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts += 1;
+            const backoffMs = Math.min(30000, 5000 * reconnectAttempts);
+            reconnectTimeout = setTimeout(connectSSE, backoffMs);
+          }
         };
       } catch {
         // Fallback gracefully

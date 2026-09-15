@@ -1529,7 +1529,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
   useEffect(() => {
     let cancelled = false;
     const fetchCounts = async () => {
-      if (!draft.id) return;
+      if (!draft.id || !/^[0-9a-f-]{36}$/i.test(draft.id)) return;
       setLoadingCounts(true);
       try {
         const counts: Record<string, number> = {};
@@ -2790,7 +2790,10 @@ function VehiclesManager({ cardId, contactNumbers = [], emergencyContacts = [] }
   const primaryEmergency = emergencyContacts.find((ec: any) => ec.isPrimary) || emergencyContacts[0];
 
   const loadVehicles = async () => {
-    if (!cardId) return;
+    if (!cardId || !/^[0-9a-f-]{36}$/i.test(cardId)) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/cards/vehicles?cardId=${encodeURIComponent(cardId)}`);
@@ -3243,7 +3246,10 @@ function LostItemsManager({ cardId, contactNumbers = [] }: any) {
   const primaryContact = contactNumbers.find((c: any) => c.isPrimary) || contactNumbers[0];
 
   const loadItems = async () => {
-    if (!cardId) return;
+    if (!cardId || !/^[0-9a-f-]{36}$/i.test(cardId)) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/cards/lost-items?cardId=${encodeURIComponent(cardId)}`);
@@ -3598,7 +3604,10 @@ function ProfileProductsManager({ cardId }: { cardId?: string }) {
   const [saveError, setSaveError] = useState("");
 
   const loadProducts = async () => {
-    if (!cardId) return;
+    if (!cardId || !/^[0-9a-f-]{36}$/i.test(cardId)) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`/api/cards/profile-products?cardId=${encodeURIComponent(cardId)}`);
       const data = await res.json().catch(() => ({}));

@@ -368,34 +368,47 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
 export async function getCrmCalendarData(
   ownerUserId: string,
   yearMonth: string, // YYYY-MM format
-  dateStr?: string // YYYY-MM-DD format
+  dateStr?: string, // YYYY-MM-DD format
+  ownershipFilter: string = "MY",
+  userRole: string = "USER"
 ) {
   if (!ownerUserId) throw new Error("Unauthorized user ID");
 
   const [year, month] = yearMonth.split("-").map((v) => parseInt(v, 10));
-  const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-  const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+  const startRange = new Date(Date.UTC(year, month - 2, 1, 0, 0, 0));
+  const endRange = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
 
-  // Query events in month
-  const eventsRes = await pool.query<{
-    event_date: string;
-    event_type: string;
-    count: string;
-  }>(
-    `SELECT DATE(occurred_at) as event_date, type as event_type, COUNT(*) as count
-     FROM lead_activities
-     WHERE owner_user_id = $1 AND occurred_at >= $2 AND occurred_at <= $3
-     GROUP BY DATE(occurred_at), type
-     ORDER BY event_date ASC`,
-    [ownerUserId, startOfMonth, endOfMonth]
-  );
+  let whereClause = `f.scheduled_at >= $1 AND f.scheduled_at <= $2`;
+  const params: any[] = [startRange, endRange];
 
-  // Group by date
+  if (ownershipFilter === "MY" || (userRole !== "SUPER_ADMIN" && userRole !== "ADMIN")) {
+    params.push(ownerUserId);
+    whereClause += ` AND (f.owner_user_id = $${params.length} OR l.owner_user_id = $${params.length} OR l.assigned_user_id = $${params.length})`;
+  }
+
+  const followUpsQuery = `
+    SELECT f.id, f.lead_id as "leadId", l.name as "leadName", l.company_name as "leadCompany",
+           l.contact_number as "contactNumber", l.email as "leadEmail", l.status as "leadStage",
+           f.scheduled_at as "scheduledAt", f.note as "description", f.status, f.completed_at as "completedAt",
+           f.created_at as "createdAt", f.owner_user_id as "ownerUserId",
+           COALESCE(u.name, 'User') as "createdBy"
+    FROM lead_follow_ups f
+    JOIN leads l ON l.id = f.lead_id
+    LEFT JOIN users u ON u.id = f.owner_user_id
+    WHERE ${whereClause}
+    ORDER BY f.scheduled_at ASC
+  `;
+
+  const followUpsRes = await pool.query(followUpsQuery, params);
+
+  // Group by date for activity timeline counts
   const eventsByDate: Record<string, Record<string, number>> = {};
-  for (const row of eventsRes.rows) {
-    const d = new Date(row.event_date).toISOString().slice(0, 10);
+  for (const row of followUpsRes.rows) {
+    const d = new Date(row.scheduledAt).toISOString().slice(0, 10);
     if (!eventsByDate[d]) eventsByDate[d] = {};
-    eventsByDate[d][row.event_type] = parseInt(row.count, 10);
+    const noteStr = String(row.description || "");
+    const type = noteStr.startsWith("[VISIT]") ? "VISIT" : noteStr.startsWith("[MEETING]") ? "MEETING" : "CALL";
+    eventsByDate[d][type] = (eventsByDate[d][type] || 0) + 1;
   }
 
   // If specific date timeline requested
@@ -437,6 +450,7 @@ export async function getCrmCalendarData(
 
   return {
     yearMonth,
+    followUps: followUpsRes.rows,
     eventsByDate,
     dayDetails,
   };
@@ -609,6 +623,44 @@ export async function completeFollowUp(ownerUserId: string, followUpId: string):
       `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, entity_type, entity_id, occurred_at, created_at)
        VALUES ($1, $2, 'FOLLOW_UP_COMPLETED', $3, 'lead_follow_up', $4, NOW(), NOW())`,
       [ownerUserId, fu.lead_id, `Follow-up completed`, fu.id]
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Cancels a scheduled follow-up.
+ */
+export async function cancelFollowUp(ownerUserId: string, followUpId: string): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const fuRes = await client.query<{ id: string; lead_id: string }>(
+      `UPDATE lead_follow_ups SET status = 'CANCELLED', updated_at = NOW()
+       WHERE id = $1 AND (owner_user_id = $2 OR $2 IN (SELECT id FROM users WHERE role = 'SUPER_ADMIN' OR role = 'ADMIN'))
+       RETURNING id, lead_id`,
+      [followUpId, ownerUserId]
+    );
+
+    const fu = fuRes.rows[0];
+    if (!fu) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    // Log Activity
+    await client.query(
+      `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, entity_type, entity_id, occurred_at, created_at)
+       VALUES ($1, $2, 'FOLLOW_UP_CANCELLED', 'Follow-up cancelled', 'lead_follow_up', $3, NOW(), NOW())`,
+      [ownerUserId, fu.lead_id, fu.id]
     );
 
     await client.query("COMMIT");

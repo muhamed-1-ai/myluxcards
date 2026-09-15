@@ -25,6 +25,9 @@ function isSafeUrl(url: string): boolean {
   );
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: Request, props: { params: Promise<{ section: string }> }) {
   const identity = await currentIdentity();
   if (!identity) return Response.json({ message: "Sign in required." }, { status: 401 });
@@ -36,6 +39,10 @@ export async function GET(request: Request, props: { params: Promise<{ section: 
   const url = new URL(request.url);
   const cardId = url.searchParams.get("cardId");
 
+  if (cardId && !/^[0-9a-f-]{36}$/i.test(cardId)) {
+    return Response.json({ items: [] });
+  }
+
   try {
     let query = `
       select s.*
@@ -45,7 +52,7 @@ export async function GET(request: Request, props: { params: Promise<{ section: 
     `;
     const params: unknown[] = [identity.id];
 
-    if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
+    if (cardId) {
       query += ` and s.card_id = $2`;
       params.push(cardId);
     }

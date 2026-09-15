@@ -1,6 +1,9 @@
 import { currentIdentity } from "@/lib/adminAuth";
 import { getUnreadNotificationCount } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   const identity = await currentIdentity();
   if (!identity) {
