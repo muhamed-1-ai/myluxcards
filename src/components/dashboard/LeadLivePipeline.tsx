@@ -29,15 +29,20 @@ export function LeadLivePipeline({
   return (
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
       {/* Header matching reference */}
-      <div style={{ marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Pipeline Stages</h2>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>
-          Lead stage distribution and funnels
-        </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.01em" }}>Pipeline Stages</h2>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "3px 0 0" }}>
+            Lead stage distribution and funnels
+          </p>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.25)", padding: "3px 10px", borderRadius: 50 }}>
+          {totalLeads} Total
+        </span>
       </div>
 
       {/* Stage Rows Container */}
-      <div className="scrollbar-thin" style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+      <div className="scrollbar-thin" style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 330, overflowY: "auto", paddingRight: 4 }}>
         {STAGES.map((stg) => {
           const count = pipelineCounts?.[stg.key] || 0;
           const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;

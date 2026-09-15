@@ -3774,11 +3774,11 @@ th {
 
 .crm-lead-dashboard {
   width: 100%;
-  max-width: 1550px;
+  max-width: 1600px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 /* 1. TOP UTILITY TOOLBAR */
@@ -3789,15 +3789,15 @@ th {
   gap: 16px;
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
-  padding: 12px 18px;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 14px 22px;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .crm-search-bar {
   position: relative;
   flex: 1;
-  max-width: 460px;
+  max-width: 480px;
   display: flex;
   align-items: center;
 }
@@ -3807,7 +3807,7 @@ th {
   left: 14px;
   width: 18px;
   height: 18px;
-  color: #8A909A;
+  color: #0066FF;
   pointer-events: none;
 }
 
@@ -3820,13 +3820,14 @@ th {
   border-radius: 12px;
   color: #FFFFFF;
   font-size: 13px;
+  font-weight: 500;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .crm-search-input:focus {
   border-color: #0066FF;
-  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2);
 }
 
 .crm-search-input::placeholder {
@@ -3868,6 +3869,7 @@ th {
 .crm-btn-icon-refresh:hover {
   color: #FFFFFF;
   border-color: #0066FF;
+  background: rgba(0, 102, 255, 0.1);
 }
 
 .crm-btn-add-lead {
@@ -3876,36 +3878,37 @@ th {
   justify-content: center;
   gap: 8px;
   height: 44px;
-  padding: 0 22px;
+  padding: 0 24px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0066FF 0%, #F5D77F 100%);
+  background: #0066FF;
   color: #07080B;
   font-size: 13px;
   font-weight: 800;
   border: none;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 229, 255, 0.3);
   transition: all 0.2s ease;
 }
 
 .crm-btn-add-lead:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.35);
+  background: #E6C200;
+  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
 }
 
 /* 2. FILTER CONTROLS TOOLBAR */
 .crm-filter-toolbar {
   background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.15);
-  border-radius: 16px;
-  padding: 12px 16px;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 18px;
+  padding: 14px 18px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .crm-filter-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -3964,19 +3967,20 @@ th {
 .crm-kpi-card {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 16px;
-  padding: 22px;
-  min-height: 165px;
+  border-radius: 20px;
+  padding: 24px;
+  min-height: 155px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .crm-kpi-card:hover {
   border-color: rgba(0, 229, 255, 0.45);
   transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
 .crm-kpi-top {
@@ -3987,17 +3991,17 @@ th {
 }
 
 .crm-kpi-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #94A3B8;
 }
 
 .crm-kpi-badge {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   background: rgba(0, 229, 255, 0.12);
   border: 1px solid rgba(0, 229, 255, 0.25);
   color: #0066FF;
@@ -4007,11 +4011,12 @@ th {
 }
 
 .crm-kpi-value {
-  font-size: 32px;
-  font-weight: 800;
+  font-size: 34px;
+  font-weight: 900;
   color: #FFFFFF;
   letter-spacing: -0.02em;
-  margin: 10px 0 2px;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  margin: 12px 0 4px;
 }
 
 .crm-kpi-sub {
@@ -4020,15 +4025,15 @@ th {
   color: #10B981;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 /* 4. DAILY FOLLOW-UP CAPACITY STRIP */
 .crm-capacity-strip {
   background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.2);
-  border-radius: 14px;
-  padding: 16px 22px;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 18px;
+  padding: 18px 24px;
   min-height: 75px;
   display: flex;
   align-items: center;
@@ -4044,8 +4049,8 @@ th {
 }
 
 .crm-capacity-icon-badge {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   background: rgba(0, 229, 255, 0.12);
   border: 1px solid rgba(0, 229, 255, 0.25);
@@ -4056,7 +4061,7 @@ th {
 }
 
 .crm-capacity-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   color: #FFFFFF;
   margin: 0 0 2px;
@@ -4085,18 +4090,17 @@ th {
 .crm-analytics-row {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 20px;
+  gap: 24px;
   width: 100%;
   align-items: stretch;
 }
 
 .crm-chart-card {
-  background: #10111A;
+  background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 18px;
-  padding: 24px 28px 20px 28px;
-  min-height: 370px;
-  max-height: 400px;
+  border-radius: 20px;
+  padding: 24px 28px;
+  min-height: 400px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -4106,8 +4110,8 @@ th {
 .crm-pipeline-card {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 18px;
-  padding: 24px;
+  border-radius: 20px;
+  padding: 24px 28px;
   min-height: 400px;
   display: flex;
   flex-direction: column;
@@ -4119,7 +4123,7 @@ th {
 .crm-insights-row {
   display: grid;
   grid-template-columns: 1.8fr 1.2fr;
-  gap: 20px;
+  gap: 24px;
   width: 100%;
   align-items: stretch;
 }
@@ -4130,8 +4134,8 @@ th {
 .crm-sources-card {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 18px;
-  padding: 24px;
+  border-radius: 20px;
+  padding: 24px 28px;
   min-height: 380px;
   display: flex;
   flex-direction: column;

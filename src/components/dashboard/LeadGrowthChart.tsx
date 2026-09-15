@@ -121,8 +121,8 @@ export function LeadGrowthChart({
         <div>
           <h2 style={{
             fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            fontSize: 17,
-            fontWeight: 700,
+            fontSize: 18,
+            fontWeight: 800,
             color: "var(--text-primary)",
             margin: 0,
             letterSpacing: "-0.01em"
@@ -133,7 +133,7 @@ export function LeadGrowthChart({
             fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
             fontSize: 13,
             color: "var(--text-muted)",
-            margin: "4px 0 0",
+            margin: "3px 0 0",
             fontWeight: 400
           }}>
             Daily new lead generation volume
@@ -145,10 +145,10 @@ export function LeadGrowthChart({
           display: "flex",
           alignItems: "center",
           gap: 3,
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border-color)",
+          background: "#181924",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
           padding: 3,
-          borderRadius: 12
+          borderRadius: 10
         }}>
           {(["7d", "30d", "12m"] as Period[]).map((pKey) => {
             const label = pKey === "7d" ? "7 Days" : pKey === "30d" ? "30 Days" : "12 Months";
@@ -159,16 +159,16 @@ export function LeadGrowthChart({
                 type="button"
                 onClick={() => setPeriod(pKey)}
                 style={{
-                  height: 32,
-                  padding: "0 14px",
+                  height: 30,
+                  padding: "0 12px",
                   fontSize: 12,
                   fontWeight: isActive ? 700 : 500,
                   fontFamily: "Inter, system-ui, sans-serif",
-                  borderRadius: 9,
+                  borderRadius: 7,
                   border: "none",
                   cursor: "pointer",
                   background: isActive ? "#0066FF" : "transparent",
-                  color: isActive ? "#FFFFFF" : "var(--text-muted)",
+                  color: isActive ? "#08080A" : "#8E8EA0",
                   boxShadow: isActive ? "0 2px 8px rgba(0, 102, 255, 0.25)" : "none",
                   transition: "all 0.15s ease",
                 }}
@@ -179,6 +179,32 @@ export function LeadGrowthChart({
           })}
         </div>
       </div>
+
+      {/* Analytics Summary Strip */}
+      {(() => {
+        const periodTotal = chartData.reduce((acc, curr) => acc + curr.count, 0);
+        const peakVal = Math.max(...chartData.map((d) => d.count), 0);
+        const avgVal = chartData.length > 0 ? (periodTotal / chartData.length).toFixed(1) : "0";
+
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 14, padding: "8px 14px", background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: 10 }}>
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase" }}>Period Acquisition</span>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#FFF" }}>{periodTotal} Leads</div>
+            </div>
+            <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.1)" }} />
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase" }}>Peak Rate</span>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#0066FF" }}>{peakVal} / day</div>
+            </div>
+            <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.1)" }} />
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase" }}>Daily Avg</span>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#3B82F6" }}>{avgVal}</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Plotting Area */}
       <div style={{ position: "relative", width: "100%", flex: 1, minHeight: 220, display: "flex", alignItems: "center" }}>
