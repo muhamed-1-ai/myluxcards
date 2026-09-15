@@ -42,7 +42,7 @@ export function LeadLivePipeline({
       </div>
 
       {/* Stage Rows Container */}
-      <div className="scrollbar-thin" style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 330, overflowY: "auto", paddingRight: 4 }}>
+      <div className="scrollbar-thin" style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: 360, overflowY: "auto", paddingRight: 4 }}>
         {STAGES.map((stg) => {
           const count = pipelineCounts?.[stg.key] || 0;
           const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
@@ -56,11 +56,11 @@ export function LeadLivePipeline({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 4,
-                padding: 10,
-                borderRadius: 10,
+                gap: 5,
+                padding: "10px 14px",
+                borderRadius: 12,
                 cursor: onSelectStage ? "pointer" : "default",
-                minHeight: 54,
+                minHeight: 52,
                 justifyContent: "center",
                 transition: "all 0.2s ease",
               }}

@@ -3960,7 +3960,7 @@ th {
 .crm-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  gap: 20px 24px;
   width: 100%;
 }
 
@@ -3968,8 +3968,8 @@ th {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
   border-radius: 20px;
-  padding: 24px;
-  min-height: 155px;
+  padding: 24px 26px;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -3991,9 +3991,9 @@ th {
 }
 
 .crm-kpi-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #94A3B8;
 }
@@ -4011,16 +4011,17 @@ th {
 }
 
 .crm-kpi-value {
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 900;
   color: #FFFFFF;
   letter-spacing: -0.02em;
   font-family: Inter, system-ui, -apple-system, sans-serif;
-  margin: 12px 0 4px;
+  margin: 14px 0 6px;
+  line-height: 1.1;
 }
 
 .crm-kpi-sub {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #10B981;
   display: flex;
@@ -4032,9 +4033,9 @@ th {
 .crm-capacity-strip {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 18px;
-  padding: 18px 24px;
-  min-height: 75px;
+  border-radius: 20px;
+  padding: 22px 26px;
+  min-height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4099,8 +4100,8 @@ th {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
   border-radius: 20px;
-  padding: 24px 28px;
-  min-height: 400px;
+  padding: 26px 28px;
+  min-height: 420px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -4111,12 +4112,26 @@ th {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
   border-radius: 20px;
-  padding: 24px 28px;
-  min-height: 400px;
+  padding: 26px 28px;
+  min-height: 420px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.crm-pipeline-stage-row {
+  min-height: 52px;
+  padding: 12px 14px !important;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.crm-pipeline-stage-row:hover {
+  background: rgba(0, 102, 255, 0.06);
+  border-color: rgba(0, 102, 255, 0.2);
 }
 
 /* 6. LOWER INSIGHTS ROW */

@@ -71,7 +71,7 @@ export function LeadGrowthChart({
 
   // SVG layout dimensions
   const svgWidth = 600;
-  const svgHeight = 240;
+  const svgHeight = 270;
   const paddingLeft = 40;
   const paddingRight = 20;
   const paddingTop = 20;
