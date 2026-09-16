@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus,
   Download,
+  Upload,
   Star,
   Phone,
   MessageSquare,
@@ -12,7 +13,14 @@ import {
   Eye,
   Edit2,
   Trash2,
-  Users
+  Users,
+  Calendar,
+  SlidersHorizontal,
+  TrendingUp,
+  Search,
+  RotateCcw,
+  CheckSquare,
+  Columns
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
@@ -32,9 +40,26 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const limit = 25;
+  const limit = 50;
 
-  // UI State
+  // Filter States (Matching Reference Screenshot)
+  const [showFilters, setShowFilters] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [officeFilter, setOfficeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [scopeFilter, setScopeFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  // UI Selection State
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Record<string, boolean>>({});
+  const [includeArchived, setIncludeArchived] = useState(false);
+
+  // Drawers & Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -50,6 +75,15 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         sortBy,
         sortOrder,
       });
+
+      if (searchQuery) params.append("q", searchQuery);
+      if (stageFilter) params.append("stage", stageFilter);
+      if (userFilter && userFilter !== "all") params.append("userId", userFilter === "me" ? identity.id : userFilter);
+      if (sourceFilter) params.append("source", sourceFilter);
+      if (statusFilter) params.append("status", statusFilter);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+
       const res = await fetch(`/api/leads/search?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch leads");
       const data = await res.json();
@@ -69,21 +103,65 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     } finally {
       setLoading(false);
     }
-  }, [page, sortBy, sortOrder]);
+  }, [page, sortBy, sortOrder, searchQuery, stageFilter, userFilter, sourceFilter, statusFilter, startDate, endDate, identity.id]);
 
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
+  // Client Filtered Leads
+  const displayedLeads = useMemo(() => {
+    return leads.filter((l) => {
+      if (scopeFilter === "mine" && l.ownerUserId && l.ownerUserId !== identity.id) {
+        return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const match =
+          (l.name && l.name.toLowerCase().includes(q)) ||
+          (l.email && l.email.toLowerCase().includes(q)) ||
+          (l.contactNumber && l.contactNumber.includes(q)) ||
+          (l.companyName && l.companyName.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      if (stageFilter && (l.stage || l.status) !== stageFilter) return false;
+      if (sourceFilter && l.source !== sourceFilter) return false;
+      if (statusFilter && l.status !== statusFilter) return false;
+      return true;
+    });
+  }, [leads, scopeFilter, searchQuery, stageFilter, sourceFilter, statusFilter, identity.id]);
+
+  // Expected Revenue Calculation
+  const expectedRevenue = useMemo(() => {
+    return displayedLeads.reduce((acc, l) => acc + (Number(l.totalAmount) || 0), 0);
+  }, [displayedLeads]);
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setStageFilter("");
+    setUserFilter("");
+    setSourceFilter("");
+    setOfficeFilter("");
+    setStatusFilter("");
+    setScopeFilter("all");
+    setStartDate("");
+    setEndDate("");
+  };
+
   const toggleStar = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setStarredLeads(prev => ({ ...prev, [id]: !prev[id] }));
+    setStarredLeads((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleSelectLead = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedLeadIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleExportCSV = () => {
-    if (!leads.length) return;
+    if (!displayedLeads.length) return;
     const headers = ["Lead Name", "Company", "Contact Number", "Email", "Stage", "Source", "Assigned To", "Total Amount", "Advance Amount", "Created At"];
-    const rows = leads.map(l => [
+    const rows = displayedLeads.map((l) => [
       `"${(l.name || "").replace(/"/g, '""')}"`,
       `"${(l.companyName || "").replace(/"/g, '""')}"`,
       `"${(l.contactNumber || "").replace(/"/g, '""')}"`,
@@ -96,7 +174,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
       `"${new Date(l.createdAt).toLocaleDateString()}"`,
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -141,33 +219,94 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   return (
     <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none space-y-6">
 
-      {/* Native Module Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="crm-header-title">All Leads</h1>
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-            Total Count: <strong className="ml-1.5 text-[var(--text-primary,#0F172A)]">{total}</strong>
+      {/* 1. Header: Badge, Title, Count & Control Actions (Matching Reference) */}
+      <div className="flex flex-col gap-3">
+        {/* PIPELINE CONTROL ROOM Badge */}
+        <div>
+          <span className="crm-badge-control-room">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+            <span>PIPELINE CONTROL ROOM</span>
           </span>
         </div>
 
-        {/* Top Control Actions */}
-        <div className="flex items-center space-x-3">
-          {leads.length > 0 && (
-            <button onClick={handleExportCSV} className="crm-btn-secondary">
-              <Download className="w-4 h-4 text-[var(--text-secondary,#64748B)]" />
-              <span>Export CSV</span>
-            </button>
-          )}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="crm-header-title">All Leads</h1>
+            <span className="crm-header-count-pill">
+              Total Count: <strong className="ml-1 text-[var(--text-primary,#0F172A)]">{total}</strong>
+            </span>
+          </div>
 
-          <button onClick={() => setIsAddOpen(true)} className="crm-btn-primary">
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ New Lead</span>
-          </button>
+          {/* Control Actions Row Matching Reference */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectMode(!selectMode)}
+              className={`crm-btn-secondary ${selectMode ? "active" : ""}`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>Select</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAddOpen(true)}
+              className="crm-btn-secondary"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Import</span>
+            </button>
+
+            <label className="crm-checkbox-label hidden sm:flex">
+              <input
+                type="checkbox"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+                className="rounded text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>Include archived leads in export</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="crm-btn-secondary"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </button>
+
+            <button
+              type="button"
+              className="crm-btn-secondary hidden sm:inline-flex"
+            >
+              <Columns className="w-3.5 h-3.5" />
+              <span>Columns</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`crm-btn-secondary ${showFilters ? "active" : ""}`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Filters</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAddOpen(true)}
+              className="crm-btn-primary"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ New Lead</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Summary KPI Cards Row (Total Leads, Open Pipeline, Due Today) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* 2. 4 Stat Cards Row (Matching Reference Layout) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Leads */}
         <div className="kpi-card">
           <div className="kpi-accent-bar bg-[#10B981]" />
@@ -177,7 +316,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
         {/* Card 2: Open Pipeline */}
         <div className="kpi-card">
-          <div className="kpi-accent-bar bg-[#3B82F6]" />
+          <div className="kpi-accent-bar bg-[#0066FF]" />
           <span className="kpi-label">OPEN PIPELINE</span>
           <span className="kpi-value">{kpis.openPipeline}</span>
         </div>
@@ -188,62 +327,151 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           <span className="kpi-label">DUE TODAY</span>
           <span className="kpi-value">{kpis.dueToday}</span>
         </div>
+
+        {/* Card 4: Expected Revenue */}
+        <div className="kpi-card">
+          <div className="kpi-accent-bar bg-[#8B5CF6]" />
+          <span className="kpi-label">EXPECTED REVENUE</span>
+          <span className="kpi-value" style={{ color: "#8B5CF6" }}>{formatCurrency(expectedRevenue)}</span>
+        </div>
       </div>
 
-      {/* Mobile Responsive Cards (visible on mobile screens) */}
-      <div className="block md:hidden space-y-3">
-        {loading ? (
-          <div className="p-8 text-center text-[var(--text-secondary,#94A3B8)] bg-[var(--surface,#FFFFFF)] rounded-2xl border border-[var(--border-color,#E2E8F0)] shadow-sm">
-            Loading leads...
+      {/* 3. Filter Leads Panel (Matching Reference Design) */}
+      {showFilters && (
+        <div className="crm-filter-panel">
+          <div className="crm-filter-panel-header">
+            <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
+            <span>FILTER LEADS</span>
           </div>
-        ) : leads.length === 0 ? (
-          <div className="p-8 text-center text-[var(--text-secondary,#94A3B8)] bg-[var(--surface,#FFFFFF)] rounded-2xl border border-[var(--border-color,#E2E8F0)] shadow-sm">
-            No leads found in your pipeline.
-          </div>
-        ) : (
-          leads.map(lead => (
-            <div
-              key={lead.id}
-              onClick={() => setSelectedLeadId(lead.id)}
-              className="bg-[var(--surface,#FFFFFF)] rounded-2xl p-4 border border-[var(--border-color,#E2E8F0)] shadow-sm space-y-3 cursor-pointer hover:border-emerald-500 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-9 h-9 rounded-full ${getAvatarGradient(lead.name || "L")} font-bold flex items-center justify-center text-sm shadow-sm`}>
-                    {(lead.name || "L").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-bold text-[var(--text-primary,#0F172A)] text-sm">{lead.name}</div>
-                    <div className="text-xs text-[var(--text-secondary,#94A3B8)]">{lead.companyName || "No company"}</div>
-                  </div>
-                </div>
-                <span className={getStageBadgeClass(lead.stage || lead.status)}>
-                  {lead.stage || lead.status || "NEW"}
-                </span>
-              </div>
 
-              <div className="text-xs space-y-1 text-[var(--text-primary,#0F172A)] bg-[var(--input-bg,#F8FAFC)] p-2.5 rounded-xl border border-[var(--border-color,#E2E8F0)]">
-                <div><strong>Contact:</strong> {lead.contactNumber}</div>
-                {lead.email && <div><strong>Email:</strong> {lead.email}</div>}
-                <div><strong>Assigned To:</strong> {lead.assignedUserName || identity.name}</div>
-                <div><strong>Total Amount:</strong> {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}</div>
-              </div>
+          <div className="crm-filter-panel-grid">
+            {/* Search Input */}
+            <div className="crm-filter-input-wrap">
+              <Search className="crm-filter-icon" />
+              <input
+                type="text"
+                placeholder="Search name, email, phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="crm-filter-input"
+              />
             </div>
-          ))
-        )}
-      </div>
 
-      {/* Desktop Native Table View */}
-      <div className="hidden md:block crm-table-card">
+            {/* Stage Filter */}
+            <select
+              value={stageFilter}
+              onChange={(e) => setStageFilter(e.target.value)}
+              className="crm-filter-select"
+            >
+              <option value="">Stage</option>
+              <option value="NEW">NEW</option>
+              <option value="CONTACTED">CONTACTED</option>
+              <option value="INTERESTED">INTERESTED</option>
+              <option value="PROPOSAL">PROPOSAL</option>
+              <option value="WON">WON</option>
+              <option value="LOST">LOST</option>
+            </select>
+
+            {/* Assigned User Filter */}
+            <select
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+              className="crm-filter-select"
+            >
+              <option value="">Assigned User</option>
+              <option value="all">All Users</option>
+              <option value="me">My Leads</option>
+            </select>
+
+            {/* Source Filter */}
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="crm-filter-select"
+            >
+              <option value="">Source</option>
+              <option value="NFC">NFC Tap</option>
+              <option value="QR">QR Scan</option>
+              <option value="DIRECT">Direct</option>
+            </select>
+
+            {/* Office Location Filter */}
+            <select
+              value={officeFilter}
+              onChange={(e) => setOfficeFilter(e.target.value)}
+              className="crm-filter-select"
+            >
+              <option value="">Office Location</option>
+              <option value="main">Main Office</option>
+              <option value="branch">Branch Office</option>
+            </select>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="crm-filter-select"
+            >
+              <option value="">Status</option>
+              <option value="active">Active</option>
+              <option value="closed">Closed</option>
+            </select>
+
+            {/* Scope Filter */}
+            <select
+              value={scopeFilter}
+              onChange={(e) => setScopeFilter(e.target.value)}
+              className="crm-filter-select"
+            >
+              <option value="all">All Leads</option>
+              <option value="mine">My Leads</option>
+            </select>
+
+            {/* Date From */}
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="crm-filter-date"
+            />
+
+            {/* Date To */}
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="crm-filter-date"
+            />
+          </div>
+
+          <div className="crm-filter-panel-footer">
+            <span className="crm-filter-note">
+              ★ Use filters to refine the pipeline view, then export the same dataset to CSV.
+            </span>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="crm-filter-reset-btn"
+            >
+              <RotateCcw className="w-3 h-3 inline mr-1" />
+              RESET FILTERS
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Desktop Leads Table (Matching Reference Columns) */}
+      <div className="crm-table-card">
         <div className="overflow-x-auto">
           <table className="crm-table">
             <thead>
               <tr>
-                <th className="w-[240px]">LEAD NAME</th>
-                <th>COMPANY</th>
-                <th>SOURCE</th>
+                {selectMode && <th style={{ width: 40 }}><input type="checkbox" /></th>}
+                <th style={{ minWidth: 220 }}>LEAD NAME</th>
+                <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
+                <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
                 <th>STAGE</th>
-                <th>ASSIGNED TO</th>
+                <th>LAST REMARK</th>
                 <th
                   className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
                   onClick={() => { setSortBy("totalAmount"); setSortOrder(sortOrder === "asc" ? "desc" : "asc"); }}
@@ -253,7 +481,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                     <ArrowUpDown className="w-3 h-3 text-[var(--text-secondary,#94A3B8)]" />
                   </div>
                 </th>
-                <th>CREATED DATE</th>
+                <th>ADVANCE AMOUNT</th>
                 <th className="text-right">ACTIONS</th>
               </tr>
             </thead>
@@ -261,29 +489,29 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
+                  <td colSpan={selectMode ? 9 : 8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
                     <div className="flex justify-center items-center space-x-2">
                       <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                       <span>Loading leads...</span>
                     </div>
                   </td>
                 </tr>
-              ) : leads.length === 0 ? (
+              ) : displayedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-[var(--text-secondary,#94A3B8)]">
+                  <td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-[var(--text-secondary,#94A3B8)]">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60" />
-                      <div className="text-sm font-semibold">No leads found in your pipeline.</div>
-                      <button onClick={() => setIsAddOpen(true)} className="crm-btn-primary mt-2">
-                        <Plus className="w-4 h-4" />
-                        <span>Create your first lead</span>
+                      <div className="text-sm font-semibold">No leads found in this view.</div>
+                      <button onClick={handleResetFilters} className="crm-btn-secondary mt-1">
+                        Clear filters
                       </button>
                     </div>
                   </td>
                 </tr>
               ) : (
-                leads.map((lead) => {
+                displayedLeads.map((lead) => {
                   const isStarred = !!starredLeads[lead.id];
+                  const isSelected = !!selectedLeadIds[lead.id];
                   const leadName = lead.name || "Unnamed Lead";
                   const avatarLetter = leadName.charAt(0).toUpperCase();
 
@@ -291,8 +519,20 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                     <tr
                       key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
-                      className="cursor-pointer group"
+                      className={`cursor-pointer group ${isSelected ? "bg-emerald-500/5" : ""}`}
                     >
+                      {/* SELECT CHECKBOX */}
+                      {selectMode && (
+                        <td onClick={(e) => toggleSelectLead(e, lead.id)}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="rounded text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </td>
+                      )}
+
                       {/* LEAD NAME COLUMN */}
                       <td>
                         <div className="flex items-start space-x-3">
@@ -312,12 +552,12 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                             </div>
 
                             {lead.email && (
-                              <div className="text-[11px] text-[var(--text-secondary,#94A3B8)]">
+                              <div className="text-[11.5px] text-[var(--text-secondary,#94A3B8)]">
                                 {lead.email}
                               </div>
                             )}
 
-                            <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] flex items-center space-x-1.5 pt-0.5">
+                            <div className="text-[11.5px] text-[var(--text-secondary,#94A3B8)] flex items-center space-x-1.5 pt-0.5">
                               <span>{lead.contactNumber || "No phone"}</span>
                               {lead.contactNumber && (
                                 <>
@@ -346,16 +586,38 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                         </div>
                       </td>
 
-                      {/* COMPANY COLUMN */}
-                      <td className="font-medium text-[var(--text-primary,#0F172A)]">
-                        {lead.companyName || "—"}
+                      {/* NEXT FOLLOW-UP COLUMN (Matching Reference Pill) */}
+                      <td>
+                        <div className="crm-followup-pill-box">
+                          <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
+                          <div className="text-left">
+                            <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)]">
+                              {lead.nextFollowUpAt
+                                ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                                : "No Follow-Up"}
+                            </div>
+                            <div className="text-[10px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[120px]">
+                              {lead.nextFollowUpNote || "Not scheduled"}
+                            </div>
+                          </div>
+                        </div>
                       </td>
 
-                      {/* SOURCE COLUMN */}
+                      {/* ASSIGNED TO COLUMN */}
                       <td>
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-[var(--bg-secondary,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-xs font-semibold text-[var(--text-secondary,#64748B)]">
-                          {lead.source || "DIRECT"}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-7 h-7 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center flex-shrink-0">
+                            {(lead.assignedUserName || identity.name || "M").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-bold text-xs text-[var(--text-primary,#0F172A)]">
+                              {lead.assignedUserName || identity.name || "Unassigned"}
+                            </div>
+                            <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[130px]">
+                              {lead.assignedUserEmail || identity.email}
+                            </div>
+                          </div>
+                        </div>
                       </td>
 
                       {/* STAGE COLUMN */}
@@ -365,16 +627,9 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                         </span>
                       </td>
 
-                      {/* ASSIGNED TO COLUMN */}
-                      <td>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] font-bold text-[11px] flex items-center justify-center flex-shrink-0">
-                            {(lead.assignedUserName || identity.name || "U").charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-semibold text-xs text-[var(--text-primary,#0F172A)]">
-                            {lead.assignedUserName || identity.name || "Unassigned"}
-                          </span>
-                        </div>
+                      {/* LAST REMARK COLUMN */}
+                      <td className="text-[var(--text-secondary,#64748B)] text-xs font-medium">
+                        {lead.lastRemark || "—"}
                       </td>
 
                       {/* TOTAL AMOUNT COLUMN */}
@@ -382,15 +637,16 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                         {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
                       </td>
 
-                      {/* CREATED DATE COLUMN */}
-                      <td className="text-[var(--text-secondary,#64748B)] text-xs font-medium">
-                        {new Date(lead.createdAt || Date.now()).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                      {/* ADVANCE AMOUNT COLUMN */}
+                      <td className="font-semibold text-[var(--text-secondary,#64748B)]">
+                        {lead.advanceAmount ? formatCurrency(lead.advanceAmount) : "₹0"}
                       </td>
 
                       {/* ACTIONS COLUMN */}
                       <td className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="relative inline-block text-left">
                           <button
+                            type="button"
                             onClick={() => setActiveActionMenuId(activeActionMenuId === lead.id ? null : lead.id)}
                             className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors"
                           >
@@ -403,6 +659,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                               onClick={() => setActiveActionMenuId(null)}
                             >
                               <button
+                                type="button"
                                 onClick={() => setSelectedLeadId(lead.id)}
                                 className="w-full text-left px-3 py-2 hover:bg-[var(--bg-secondary,#F8FAFC)] flex items-center space-x-2"
                               >
@@ -410,6 +667,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                                 <span>View Details</span>
                               </button>
                               <button
+                                type="button"
                                 onClick={() => setEditingLead(lead)}
                                 className="w-full text-left px-3 py-2 hover:bg-[var(--bg-secondary,#F8FAFC)] flex items-center space-x-2 text-emerald-600 dark:text-emerald-400"
                               >
@@ -417,6 +675,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                                 <span>Edit Lead</span>
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleDeleteLead(lead.id)}
                                 className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 flex items-center space-x-2"
                               >

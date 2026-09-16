@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -377,14 +377,83 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     if (theme === "light") {
       document.body.classList.add("light-mode");
       document.body.classList.remove("dark-mode");
+      document.documentElement.classList.remove("dark");
     } else {
       document.body.classList.add("dark-mode");
       document.body.classList.remove("light-mode");
+      document.documentElement.classList.add("dark");
     }
     try {
       localStorage.setItem("zappit_theme", theme);
     } catch { }
   }, [theme]);
+  const isThemeTransitioningRef = useRef(false);
+
+  const toggleThemeWithTransition = useCallback(() => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+
+    // 1. Check prefers-reduced-motion or missing View Transition API
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (
+      typeof document === "undefined" ||
+      !("startViewTransition" in document) ||
+      prefersReducedMotion
+    ) {
+      setTheme(nextTheme);
+      return;
+    }
+
+    // 2. Prevent race conditions on rapid repeated clicks
+    if (isThemeTransitioningRef.current) {
+      setTheme(nextTheme);
+      return;
+    }
+    isThemeTransitioningRef.current = true;
+
+    // 3. Add directional class (light->dark: left-to-right; dark->light: right-to-left)
+    const transitionClass =
+      nextTheme === "dark" ? "theme-transition-to-dark" : "theme-transition-to-light";
+    document.documentElement.classList.add(transitionClass);
+
+    try {
+      const transition = (document as any).startViewTransition(() => {
+        flushSync(() => {
+          setTheme(nextTheme);
+          document.documentElement.setAttribute("data-theme", nextTheme);
+          if (nextTheme === "light") {
+            document.body.classList.add("light-mode");
+            document.body.classList.remove("dark-mode");
+            document.documentElement.classList.remove("dark");
+          } else {
+            document.body.classList.add("dark-mode");
+            document.body.classList.remove("light-mode");
+            document.documentElement.classList.add("dark");
+          }
+        });
+      });
+
+      transition.finished
+        .catch(() => {})
+        .finally(() => {
+          document.documentElement.classList.remove(
+            "theme-transition-to-dark",
+            "theme-transition-to-light"
+          );
+          isThemeTransitioningRef.current = false;
+        });
+    } catch {
+      document.documentElement.classList.remove(
+        "theme-transition-to-dark",
+        "theme-transition-to-light"
+      );
+      isThemeTransitioningRef.current = false;
+      setTheme(nextTheme);
+    }
+  }, [theme]);
+
 
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
@@ -1052,7 +1121,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
           <div className="dash-header-right">
             <button
               type="button"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={toggleThemeWithTransition}
               title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
               aria-label="Toggle Theme"
               className="dash-theme-btn"

@@ -7,7 +7,14 @@ import {
   Save,
   ChevronDown,
   Calendar,
-  Clock
+  Clock,
+  TrendingUp,
+  PlusCircle,
+  CreditCard,
+  History,
+  Trash2,
+  Plus,
+  Minus
 } from "lucide-react";
 
 export interface AddLeadDrawerProps {
@@ -22,17 +29,37 @@ export interface AddLeadDrawerProps {
 interface CountryCode {
   code: string;
   country: string;
-  flag: string;
   label: string;
 }
 
 const COUNTRY_CODES: CountryCode[] = [
-  { code: "+91", country: "IN", flag: "🇮🇳", label: "IN" },
-  { code: "+1", country: "US", flag: "🇺🇸", label: "US" },
-  { code: "+44", country: "GB", flag: "🇬🇧", label: "UK" },
-  { code: "+971", country: "AE", flag: "🇦🇪", label: "UAE" },
-  { code: "+65", country: "SG", flag: "🇸🇬", label: "SG" },
+  { code: "+91", country: "IN", label: "IN" },
+  { code: "+1", country: "US", label: "US" },
+  { code: "+44", country: "GB", label: "UK" },
+  { code: "+971", country: "AE", label: "UAE" },
+  { code: "+65", country: "SG", label: "SG" },
 ];
+
+interface SelectedProduct {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface AdvancePaymentRecord {
+  id: string;
+  amount: number;
+  note: string;
+  createdAt: string;
+}
+
+interface CustomField {
+  key: string;
+  label: string;
+  type: "text" | "number";
+  placeholder: string;
+}
 
 export default function AddLeadDrawer({ 
   isOpen, 
@@ -48,9 +75,30 @@ export default function AddLeadDrawer({
 
   // Dynamic Master Config Data
   const [sources, setSources] = useState<{ id: string; name: string; code: string }[]>([]);
-  const [products, setProducts] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<{ id: string; name: string; price: number }[]>([]);
   const [stages, setStages] = useState<{ id: string; name: string; key: string }[]>([]);
   const [managedUsers, setManagedUsers] = useState<any[]>([]);
+
+  // Selected Products in Form
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [chosenProductId, setChosenProductId] = useState("");
+
+  // Advance Payments in Form
+  const [advanceRecords, setAdvanceRecords] = useState<AdvancePaymentRecord[]>([]);
+  const [isRequestingAdvance, setIsRequestingAdvance] = useState(false);
+  const [newAdvanceAmount, setNewAdvanceAmount] = useState("");
+  const [newAdvanceNote, setNewAdvanceNote] = useState("");
+
+  // Dynamic Advanced Custom Fields
+  const [customFields, setCustomFields] = useState<CustomField[]>([
+    { key: "number", label: "number", type: "text", placeholder: "Enter number" },
+    { key: "call", label: "call", type: "text", placeholder: "Enter call" },
+  ]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({
+    number: "",
+    call: "",
+  });
 
   // Form State
   const [countryCode, setCountryCode] = useState("+91");
@@ -62,32 +110,52 @@ export default function AddLeadDrawer({
     companyName: "",
     address: "",
     source: "",
-    productId: "",
-    productPrice: 0,
-    advanceAmount: 0,
-    remark: "",
     assignedUserId: identity?.id || "",
+    lifeCycle: "",
     status: "",
+    remark: "",
     followUpDate: "",
-    followUpTime: "",
+    followUpTime: "10:00",
+    followUpType: "Call",
+    followUpNote: "",
+    customTotalAmount: "",
   });
 
-  // Calculate Total & Balance
-  const totalAmount = formData.productPrice;
-  const advanceAmount = Number(formData.advanceAmount || 0);
-  const balanceAmount = Math.max(0, totalAmount - advanceAmount);
+  // Calculate Total & Balance Amount
+  const calculatedProductTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+  const totalAmount = selectedProducts.length > 0 
+    ? calculatedProductTotal 
+    : (formData.customTotalAmount ? Number(formData.customTotalAmount) : 0);
+
+  const totalAdvanceFromRecords = advanceRecords.reduce((sum, r) => sum + r.amount, 0);
+  const balanceAmount = Math.max(0, totalAmount - totalAdvanceFromRecords);
+
+  // Handle ESC key to dismiss dialog
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Load Master Configuration Data dynamically
   useEffect(() => {
     if (!isOpen) return;
 
     // Lock background scroll
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const loadMasterConfig = async () => {
       setFetchingConfig(true);
       try {
-        // 1. Sources (Master Config local storage or defaults)
+        // 1. Sources
         try {
           const storedSources = localStorage.getItem("myluxcards_lead_sources_data_v1");
           if (storedSources) {
@@ -126,13 +194,13 @@ export default function AddLeadDrawer({
           ]);
         }
 
-        // 2. Products (API + Catalog fallback)
+        // 2. Products
         try {
           const res = await fetch("/api/admin/products");
           const data = await res.json();
           if (res.ok && data.data && data.data.length > 0) {
             const activeProds = data.data.filter((p: any) => p.active !== false);
-            setProducts(activeProds.map((p: any) => ({
+            setAvailableProducts(activeProds.map((p: any) => ({
               id: p.id,
               name: p.name || p.title,
               price: p.priceMinor ? Math.round(p.priceMinor / 100) : (p.price_minor ? Math.round(p.price_minor / 100) : 0),
@@ -141,9 +209,9 @@ export default function AddLeadDrawer({
             const storedProds = localStorage.getItem("myluxcards_products_catalog_v1");
             if (storedProds) {
               const parsed = JSON.parse(storedProds);
-              setProducts(parsed.map((p: any) => ({ id: p.id, name: p.name || p.title, price: p.price || 0 })));
+              setAvailableProducts(parsed.map((p: any) => ({ id: p.id, name: p.name || p.title, price: p.price || 0 })));
             } else {
-              setProducts([
+              setAvailableProducts([
                 { id: "prod-1", name: "ZAPPIT NFC Metal Card", price: 1999 },
                 { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price: 999 },
                 { id: "prod-3", name: "Custom Branded NFC Tag", price: 499 },
@@ -151,14 +219,14 @@ export default function AddLeadDrawer({
             }
           }
         } catch {
-          setProducts([
+          setAvailableProducts([
             { id: "prod-1", name: "ZAPPIT NFC Metal Card", price: 1999 },
             { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price: 999 },
             { id: "prod-3", name: "Custom Branded NFC Tag", price: 499 },
           ]);
         }
 
-        // 3. Lead Stages (Master Config local storage or defaults)
+        // 3. Lead Stages
         try {
           const storedStages = localStorage.getItem("myluxcards_lead_stages_catalog_v1");
           if (storedStages) {
@@ -203,7 +271,7 @@ export default function AddLeadDrawer({
           ]);
         }
 
-        // 4. Managed Users (API)
+        // 4. Managed Users
         if (identity.role === "ADMIN" || identity.role === "SUPER_ADMIN") {
           try {
             const res = await fetch("/api/admin/managed-users");
@@ -215,6 +283,22 @@ export default function AddLeadDrawer({
             console.error("Failed to fetch managed users", err);
           }
         }
+
+        // 5. Dynamic Custom Fields
+        try {
+          const storedDyn = localStorage.getItem("myluxcards_lead_dynamics_fields");
+          if (storedDyn) {
+            const parsed = JSON.parse(storedDyn);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setCustomFields(parsed);
+              const initialVals: Record<string, string> = {};
+              parsed.forEach((f: CustomField) => { initialVals[f.key] = ""; });
+              setCustomFieldValues(prev => ({ ...initialVals, ...prev }));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to read dynamic custom fields", err);
+        }
       } finally {
         setFetchingConfig(false);
       }
@@ -223,7 +307,7 @@ export default function AddLeadDrawer({
     loadMasterConfig();
 
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, identity.role]);
 
@@ -232,9 +316,10 @@ export default function AddLeadDrawer({
     if (!isOpen) return;
 
     setError(null);
+    setIsAddingProduct(false);
+    setIsRequestingAdvance(false);
 
     if (mode === "edit" && leadData) {
-      // Parse phone number into country code + number
       let rawPhone = leadData.contactNumber || leadData.phone || "";
       let matchedCode = "+91";
       let mainPhone = rawPhone;
@@ -250,9 +335,8 @@ export default function AddLeadDrawer({
       setCountryCode(matchedCode);
       setPhoneNumber(mainPhone);
 
-      // Parse followUpDate into date string and time string
       let fDate = "";
-      let fTime = "";
+      let fTime = "10:00";
       if (leadData.followUpDate) {
         const d = new Date(leadData.followUpDate);
         if (!isNaN(d.getTime())) {
@@ -267,48 +351,113 @@ export default function AddLeadDrawer({
         companyName: leadData.companyName || leadData.company || "",
         address: leadData.address || "",
         source: leadData.source || "MANUAL",
-        productId: leadData.productId || "",
-        productPrice: Number(leadData.totalAmount || leadData.total_amount || 0),
-        advanceAmount: Number(leadData.advanceAmount || leadData.advance_amount || 0),
-        remark: leadData.remark || leadData.notes || "",
         assignedUserId: leadData.assignedUserId || identity.id,
+        lifeCycle: leadData.lifeCycle || "",
         status: leadData.status || leadData.stage || "NEW",
+        remark: leadData.remark || leadData.notes || "",
         followUpDate: fDate,
         followUpTime: fTime,
+        followUpType: leadData.followUpType || "Call",
+        followUpNote: leadData.followUpNote || "",
+        customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : "",
       });
+
+      if (leadData.advanceAmount && Number(leadData.advanceAmount) > 0) {
+        setAdvanceRecords([
+          {
+            id: "adv-init",
+            amount: Number(leadData.advanceAmount),
+            note: "Recorded advance",
+            createdAt: new Date().toLocaleDateString("en-IN"),
+          }
+        ]);
+      } else {
+        setAdvanceRecords([]);
+      }
     } else {
       // Reset form for Create Mode
       setCountryCode("+91");
       setPhoneNumber("");
+      setSelectedProducts([]);
+      setAdvanceRecords([]);
       setFormData({
         name: "",
         email: "",
         companyName: "",
         address: "",
         source: sources.length > 0 ? sources[0].code : "MANUAL",
-        productId: "",
-        productPrice: 0,
-        advanceAmount: 0,
-        remark: "",
         assignedUserId: identity.id,
+        lifeCycle: "",
         status: stages.length > 0 ? stages[0].key : "NEW",
+        remark: "",
         followUpDate: "",
-        followUpTime: "",
+        followUpTime: "10:00",
+        followUpType: "Call",
+        followUpNote: "",
+        customTotalAmount: "",
+      });
+      setCustomFieldValues({
+        number: "",
+        call: "",
       });
     }
   }, [isOpen, mode, leadData, identity.id, sources, stages]);
 
-  // Handle Product Selection change
-  const handleProductChange = (prodId: string) => {
-    const found = products.find(p => p.id === prodId);
-    setFormData(prev => ({
-      ...prev,
-      productId: prodId,
-      productPrice: found ? found.price : 0,
+  // Product Selection Handlers
+  const handleAddProduct = () => {
+    if (!chosenProductId) return;
+    const prod = availableProducts.find(p => p.id === chosenProductId);
+    if (!prod) return;
+
+    setSelectedProducts(prev => {
+      const existing = prev.find(p => p.id === chosenProductId);
+      if (existing) {
+        return prev.map(p => p.id === chosenProductId ? { ...p, quantity: p.quantity + 1 } : p);
+      }
+      return [...prev, { id: prod.id, name: prod.name, price: prod.price, quantity: 1 }];
+    });
+
+    setChosenProductId("");
+    setIsAddingProduct(false);
+  };
+
+  const handleUpdateProductQty = (id: string, delta: number) => {
+    setSelectedProducts(prev => prev.map(p => {
+      if (p.id === id) {
+        const newQty = Math.max(1, p.quantity + delta);
+        return { ...p, quantity: newQty };
+      }
+      return p;
     }));
   };
 
-  // Submit Handler (Create vs Edit)
+  const handleRemoveProduct = (id: string) => {
+    setSelectedProducts(prev => prev.filter(p => p.id !== id));
+  };
+
+  // Advance Payments Handlers
+  const handleSaveAdvanceRequest = () => {
+    const amt = Number(newAdvanceAmount);
+    if (isNaN(amt) || amt <= 0) return;
+
+    const newRecord: AdvancePaymentRecord = {
+      id: `adv-${Date.now()}`,
+      amount: amt,
+      note: newAdvanceNote.trim() || "Advance payment requested",
+      createdAt: new Date().toLocaleDateString("en-IN"),
+    };
+
+    setAdvanceRecords(prev => [...prev, newRecord]);
+    setNewAdvanceAmount("");
+    setNewAdvanceNote("");
+    setIsRequestingAdvance(false);
+  };
+
+  const handleRemoveAdvanceRecord = (id: string) => {
+    setAdvanceRecords(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -345,50 +494,41 @@ export default function AddLeadDrawer({
       }
     }
 
+    // Build payload
+    const payload: any = {
+      name: formData.name.trim(),
+      contactNumber: fullContactNumber,
+      email: formData.email.trim() || undefined,
+      companyName: formData.companyName.trim() || undefined,
+      address: formData.address.trim() || undefined,
+      source: formData.source || "MANUAL",
+      assignedUserId: formData.assignedUserId,
+      status: formData.status || "NEW",
+      lifeCycle: formData.lifeCycle || undefined,
+      totalAmount,
+      advanceAmount: totalAdvanceFromRecords,
+      remark: formData.remark.trim() || undefined,
+      followUpDate: combinedFollowUpIso,
+      followUpType: formData.followUpType || "Call",
+      followUpNote: formData.followUpNote.trim() || undefined,
+      customFields: customFieldValues,
+    };
+
     try {
       if (mode === "edit" && leadData?.id) {
-        // PATCH /api/leads/[id]
         const res = await fetch(`/api/leads/${leadData.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formData.name.trim(),
-            contactNumber: fullContactNumber,
-            email: formData.email.trim() || undefined,
-            companyName: formData.companyName.trim() || undefined,
-            address: formData.address.trim() || undefined,
-            source: formData.source,
-            assignedUserId: formData.assignedUserId,
-            status: formData.status,
-            totalAmount,
-            advanceAmount,
-            remark: formData.remark.trim() || undefined,
-            followUpDate: combinedFollowUpIso,
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to update lead.");
       } else {
-        // POST /api/leads
         const res = await fetch("/api/leads", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formData.name.trim(),
-            contactNumber: fullContactNumber,
-            email: formData.email.trim() || undefined,
-            companyName: formData.companyName.trim() || undefined,
-            address: formData.address.trim() || undefined,
-            source: formData.source || "MANUAL",
-            assignedUserId: formData.assignedUserId,
-            status: formData.status || "NEW",
-            totalAmount,
-            advanceAmount,
-            remark: formData.remark.trim() || undefined,
-            followUpDate: combinedFollowUpIso,
-            followUpType: "Call",
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await res.json();
@@ -408,121 +548,113 @@ export default function AddLeadDrawer({
   const isEdit = mode === "edit";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end font-sans">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Slide-over Drawer Panel */}
-      <div className="relative w-full max-w-[720px] h-full bg-slate-50/90 dark:bg-[#070D18] shadow-2xl flex flex-col overflow-hidden font-sans border-l border-slate-200 dark:border-slate-800/80 z-10 text-slate-900 dark:text-slate-100 transition-colors animate-in slide-in-from-right duration-300">
+    <div className="add-lead-overlay">
+      {/* Centered Dialog Window (780px max width, 3-part layout) */}
+      <div role="dialog" aria-modal="true" className="add-lead-window">
         
-        {/* FIXED HEADER */}
-        <div className="flex-shrink-0 flex items-start justify-between px-8 sm:px-9 md:px-10 pt-7 pb-6 bg-white dark:bg-[#0D1726] border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-20 shadow-sm">
-          <div className="space-y-1.5 pr-6">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold tracking-wider uppercase mb-0.5">
-              <span>✨</span>
+        {/* 1. FIXED HEADER */}
+        <div className="add-lead-header">
+          <div className="space-y-1 pr-4">
+            <div className="add-lead-badge">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               <span>{isEdit ? "EDIT LEAD" : "NEW LEAD"}</span>
             </div>
-            <h2 className="text-2xl sm:text-[28px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15]">
-              {isEdit ? "Edit lead opportunity" : "Add a new lead opportunity"}
+            <h2 className="add-lead-title">
+              {isEdit ? "Edit pipeline opportunity" : "Add a new pipeline opportunity"}
             </h2>
-            <p className="text-xs sm:text-[13.5px] font-normal text-slate-500 dark:text-slate-400 leading-relaxed pt-0.5">
-              {isEdit 
-                ? "Update contact details, lead stage, owner, and deal amounts." 
-                : "Create a new opportunity and keep all lead information organized."}
+            <p className="add-lead-subtitle">
+              Capture general lead details, follow-up cadence, and any active advanced fields defined by the workspace.
             </p>
           </div>
 
           <button 
             type="button"
             onClick={onClose} 
-            aria-label="Close drawer"
-            className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-emerald-500 mt-1"
+            aria-label="Close dialog"
+            className="add-lead-close-btn"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* SCROLLABLE FORM BODY */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-[#070D18] font-sans">
+        {/* 2. SCROLLABLE FORM BODY */}
+        <form onSubmit={handleSubmit} className="add-lead-body">
           
-          {/* Inner Canvas Wrapper (32px-40px horizontal padding) */}
-          <div className="px-8 sm:px-9 md:px-10 py-7 space-y-6 sm:space-y-7 pb-36">
-            
-            {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm animate-in fade-in">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
-                <span>{error}</span>
+          {error && (
+            <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* SECTION 1: GENERAL */}
+          <div className="add-lead-card">
+            <div>
+              <h3 className="add-lead-card-title">General</h3>
+              <p className="add-lead-card-desc">
+                Core contact details, company, address, source, and owner.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* 1. Lead Name (Full width) */}
+              <div>
+                <label className="add-lead-label">
+                  Lead Name <span className="text-rose-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  required
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter lead or account name"
+                  className="add-lead-input"
+                />
               </div>
-            )}
 
-            {/* SECTION 1: GENERAL INFORMATION */}
-            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">GENERAL INFORMATION</h3>
-                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                  Core lead and contact information.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 sm:gap-y-6">
-                
-                {/* 1. Lead Name * */}
-                <div className="md:col-span-2 space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Lead Name <span className="text-rose-500 font-bold">*</span>
+              {/* 2. Mobile and Email (Two equal columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Aligned Mobile Group */}
+                <div>
+                  <label className="add-lead-label">
+                    Mobile <span className="text-rose-500">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter lead or account name"
-                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
-                  />
-                </div>
-
-                {/* 2. Mobile * */}
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Mobile <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <div className="flex items-center rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 shadow-sm transition-all overflow-hidden h-11 sm:h-12">
-                    <div className="relative flex items-center bg-slate-100/80 dark:bg-slate-800/60 border-r border-slate-200/80 dark:border-slate-700/80 px-3 h-full w-[95px] flex-shrink-0">
+                  <div className="add-lead-mobile-group">
+                    {/* Country Selector */}
+                    <div className="add-lead-country-selector">
                       <select 
                         value={countryCode}
                         onChange={e => setCountryCode(e.target.value)}
-                        className="appearance-none bg-transparent pr-5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer h-full w-full"
                       >
                         {COUNTRY_CODES.map(c => (
-                          <option key={c.code} value={c.code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                            {c.label} {c.code}
+                          <option key={c.code} value={c.code}>
+                            {c.label}
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2.5 pointer-events-none" />
+                      <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none absolute right-2" />
                     </div>
 
-                    <div className="flex items-center flex-1 h-full px-3.5 min-w-0">
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-2 flex-shrink-0">{countryCode}</span>
-                      <input 
-                        type="tel" 
-                        required
-                        value={phoneNumber}
-                        onChange={e => setPhoneNumber(e.target.value)}
-                        placeholder="Mobile Number"
-                        className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none h-full min-w-0"
-                      />
+                    {/* Single Prefix */}
+                    <div className="add-lead-dial-code">
+                      {countryCode}
                     </div>
+
+                    {/* Phone Number Input */}
+                    <input 
+                      type="tel" 
+                      required
+                      value={phoneNumber}
+                      onChange={e => setPhoneNumber(e.target.value)}
+                      placeholder="Mobile Number"
+                      className="add-lead-phone-input"
+                    />
                   </div>
                 </div>
 
-                {/* 3. Email */}
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+                {/* Email */}
+                <div>
+                  <label className="add-lead-label">
                     Email
                   </label>
                   <input 
@@ -530,13 +662,15 @@ export default function AddLeadDrawer({
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="lead@company.com"
-                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                    className="add-lead-input"
                   />
                 </div>
+              </div>
 
-                {/* 4. Company Name */}
-                <div className="md:col-span-1 space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+              {/* 3. Company Name (Left half-width, right side blank) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="add-lead-label">
                     Company Name
                   </label>
                   <input 
@@ -544,309 +678,532 @@ export default function AddLeadDrawer({
                     value={formData.companyName}
                     onChange={e => setFormData({ ...formData, companyName: e.target.value })}
                     placeholder="Acme Pvt Ltd"
-                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                    className="add-lead-input"
                   />
                 </div>
-
-                {/* 5. Source (Dynamic from Master Config) */}
-                <div className="md:col-span-1 space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Source
-                  </label>
-                  <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                    <select 
-                      value={formData.source}
-                      onChange={e => setFormData({ ...formData, source: e.target.value })}
-                      className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
-                    >
-                      {fetchingConfig ? (
-                        <option value="">Loading sources...</option>
-                      ) : sources.length === 0 ? (
-                        <option value="">No lead sources configured</option>
-                      ) : (
-                        sources.map(s => (
-                          <option key={s.id} value={s.code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                            {s.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* 6. Address */}
-                <div className="md:col-span-2 space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Address
-                  </label>
-                  <textarea 
-                    rows={3}
-                    value={formData.address}
-                    onChange={e => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Street, city, state, PIN"
-                    className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm min-h-[92px] max-h-[120px] resize-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 2: SALES INFORMATION */}
-            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">SALES INFORMATION</h3>
-                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                  Select product package and revenue breakdown.
-                </p>
+                <div className="hidden sm:block" />
               </div>
 
-              {/* 7. Product Select (Dynamic from Master Config) */}
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                  Product
+              {/* 4. Address (Full-width textarea) */}
+              <div>
+                <label className="add-lead-label">
+                  Address
                 </label>
-                <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
-                  <select 
-                    value={formData.productId}
-                    onChange={e => handleProductChange(e.target.value)}
-                    className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9 min-w-0"
-                  >
-                    <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select Product...</option>
-                    {fetchingConfig ? (
-                      <option value="">Loading products...</option>
-                    ) : products.length === 0 ? (
-                      <option value="">No products configured</option>
-                    ) : (
-                      products.map(p => (
-                        <option key={p.id} value={p.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                          {p.name} (₹{p.price.toLocaleString("en-IN")})
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
-                </div>
+                <textarea 
+                  rows={2}
+                  value={formData.address}
+                  onChange={e => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Street, city, state, PIN"
+                  className="add-lead-textarea min-h-[72px]"
+                />
               </div>
 
-              {/* 8, 9, 10. Payment Calculation Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-                
-                {/* 8. Total Amount (READ ONLY) */}
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Total Amount (₹)
-                  </label>
-                  <input 
-                    type="text"
-                    readOnly
-                    value={`₹ ${totalAmount.toLocaleString("en-IN")}`}
-                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-100/70 dark:bg-[#040810] text-xs font-extrabold text-slate-900 dark:text-slate-100 cursor-not-allowed shadow-sm"
-                  />
-                </div>
-
-                {/* 9. Advance (Editable) */}
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Advance (₹)
-                  </label>
-                  <input 
-                    type="number"
-                    min={0}
-                    value={formData.advanceAmount}
-                    onChange={e => setFormData({ ...formData, advanceAmount: Math.max(0, Number(e.target.value)) })}
-                    placeholder="0"
-                    className="w-full h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                  />
-                </div>
-
-                {/* 10. Balance (READ ONLY) */}
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Balance (₹)
-                  </label>
-                  <div className="h-11 sm:h-12 px-3.5 sm:px-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-sm">
-                    <span>Remaining:</span>
-                    <span>₹ {balanceAmount.toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 3: LEAD MANAGEMENT */}
-            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">LEAD MANAGEMENT</h3>
-                <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                  Assign owner and update pipeline stage.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 sm:gap-x-6 gap-y-5 sm:gap-y-6">
-                
-                {/* 12. Assigned To */}
-                <div className="md:col-span-1 space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
+              {/* 5. Assigned To and Source (Two equal columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="add-lead-label">
                     Assigned To
                   </label>
-                  <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
+                  <div className="relative flex items-center">
                     <select 
                       value={formData.assignedUserId}
                       onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
-                      className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
+                      className="add-lead-select pr-9"
                     >
-                      <option value={identity.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                        {identity.name || identity.email} (You)
+                      <option value={identity.id}>
+                        {identity.name || identity.email}
                       </option>
                       {managedUsers.map(u => (
-                        <option key={u.id} value={u.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        <option key={u.id} value={u.id}>
                           {u.name || u.email}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
                   </div>
                 </div>
 
-                {/* 13. Lead Stage (Dynamic from Master Config) */}
-                <div className="md:col-span-1 space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200">
-                    Lead Stage
+                <div>
+                  <label className="add-lead-label">
+                    Source
                   </label>
-                  <div className="relative flex items-center h-11 sm:h-12 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] shadow-sm">
+                  <div className="relative flex items-center">
                     <select 
-                      value={formData.status}
-                      onChange={e => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full h-full px-3.5 sm:px-4 appearance-none bg-transparent text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer pr-9"
+                      value={formData.source}
+                      onChange={e => setFormData({ ...formData, source: e.target.value })}
+                      className="add-lead-select pr-9"
                     >
-                      {fetchingConfig ? (
-                        <option value="">Loading stages...</option>
-                      ) : stages.length === 0 ? (
-                        <option value="">No lead stages configured</option>
-                      ) : (
-                        stages.map(stg => (
-                          <option key={stg.id} value={stg.key} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                            {stg.name}
-                          </option>
-                        ))
-                      )}
+                      <option value="">Select source</option>
+                      {sources.map(s => (
+                        <option key={s.id} value={s.code}>
+                          {s.name}
+                        </option>
+                      ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute right-3.5 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* SECTION 4: FOLLOW-UP */}
-            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">FOLLOW-UP</h3>
-                  <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                    Next follow-up date and time cadence.
-                  </p>
+              {/* 6. Lead Life Cycle (Left half-width, right side blank) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="add-lead-label">
+                    Lead Life Cycle
+                  </label>
+                  <div className="relative flex items-center">
+                    <select 
+                      value={formData.lifeCycle}
+                      onChange={e => setFormData({ ...formData, lifeCycle: e.target.value })}
+                      className="add-lead-select pr-9"
+                    >
+                      <option value="">Select lifecycle</option>
+                      <option value="LEAD">Lead</option>
+                      <option value="MQL">Marketing Qualified Lead (MQL)</option>
+                      <option value="SQL">Sales Qualified Lead (SQL)</option>
+                      <option value="OPPORTUNITY">Opportunity</option>
+                      <option value="CUSTOMER">Customer</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                  </div>
                 </div>
-                {(formData.followUpDate || formData.followUpTime) && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, followUpDate: "", followUpTime: "" }))}
-                    className="text-xs font-medium text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                <div className="hidden sm:block" />
+              </div>
+
+              {/* 7. Stage (Full width) */}
+              <div>
+                <label className="add-lead-label">
+                  Stage
+                </label>
+                <div className="relative flex items-center">
+                  <select 
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                    className="add-lead-select pr-9"
                   >
-                    Clear
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Select Date</span>
-                  </label>
-                  <input 
-                    type="date"
-                    value={formData.followUpDate}
-                    onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
-                    className="w-full h-11 sm:h-12 px-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Select Time</span>
-                  </label>
-                  <input 
-                    type="time"
-                    value={formData.followUpTime}
-                    onChange={e => setFormData({ ...formData, followUpTime: e.target.value })}
-                    className="w-full h-11 sm:h-12 px-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                  />
+                    {stages.map(stg => (
+                      <option key={stg.id} value={stg.key}>
+                        {stg.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* SECTION 5: REMARKS */}
-            <div className="bg-white dark:bg-[#0D1726] rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h3 className="text-base sm:text-[17.5px] font-bold text-slate-900 dark:text-white tracking-tight">REMARKS</h3>
-                  <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400">
-                    Initial context, notes from call, or specific client requirements.
-                  </p>
-                </div>
-                <span className="font-mono text-xs font-normal text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/80">
+          {/* SECTION 2: REMARKS HISTORY */}
+          <div className="add-lead-card">
+            <div>
+              <h3 className="add-lead-card-title">Remarks History</h3>
+              <p className="add-lead-card-desc">
+                Initial notes about this lead.
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="add-lead-label !mb-0">
+                  Remarks
+                </label>
+                <span className="font-mono text-xs font-semibold text-slate-400 dark:text-slate-500">
                   {formData.remark.length}/1000
                 </span>
               </div>
+              <textarea 
+                rows={4}
+                maxLength={1000}
+                value={formData.remark}
+                onChange={e => setFormData({ ...formData, remark: e.target.value })}
+                placeholder="Enter any additional information or important notes about this lead..."
+                className="add-lead-textarea min-h-[100px]"
+              />
+            </div>
+          </div>
 
-              <div className="space-y-2">
+          {/* SECTION 3: FOLLOW-UP */}
+          <div className="add-lead-card">
+            <div className="add-lead-card-header">
+              <div className="add-lead-icon-wrap add-lead-icon-amber">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="add-lead-card-title">Follow-up</h3>
+                <p className="add-lead-card-desc">
+                  Keep the next touchpoint visible directly in the leads table.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Left: Next Follow-up & Follow-up Type */}
+              <div className="space-y-4">
+                <div>
+                  <label className="add-lead-label">
+                    Next Follow-up
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    <input 
+                      type="date"
+                      value={formData.followUpDate}
+                      onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
+                      className="add-lead-input col-span-3 !px-3"
+                    />
+                    <input 
+                      type="time"
+                      value={formData.followUpTime}
+                      onChange={e => setFormData({ ...formData, followUpTime: e.target.value })}
+                      className="add-lead-input col-span-2 !px-2 text-center"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="add-lead-label">
+                    Follow-up Type
+                  </label>
+                  <div className="relative flex items-center">
+                    <select 
+                      value={formData.followUpType}
+                      onChange={e => setFormData({ ...formData, followUpType: e.target.value })}
+                      className="add-lead-select pr-9"
+                    >
+                      <option value="Call">Call</option>
+                      <option value="Meeting">Meeting</option>
+                      <option value="Email">Email</option>
+                      <option value="WhatsApp">WhatsApp</option>
+                      <option value="Demo">Demo</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Follow-up Note */}
+              <div className="flex flex-col">
+                <label className="add-lead-label">
+                  Follow-up Note
+                </label>
                 <textarea 
-                  rows={4}
-                  maxLength={1000}
-                  value={formData.remark}
-                  onChange={e => setFormData({ ...formData, remark: e.target.value })}
-                  placeholder="Add initial remarks or client notes..."
-                  className="w-full p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-[#070E1A] text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all min-h-[110px] sm:min-h-[125px] resize-none shadow-sm"
+                  value={formData.followUpNote}
+                  onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
+                  placeholder="Describe the next customer action, context, or talking point"
+                  className="add-lead-textarea flex-1 min-h-[110px]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: PRODUCT SELECTION */}
+          <div className="add-lead-card">
+            <div className="flex items-center justify-between">
+              <div className="add-lead-card-header">
+                <div className="add-lead-icon-wrap add-lead-icon-purple">
+                  <PlusCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="add-lead-card-title">Product Selection</h3>
+                  <p className="add-lead-card-desc">
+                    Selected products calculate the total amount automatically.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAddingProduct(!isAddingProduct)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Product</span>
+              </button>
+            </div>
+
+            {/* Product Selector Bar */}
+            {isAddingProduct && (
+              <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
+                  <select
+                    value={chosenProductId}
+                    onChange={e => setChosenProductId(e.target.value)}
+                    className="add-lead-select !h-10 !text-xs pr-9"
+                  >
+                    <option value="">Choose a product from catalogue...</option>
+                    {availableProducts.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (₹{p.price.toLocaleString("en-IN")})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingProduct(false)}
+                    className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!chosenProductId}
+                    onClick={handleAddProduct}
+                    className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-sm transition-all"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Selected Products or Empty State */}
+            {selectedProducts.length === 0 ? (
+              <div className="add-lead-empty-box">
+                No products selected for this lead.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {selectedProducts.map(p => (
+                  <div 
+                    key={p.id}
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
+                  >
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{p.name}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">₹{p.price.toLocaleString("en-IN")} each</div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {/* Quantity Stepper */}
+                      <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateProductQty(p.id, -1)}
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="px-2.5 text-xs font-bold text-slate-800 dark:text-slate-200">{p.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateProductQty(p.id, 1)}
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white min-w-[70px] text-right">
+                        ₹{(p.price * p.quantity).toLocaleString("en-IN")}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveProduct(p.id)}
+                        className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 5: PAYMENT INFORMATION */}
+          <div className="add-lead-card">
+            <div className="add-lead-card-header">
+              <div className="add-lead-icon-wrap add-lead-icon-green">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="add-lead-card-title">Payment Information</h3>
+                <p className="add-lead-card-desc">
+                  Agreed revenue terms, advance payments, and outstanding balances.
+                </p>
+              </div>
+            </div>
+
+            {/* Total Amount & Balance Amount Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="add-lead-label">
+                  Total Amount
+                </label>
+                <input 
+                  type="number"
+                  min={0}
+                  value={totalAmount || ""}
+                  onChange={e => setFormData({ ...formData, customTotalAmount: e.target.value })}
+                  disabled={selectedProducts.length > 0}
+                  placeholder="0.00"
+                  className="add-lead-input font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="add-lead-label">
+                  Balance Amount (Read-only)
+                </label>
+                <input 
+                  type="text" 
+                  readOnly
+                  value={balanceAmount ? balanceAmount.toFixed(2) : "0.00"}
+                  className="add-lead-input font-bold opacity-80 cursor-not-allowed"
                 />
               </div>
             </div>
 
+            {/* Divider */}
+            <div className="border-t border-slate-200 dark:border-slate-800/80 pt-1" />
+
+            {/* Advance Payments Subheading & Action */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="add-lead-subhead">
+                <History className="w-3.5 h-3.5 text-slate-400" />
+                <span>Advance Payments</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsRequestingAdvance(!isRequestingAdvance)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Request Advance</span>
+              </button>
+            </div>
+
+            {/* Inline Request Advance Form */}
+            {isRequestingAdvance && (
+              <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-center gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Advance Amount (₹)"
+                  value={newAdvanceAmount}
+                  onChange={e => setNewAdvanceAmount(e.target.value)}
+                  className="add-lead-input sm:w-44 !h-10 !text-xs font-bold"
+                />
+                <input
+                  type="text"
+                  placeholder="Advance note (e.g. Booking token)"
+                  value={newAdvanceNote}
+                  onChange={e => setNewAdvanceNote(e.target.value)}
+                  className="add-lead-input flex-1 !h-10 !text-xs"
+                />
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestingAdvance(false)}
+                    className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveAdvanceRequest}
+                    className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
+                  >
+                    Record
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Advance Records List or Empty State */}
+            {advanceRecords.length === 0 ? (
+              <div className="add-lead-empty-box">
+                No advance payments recorded for this lead.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {advanceRecords.map(r => (
+                  <div 
+                    key={r.id}
+                    className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
+                        ₹{r.amount.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {r.note} • {r.createdAt}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAdvanceRecord(r.id)}
+                      className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* SECTION 6: ADVANCED FIELDS */}
+          <div className="add-lead-card">
+            <div>
+              <h3 className="add-lead-card-title">Advanced Fields</h3>
+              <p className="add-lead-card-desc">
+                These inputs are generated from the active Lead Dynamics configuration for this workspace.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {customFields.map(f => (
+                <div key={f.key}>
+                  <label className="add-lead-label lowercase">
+                    {f.label}
+                  </label>
+                  <input 
+                    type={f.type || "text"}
+                    value={customFieldValues[f.key] || ""}
+                    onChange={e => setCustomFieldValues({ ...customFieldValues, [f.key]: e.target.value })}
+                    placeholder={f.placeholder || `Enter ${f.label}`}
+                    className="add-lead-input"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
         </form>
 
-        {/* FIXED STICKY ACTION FOOTER */}
-        <div className="flex-shrink-0 px-8 sm:px-9 md:px-10 py-4 sm:py-5 bg-white/95 dark:bg-[#0D1726]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between shadow-xl z-20 sticky bottom-0">
-          <span className="hidden sm:inline-block text-xs font-medium text-slate-400 dark:text-slate-500">
-            Press Esc to dismiss
-          </span>
-          <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-            >
-              Cancel
-            </button>
-            
-            <button 
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="h-10 sm:h-11 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>{isEdit ? "Saving..." : "Creating Lead..."}</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 stroke-[2.5]" />
-                  <span>{isEdit ? "Save Changes" : "Create Lead"}</span>
-                </>
-              )}
-            </button>
-          </div>
+        {/* 3. FIXED STICKY ACTION FOOTER */}
+        <div className="add-lead-footer">
+          <button 
+            type="button" 
+            onClick={onClose}
+            className="add-lead-cancel-btn"
+          >
+            Cancel
+          </button>
+          
+          <button 
+            type="button" 
+            onClick={handleSubmit}
+            disabled={loading}
+            className="add-lead-submit-btn"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>{isEdit ? "Saving..." : "Creating..."}</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>{isEdit ? "Save Changes" : "Create Lead"}</span>
+              </>
+            )}
+          </button>
         </div>
 
       </div>
