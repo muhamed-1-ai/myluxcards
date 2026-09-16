@@ -217,90 +217,100 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   };
 
   return (
-    <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none space-y-6">
+    <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none gap-6">
 
       {/* 1. Header: Badge, Title, Count & Control Actions (Matching Reference) */}
-      <div className="flex flex-col gap-3">
-        {/* PIPELINE CONTROL ROOM Badge */}
-        <div>
+      <div className="flex flex-col">
+        {/* Row 1: PIPELINE CONTROL ROOM Badge */}
+        <div className="mb-3.5">
           <span className="crm-badge-control-room">
             <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
             <span>PIPELINE CONTROL ROOM</span>
           </span>
         </div>
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        {/* Row 2: Title/Count on Left, Action Groups on Right */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="crm-header-title">All Leads</h1>
             <span className="crm-header-count-pill">
-              Total Count: <strong className="ml-1 text-[var(--text-primary,#0F172A)]">{total}</strong>
+              Total Count: <strong className="ml-1.5 text-[var(--text-primary,#0F172A)]">{total}</strong>
             </span>
           </div>
 
-          {/* Control Actions Row Matching Reference */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectMode(!selectMode)}
-              className={`crm-btn-secondary ${selectMode ? "active" : ""}`}
-            >
-              <CheckSquare className="w-3.5 h-3.5" />
-              <span>Select</span>
-            </button>
+          {/* Control Actions Row Grouped Logically */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Action Group 1: Data & Export Actions */}
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setSelectMode(!selectMode)}
+                className={`crm-btn-secondary ${selectMode ? "active" : ""}`}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Select</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setIsAddOpen(true)}
-              className="crm-btn-secondary"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Import</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsAddOpen(true)}
+                className="crm-btn-secondary"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Import</span>
+              </button>
 
-            <label className="crm-checkbox-label hidden sm:flex">
-              <input
-                type="checkbox"
-                checked={includeArchived}
-                onChange={(e) => setIncludeArchived(e.target.checked)}
-                className="rounded text-emerald-600 focus:ring-emerald-500"
-              />
-              <span>Include archived leads in export</span>
-            </label>
+              <label className="crm-checkbox-label hidden sm:flex">
+                <input
+                  type="checkbox"
+                  checked={includeArchived}
+                  onChange={(e) => setIncludeArchived(e.target.checked)}
+                  className="rounded text-emerald-600 focus:ring-emerald-500"
+                />
+                <span>Include archived leads in export</span>
+              </label>
 
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="crm-btn-secondary"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
-            </button>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="crm-btn-secondary"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
+            </div>
 
-            <button
-              type="button"
-              className="crm-btn-secondary hidden sm:inline-flex"
-            >
-              <Columns className="w-3.5 h-3.5" />
-              <span>Columns</span>
-            </button>
+            {/* Action Group 2: View Controls */}
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                className="crm-btn-secondary hidden sm:inline-flex"
+              >
+                <Columns className="w-3.5 h-3.5" />
+                <span>Columns</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowFilters(!showFilters)}
-              className={`crm-btn-secondary ${showFilters ? "active" : ""}`}
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Filters</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`crm-btn-secondary ${showFilters ? "active" : ""}`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Filters</span>
+              </button>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => setIsAddOpen(true)}
-              className="crm-btn-primary"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>+ New Lead</span>
-            </button>
+            {/* Action Group 3: Primary Action */}
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => setIsAddOpen(true)}
+                className="crm-btn-primary"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>+ New Lead</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -344,7 +354,8 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             <span>FILTER LEADS</span>
           </div>
 
-          <div className="crm-filter-panel-grid">
+          {/* First Filter Row: Search + 5 dropdowns */}
+          <div className="crm-filter-row-primary">
             {/* Search Input */}
             <div className="crm-filter-input-wrap">
               <Search className="crm-filter-icon" />
@@ -416,32 +427,41 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               <option value="active">Active</option>
               <option value="closed">Closed</option>
             </select>
+          </div>
 
+          {/* Second Filter Row: Scope + Start Date + End Date */}
+          <div className="crm-filter-row-secondary">
             {/* Scope Filter */}
-            <select
-              value={scopeFilter}
-              onChange={(e) => setScopeFilter(e.target.value)}
-              className="crm-filter-select"
-            >
-              <option value="all">All Leads</option>
-              <option value="mine">My Leads</option>
-            </select>
+            <div className="w-full sm:w-[200px]">
+              <select
+                value={scopeFilter}
+                onChange={(e) => setScopeFilter(e.target.value)}
+                className="crm-filter-select"
+              >
+                <option value="all">All Leads</option>
+                <option value="mine">My Leads</option>
+              </select>
+            </div>
 
             {/* Date From */}
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="crm-filter-date"
-            />
+            <div className="w-full sm:w-[170px]">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="crm-filter-date"
+              />
+            </div>
 
             {/* Date To */}
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="crm-filter-date"
-            />
+            <div className="w-full sm:w-[170px]">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="crm-filter-date"
+              />
+            </div>
           </div>
 
           <div className="crm-filter-panel-footer">
@@ -498,11 +518,11 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 </tr>
               ) : displayedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={selectMode ? 9 : 8} className="text-center py-12 text-[var(--text-secondary,#94A3B8)]">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60" />
-                      <div className="text-sm font-semibold">No leads found in this view.</div>
-                      <button onClick={handleResetFilters} className="crm-btn-secondary mt-1">
+                  <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
+                    <div className="flex flex-col items-center justify-center">
+                      <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
+                      <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
+                      <button onClick={handleResetFilters} className="crm-btn-secondary">
                         Clear filters
                       </button>
                     </div>

@@ -4,19 +4,24 @@
   background-color: var(--background, #F8FAFC);
   color: var(--text-primary, #0F172A);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  padding: 32px 36px;
+  padding: 30px 36px 40px 36px;
   box-sizing: border-box;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+@media (max-width: 1280px) {
+  .leads-page-container {
+    padding: 28px 24px 36px 24px;
+  }
+}
 @media (max-width: 1024px) {
   .leads-page-container {
-    padding: 24px;
+    padding: 24px 20px 32px 20px;
   }
 }
 @media (max-width: 640px) {
   .leads-page-container {
-    padding: 16px;
+    padding: 20px 16px 28px 16px;
   }
 }
 
@@ -32,7 +37,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 4px 12px;
+  padding: 5px 12px;
   border-radius: 9999px;
   box-shadow: 0 1px 2px rgba(16, 185, 129, 0.08);
 }
@@ -53,7 +58,7 @@
   color: var(--text-secondary, #64748B);
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 14px;
+  padding: 6px 14px;
   border-radius: 9999px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -63,9 +68,9 @@
   color: #FFFFFF;
   font-weight: 700;
   font-size: 13px;
-  height: 40px;
-  min-height: 40px;
-  padding: 0 20px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
   display: inline-flex;
@@ -74,6 +79,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   border: none;
+  white-space: nowrap;
 }
 .crm-btn-primary:hover {
   background-color: #059669;
@@ -86,8 +92,8 @@
   color: var(--text-primary, #334155);
   font-weight: 600;
   font-size: 13px;
-  height: 40px;
-  min-height: 40px;
+  height: 44px;
+  min-height: 44px;
   padding: 0 16px;
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -96,6 +102,7 @@
   gap: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 .crm-btn-secondary:hover {
   background-color: var(--bg-secondary, #F8FAFC);
@@ -116,6 +123,9 @@
   cursor: pointer;
   user-select: none;
   font-weight: 500;
+  height: 44px;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 
 /* KPI Cards Matching Reference */
@@ -123,13 +133,13 @@
   position: relative;
   background-color: var(--surface, #FFFFFF);
   border-radius: 14px;
-  padding: 18px 20px;
+  padding: 20px 22px;
   border: 1px solid var(--border-color, #E2E8F0);
   box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.04));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 90px;
+  min-height: 100px;
   overflow: hidden;
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
@@ -149,12 +159,14 @@
   color: var(--text-secondary, #64748B);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  margin-bottom: 8px;
 }
 .kpi-value {
   font-size: 26px;
   font-weight: 800;
   color: var(--text-primary, #0F172A);
   letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
 /* Filter Panel Matching Reference */
@@ -162,11 +174,10 @@
   background-color: var(--surface, #FFFFFF);
   border: 1px solid var(--border-color, #E2E8F0);
   border-radius: 14px;
-  padding: 18px 20px;
+  padding: 22px 24px;
   box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.04));
   display: flex;
   flex-direction: column;
-  gap: 14px;
   animation: fadeIn 0.2s ease;
 }
 
@@ -184,29 +195,49 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-primary, #0F172A);
+  margin-bottom: 16px;
 }
 
-.crm-filter-panel-grid {
+.crm-filter-row-primary {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(260px, 1.8fr) repeat(5, minmax(150px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1400px) {
+  .crm-filter-row-primary {
+    grid-template-columns: minmax(240px, 1.5fr) repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .crm-filter-row-primary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.crm-filter-row-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  align-items: center;
+}
+@media (max-width: 768px) {
+  .crm-filter-row-secondary {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 }
 
 .crm-filter-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  grid-column: span 2;
-}
-@media (max-width: 640px) {
-  .crm-filter-input-wrap {
-    grid-column: span 1;
-  }
+  min-width: 0;
 }
 
 .crm-filter-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   width: 15px;
   height: 15px;
   color: var(--text-secondary, #94A3B8);
@@ -215,9 +246,10 @@
 
 .crm-filter-input {
   width: 100%;
-  height: 38px;
-  padding: 0 12px 0 36px;
-  font-size: 12.5px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 14px 0 38px;
+  font-size: 13px;
   font-weight: 500;
   border-radius: 8px;
   border: 1px solid var(--border-color, #E2E8F0);
@@ -235,9 +267,10 @@
 .crm-filter-select,
 .crm-filter-date {
   width: 100%;
-  height: 38px;
-  padding: 0 10px;
-  font-size: 12.5px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  font-size: 13px;
   font-weight: 500;
   border-radius: 8px;
   border: 1px solid var(--border-color, #E2E8F0);
@@ -259,9 +292,16 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 10px;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
   border-top: 1px dashed var(--border-color, #E2E8F0);
+}
+@media (max-width: 640px) {
+  .crm-filter-panel-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .crm-filter-note {
@@ -313,20 +353,25 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 14px 18px;
+  padding: 14px 16px;
+  height: 50px;
 }
 .crm-table td {
-  padding: 16px 18px;
+  padding: 16px 16px;
   border-bottom: 1px solid var(--border-color, #F1F5F9);
   color: var(--text-primary, #0F172A);
   vertical-align: middle;
 }
 .crm-table tr {
-  min-height: 64px;
+  min-height: 58px;
   transition: background-color 0.15s ease;
 }
 .crm-table tr:hover {
   background-color: var(--surface-soft, #F8FAFC);
+}
+
+.crm-table-empty-cell {
+  padding: 72px 16px !important;
 }
 
 /* Next Follow-Up Pill Box Matching Reference */
