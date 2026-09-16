@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { LeadStage } from "@/lib/crm";
 import { ArrowUpRight } from "lucide-react";
 
@@ -9,7 +10,7 @@ interface LeadLivePipelineProps {
   onSelectStage?: (stage: LeadStage) => void;
 }
 
-const STAGES: { key: LeadStage; label: string; accentColor: string; fillGradient?: string }[] = [
+const PRESET_STAGES: { key: LeadStage; label: string; accentColor: string; fillGradient?: string }[] = [
   { key: "NEW", label: "NEW", accentColor: "#0066FF", fillGradient: "linear-gradient(90deg, #0066FF 0%, #F5D77F 100%)" },
   { key: "CONTACTED", label: "CONTACTED", accentColor: "#3B82F6", fillGradient: "linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%)" },
   { key: "INTERESTED", label: "INTERESTED", accentColor: "#EC4899", fillGradient: "linear-gradient(90deg, #EC4899 0%, #F472B6 100%)" },
@@ -26,24 +27,45 @@ export function LeadLivePipeline({
   const calculatedTotal = Object.values(pipelineCounts || {}).reduce((sum, val) => sum + (val || 0), 0);
   const totalLeads = typeof passedTotal === "number" ? passedTotal : calculatedTotal;
 
+  const stages = useMemo(() => {
+    const presetKeys = new Set(PRESET_STAGES.map((s) => s.key));
+    const list = [...PRESET_STAGES];
+
+    if (pipelineCounts) {
+      Object.keys(pipelineCounts).forEach((key) => {
+        if (!presetKeys.has(key as LeadStage)) {
+          list.push({
+            key: key as LeadStage,
+            label: key.replace(/_/g, " "),
+            accentColor: "#8B5CF6",
+            fillGradient: "linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%)",
+          });
+        }
+      });
+    }
+    return list;
+  }, [pipelineCounts]);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Header matching reference */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.01em" }}>Pipeline Stages</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "3px 0 0" }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.01em" }}>
+            Pipeline Stages
+          </h2>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "4px 0 0" }}>
             Lead stage distribution and funnels
           </p>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.25)", padding: "3px 10px", borderRadius: 50 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.25)", padding: "4px 12px", borderRadius: 50 }}>
           {totalLeads} Total
         </span>
       </div>
 
-      {/* Stage Rows Container */}
-      <div className="scrollbar-thin" style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: 360, overflowY: "auto", paddingRight: 4 }}>
-        {STAGES.map((stg) => {
+      {/* Stage Rows Container (No Internal Scrollbar, Flow Natural) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {stages.map((stg) => {
           const count = pipelineCounts?.[stg.key] || 0;
           const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
           const isSingular = count === 1;
@@ -56,11 +78,11 @@ export function LeadLivePipeline({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 5,
+                gap: 6,
                 padding: "10px 14px",
                 borderRadius: 12,
                 cursor: onSelectStage ? "pointer" : "default",
-                minHeight: 52,
+                minHeight: 60,
                 justifyContent: "center",
                 transition: "all 0.2s ease",
               }}
@@ -68,8 +90,8 @@ export function LeadLivePipeline({
               {/* Row Header: Stage Name & Badge */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: stg.accentColor }} />
-                  <span className="crm-pipeline-stage-label" style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: stg.accentColor, flexShrink: 0 }} />
+                  <span className="crm-pipeline-stage-label" style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.04em" }}>
                     {stg.label}
                   </span>
                 </div>
@@ -82,7 +104,7 @@ export function LeadLivePipeline({
               {/* Progress Bar Track */}
               <div
                 className="crm-pipeline-progress-track"
-                style={{ position: "relative", width: "100%", height: 7, borderRadius: 999, overflow: "hidden", margin: "2px 0" }}
+                style={{ position: "relative", width: "100%", height: 6, borderRadius: 999, overflow: "hidden", background: "rgba(255, 255, 255, 0.06)", margin: "1px 0" }}
                 role="progressbar"
                 aria-valuenow={percentage}
                 aria-valuemin={0}
@@ -104,7 +126,7 @@ export function LeadLivePipeline({
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "var(--text-muted)" }}>
                 <span>{percentage}% of total Leads</span>
                 {onSelectStage && (
-                  <span style={{ color: "#0066FF", display: "flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700 }}>
+                  <span style={{ color: "#0066FF", display: "flex", alignItems: "center", gap: 2, fontSize: 11, fontWeight: 700 }}>
                     View <ArrowUpRight style={{ width: 12, height: 12 }} />
                   </span>
                 )}

@@ -74,6 +74,12 @@ import {
   Plus,
   AlertCircle,
   SlidersHorizontal,
+  LayoutDashboard,
+  BarChart2,
+  ChevronDown,
+  CreditCard,
+  Bell,
+  FileText,
 } from "lucide-react";
 
 type Tab = "dashboard" | "leads" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons";
@@ -802,173 +808,294 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
 
   return (
     <div className="dash-shell">
-      <header className="dash-top">
-        <button className="hamb" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">☰</button>
-        <a className="dash-brand" href="/">
-          <Image
-            src="/assets/logo.svg"
-            alt="Zappit logo"
-            width={240}
-            height={120}
-            priority
-            style={{
-              width: "auto",
-              height: "auto",
-            }}
-          />
-        </a>
-        <span className="crumb">/ &nbsp;{tab === "cards" ? "My Cards" : tab === "dashboard" ? "Dashboard" : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}</span><span className={`save-state ${saveStatus}`}>{saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
+      
+      {/* 1. RECREATED INSET VERTICAL SIDEBAR MATCHING REFERENCE */}
+      <aside className={`dash-side ${sidebar ? "open" : ""}`}>
+        <div className="side-logo-wrap">
+          <a className="side-brand" href="/" title="Zappit">
+            <Image
+              src="/assets/logo.svg"
+              alt="Zappit logo"
+              width={150}
+              height={50}
+              priority
+              style={{
+                width: "auto",
+                height: "32px",
+                objectFit: "contain",
+              }}
+            />
+          </a>
           <button
             type="button"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-            aria-label="Toggle Theme"
-            style={{
-              background: theme === "light" ? "#F1F5F9" : "rgba(255,255,255,0.08)",
-              border: theme === "light" ? "1px solid #CBD5E1" : "1px solid rgba(255,255,255,0.18)",
-              color: theme === "light" ? "#0F172A" : "#FFFFFF",
-              padding: "7px 12px",
-              borderRadius: 10,
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              transition: "all 0.2s ease",
-            }}
+            className="side-close-btn"
+            onClick={() => setSidebar(false)}
+            aria-label="Close menu"
           >
-            {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+            ✕
           </button>
-          <NotificationBell onSelectEntity={(entityType, entityId, actionUrl) => {
-            if (actionUrl) {
-              window.location.href = actionUrl;
-            }
-          }} />
-          <div className="account-menu">
-            {(() => {
-              const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
-              const userInitials = userDisplayName
-                .split(" ")
-                .filter(Boolean)
-                .map((part) => part[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase() || "ML";
-              return (
-                <>
-                  <button className="avatar" title={currentUser?.email || ""} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>
-                    {userInitials}
-                  </button>
-                  {accountMenu && (
-                    <div className="account-popover">
-                      <strong>{userDisplayName}</strong>
-                      <span>{currentUser?.email || ""}</span>
-                      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
-                        <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
-                      )}
-                      <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
-                      <button type="button" onClick={logout}>Log out</button>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
         </div>
-      </header>
-      <nav className="mobile-tabbar" aria-label="Dashboard sections">
-        {(["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards"] as Tab[]).map(item => <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>{item === "dashboard" ? "Home" : item === "leads" ? "All Leads" : item === "analytics" ? "QR Activity" : item === "modes" ? "Modes" : item === "contact" ? "Contact" : item === "social" ? "Links" : item === "company" ? "Company" : item === "appearance" ? "Design" : "My Cards"}</button>)}
-      </nav>
-      {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
-      <aside className={`dash-side ${sidebar ? "open" : ""}`}>
-        <nav>
-          <button className={tab === "dashboard" ? "active" : ""} onClick={() => selectTab("dashboard")}><I>⌂</I> Dashboard</button>
-          <button className={tab === "leads" ? "active" : ""} onClick={() => selectTab("leads")}><I>👥</I> All Leads</button>
-          <button className={tab === "analytics" ? "active" : ""} onClick={() => selectTab("analytics")}><I>📊</I> QR Activity</button>
 
-          {/* Master Configuration Sidebar Accordion */}
-          <div className="side-config-group">
+        <nav className="side-nav-scroll scrollbar-thin">
+          {/* Section: Dashboards */}
+          <div className="side-nav-group">
+            <span className="side-group-title">Dashboards</span>
             <button
               type="button"
-              className={`side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons"].includes(tab) ? "active" : ""}`}
-              onClick={() => setMasterConfigOpen((prev) => !prev)}
+              className={`side-nav-item ${tab === "dashboard" ? "active" : ""}`}
+              onClick={() => { selectTab("dashboard"); setSidebar(false); }}
             >
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <I>⚙</I> Master Configuration
+              <span className="side-nav-item-left">
+                <LayoutDashboard className="side-nav-icon" />
+                <span>Overview</span>
               </span>
-              <b style={{ fontSize: 10 }}>{masterConfigOpen ? "▲" : "▼"}</b>
             </button>
+            <button
+              type="button"
+              className={`side-nav-item ${tab === "leads" ? "active" : ""}`}
+              onClick={() => { selectTab("leads"); setSidebar(false); }}
+            >
+              <span className="side-nav-item-left">
+                <Users className="side-nav-icon" />
+                <span>All Leads</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`side-nav-item ${tab === "analytics" ? "active" : ""}`}
+              onClick={() => { selectTab("analytics"); setSidebar(false); }}
+            >
+              <span className="side-nav-item-left">
+                <BarChart2 className="side-nav-icon" />
+                <span>QR Activity</span>
+              </span>
+            </button>
+          </div>
 
-            {masterConfigOpen && (
-              <div className="side-config-subnav">
-                <button
-                  type="button"
-                  className={`side-config-subitem ${tab === "config-sources" ? "active" : ""}`}
-                  onClick={() => selectTab("config-sources" as Tab)}
-                >
-                  Lead Sources
-                  {tab === "config-sources" && <span className="side-config-subitem-dot" />}
-                </button>
+          {/* Section: Management (Master Configuration) */}
+          <div className="side-nav-group">
+            <span className="side-group-title">Management</span>
+            <div className="side-config-group">
+              <button
+                type="button"
+                className={`side-nav-item side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons"].includes(tab) ? "active" : ""}`}
+                onClick={() => setMasterConfigOpen((prev) => !prev)}
+              >
+                <span className="side-nav-item-left">
+                  <SlidersHorizontal className="side-nav-icon" />
+                  <span>Master Config</span>
+                </span>
+                <ChevronDown className={`side-chevron ${masterConfigOpen ? "expanded" : ""}`} />
+              </button>
 
-                <button
-                  type="button"
-                  className={`side-config-subitem ${tab === "config-products" ? "active" : ""}`}
-                  onClick={() => selectTab("config-products" as Tab)}
-                >
-                  Products
-                  {tab === "config-products" && <span className="side-config-subitem-dot" />}
-                </button>
+              {masterConfigOpen && (
+                <div className="side-subnav-list">
+                  <button
+                    type="button"
+                    className={`side-subnav-item ${tab === "config-sources" ? "active" : ""}`}
+                    onClick={() => { selectTab("config-sources" as Tab); setSidebar(false); }}
+                  >
+                    <span>Lead Sources</span>
+                    {tab === "config-sources" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`side-subnav-item ${tab === "config-products" ? "active" : ""}`}
+                    onClick={() => { selectTab("config-products" as Tab); setSidebar(false); }}
+                  >
+                    <span>Products</span>
+                    {tab === "config-products" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`side-subnav-item ${tab === "config-stages" ? "active" : ""}`}
+                    onClick={() => { selectTab("config-stages" as Tab); setSidebar(false); }}
+                  >
+                    <span>Lead Stages</span>
+                    {tab === "config-stages" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`side-subnav-item ${tab === "config-calendar" ? "active" : ""}`}
+                    onClick={() => { selectTab("config-calendar" as Tab); setSidebar(false); }}
+                  >
+                    <span>Calendar</span>
+                    {tab === "config-calendar" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`side-subnav-item ${tab === "config-reasons" ? "active" : ""}`}
+                    onClick={() => { selectTab("config-reasons" as Tab); setSidebar(false); }}
+                  >
+                    <span>LOB Reasons</span>
+                    {tab === "config-reasons" && <span className="side-subnav-dot" />}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
-                <button
-                  type="button"
-                  className={`side-config-subitem ${tab === "config-stages" ? "active" : ""}`}
-                  onClick={() => selectTab("config-stages" as Tab)}
-                >
-                  Lead Stages
-                  {tab === "config-stages" && <span className="side-config-subitem-dot" />}
-                </button>
-
-                <button
-                  type="button"
-                  className={`side-config-subitem ${tab === "config-calendar" ? "active" : ""}`}
-                  onClick={() => selectTab("config-calendar" as Tab)}
-                >
-                  Calendar
-                  {tab === "config-calendar" && <span className="side-config-subitem-dot" />}
-                </button>
-
-                <button
-                  type="button"
-                  className={`side-config-subitem ${tab === "config-reasons" ? "active" : ""}`}
-                  onClick={() => selectTab("config-reasons" as Tab)}
-                >
-                  LOB Reasons
-                  {tab === "config-reasons" && <span className="side-config-subitem-dot" />}
-                </button>
+          {/* Section: Card & Profile */}
+          <div className="side-nav-group">
+            <span className="side-group-title">Card &amp; Profile</span>
+            <div className="side-card-profile-box">
+              <div className="side-card-profile-header">
+                <span className="side-card-owner-info">
+                  <span className="side-card-status-dot" style={{ background: selected.active ? "#10B981" : "#F59E0B" }} />
+                  <strong className="side-card-name-text">{selected.name}</strong>
+                </span>
+                <span className="side-card-status-pill">
+                  {selected.active ? "Published" : "Draft"}
+                </span>
               </div>
+              <div className="side-subnav-list">
+                {(["modes", "contact", "social", "company", "appearance"] as Tab[]).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`side-subnav-item ${tab === item ? "active" : ""}`}
+                    onClick={() => { selectTab(item); setSidebar(false); }}
+                  >
+                    <span>
+                      {item === "modes"
+                        ? "Profile Features"
+                        : item === "contact"
+                        ? "Contact Info"
+                        : item === "social"
+                        ? "Apps & Links"
+                        : item === "company"
+                        ? "Company"
+                        : "Card Design"}
+                    </span>
+                    {tab === item && <span className="side-subnav-dot" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Workspace */}
+          <div className="side-nav-group">
+            <span className="side-group-title">Workspace</span>
+            <button
+              type="button"
+              className={`side-nav-item ${tab === "cards" ? "active" : ""}`}
+              onClick={() => { selectTab("cards"); setSidebar(false); }}
+            >
+              <span className="side-nav-item-left">
+                <CreditCard className="side-nav-icon" />
+                <span>My Cards</span>
+              </span>
+            </button>
+            <a className="side-nav-item side-link" href="/notifications">
+              <span className="side-nav-item-left">
+                <Bell className="side-nav-icon" />
+                <span>Notifications</span>
+              </span>
+            </a>
+            <a className="side-nav-item side-link" href="/orders">
+              <span className="side-nav-item-left">
+                <FileText className="side-nav-icon" />
+                <span>My Orders</span>
+              </span>
+            </a>
+            {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
+              <a className="side-nav-item side-link side-admin-link" href="/admin">
+                <span className="side-nav-item-left">
+                  <ShieldAlert className="side-nav-icon" style={{ color: "#0066FF" }} />
+                  <span style={{ color: "#0066FF", fontWeight: 700 }}>Admin Portal</span>
+                </span>
+              </a>
             )}
           </div>
-
-          <div className="card-owner"><span><I>◆</I>{selected.name}</span><b>⌄</b></div>
-          <div className="subnav">
-            {(["modes", "contact", "social", "company", "appearance"] as Tab[]).map((item) =>
-              <button key={item} className={tab === item ? "active" : ""} onClick={() => selectTab(item)}>
-                {item === "modes" ? "Profile Mode & Features" : item === "contact" ? "Contact Info" : item === "social" ? "Apps & Links" : item[0].toUpperCase() + item.slice(1)}
-              </button>)}
-            <small>{selected.active ? "Published until you switch it off" : "Currently switched off"} ({selected.id.replace("card-", "#")})</small>
-          </div>
-          <button className={tab === "cards" ? "active" : ""} onClick={() => selectTab("cards")}><I>▣</I> My Cards</button>
-          <a className="side-link" href="/notifications"><I>🔔</I> Notifications</a>
-          <a className="side-link" href="/orders"><I>▤</I> My Orders</a>
-          {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
-            <a className="side-link" href="/admin" style={{ color: "#0066FF", fontWeight: 600 }}><I>⚙</I> Admin Portal</a>
-          )}
         </nav>
-        <div className="demo-note"><span>{cloudReady ? "Secure cloud workspace" : "Offline-safe workspace"}</span><p>{cloudReady ? "Cards and analytics are connected to your account." : "Drafts remain in this browser until cloud storage becomes available."}</p></div>
+
+        <div className="side-footer-badge">
+          <div className="side-footer-status">
+            <span className="side-status-pulse" />
+            <span>{cloudReady ? "Secure Cloud Workspace" : "Offline Workspace"}</span>
+          </div>
+          <small className="side-footer-email">{currentUser.email}</small>
+        </div>
       </aside>
+
+      {/* 2. REWORKED DASHBOARD SHELL & INTEGRATED HEADER */}
       <main className="dash-main">
+        <header className="dash-main-header">
+          <div className="dash-header-left">
+            <button className="hamb-toggle" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">
+              ☰
+            </button>
+            <div className="dash-breadcrumbs">
+              <span className="crumb-brand">Zappit</span>
+              <span className="crumb-slash">/</span>
+              <span className="crumb-target">
+                {tab === "cards"
+                  ? "My Cards"
+                  : tab === "dashboard"
+                  ? "Dashboard"
+                  : tab === "leads"
+                  ? "All Leads"
+                  : tab === "analytics"
+                  ? "QR Activity"
+                  : tab.startsWith("config-")
+                  ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
+                  : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
+              </span>
+              <span className={`save-state ${saveStatus}`}>
+                {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
+              </span>
+            </div>
+          </div>
+
+          <div className="dash-header-right">
+            <button
+              type="button"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+              aria-label="Toggle Theme"
+              className="dash-theme-btn"
+            >
+              {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+            </button>
+            <NotificationBell onSelectEntity={(entityType, entityId, actionUrl) => {
+              if (actionUrl) {
+                window.location.href = actionUrl;
+              }
+            }} />
+            <div className="account-menu">
+              {(() => {
+                const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
+                const userInitials = userDisplayName
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((part) => part[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase() || "ML";
+                return (
+                  <>
+                    <button className="avatar" title={currentUser?.email || ""} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>
+                      {userInitials}
+                    </button>
+                    {accountMenu && (
+                      <div className="account-popover">
+                        <strong>{userDisplayName}</strong>
+                        <span>{currentUser?.email || ""}</span>
+                        {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
+                          <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
+                        )}
+                        <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
+                        <button type="button" onClick={logout}>Log out</button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </header>
         {tab === "dashboard" && (
           <section>
             <LeadManagementDashboard
