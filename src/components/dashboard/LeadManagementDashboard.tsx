@@ -303,122 +303,150 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
         </div>
       </div>
 
-      {/* 3. COMPACT KPI CARDS GRID (Matching Reference Layout) */}
+      {/* 3. BALANCED 4x2 KPI CARDS GRID (Matching Reference Layout) */}
       <div className="crm-kpi-grid">
-        {/* Card 1: Today's Leads */}
+        {/* Card 1: Total Leads */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
-            <span className="crm-kpi-label">TODAY'S LEADS</span>
             <div className="crm-kpi-badge">
-              <Flame style={{ width: 16, height: 16 }} />
+              <Users style={{ width: 17, height: 17 }} />
             </div>
+            <span className="crm-kpi-pill" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.25)" }}>
+              Total
+            </span>
           </div>
-          <div className="crm-kpi-value">{kpis.newLeads}</div>
-          <div className="crm-kpi-sub">
-            <TrendingUp style={{ width: 12, height: 12 }} /> Total leads
+          <span className="crm-kpi-label">TOTAL LEADS</span>
+          <div className="crm-kpi-value">{kpis.totalLeads}</div>
+          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+            <TrendingUp style={{ width: 12, height: 12, color: "#00E5FF" }} /> All registered leads
           </div>
         </div>
 
-        {/* Card 2: Total Leads */}
+        {/* Card 2: Today's Leads */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
-            <span className="crm-kpi-label">TOTAL LEADS</span>
-            <div className="crm-kpi-badge">
-              <Users style={{ width: 16, height: 16 }} />
+            <div className="crm-kpi-badge" style={{ color: "#F59E0B", background: "rgba(245, 158, 11, 0.12)", borderColor: "rgba(245, 158, 11, 0.25)" }}>
+              <Flame style={{ width: 17, height: 17 }} />
             </div>
+            <span className="crm-kpi-pill" style={{ color: "#F59E0B", background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
+              Today
+            </span>
           </div>
-          <div className="crm-kpi-value">{kpis.totalLeads}</div>
-          <div className="crm-kpi-sub" style={{ color: "#F87171" }}>
-            <TrendingUp style={{ width: 12, height: 12, transform: "rotate(180deg)" }} /> All leads
+          <span className="crm-kpi-label">TODAY'S LEADS</span>
+          <div className="crm-kpi-value">{kpis.newLeads}</div>
+          <div className="crm-kpi-sub">
+            <TrendingUp style={{ width: 12, height: 12 }} /> New inbound today
           </div>
         </div>
 
         {/* Card 3: Closed Leads */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
-            <span className="crm-kpi-label">CLOSED LEADS</span>
             <div className="crm-kpi-badge">
-              <CheckCircle2 style={{ width: 16, height: 16 }} />
+              <CheckCircle2 style={{ width: 17, height: 17 }} />
             </div>
+            <span className="crm-kpi-pill">
+              Closed
+            </span>
           </div>
+          <span className="crm-kpi-label">CLOSED LEADS</span>
           <div className="crm-kpi-value">{kpis.wonLeads}</div>
-          <div className="crm-kpi-sub">
-            <TrendingUp style={{ width: 12, height: 12 }} /> Total closed leads
+          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+            <TrendingUp style={{ width: 12, height: 12, color: "#0066FF" }} /> Total closed leads
           </div>
         </div>
 
-        {/* Card 4: Interested Leads */}
+        {/* Card 4: Won Deals */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
-            <span className="crm-kpi-label">INTERESTED</span>
-            <div className="crm-kpi-badge">
-              <UserCheck style={{ width: 16, height: 16 }} />
+            <div className="crm-kpi-badge" style={{ color: "#10B981", background: "rgba(16, 185, 129, 0.12)", borderColor: "rgba(16, 185, 129, 0.25)" }}>
+              <Trophy style={{ width: 17, height: 17 }} />
             </div>
+            <span className="crm-kpi-pill" style={{ color: "#10B981", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+              Converted
+            </span>
           </div>
-          <div className="crm-kpi-value" style={{ color: "#0066FF" }}>{kpis.interestedLeads}</div>
-          <div className="crm-kpi-sub">
-            <TrendingUp style={{ width: 12, height: 12 }} /> High intent leads
-          </div>
-        </div>
-
-        {/* Card 5: Follow-Ups */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-top">
-            <span className="crm-kpi-label">FOLLOW-UPS</span>
-            <div className="crm-kpi-badge">
-              <Clock style={{ width: 16, height: 16 }} />
-            </div>
-          </div>
-          <div className="crm-kpi-value" style={{ color: "#0066FF" }}>{kpis.followUpLeads}</div>
-          <div className="crm-kpi-sub">
-            <TrendingUp style={{ width: 12, height: 12 }} /> Active follow-up stage
-          </div>
-        </div>
-
-        {/* Card 6: Won Deals */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-top">
-            <span className="crm-kpi-label">WON DEALS</span>
-            <div className="crm-kpi-badge">
-              <Trophy style={{ width: 16, height: 16 }} />
-            </div>
-          </div>
+          <span className="crm-kpi-label">WON DEALS</span>
           <div className="crm-kpi-value" style={{ color: "#10B981" }}>{kpis.wonLeads}</div>
-          <div className="crm-kpi-sub">
+          <div className="crm-kpi-sub" style={{ color: "#10B981" }}>
             <TrendingUp style={{ width: 12, height: 12 }} /> Converted deals
           </div>
         </div>
 
-        {/* Card 7: Conversion Rate */}
+        {/* Card 5: Interested Leads */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
-            <span className="crm-kpi-label">CONVERSION</span>
-            <div className="crm-kpi-badge">
+            <div className="crm-kpi-badge" style={{ color: "#38BDF8", background: "rgba(56, 189, 248, 0.12)", borderColor: "rgba(56, 189, 248, 0.25)" }}>
+              <UserCheck style={{ width: 17, height: 17 }} />
+            </div>
+            <span className="crm-kpi-pill" style={{ color: "#38BDF8", background: "rgba(56, 189, 248, 0.1)", border: "1px solid rgba(56, 189, 248, 0.25)" }}>
+              High Intent
+            </span>
+          </div>
+          <span className="crm-kpi-label">INTERESTED</span>
+          <div className="crm-kpi-value" style={{ color: "#38BDF8" }}>{kpis.interestedLeads}</div>
+          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+            <TrendingUp style={{ width: 12, height: 12, color: "#38BDF8" }} /> Qualified prospects
+          </div>
+        </div>
+
+        {/* Card 6: Follow-Ups */}
+        <div className="crm-kpi-card">
+          <div className="crm-kpi-top">
+            <div className="crm-kpi-badge" style={{ color: "#A78BFA", background: "rgba(167, 139, 250, 0.12)", borderColor: "rgba(167, 139, 250, 0.25)" }}>
+              <Clock style={{ width: 17, height: 17 }} />
+            </div>
+            <span className="crm-kpi-pill" style={{ color: "#A78BFA", background: "rgba(167, 139, 250, 0.1)", border: "1px solid rgba(167, 139, 250, 0.25)" }}>
+              Queue
+            </span>
+          </div>
+          <span className="crm-kpi-label">FOLLOW-UPS</span>
+          <div className="crm-kpi-value" style={{ color: "#A78BFA" }}>{kpis.followUpLeads}</div>
+          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+            <TrendingUp style={{ width: 12, height: 12, color: "#A78BFA" }} /> Active follow-up stage
+          </div>
+        </div>
+
+        {/* Card 7: Conversion Rate (Featured Highlight Card Matching Image 1 Reference Card 2) */}
+        <div className="crm-kpi-card crm-kpi-card-featured">
+          <div className="crm-kpi-top">
+            <div className="crm-kpi-badge" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.16)", borderColor: "rgba(0, 229, 255, 0.35)", borderRadius: "50%" }}>
               <Percent style={{ width: 16, height: 16 }} />
             </div>
+            <span className="crm-kpi-pill" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.15)", border: "1px solid rgba(0, 229, 255, 0.35)" }}>
+              Conversion
+            </span>
           </div>
-          <div className="crm-kpi-value" style={{ color: "#3B82F6" }}>{kpis.conversionRate}%</div>
-          <div className="crm-kpi-sub">
-            <TrendingUp style={{ width: 12, height: 12 }} /> Won / Total leads
+          <span className="crm-kpi-label">CONVERSION RATE</span>
+          <div className="crm-kpi-value" style={{ color: "#FFFFFF" }}>{kpis.conversionRate}%</div>
+          <div className="crm-kpi-featured-bar-track">
+            <div className="crm-kpi-featured-bar-fill" style={{ width: `${Math.min(kpis.conversionRate || 0, 100)}%` }} />
           </div>
-        </div>
-      </div>
-
-      {/* 4. DAILY FOLLOW-UP CAPACITY STRIP (Matching Reference Card) */}
-      <div className="crm-capacity-strip">
-        <div className="crm-capacity-left">
-          <div className="crm-capacity-icon-badge">
-            <Calendar style={{ width: 20, height: 20 }} />
-          </div>
-          <div>
-            <h3 className="crm-capacity-title">Daily Follow-Up Capacity</h3>
-            <p className="crm-capacity-sub">Daily follow-up limit is currently disabled.</p>
+          <div className="crm-kpi-featured-footer">
+            <span>{kpis.wonLeads} won deals</span>
+            <span>{kpis.totalLeads} total</span>
           </div>
         </div>
 
-        <div className="crm-capacity-pill">
-          <CheckCircle2 style={{ width: 14, height: 14 }} />
-          Today's Follow-Ups: {totalDueFollowUps}
+        {/* Card 8: Daily Follow-Up Capacity (Fills 8th Slot in 4x2 Grid) */}
+        <div className="crm-kpi-card crm-kpi-card-capacity">
+          <div className="crm-kpi-top">
+            <div className="crm-kpi-badge" style={{ color: "#00E5FF" }}>
+              <Calendar style={{ width: 17, height: 17 }} />
+            </div>
+            <span className="crm-kpi-pill" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.12)", border: "1px solid rgba(0, 229, 255, 0.3)" }}>
+              {totalDueFollowUps} Due
+            </span>
+          </div>
+          <span className="crm-kpi-label">DAILY CAPACITY</span>
+          <div className="crm-kpi-value" style={{ fontSize: 24, margin: "10px 0 2px" }}>Active</div>
+          <button
+            type="button"
+            className="crm-kpi-capacity-btn"
+            onClick={() => onNavigateTab && onNavigateTab("leads")}
+          >
+            <CheckCircle2 style={{ width: 13, height: 13 }} /> Today's Follow-Ups: {totalDueFollowUps}
+          </button>
         </div>
       </div>
 

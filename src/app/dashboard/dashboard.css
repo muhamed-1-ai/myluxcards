@@ -4029,62 +4029,79 @@ th {
   gap: 5px;
 }
 
-/* 4. DAILY FOLLOW-UP CAPACITY STRIP */
-.crm-capacity-strip {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 20px;
-  padding: 22px 26px;
-  min-height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-}
-
-.crm-capacity-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.crm-capacity-icon-badge {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.25);
+.crm-kpi-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 50px;
+  background: rgba(0, 102, 255, 0.12);
+  border: 1px solid rgba(0, 102, 255, 0.25);
   color: #0066FF;
+}
+
+/* Featured Conversion Highlight Card (Matching Image 1 Reference Card 2) */
+.crm-kpi-card-featured {
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.15) 0%, #12131A 100%) !important;
+  border: 1px solid rgba(0, 229, 255, 0.35) !important;
+  box-shadow: 0 8px 28px rgba(0, 102, 255, 0.2) !important;
+}
+
+.crm-kpi-card-featured:hover {
+  border-color: rgba(0, 229, 255, 0.6) !important;
+  box-shadow: 0 12px 34px rgba(0, 102, 255, 0.3) !important;
+}
+
+.crm-kpi-featured-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+
+.crm-kpi-featured-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0066FF 0%, #00E5FF 100%);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.crm-kpi-featured-footer {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-}
-
-.crm-capacity-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: #FFFFFF;
-  margin: 0 0 2px;
-}
-
-.crm-capacity-sub {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #94A3B8;
-  margin: 0;
+  font-weight: 500;
 }
 
-.crm-capacity-pill {
+/* Capacity Card in 4x2 Grid */
+.crm-kpi-card-capacity {
+  background: #12131A;
+}
+
+.crm-kpi-capacity-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 18px;
+  padding: 8px 12px;
   border-radius: 50px;
   background: rgba(0, 229, 255, 0.12);
   border: 1px solid rgba(0, 229, 255, 0.3);
-  color: #0066FF;
-  font-size: 12.5px;
-  font-weight: 800;
+  color: #00E5FF;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.crm-kpi-capacity-btn:hover {
+  background: rgba(0, 229, 255, 0.22);
+  border-color: rgba(0, 229, 255, 0.5);
 }
 
 /* 5. MAIN ANALYTICS 2-COLUMN ROW */
