@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { CrmActivityItem, LeadGrowthPoint } from "@/lib/crm";
 
 interface LeadGrowthChartProps {
@@ -25,6 +25,27 @@ export function LeadGrowthChart({
 }: LeadGrowthChartProps) {
   const [period, setPeriod] = useState<Period>("7d");
   const [hoveredPoint, setHoveredPoint] = useState<Point | null>(null);
+
+  // Measure chart wrapper width dynamically to ensure 100% full-width plot
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number>(700);
+
+  useEffect(() => {
+    if (!chartWrapperRef.current) return;
+    const updateSize = () => {
+      if (chartWrapperRef.current) {
+        const rect = chartWrapperRef.current.getBoundingClientRect();
+        if (rect.width > 0) {
+          setMeasuredWidth(Math.floor(rect.width));
+        }
+      }
+    };
+    updateSize();
+
+    const resizeObserver = new ResizeObserver(() => updateSize());
+    resizeObserver.observe(chartWrapperRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Compute dataset based on selected period
   const chartData = useMemo(() => {
@@ -79,16 +100,18 @@ export function LeadGrowthChart({
     return result;
   }, [period, growthTimeline, recentActivity]);
 
-  // SVG layout dimensions
-  const svgWidth = 680;
-  const svgHeight = 240;
-  const paddingLeft = 40;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 35;
+  // Responsive plot geometry
+  const isMobile = measuredWidth < 600;
+  const chartHeight = isMobile ? 230 : 280;
 
-  const plotWidth = svgWidth - paddingLeft - paddingRight;
-  const plotHeight = svgHeight - paddingTop - paddingBottom;
+  // Reserve ~44px for Y-axis numbers and 14px on the right
+  const paddingLeft = 44;
+  const paddingRight = 14;
+  const paddingTop = 16;
+  const paddingBottom = 28;
+
+  const plotWidth = Math.max(measuredWidth - paddingLeft - paddingRight, 10);
+  const plotHeight = Math.max(chartHeight - paddingTop - paddingBottom, 10);
   const zeroY = paddingTop + plotHeight;
 
   const maxVal = useMemo(() => {
@@ -96,7 +119,7 @@ export function LeadGrowthChart({
     return highest <= 3 ? 4 : Math.ceil(highest * 1.25);
   }, [chartData]);
 
-  // Map to Cartesian coordinates
+  // Map to Cartesian coordinates spanning the full measured width
   const points: Point[] = useMemo(() => {
     return chartData.map((pt, i) => {
       const x = paddingLeft + (i / Math.max(chartData.length - 1, 1)) * plotWidth;
@@ -197,17 +220,17 @@ export function LeadGrowthChart({
     <div style={{
       display: "flex",
       flexDirection: "column",
-      gap: 18,
       width: "100%",
       minWidth: 0,
-      fontFamily: "Inter, system-ui, -apple-system, sans-serif"
+      fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     }}>
-      {/* 1. Header: Title on Left, Time-Range Selector on Right */}
+      {/* 1. Header: Title on Left, Time-Range Selector on Right (18px bottom gap) */}
       <div style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "flex-start",
-        gap: 16
+        gap: 16,
+        marginBottom: 18,
       }}>
         <div>
           <h2 style={{
@@ -270,8 +293,8 @@ export function LeadGrowthChart({
         </div>
       </div>
 
-      {/* 2. Summary Row: Three Equal-Width Cards Matching Target Screenshot 2 */}
-      <div className="crm-chart-summary-grid">
+      {/* 2. Summary Row: Three Equal-Width Cards (14px bottom gap) */}
+      <div className="crm-chart-summary-grid" style={{ marginBottom: 14 }}>
         {/* Card 1: Period Total */}
         <div className="crm-chart-summary-card">
           <span className="crm-chart-summary-label">Period Total</span>
@@ -294,13 +317,13 @@ export function LeadGrowthChart({
         </div>
       </div>
 
-      {/* 3. Compact Legend Row */}
+      {/* 3. Compact Legend Row: Aligned with the right edge of summary row (10px bottom gap) */}
       <div style={{
         display: "flex",
         justifyContent: "flex-end",
         alignItems: "center",
-        gap: 14,
-        margin: "0 4px -6px 0"
+        paddingRight: paddingRight,
+        marginBottom: 10,
       }}>
         <span style={{
           display: "inline-flex",
@@ -315,18 +338,22 @@ export function LeadGrowthChart({
         </span>
       </div>
 
-      {/* 4. Full-Width Responsive Chart (Content-Driven Height, No Stretched Blank Void) */}
-      <div style={{
-        position: "relative",
-        width: "100%",
-        minWidth: 0,
-        height: 240,
-        display: "flex",
-        alignItems: "center"
-      }}>
+      {/* 4. Full-Width Responsive Graph (Exact measured dimensions, zero letterboxing) */}
+      <div
+        ref={chartWrapperRef}
+        style={{
+          position: "relative",
+          width: "100%",
+          minWidth: 0,
+          height: chartHeight,
+          overflow: "visible",
+        }}
+      >
         <svg
-          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          style={{ width: "100%", height: "100%", overflow: "visible" }}
+          width={measuredWidth}
+          height={chartHeight}
+          viewBox={`0 0 ${measuredWidth} ${chartHeight}`}
+          style={{ display: "block", width: "100%", height: "100%", overflow: "visible" }}
           onMouseLeave={() => setHoveredPoint(null)}
         >
           <defs>
@@ -353,7 +380,7 @@ export function LeadGrowthChart({
                   <line
                     x1={paddingLeft}
                     y1={y}
-                    x2={svgWidth - paddingRight}
+                    x2={measuredWidth - paddingRight}
                     y2={y}
                     stroke="rgba(0, 102, 255, 0.3)"
                     strokeWidth="1.5"
@@ -364,7 +391,7 @@ export function LeadGrowthChart({
                   <line
                     x1={paddingLeft}
                     y1={y}
-                    x2={svgWidth - paddingRight}
+                    x2={measuredWidth - paddingRight}
                     y2={y}
                     stroke="rgba(255, 255, 255, 0.05)"
                     strokeDasharray="4 4"
@@ -402,7 +429,7 @@ export function LeadGrowthChart({
 
           {/* X-Axis Ticks & Labels */}
           {points.map((pt, idx) => {
-            // In 30-day mode, skip every second or third label for breathing room
+            // In 30-day mode, skip intermediate labels for breathing room
             if (period === "30d" && idx % 4 !== 0 && idx !== points.length - 1) return null;
             return (
               <text
@@ -483,8 +510,8 @@ export function LeadGrowthChart({
               fontSize: 12,
               fontFamily: "Inter, system-ui, sans-serif",
               transform: "translate(-50%, -120%)",
-              left: `${(hoveredPoint.x / svgWidth) * 100}%`,
-              top: `${(hoveredPoint.y / svgHeight) * 100}%`,
+              left: `${hoveredPoint.x}px`,
+              top: `${hoveredPoint.y}px`,
               whiteSpace: "nowrap",
             }}
           >

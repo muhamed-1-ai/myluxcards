@@ -4110,19 +4110,20 @@ th {
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   width: 100%;
-  align-items: stretch;
+  align-items: start;
 }
 
 .crm-chart-card {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
   border-radius: 20px;
-  padding: 24px 26px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 /* 3-Column Summary Cards (Matching Target Screenshot 2) */
@@ -4181,13 +4182,13 @@ th {
   background: #12131A;
   border: 1px solid rgba(0, 229, 255, 0.18);
   border-radius: 20px;
-  padding: 24px 26px;
-  min-height: 420px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   gap: 16px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
 }
 
 .crm-pipeline-stage-row {
