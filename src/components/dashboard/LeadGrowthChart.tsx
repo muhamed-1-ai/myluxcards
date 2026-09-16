@@ -81,11 +81,11 @@ export function LeadGrowthChart({
 
   // SVG layout dimensions
   const svgWidth = 680;
-  const svgHeight = 290;
-  const paddingLeft = 45;
-  const paddingRight = 25;
-  const paddingTop = 28;
-  const paddingBottom = 42;
+  const svgHeight = 240;
+  const paddingLeft = 40;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 35;
 
   const plotWidth = svgWidth - paddingLeft - paddingRight;
   const plotHeight = svgHeight - paddingTop - paddingBottom;
@@ -194,9 +194,21 @@ export function LeadGrowthChart({
   const avgVal = useMemo(() => (chartData.length > 0 ? (periodTotal / chartData.length).toFixed(1) : "0"), [chartData, periodTotal]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
-      {/* Header & Period Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: 18,
+      width: "100%",
+      minWidth: 0,
+      fontFamily: "Inter, system-ui, -apple-system, sans-serif"
+    }}>
+      {/* 1. Header: Title on Left, Time-Range Selector on Right */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: 16
+      }}>
         <div>
           <h2 style={{
             fontSize: 18,
@@ -225,7 +237,8 @@ export function LeadGrowthChart({
           background: "#161822",
           border: "1px solid rgba(255, 255, 255, 0.08)",
           padding: 3,
-          borderRadius: 10
+          borderRadius: 10,
+          flexShrink: 0
         }}>
           {(["7d", "30d", "12m"] as Period[]).map((pKey) => {
             const label = pKey === "7d" ? "7 Days" : pKey === "30d" ? "30 Days" : "12 Months";
@@ -257,35 +270,60 @@ export function LeadGrowthChart({
         </div>
       </div>
 
-      {/* Internal Analytics Summary Strip (Matching Reference Header Layout) */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 24,
-        marginBottom: 16,
-        padding: "10px 16px",
-        background: "rgba(255, 255, 255, 0.02)",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        borderRadius: 12
-      }}>
-        <div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Period Total</span>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#FFFFFF", marginTop: 2 }}>{periodTotal} Leads</div>
+      {/* 2. Summary Row: Three Equal-Width Cards Matching Target Screenshot 2 */}
+      <div className="crm-chart-summary-grid">
+        {/* Card 1: Period Total */}
+        <div className="crm-chart-summary-card">
+          <span className="crm-chart-summary-label">Period Total</span>
+          <div className="crm-chart-summary-value">{periodTotal} <span className="crm-chart-summary-unit">Leads</span></div>
+          <span className="crm-chart-summary-sub">Selected timeframe</span>
         </div>
-        <div style={{ width: 1, height: 26, background: "rgba(255, 255, 255, 0.08)" }} />
-        <div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Avg. Volume</span>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#0066FF", marginTop: 2 }}>{avgVal} / day</div>
+
+        {/* Card 2: Avg. Volume */}
+        <div className="crm-chart-summary-card">
+          <span className="crm-chart-summary-label">Avg. Volume</span>
+          <div className="crm-chart-summary-value" style={{ color: "#0066FF" }}>{avgVal} <span className="crm-chart-summary-unit">/ day</span></div>
+          <span className="crm-chart-summary-sub">Daily acquisition average</span>
         </div>
-        <div style={{ width: 1, height: 26, background: "rgba(255, 255, 255, 0.08)" }} />
-        <div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Peak Volume</span>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#38BDF8", marginTop: 2 }}>{peakVal} Leads</div>
+
+        {/* Card 3: Peak Volume */}
+        <div className="crm-chart-summary-card">
+          <span className="crm-chart-summary-label">Peak Volume</span>
+          <div className="crm-chart-summary-value" style={{ color: "#38BDF8" }}>{peakVal} <span className="crm-chart-summary-unit">Leads</span></div>
+          <span className="crm-chart-summary-sub">Highest single day</span>
         </div>
       </div>
 
-      {/* Responsive Plotting Canvas */}
-      <div style={{ position: "relative", width: "100%", height: 280, display: "flex", alignItems: "center" }}>
+      {/* 3. Compact Legend Row */}
+      <div style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        alignItems: "center",
+        gap: 14,
+        margin: "0 4px -6px 0"
+      }}>
+        <span style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 12,
+          color: "#94A3B8",
+          fontWeight: 500
+        }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0066FF" }} />
+          New Leads
+        </span>
+      </div>
+
+      {/* 4. Full-Width Responsive Chart (Content-Driven Height, No Stretched Blank Void) */}
+      <div style={{
+        position: "relative",
+        width: "100%",
+        minWidth: 0,
+        height: 240,
+        display: "flex",
+        alignItems: "center"
+      }}>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           style={{ width: "100%", height: "100%", overflow: "visible" }}
@@ -335,7 +373,7 @@ export function LeadGrowthChart({
                 )}
                 {/* Y-Axis Label */}
                 <text
-                  x={paddingLeft - 12}
+                  x={paddingLeft - 10}
                   y={y + 4}
                   fill="#64748B"
                   fontSize="11"
@@ -370,7 +408,7 @@ export function LeadGrowthChart({
               <text
                 key={`xlabel-${idx}`}
                 x={pt.x}
-                y={zeroY + 20}
+                y={zeroY + 18}
                 fill="#64748B"
                 fontSize="11"
                 fontWeight="500"
