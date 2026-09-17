@@ -80,27 +80,55 @@ export class WasabiStorageProvider implements StorageProvider {
     const { client, bucket } = this.getClient();
     const key = sanitizeStorageKey(params.key);
 
-    const command = new PutObjectCommand({
+    const baseInput = {
       Bucket: bucket,
       Key: key,
       Body: params.buffer,
       ContentType: params.contentType,
-      ACL: params.isPublic !== false ? "public-read" : undefined,
-    });
+    };
 
     try {
-      await client.send(command);
-      const publicUrl = this.getPublicUrl(key);
-      return {
-        key,
-        url: publicUrl,
-        publicUrl,
-        size: params.buffer.byteLength || params.buffer.length,
-      };
-    } catch (error: any) {
-      console.error("[Wasabi Storage] Failed to upload object:", key, error?.message || error);
-      throw new Error(`Storage upload failed: ${error?.message || "Internal S3 error"}`);
+      // 1. Primary Attempt: Upload without explicit canned ACL header (compatible with buckets where ACLs are disabled or managed by Bucket Policy)
+      await client.send(new PutObjectCommand(baseInput));
+    } catch (primaryError: any) {
+      const errName = primaryError?.name || "";
+      const errCode = primaryError?.Code || primaryError?.code || "";
+      const errMessage = primaryError?.message || "";
+
+      // 2. Secondary Attempt: If rejected due to missing ACL requirement and isPublic is true, retry with ACL: "public-read"
+      if (params.isPublic !== false && (errName === "AccessDenied" || errCode === "AccessDenied" || errMessage.includes("ACL"))) {
+        try {
+          await client.send(
+            new PutObjectCommand({
+              ...baseInput,
+              ACL: "public-read",
+            })
+          );
+        } catch (retryError: any) {
+          console.error("[Wasabi Storage] Upload failed (with ACL retry):", key, {
+            name: retryError?.name,
+            message: retryError?.message,
+            statusCode: retryError?.$metadata?.httpStatusCode,
+          });
+          throw new Error(`Storage upload failed: ${retryError?.message || primaryError?.message || "Access Denied"}`);
+        }
+      } else {
+        console.error("[Wasabi Storage] Upload failed:", key, {
+          name: primaryError?.name,
+          message: primaryError?.message,
+          statusCode: primaryError?.$metadata?.httpStatusCode,
+        });
+        throw new Error(`Storage upload failed: ${primaryError?.message || "Internal S3 error"}`);
+      }
     }
+
+    const publicUrl = this.getPublicUrl(key);
+    return {
+      key,
+      url: publicUrl,
+      publicUrl,
+      size: params.buffer.byteLength || params.buffer.length,
+    };
   }
 
   public async deleteObject(key: string): Promise<boolean> {

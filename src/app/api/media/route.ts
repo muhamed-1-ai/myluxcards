@@ -104,14 +104,20 @@ export async function POST(request: Request) {
       });
     } catch (error: any) {
       console.error("[Media API] Wasabi storage upload failed:", error);
-      return Response.json({ message: error?.message || "Failed to save file to Wasabi storage." }, { status: 502 });
+      const msg = error?.message || "Failed to save file to Wasabi storage.";
+      const isAuth = msg.includes("Access Denied") || msg.includes("AccessDenied") || msg.includes("403");
+      const statusCode = isAuth ? 403 : 500;
+      return Response.json({ message: msg }, { status: statusCode });
     }
   }
 
-  // 2. Legacy / Fallback Pathway: Supabase Storage
+  // 2. Fallback Pathway: Legacy Supabase Storage (if configured)
   const config = getSupabaseServiceConfig();
   if (!config) {
-    return Response.json({ message: "Cloud media storage is not configured." }, { status: 503 });
+    return Response.json(
+      { message: "Cloud media storage is not configured. Missing WASABI_ACCESS_KEY, WASABI_SECRET_KEY, or WASABI_BUCKET environment variables." },
+      { status: 503 }
+    );
   }
 
   const legacyPath = `${identity.id}/${kind}/${uniqueId}.${extension}`;
