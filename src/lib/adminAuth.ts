@@ -120,30 +120,45 @@ export async function requireManagedUserOwnership(targetUserId: string) {
 
 function normalizeHost(value: string | null) {
   if (!value) return "";
-  const host = value.replace(/:(443|80)$/, "").toLowerCase();
-  return host.startsWith("www.") ? host.slice(4) : host;
+  const firstHost = value.split(",")[0].trim();
+  const hostWithoutPort = firstHost.replace(/:[0-9]+$/, "").toLowerCase();
+  return hostWithoutPort.startsWith("www.") ? hostWithoutPort.slice(4) : hostWithoutPort;
 }
 
 export function validMutationOrigin(request: Request) {
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+
   const normalizedHost = normalizeHost(host);
-  if (!normalizedHost) return process.env.NODE_ENV !== "production";
+  let normalizedOrigin = "";
   if (origin) {
     try {
-      return normalizeHost(new URL(origin).host) === normalizedHost;
-    } catch {
-      return false;
-    }
+      normalizedOrigin = normalizeHost(new URL(origin).host);
+    } catch {}
   }
+  let normalizedReferer = "";
   if (referer) {
     try {
-      return normalizeHost(new URL(referer).host) === normalizedHost;
-    } catch {
-      return false;
-    }
+      normalizedReferer = normalizeHost(new URL(referer).host);
+    } catch {}
   }
+
+  // If origin is present, verify against host or referer
+  if (normalizedOrigin) {
+    if (!normalizedHost) return true;
+    if (normalizedOrigin === normalizedHost) return true;
+    if (normalizedReferer && normalizedOrigin === normalizedReferer) return true;
+    return false;
+  }
+
+  // If referer is present without origin, verify against host
+  if (normalizedReferer) {
+    if (!normalizedHost) return true;
+    if (normalizedReferer === normalizedHost) return true;
+    return false;
+  }
+
   return process.env.NODE_ENV !== "production";
 }
 

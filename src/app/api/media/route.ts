@@ -105,9 +105,7 @@ export async function POST(request: Request) {
     } catch (error: any) {
       console.error("[Media API] Wasabi storage upload failed:", error);
       const msg = error?.message || "Failed to save file to Wasabi storage.";
-      const isAuth = msg.includes("Access Denied") || msg.includes("AccessDenied") || msg.includes("403");
-      const statusCode = isAuth ? 403 : 500;
-      return Response.json({ message: msg }, { status: statusCode });
+      return Response.json({ message: msg }, { status: 500 });
     }
   }
 
