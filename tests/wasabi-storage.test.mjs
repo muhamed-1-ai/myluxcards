@@ -163,3 +163,14 @@ test("13. Storage index exposes factory singleton and helper checks", () => {
   assert.match(indexCode, /getStorageProvider/);
   assert.match(indexCode, /isWasabiStorageConfigured/);
 });
+
+test("14. Regional S3 endpoint resolution defaults correctly based on WASABI_REGION", () => {
+  assert.match(wasabiCode, /s3\.\$\{region\}\.wasabisys\.com/, "Must resolve regional endpoint for non-us-east-1 Wasabi buckets");
+  assert.match(resolverCode, /s3\.\$\{region\}\.wasabisys\.com/, "Media resolver must resolve regional endpoint for non-us-east-1 Wasabi buckets");
+});
+
+test("15. Wasabi PutObject command uploads cleanly without forcing ACL headers", () => {
+  assert.match(wasabiCode, /await client\.send\(new PutObjectCommand\(baseInput\)\)/, "Must execute PutObjectCommand directly with baseInput");
+  assert.doesNotMatch(wasabiCode, /ACL:\s*["']public-read["']/, "Must not force ACL public-read header on PutObject to support bucket owner enforcement");
+});
+

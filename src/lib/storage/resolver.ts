@@ -25,15 +25,16 @@ export function resolveMediaUrl(urlOrKey: string | null | undefined): string {
 
   // Construct Wasabi public URL for object key
   const bucket = process.env.WASABI_BUCKET;
-  const endpoint = process.env.WASABI_ENDPOINT;
+  const region = process.env.WASABI_REGION || "ap-southeast-1";
+  let endpoint = process.env.WASABI_ENDPOINT;
+
+  if (!endpoint || endpoint === "https://s3.wasabisys.com") {
+    endpoint = region === "us-east-1" ? "https://s3.wasabisys.com" : `https://s3.${region}.wasabisys.com`;
+  }
 
   if (bucket && endpoint) {
     const cleanEndpoint = endpoint.replace(/\/+$/, "");
     const cleanKey = trimmed.replace(/^\/+/, "");
-    // Standard Wasabi S3 endpoint pattern: https://s3.wasabisys.com/bucket-name/key or https://bucket-name.s3.wasabisys.com/key
-    if (cleanEndpoint.includes("wasabisys.com")) {
-      return `${cleanEndpoint}/${bucket}/${cleanKey}`;
-    }
     return `${cleanEndpoint}/${bucket}/${cleanKey}`;
   }
 
