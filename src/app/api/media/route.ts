@@ -115,7 +115,15 @@ export async function POST(request: Request) {
         provider: "wasabi",
       });
     } catch (error: any) {
-      console.error("[Media API] Wasabi storage upload failed:", error);
+      console.error("[Media API] Wasabi storage upload failed:", {
+        errorName: error?.name,
+        errorCode: error?.code || error?.Code,
+        errorMessage: error?.message,
+        statusCode: error?.$metadata?.httpStatusCode,
+        requestId: error?.$metadata?.requestId,
+        key: storageKey,
+        kind,
+      });
       const msg = error?.message || "Failed to save file to Wasabi storage.";
       return Response.json({ message: msg }, { status: 500 });
     }

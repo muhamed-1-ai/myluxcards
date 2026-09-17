@@ -18,7 +18,7 @@ export function resolveWasabiEndpoint(
   customRegion?: string,
   isProd = process.env.NODE_ENV === "production"
 ): WasabiEndpointResult {
-  const region = (customRegion || process.env.WASABI_REGION || "ap-southeast-1").trim();
+  const explicitRegion = (customRegion || process.env.WASABI_REGION || "").trim();
   const rawEndpoint = customEndpoint !== undefined ? customEndpoint : process.env.WASABI_ENDPOINT;
 
   // 1. Trim whitespace
@@ -27,7 +27,30 @@ export function resolveWasabiEndpoint(
   // 2. Remove trailing slashes
   endpoint = endpoint.replace(/\/+$/, "");
 
-  // 3. Check for generic endpoint variants
+  // Validate HTTPS protocol in production if endpoint is provided
+  if (isProd && endpoint && endpoint.startsWith("http://")) {
+    throw new Error("Wasabi endpoint must use HTTPS in production.");
+  }
+
+  // 3. Extract region from explicit regional hostname if present (e.g. s3.us-east-1.wasabisys.com)
+  let endpointRegion: string | null = null;
+  const wasabiRegionalMatch = endpoint.match(/^https?:\/\/s3[.-]([a-z0-9-]+)\.wasabisys\.com$/i);
+  if (wasabiRegionalMatch) {
+    const matched = wasabiRegionalMatch[1].toLowerCase();
+    if (matched !== "wasabisys") {
+      endpointRegion = matched;
+    }
+  }
+
+  // Determine effective region
+  const region = explicitRegion || endpointRegion || "ap-southeast-1";
+
+  // Check explicit mismatch if BOTH explicit region and endpoint region exist
+  if (explicitRegion && endpointRegion && explicitRegion !== endpointRegion) {
+    throw new Error(`Wasabi endpoint region mismatch: WASABI_ENDPOINT (${endpointRegion}) does not match WASABI_REGION (${explicitRegion}).`);
+  }
+
+  // 4. Check for generic endpoint variants (e.g. empty, "https://s3.wasabisys.com", "http://s3.wasabisys.com")
   const isGeneric =
     !endpoint ||
     endpoint === "https://s3.wasabisys.com" ||
@@ -48,28 +71,6 @@ export function resolveWasabiEndpoint(
         region,
         autoCorrected: true,
       };
-    }
-  }
-
-  // Validate HTTPS protocol in production
-  if (isProd && endpoint.startsWith("http://")) {
-    throw new Error("Wasabi endpoint must use HTTPS in production.");
-  }
-
-  // Check explicit regional Wasabi endpoint mismatch
-  const wasabiRegionalMatch = endpoint.match(/^https?:\/\/s3[.-]([a-z0-9-]+)\.wasabisys\.com$/i);
-  if (wasabiRegionalMatch) {
-    const endpointRegion = wasabiRegionalMatch[1].toLowerCase();
-    if (endpointRegion === "wasabisys") {
-      if (region !== "us-east-1") {
-        return {
-          endpoint: `https://s3.${region}.wasabisys.com`,
-          region,
-          autoCorrected: true,
-        };
-      }
-    } else if (endpointRegion !== region) {
-      throw new Error(`Wasabi endpoint region mismatch: WASABI_ENDPOINT (${endpointRegion}) does not match WASABI_REGION (${region}).`);
     }
   }
 
