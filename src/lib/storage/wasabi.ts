@@ -14,7 +14,48 @@ import type {
   PresignedUrlResult,
   StorageObjectMetadata,
 } from "./provider";
-import { resolveMediaUrl } from "./resolver";
+import { resolveMediaUrl, resolveWasabiEndpoint } from "./resolver";
+
+export interface WasabiConfigStatus {
+  isConfigured: boolean;
+  hasAccessKey: boolean;
+  hasSecretKey: boolean;
+  hasBucket: boolean;
+  bucket: string;
+  region: string;
+  endpoint: string;
+  endpointAutoCorrected: boolean;
+}
+
+export function getWasabiConfigStatus(): WasabiConfigStatus {
+  const accessKey = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
+  const secretKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
+  const bucket = process.env.WASABI_BUCKET || "";
+
+  let resolvedEndpoint = "";
+  let resolvedRegion = process.env.WASABI_REGION || "ap-southeast-1";
+  let autoCorrected = false;
+
+  try {
+    const res = resolveWasabiEndpoint();
+    resolvedEndpoint = res.endpoint;
+    resolvedRegion = res.region;
+    autoCorrected = res.autoCorrected;
+  } catch {
+    resolvedEndpoint = (process.env.WASABI_ENDPOINT || "").trim().replace(/\/+$/, "");
+  }
+
+  return {
+    isConfigured: Boolean(accessKey && secretKey && bucket),
+    hasAccessKey: Boolean(accessKey),
+    hasSecretKey: Boolean(secretKey),
+    hasBucket: Boolean(bucket),
+    bucket,
+    region: resolvedRegion,
+    endpoint: resolvedEndpoint,
+    endpointAutoCorrected: autoCorrected,
+  };
+}
 
 export function sanitizeStorageKey(rawKey: string): string {
   if (!rawKey) throw new Error("Storage key cannot be empty");
@@ -40,18 +81,14 @@ export class WasabiStorageProvider implements StorageProvider {
     const accessKeyId = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
     const secretAccessKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
     const bucket = process.env.WASABI_BUCKET;
-    const region = process.env.WASABI_REGION || "ap-southeast-1";
-    let endpoint = process.env.WASABI_ENDPOINT;
-
-    if (!endpoint || endpoint === "https://s3.wasabisys.com") {
-      endpoint = region === "us-east-1" ? "https://s3.wasabisys.com" : `https://s3.${region}.wasabisys.com`;
-    }
 
     if (!accessKeyId || !secretAccessKey || !bucket) {
       throw new Error(
         "Wasabi Storage is not fully configured. Missing WASABI_ACCESS_KEY (or WASABI_ACCESS_KEY_ID), WASABI_SECRET_KEY (or WASABI_SECRET_ACCESS_KEY), or WASABI_BUCKET."
       );
     }
+
+    const { endpoint, region } = resolveWasabiEndpoint();
 
     if (!this.client) {
       this.client = new S3Client({

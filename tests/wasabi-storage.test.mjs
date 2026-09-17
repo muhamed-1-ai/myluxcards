@@ -159,13 +159,15 @@ test("12. Data != Visibility protection (Feature or product OFF does not delete 
   assert.doesNotMatch(profileSectionRoute, /deleteObject/, "Updating profile section must not delete S3 object");
 });
 
+import { resolveWasabiEndpoint } from "../src/lib/storage/resolver";
+import { getWasabiConfigStatus } from "../src/lib/storage/wasabi";
+
 test("13. Storage index exposes factory singleton and helper checks", () => {
   assert.match(indexCode, /getStorageProvider/);
   assert.match(indexCode, /isWasabiStorageConfigured/);
 });
 
 test("14. Regional S3 endpoint resolution defaults correctly based on WASABI_REGION", () => {
-  assert.match(wasabiCode, /s3\.\$\{region\}\.wasabisys\.com/, "Must resolve regional endpoint for non-us-east-1 Wasabi buckets");
   assert.match(resolverCode, /s3\.\$\{region\}\.wasabisys\.com/, "Media resolver must resolve regional endpoint for non-us-east-1 Wasabi buckets");
 });
 
@@ -173,4 +175,64 @@ test("15. Wasabi PutObject command uploads cleanly without forcing ACL headers",
   assert.match(wasabiCode, /await client\.send\(new PutObjectCommand\(baseInput\)\)/, "Must execute PutObjectCommand directly with baseInput");
   assert.doesNotMatch(wasabiCode, /ACL:\s*["']public-read["']/, "Must not force ACL public-read header on PutObject to support bucket owner enforcement");
 });
+
+test("16. resolveWasabiEndpoint endpoint & region normalization rules", () => {
+  // 1. Missing endpoint + us-east-1 -> generic endpoint
+  const res1 = resolveWasabiEndpoint(undefined, "us-east-1", false);
+  assert.equal(res1.endpoint, "https://s3.wasabisys.com");
+  assert.equal(res1.region, "us-east-1");
+
+  // 2. Missing endpoint + ap-southeast-1 -> regional endpoint
+  const res2 = resolveWasabiEndpoint(undefined, "ap-southeast-1", false);
+  assert.equal(res2.endpoint, "https://s3.ap-southeast-1.wasabisys.com");
+  assert.equal(res2.autoCorrected, true);
+
+  // 3. Generic endpoint + ap-southeast-1 -> regional endpoint
+  const res3 = resolveWasabiEndpoint("https://s3.wasabisys.com", "ap-southeast-1", false);
+  assert.equal(res3.endpoint, "https://s3.ap-southeast-1.wasabisys.com");
+  assert.equal(res3.autoCorrected, true);
+
+  // 4. Generic endpoint with trailing slash -> regional endpoint
+  const res4 = resolveWasabiEndpoint("https://s3.wasabisys.com/", "ap-southeast-1", false);
+  assert.equal(res4.endpoint, "https://s3.ap-southeast-1.wasabisys.com");
+  assert.equal(res4.autoCorrected, true);
+
+  // 5. Generic endpoint with surrounding whitespace -> regional endpoint
+  const res5 = resolveWasabiEndpoint("  https://s3.wasabisys.com/  ", "ap-southeast-1", false);
+  assert.equal(res5.endpoint, "https://s3.ap-southeast-1.wasabisys.com");
+  assert.equal(res5.autoCorrected, true);
+
+  // 6. Explicit matching regional endpoint -> accepted
+  const res6 = resolveWasabiEndpoint("https://s3.ap-southeast-1.wasabisys.com", "ap-southeast-1", false);
+  assert.equal(res6.endpoint, "https://s3.ap-southeast-1.wasabisys.com");
+  assert.equal(res6.autoCorrected, false);
+
+  // 7. Explicit mismatching regional endpoint -> rejected with safe configuration error
+  assert.throws(
+    () => resolveWasabiEndpoint("https://s3.us-east-1.wasabisys.com", "ap-southeast-1", false),
+    /Wasabi endpoint region mismatch: WASABI_ENDPOINT \(us-east-1\) does not match WASABI_REGION \(ap-southeast-1\)/
+  );
+
+  // 8. Endpoint trailing slash normalization
+  const res8 = resolveWasabiEndpoint("https://s3.ap-southeast-1.wasabisys.com///", "ap-southeast-1", false);
+  assert.equal(res8.endpoint, "https://s3.ap-southeast-1.wasabisys.com");
+
+  // 9. HTTPS enforcement in production
+  assert.throws(
+    () => resolveWasabiEndpoint("http://s3.ap-southeast-1.wasabisys.com", "ap-southeast-1", true),
+    /Wasabi endpoint must use HTTPS in production/
+  );
+});
+
+test("17. getWasabiConfigStatus reports credentials only via boolean flags and safe metadata", () => {
+  const status = getWasabiConfigStatus();
+  assert.equal(typeof status.isConfigured, "boolean");
+  assert.equal(typeof status.hasAccessKey, "boolean");
+  assert.equal(typeof status.hasSecretKey, "boolean");
+  assert.equal(typeof status.hasBucket, "boolean");
+  assert.equal("accessKey" in status, false, "Must not expose accessKey value");
+  assert.equal("secretKey" in status, false, "Must not expose secretKey value");
+  assert.equal("WASABI_SECRET_KEY" in status, false, "Must not expose WASABI_SECRET_KEY");
+});
+
 
