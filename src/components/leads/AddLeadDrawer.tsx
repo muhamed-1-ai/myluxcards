@@ -843,18 +843,18 @@ export default function AddLeadDrawer({
                   <label className="add-lead-label">
                     Next Follow-up
                   </label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                     <input 
                       type="date"
                       value={formData.followUpDate}
                       onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
-                      className="add-lead-input col-span-3 !px-3"
+                      className="add-lead-input sm:col-span-3 !px-3"
                     />
                     <input 
                       type="time"
                       value={formData.followUpTime}
                       onChange={e => setFormData({ ...formData, followUpTime: e.target.value })}
-                      className="add-lead-input col-span-2 !px-2 text-center"
+                      className="add-lead-input sm:col-span-2 !px-2 text-center"
                     />
                   </div>
                 </div>

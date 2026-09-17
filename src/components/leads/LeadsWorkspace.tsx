@@ -480,9 +480,10 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         </div>
       )}
 
-      {/* 4. Desktop Leads Table (Matching Reference Columns) */}
+      {/* 4. Desktop Leads Table & Mobile Cards */}
       <div className="crm-table-card">
-        <div className="overflow-x-auto">
+        {/* Desktop / Tablet View (>= 768px): Full Data Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="crm-table">
             <thead>
               <tr>
@@ -712,6 +713,167 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View (< 768px): Dedicated Responsive Lead Cards */}
+        <div className="block md:hidden divide-y divide-[var(--border-color,#E2E8F0)] dark:divide-white/5">
+          {loading ? (
+            <div className="py-12 text-center text-[var(--text-secondary,#94A3B8)]">
+              <div className="flex justify-center items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                <span>Loading leads...</span>
+              </div>
+            </div>
+          ) : displayedLeads.length === 0 ? (
+            <div className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
+              <div className="flex flex-col items-center justify-center">
+                <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
+                <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
+                <button onClick={handleResetFilters} className="crm-btn-secondary">
+                  Clear filters
+                </button>
+              </div>
+            </div>
+          ) : (
+            displayedLeads.map((lead) => {
+              const isStarred = !!starredLeads[lead.id];
+              const isSelected = !!selectedLeadIds[lead.id];
+              const leadName = lead.name || "Unnamed Lead";
+              const avatarLetter = leadName.charAt(0).toUpperCase();
+
+              return (
+                <div
+                  key={lead.id}
+                  onClick={() => setSelectedLeadId(lead.id)}
+                  className={`p-4 flex flex-col gap-3 transition-colors cursor-pointer active:bg-[var(--surface-soft,#F8FAFC)] ${
+                    isSelected ? "bg-emerald-500/5" : ""
+                  }`}
+                >
+                  {/* Top Row: Select checkbox, Avatar, Name, Star, Stage Badge */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {selectMode && (
+                        <div onClick={(e) => toggleSelectLead(e, lead.id)} className="flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="rounded text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </div>
+                      )}
+                      <div className={`w-9 h-9 rounded-full ${getAvatarGradient(leadName)} font-bold flex items-center justify-center text-sm shadow-sm flex-shrink-0`}>
+                        {avatarLetter}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-[var(--text-primary,#0F172A)] text-sm truncate">
+                            {leadName}
+                          </span>
+                          <Star
+                            onClick={(e) => toggleStar(e, lead.id)}
+                            className={`w-3.5 h-3.5 flex-shrink-0 cursor-pointer ${
+                              isStarred ? "text-amber-400 fill-amber-400" : "text-[var(--text-secondary,#94A3B8)]"
+                            }`}
+                          />
+                        </div>
+                        {lead.companyName && (
+                          <div className="text-xs text-[var(--text-secondary,#64748B)] truncate">
+                            {lead.companyName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <span className={`${getStageBadgeClass(lead.stage || lead.status)} flex-shrink-0 text-[10px]`}>
+                      {lead.stage || lead.status || "NEW"}
+                    </span>
+                  </div>
+
+                  {/* Contact & 1-Tap Quick Actions */}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-color,#E2E8F0)]/40 dark:border-white/5">
+                    <div className="text-xs text-[var(--text-secondary,#64748B)] truncate">
+                      {lead.email || lead.contactNumber || "No email"}
+                    </div>
+
+                    {lead.contactNumber && (
+                      <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <a
+                          href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="h-8 px-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold flex items-center gap-1.5"
+                          title="WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 fill-emerald-500/20" />
+                          <span>WhatsApp</span>
+                        </a>
+                        <a
+                          href={`tel:${lead.contactNumber}`}
+                          className="h-8 px-2.5 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-bold flex items-center gap-1.5"
+                          title="Call"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Call</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Metadata Row: Next Follow-Up, Assigned To, Total Amount, Action Menu */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      {/* Next Follow-Up Pill */}
+                      <div className="crm-followup-pill-box !py-1 !px-2.5 !rounded-lg">
+                        <Calendar className="w-3 h-3 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
+                        <span className="font-bold text-[10.5px] uppercase text-[var(--text-primary,#0F172A)]">
+                          {lead.nextFollowUpAt
+                            ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                            : "No Follow-up"}
+                        </span>
+                      </div>
+
+                      {/* Total Amount */}
+                      <span className="font-bold text-sm text-[var(--text-primary,#0F172A)]">
+                        {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLeadId(lead.id)}
+                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-emerald-500 hover:bg-[var(--border-color,#E2E8F0)]/40"
+                        title="View Details"
+                        aria-label="View details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingLead(lead)}
+                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-blue-500 hover:bg-[var(--border-color,#E2E8F0)]/40"
+                        title="Edit Lead"
+                        aria-label="Edit lead"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLead(lead.id)}
+                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-red-500 hover:bg-red-500/10"
+                        title="Delete Lead"
+                        aria-label="Delete lead"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

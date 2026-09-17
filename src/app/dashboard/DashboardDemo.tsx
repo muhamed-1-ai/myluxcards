@@ -364,13 +364,17 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const lastSavedRef = useRef("");
 
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("zappit_theme") as "light" | "dark" | null;
-      if (stored === "dark" || stored === "light") return stored;
+      const stored = (localStorage.getItem("zappit_theme") as "light" | "dark" | null) ||
+        (document.documentElement.getAttribute("data-theme") as "light" | "dark" | null);
+      if (stored === "dark" || stored === "light") {
+        setTheme(stored);
+      }
     }
-    return "light";
-  });
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -1372,7 +1376,6 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const modes = data?.modes || { profile: 0, vehicle: 0, lostFound: 0 };
   const vehicles = data?.vehicles || [];
   const lostItems = data?.lostItems || [];
-  const recent = data?.recentActivity || [];
 
   const maxModeViews = Math.max(modes.profile, modes.vehicle, modes.lostFound, 1);
 
@@ -1593,43 +1596,6 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               </div>
             </div>
           )}
-
-          {/* Privacy-Safe Recent Activity Feed */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>Privacy-Safe Recent Activity Log</h3>
-            {recent.length === 0 ? (
-              <div style={{ padding: 24, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
-                No activity recorded yet for this timeframe. When visitors open your MyLux card, activity events will appear here.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {recent.map((ev) => (
-                  <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)", borderRadius: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#fff" }}>
-                        {ev.eventType === "PROFILE_OPENED" || ev.eventType === "VIEW" ? "Profile viewed" :
-                          ev.eventType === "VEHICLE_MODE_OPENED" ? "Vehicle Connect opened" :
-                            ev.eventType === "VEHICLE_SELECTED" ? `Vehicle selected: ${ev.assetName || "Vehicle"}` :
-                              ev.eventType === "LOST_FOUND_MODE_OPENED" ? "Lost & Found opened" :
-                                ev.eventType === "LOST_FOUND_ITEM_SELECTED" ? `Lost & Found item viewed: ${ev.assetName || "Item"}` :
-                                  ev.eventType === "PHONE_NUMBER_TAPPED" ? `Contact number tapped ${ev.assetName ? `(${ev.assetName})` : ""}` :
-                                    ev.eventType === "LOCATION_SHARED" ? `📍 Location voluntarily shared for ${ev.assetName || "Item"}` :
-                                      "Activity recorded"}
-                      </div>
-                      {ev.hasLocation && (
-                        <div style={{ fontSize: 12, color: "#2ecc71", marginTop: 2 }}>
-                          📍 Voluntary finder location received
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
-                      {new Date(ev.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
     </section>

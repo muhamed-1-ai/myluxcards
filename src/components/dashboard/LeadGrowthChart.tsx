@@ -264,7 +264,7 @@ export function LeadGrowthChart({
           flexShrink: 0
         }}>
           {(["7d", "30d", "12m"] as Period[]).map((pKey) => {
-            const label = pKey === "7d" ? "7 Days" : pKey === "30d" ? "30 Days" : "12 Months";
+            const label = pKey === "7d" ? (isMobile ? "7D" : "7 Days") : pKey === "30d" ? (isMobile ? "30D" : "30 Days") : (isMobile ? "12M" : "12 Months");
             const isActive = period === pKey;
             return (
               <button
@@ -273,8 +273,8 @@ export function LeadGrowthChart({
                 onClick={() => setPeriod(pKey)}
                 style={{
                   height: 28,
-                  padding: "0 12px",
-                  fontSize: 12,
+                  padding: isMobile ? "0 9px" : "0 12px",
+                  fontSize: isMobile ? 11 : 12,
                   fontWeight: isActive ? 700 : 500,
                   fontFamily: "Inter, system-ui, sans-serif",
                   borderRadius: 7,
@@ -431,18 +431,26 @@ export function LeadGrowthChart({
           {points.map((pt, idx) => {
             // In 30-day mode, skip intermediate labels for breathing room
             if (period === "30d" && idx % 4 !== 0 && idx !== points.length - 1) return null;
+            // In 12-month mode on small screens, skip every other month
+            if (period === "12m" && measuredWidth < 460 && idx % 2 !== 0 && idx !== points.length - 1) return null;
+
+            let displayLabel = pt.label;
+            if (isMobile && period === "7d" && measuredWidth < 360) {
+              displayLabel = pt.label.slice(0, 2);
+            }
+
             return (
               <text
                 key={`xlabel-${idx}`}
                 x={pt.x}
                 y={zeroY + 18}
                 fill="#64748B"
-                fontSize="11"
+                fontSize={isMobile ? "10" : "11"}
                 fontWeight="500"
                 fontFamily="Inter, system-ui, sans-serif"
                 textAnchor="middle"
               >
-                {pt.label}
+                {displayLabel}
               </text>
             );
           })}
