@@ -28,145 +28,28 @@ export interface ProductItem {
   soldCount?: number;
 }
 
-const INITIAL_PRODUCTS: ProductItem[] = [
-  {
-    id: "prod-1",
-    name: "Premium NFC Card",
-    code: "NFC-PREMIUM",
-    category: "NFC Cards",
-    price: 2999,
-    description: "High-grade matte NFC smart business card with dual chip antenna",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-01T10:00:00.000Z",
-    updatedAt: "2026-08-30T14:22:00.000Z",
-    soldCount: 142,
-  },
-  {
-    id: "prod-2",
-    name: "Metal NFC Card",
-    code: "NFC-METAL",
-    category: "NFC Cards",
-    price: 4999,
-    description: "Matte black stainless steel laser-engraved NFC card",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-05T11:30:00.000Z",
-    updatedAt: "2026-08-29T18:10:00.000Z",
-    soldCount: 98,
-  },
-  {
-    id: "prod-3",
-    name: "Gold NFC Card",
-    code: "NFC-GOLD",
-    category: "NFC Cards",
-    price: 7999,
-    description: "Premium 24k gold-finished executive smart card",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-10T14:15:00.000Z",
-    updatedAt: "2026-08-28T16:05:00.000Z",
-    soldCount: 75,
-  },
-  {
-    id: "prod-4",
-    name: "Silver NFC Card",
-    code: "NFC-SILVER",
-    category: "NFC Cards",
-    price: 5999,
-    description: "Brushed silver metallic NFC executive card",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-15T09:20:00.000Z",
-    updatedAt: "2026-08-25T11:40:00.000Z",
-    soldCount: 45,
-  },
-  {
-    id: "prod-5",
-    name: "Wooden NFC Card",
-    code: "NFC-WOOD",
-    category: "NFC Cards",
-    price: 3499,
-    description: "Eco-friendly natural bamboo wood NFC card",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-20T16:45:00.000Z",
-    updatedAt: "2026-08-24T09:15:00.000Z",
-    soldCount: 64,
-  },
-  {
-    id: "prod-6",
-    name: "Digital Profile Subscription",
-    code: "SUB-PROFILE",
-    category: "Digital Services",
-    price: 1499,
-    description: "Annual subscription for custom profile hosting, lead capture & analytics",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-22T10:00:00.000Z",
-    updatedAt: "2026-08-22T12:00:00.000Z",
-    soldCount: 310,
-  },
-  {
-    id: "prod-7",
-    name: "CRM Subscription",
-    code: "SUB-CRM",
-    category: "Digital Services",
-    price: 2999,
-    description: "Annual Lead Command Center, WhatsApp automation & CRM plan",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-07-25T14:30:00.000Z",
-    updatedAt: "2026-08-20T18:00:00.000Z",
-    soldCount: 180,
-  },
-  {
-    id: "prod-8",
-    name: "Vehicle Owner ID Sticker",
-    code: "VEH-STICKER",
-    category: "Vehicle Products",
-    price: 499,
-    description: "Weatherproof QR/NFC vehicle windshield parking badge",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-08-01T08:20:00.000Z",
-    updatedAt: "2026-08-20T13:30:00.000Z",
-    soldCount: 120,
-  },
-  {
-    id: "prod-9",
-    name: "Vehicle NFC Tag",
-    code: "VEH-NFC",
-    category: "Vehicle Products",
-    price: 999,
-    description: "Emergency contact & owner alert NFC tag for vehicles",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-08-05T09:00:00.000Z",
-    updatedAt: "2026-08-21T10:00:00.000Z",
-    soldCount: 88,
-  },
-  {
-    id: "prod-10",
-    name: "Lost & Found Sticker",
-    code: "LF-STICKER",
-    category: "Lost & Found",
-    price: 299,
-    description: "Smart QR lost item recovery tag for laptops, keys & bags",
-    status: "ACTIVE",
-    createdBy: "System",
-    createdAt: "2026-08-10T11:00:00.000Z",
-    updatedAt: "2026-08-22T14:00:00.000Z",
-    soldCount: 210,
-  },
-];
+function getAccountConfigKey(baseKey: string): string {
+  try {
+    if (typeof window !== "undefined") {
+      const rawUser = localStorage.getItem("myluxcards_current_user");
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u && (u.id || u.email)) {
+          const accountId = u.id || u.email;
+          return `${baseKey}_${accountId}`;
+        }
+      }
+    }
+  } catch {}
+  return baseKey;
+}
 
-const LOCAL_STORAGE_KEY = "myluxcards_products_catalog_v1";
+const LOCAL_STORAGE_KEY_BASE = "myluxcards_products_catalog_v1";
 
 const CATEGORY_OPTIONS = ["NFC Cards", "Digital Services", "Vehicle Products", "Lost & Found"];
 
 export function ProductsConfig() {
-  const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<ProductItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Search & Filter State
@@ -194,28 +77,34 @@ export function ProductsConfig() {
     description: "",
   });
 
-  // Load from localStorage on mount
+  // Load from account-scoped localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setProducts(parsed);
+        } else {
+          setProducts([]);
         }
+      } else {
+        setProducts([]);
       }
     } catch {
-      // Fallback
+      setProducts([]);
     } finally {
       setIsLoaded(true);
     }
   }, []);
 
-  // Save to localStorage when products change
+  // Save to account-scoped localStorage when products change
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(products));
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      localStorage.setItem(storageKey, JSON.stringify(products));
     } catch {
       // Ignore storage errors
     }
@@ -931,8 +820,42 @@ export function ProductsConfig() {
               </div>
             </div>
           </>
+        ) : products.length === 0 ? (
+          /* NO PRODUCTS CONFIGURED EMPTY STATE */
+          <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Plus style={{ width: 24, height: 24 }} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>
+              No Products Configured Yet
+            </h3>
+            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 420 }}>
+              Create your first product to start tracking product sales and managing your product catalog.
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              style={{
+                marginTop: 8,
+                padding: "10px 22px",
+                fontSize: 13,
+                fontWeight: 700,
+                background: "#0066FF",
+                border: "none",
+                borderRadius: 8,
+                color: "#08080A",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Plus style={{ width: 16, height: 16 }} />
+              Add Product
+            </button>
+          </div>
         ) : (
-          /* EMPTY STATE */
+          /* SEARCH / FILTER EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Filter style={{ width: 24, height: 24 }} />

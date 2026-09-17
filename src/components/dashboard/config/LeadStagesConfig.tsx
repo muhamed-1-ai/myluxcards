@@ -50,6 +50,22 @@ export interface StageConfigItem {
   isSystem?: boolean;
 }
 
+function getAccountConfigKey(baseKey: string): string {
+  try {
+    if (typeof window !== "undefined") {
+      const rawUser = localStorage.getItem("myluxcards_current_user");
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u && (u.id || u.email)) {
+          const accountId = u.id || u.email;
+          return `${baseKey}_${accountId}`;
+        }
+      }
+    }
+  } catch {}
+  return baseKey;
+}
+
 const INITIAL_LEAD_STAGES: StageConfigItem[] = [
   {
     id: "stg-1",
@@ -72,7 +88,7 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     createdBy: "System",
     createdAt: "2026-07-01T09:00:00.000Z",
     updatedAt: "2026-08-30T14:22:00.000Z",
-    leadCount: 15,
+    leadCount: 0,
     isSystem: true,
   },
   {
@@ -96,7 +112,7 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     createdBy: "System",
     createdAt: "2026-07-01T09:00:00.000Z",
     updatedAt: "2026-08-29T18:10:00.000Z",
-    leadCount: 24,
+    leadCount: 0,
     isSystem: true,
   },
   {
@@ -120,7 +136,7 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     createdBy: "System",
     createdAt: "2026-07-05T11:30:00.000Z",
     updatedAt: "2026-08-28T16:05:00.000Z",
-    leadCount: 18,
+    leadCount: 0,
     isSystem: true,
   },
   {
@@ -144,50 +160,8 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     createdBy: "System",
     createdAt: "2026-07-12T14:15:00.000Z",
     updatedAt: "2026-08-25T11:40:00.000Z",
-    leadCount: 12,
+    leadCount: 0,
     isSystem: true,
-  },
-  {
-    id: "stg-5",
-    key: "DEMO_SCHEDULED",
-    name: "Demo Scheduled",
-    shortForm: "DMO",
-    description: "Product demonstration or meeting booked with sales engineer",
-    color: "#8B5CF6",
-    stageOrder: 5,
-    showInCalendar: true,
-    approvalRequired: false,
-    isLob: false,
-    isClosed: false,
-    active: true,
-    substages: [{ id: "sub-9", name: "Demo Confirmed" }],
-    attachedRules: ["Calendar Invite Sent"],
-    createdBy: "System",
-    createdAt: "2026-07-15T10:00:00.000Z",
-    updatedAt: "2026-08-24T12:00:00.000Z",
-    leadCount: 8,
-    isSystem: false,
-  },
-  {
-    id: "stg-6",
-    key: "PAYMENT_PENDING",
-    name: "Payment Pending",
-    shortForm: "PAY",
-    description: "Order invoice or payment link generated awaiting customer payment",
-    color: "#06B6D4",
-    stageOrder: 6,
-    showInCalendar: false,
-    approvalRequired: false,
-    isLob: false,
-    isClosed: false,
-    active: true,
-    substages: [{ id: "sub-10", name: "Invoice Sent" }],
-    attachedRules: ["Payment Link Active"],
-    createdBy: "System",
-    createdAt: "2026-07-18T14:00:00.000Z",
-    updatedAt: "2026-08-23T16:00:00.000Z",
-    leadCount: 6,
-    isSystem: false,
   },
   {
     id: "stg-7",
@@ -196,7 +170,7 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     shortForm: "WON",
     description: "Successfully converted deal / closed lead",
     color: "#10B981",
-    stageOrder: 7,
+    stageOrder: 5,
     showInCalendar: false,
     approvalRequired: true,
     isLob: false,
@@ -207,7 +181,7 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     createdBy: "System",
     createdAt: "2026-07-20T16:45:00.000Z",
     updatedAt: "2026-08-24T09:15:00.000Z",
-    leadCount: 35,
+    leadCount: 0,
     isSystem: true,
   },
   {
@@ -217,7 +191,7 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     shortForm: "LST",
     description: "Unresponsive or deal lost due to LOB reason",
     color: "#EF4444",
-    stageOrder: 8,
+    stageOrder: 6,
     showInCalendar: false,
     approvalRequired: false,
     isLob: true,
@@ -228,12 +202,12 @@ const INITIAL_LEAD_STAGES: StageConfigItem[] = [
     createdBy: "System",
     createdAt: "2026-08-01T08:20:00.000Z",
     updatedAt: "2026-08-20T13:30:00.000Z",
-    leadCount: 8,
+    leadCount: 0,
     isSystem: true,
   },
 ];
 
-const LOCAL_STORAGE_KEY = "myluxcards_lead_stages_catalog_v1";
+const LOCAL_STORAGE_KEY_BASE = "myluxcards_lead_stages_catalog_v1";
 
 const AVAILABLE_STAGE_RULES = [
   "Auto-assign Lead Owner",
@@ -283,10 +257,11 @@ export function LeadStagesConfig() {
     attachedRules: [] as string[],
   });
 
-  // Load from localStorage on mount
+  // Load from account-scoped localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -300,11 +275,12 @@ export function LeadStagesConfig() {
     }
   }, []);
 
-  // Save to localStorage when stages change
+  // Save to account-scoped localStorage when stages change
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stages));
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      localStorage.setItem(storageKey, JSON.stringify(stages));
     } catch {
       // Ignore storage errors
     }

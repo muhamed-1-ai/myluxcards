@@ -31,121 +31,26 @@ export interface LeadSourceItem {
   isSystem?: boolean;
 }
 
-const INITIAL_SOURCES: LeadSourceItem[] = [
-  {
-    id: "src-1",
-    name: "NFC Tap",
-    code: "NFC",
-    description: "Leads captured via physical NFC business card tap",
-    leadCount: 42,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-01T09:00:00.000Z",
-    updatedAt: "2026-08-30T14:22:00.000Z",
-    isSystem: true,
-  },
-  {
-    id: "src-2",
-    name: "QR Scan",
-    code: "QR",
-    description: "Leads captured via scanned dynamic QR code",
-    leadCount: 28,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-01T09:00:00.000Z",
-    updatedAt: "2026-08-29T18:10:00.000Z",
-    isSystem: true,
-  },
-  {
-    id: "src-3",
-    name: "Website",
-    code: "WEB",
-    description: "Inbound lead submissions from corporate website",
-    leadCount: 18,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-05T11:30:00.000Z",
-    updatedAt: "2026-08-28T16:05:00.000Z",
-    isSystem: true,
-  },
-  {
-    id: "src-4",
-    name: "Instagram",
-    code: "INSTAGRAM",
-    description: "Inbound leads from Instagram ads and profile DMs",
-    leadCount: 14,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-10T14:15:00.000Z",
-    updatedAt: "2026-08-25T11:40:00.000Z",
-    isSystem: false,
-  },
-  {
-    id: "src-5",
-    name: "Facebook",
-    code: "FACEBOOK",
-    description: "Leads from Facebook ads and official page inquiries",
-    leadCount: 11,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-12T09:20:00.000Z",
-    updatedAt: "2026-08-24T15:10:00.000Z",
-    isSystem: false,
-  },
-  {
-    id: "src-6",
-    name: "Referral",
-    code: "REFERRAL",
-    description: "Leads referred by existing VIP client accounts",
-    leadCount: 9,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-20T16:45:00.000Z",
-    updatedAt: "2026-08-24T09:15:00.000Z",
-    isSystem: false,
-  },
-  {
-    id: "src-7",
-    name: "Direct Contact",
-    code: "DIRECT",
-    description: "Direct networking, events, or phone contact",
-    leadCount: 15,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-22T10:00:00.000Z",
-    updatedAt: "2026-08-22T12:00:00.000Z",
-    isSystem: false,
-  },
-  {
-    id: "src-8",
-    name: "WhatsApp",
-    code: "WHATSAPP",
-    description: "Direct WhatsApp business conversations & chats",
-    leadCount: 22,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-07-25T14:30:00.000Z",
-    updatedAt: "2026-08-20T18:00:00.000Z",
-    isSystem: false,
-  },
-  {
-    id: "src-9",
-    name: "Partner",
-    code: "PARTNER",
-    description: "Qualified leads from channel partner network",
-    leadCount: 7,
-    active: true,
-    createdBy: "System",
-    createdAt: "2026-08-01T08:20:00.000Z",
-    updatedAt: "2026-08-20T13:30:00.000Z",
-    isSystem: false,
-  },
-];
+function getAccountConfigKey(baseKey: string): string {
+  try {
+    if (typeof window !== "undefined") {
+      const rawUser = localStorage.getItem("myluxcards_current_user");
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u && (u.id || u.email)) {
+          const accountId = u.id || u.email;
+          return `${baseKey}_${accountId}`;
+        }
+      }
+    }
+  } catch {}
+  return baseKey;
+}
 
-const LOCAL_STORAGE_KEY = "myluxcards_lead_sources_data_v1";
+const LOCAL_STORAGE_KEY_BASE = "myluxcards_lead_sources_data_v1";
 
 export function LeadSourcesConfig() {
-  const [sources, setSources] = useState<LeadSourceItem[]>(INITIAL_SOURCES);
+  const [sources, setSources] = useState<LeadSourceItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Search & Filter State
@@ -169,28 +74,34 @@ export function LeadSourcesConfig() {
     active: true,
   });
 
-  // Load from localStorage on mount
+  // Load from account-scoped localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setSources(parsed);
+        } else {
+          setSources([]);
         }
+      } else {
+        setSources([]);
       }
     } catch {
-      // Fall back to initial sources
+      setSources([]);
     } finally {
       setIsLoaded(true);
     }
   }, []);
 
-  // Save to localStorage when sources state changes
+  // Save to account-scoped localStorage when sources state changes
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sources));
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      localStorage.setItem(storageKey, JSON.stringify(sources));
     } catch {
       // Ignore storage errors
     }
@@ -993,6 +904,40 @@ export function LeadSourcesConfig() {
               </div>
             )}
           </>
+        ) : sources.length === 0 ? (
+          /* NO SOURCES CONFIGURED EMPTY STATE */
+          <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <GitBranch style={{ width: 24, height: 24 }} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>
+              No Lead Sources Configured Yet
+            </h3>
+            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 420 }}>
+              Create your first lead source to start organizing and tracking where your leads come from.
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              style={{
+                marginTop: 8,
+                padding: "10px 22px",
+                fontSize: 13,
+                fontWeight: 700,
+                background: "#0066FF",
+                border: "none",
+                borderRadius: 8,
+                color: "#08080A",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Plus style={{ width: 16, height: 16 }} />
+              Add Lead Source
+            </button>
+          </div>
         ) : (
           /* SEARCH / FILTER EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>

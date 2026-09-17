@@ -196,20 +196,31 @@ type LocationApi = {
   getCitiesOfState: (countryIso: string, stateCode: string) => LocationCity[];
 };
 const blankSocial = Object.fromEntries(socialFields.map((x) => [x, ""]));
-const profileThemes = [
-  { name: "MyLux Gold", background: "#020202", accent: "#0066FF", text: "#ffffff" },
-  { name: "Minimal White", background: "#f7f5ef", accent: "#171717", text: "#171717" },
-  { name: "Midnight Blue", background: "#071523", accent: "#5ca9e6", text: "#f5f9ff" },
-  { name: "Burgundy", background: "#18070d", accent: "#a83d5b", text: "#fff4f6" },
-  { name: "Executive Silver", background: "#101214", accent: "#aeb6bf", text: "#f4f6f8" },
-  { name: "Royal Purple", background: "#12091f", accent: "#9b6cff", text: "#faf7ff" },
-  { name: "Emerald", background: "#061712", accent: "#35c98a", text: "#effff8" },
-  { name: "Ocean Teal", background: "#04191d", accent: "#22b8c7", text: "#edfdff" },
-  { name: "Rose Gold", background: "#1d1114", accent: "#d79a9f", text: "#fff7f7" },
-  { name: "Copper", background: "#1a100a", accent: "#c9783d", text: "#fff6ed" },
-  { name: "Electric Lime", background: "#090d08", accent: "#a8e83a", text: "#f8ffed" },
-  { name: "Coffee Cream", background: "#211811", accent: "#d4b483", text: "#fff9ef" },
-  { name: "Sapphire Gold", background: "#061329", accent: "#e2b84b", text: "#f5f8ff" },
+export interface ProfileThemePreset {
+  id: string;
+  name: string;
+  descriptor: string;
+  background: string;
+  accent: string;
+  text: string;
+}
+
+const profileThemes: ProfileThemePreset[] = [
+  { id: "obsidian-luxe", name: "Obsidian Luxe", descriptor: "Deep black · champagne", background: "#0B0D12", accent: "#D4AF62", text: "#F7F3EA" },
+  { id: "midnight-sapphire", name: "Midnight Sapphire", descriptor: "Midnight blue · electric sapphire", background: "#071525", accent: "#4DA3FF", text: "#F4F8FF" },
+  { id: "royal-noir", name: "Royal Noir", descriptor: "Deep violet · royal accent", background: "#100B1C", accent: "#9B6CFF", text: "#F8F4FF" },
+  { id: "emerald-sovereign", name: "Emerald Sovereign", descriptor: "Forest black · emerald", background: "#071712", accent: "#39C98A", text: "#F2FFF8" },
+  { id: "ocean-meridian", name: "Ocean Meridian", descriptor: "Deep ocean · aqua", background: "#07171C", accent: "#35C4D8", text: "#F2FCFF" },
+  { id: "champagne-noir", name: "Champagne Noir", descriptor: "Warm black · champagne", background: "#15110C", accent: "#E2C58B", text: "#FFF9EC" },
+  { id: "rose-prestige", name: "Rose Prestige", descriptor: "Black cherry · rose", background: "#180E14", accent: "#D88B9A", text: "#FFF4F7" },
+  { id: "copper-atelier", name: "Copper Atelier", descriptor: "Dark espresso · copper", background: "#17100C", accent: "#C9824A", text: "#FFF5ED" },
+  { id: "arctic-pearl", name: "Arctic Pearl", descriptor: "Pearl white · slate blue", background: "#EEF3F7", accent: "#315D7A", text: "#101820" },
+  { id: "ivory-estate", name: "Ivory Estate", descriptor: "Warm ivory · antique gold", background: "#F5F0E7", accent: "#8A6A3E", text: "#17130E" },
+  { id: "carbon-platinum", name: "Carbon Platinum", descriptor: "Carbon black · platinum", background: "#101214", accent: "#B9C2CC", text: "#F5F7FA" },
+  { id: "deep-garnet", name: "Deep Garnet", descriptor: "Black cherry · garnet", background: "#190B10", accent: "#C94B68", text: "#FFF2F5" },
+  { id: "forest-reserve", name: "Forest Reserve", descriptor: "Forest green · soft lime", background: "#0B1711", accent: "#8BBF72", text: "#F4FFF0" },
+  { id: "cobalt-signature", name: "Cobalt Signature", descriptor: "Deep navy · cobalt", background: "#08132A", accent: "#367BFF", text: "#F4F7FF" },
+  { id: "sandstone-elite", name: "Sandstone Elite", descriptor: "Warm stone · bronze", background: "#19150F", accent: "#C7A66A", text: "#FFF8E9" },
 ];
 const storageKey = (accountId: string) => `${STORE_PREFIX}${accountId}`;
 const cacheCards = (accountId: string, cards: Card[]) => {
@@ -247,7 +258,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     id: `card-${suffix}`, ownerId: safeEmail.toLowerCase(), name: safeName, slug: `${slugify(safeName)}-${suffix}`,
     title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: safeEmail, website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
-    logo: "", cover: "", profileBackground: "#020202", profileAccent: "#0066FF", profileText: "#ffffff",
+    logo: "", cover: "", profileBackground: "#0B0D12", profileAccent: "#D4AF62", profileText: "#F7F3EA",
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
@@ -4355,30 +4366,100 @@ function CompanyForm({ draft, update, service, setService, notify }: any) {
 function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
   return <><div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
     <div className="profile-colours">
-      <div><span className="step">01</span><h3>Profile colours</h3><p>Start with a professional theme, then customise any colour.</p>
+      <div>
+        <span className="step">01</span>
+        <h3>Profile colours</h3>
+        <p>Start with a curated premium theme, then customize any colour.</p>
         <div className="profile-theme-grid">
           {profileThemes.map((theme) => {
-            const active = draft.profileBackground?.toLowerCase() === theme.background && draft.profileAccent?.toLowerCase() === theme.accent && draft.profileText?.toLowerCase() === theme.text;
-            return <button key={theme.name} type="button" className={active ? "active" : ""} aria-pressed={active} onClick={() => { update("profileBackground", theme.background); update("profileAccent", theme.accent); update("profileText", theme.text); }}>
-              <i style={{ background: `linear-gradient(135deg, ${theme.background} 50%, ${theme.accent} 50%)` }} />
-              <span>{theme.name}</span>
-            </button>;
+            const active =
+              draft.profileBackground?.toLowerCase() === theme.background.toLowerCase() &&
+              draft.profileAccent?.toLowerCase() === theme.accent.toLowerCase() &&
+              draft.profileText?.toLowerCase() === theme.text.toLowerCase();
+
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                className={`profile-preset-card ${active ? "active" : ""}`}
+                aria-pressed={active}
+                onClick={() => {
+                  update("profileBackground", theme.background);
+                  update("profileAccent", theme.accent);
+                  update("profileText", theme.text);
+                }}
+              >
+                {/* Visual Swatch representing theme relationship */}
+                <div
+                  className="preset-card-preview"
+                  style={{ background: theme.background }}
+                >
+                  <div
+                    className="preset-preview-bar"
+                    style={{ background: theme.accent }}
+                  />
+                  <div
+                    className="preset-preview-text-sample"
+                    style={{ color: theme.text }}
+                  >
+                    Aa
+                  </div>
+                  {active && (
+                    <div className="preset-active-badge" title="Selected theme">
+                      <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* Text Details */}
+                <div className="preset-card-details">
+                  <span className="preset-card-title">{theme.name}</span>
+                  <span className="preset-card-desc">{theme.descriptor}</span>
+                </div>
+              </button>
+            );
           })}
         </div>
       </div>
+
       <div className="colour-pickers">
-        {[["Background", "profileBackground", "#020202"], ["Accent", "profileAccent", "#0066FF"], ["Text", "profileText", "#ffffff"]].map(([label, key, fallback]) =>
-          <label key={key}><span>{label}</span><div><input type="color" value={draft[key] || fallback} onChange={(event) => update(key, event.target.value)} /><input className="colour-code" value={draft[key] || fallback} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && update(key, event.target.value)} aria-label={`${label} hex colour`} /></div></label>
-        )}
+        {[
+          ["Background", "profileBackground", "#0B0D12"],
+          ["Accent", "profileAccent", "#D4AF62"],
+          ["Text", "profileText", "#F7F3EA"],
+        ].map(([label, key, fallback]) => (
+          <label key={key}>
+            <span>{label}</span>
+            <div>
+              <input
+                type="color"
+                value={draft[key] || fallback}
+                onChange={(event) => update(key, event.target.value)}
+              />
+              <input
+                className="colour-code"
+                value={draft[key] || fallback}
+                onChange={(event) =>
+                  /^#[0-9a-f]{0,6}$/i.test(event.target.value) && update(key, event.target.value)
+                }
+                aria-label={`${label} hex colour`}
+              />
+            </div>
+          </label>
+        ))}
         <button
           type="button"
           className="reset-profile-colours"
           onClick={() => {
-            update("profileBackground", "#020202");
-            update("profileAccent", "#0066FF");
-            update("profileText", "#ffffff");
+            update("profileBackground", "#0B0D12");
+            update("profileAccent", "#D4AF62");
+            update("profileText", "#F7F3EA");
           }}
-        >Reset to gold &amp; black</button>
+        >
+          Reset to Obsidian Luxe
+        </button>
       </div>
     </div>
     <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{ transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`, objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%` }} /> : <span>YOUR<br />IMAGE</span>}</div></div>

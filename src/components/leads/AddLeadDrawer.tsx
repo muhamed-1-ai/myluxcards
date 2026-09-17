@@ -61,6 +61,22 @@ interface CustomField {
   placeholder: string;
 }
 
+function getAccountConfigKey(baseKey: string): string {
+  try {
+    if (typeof window !== "undefined") {
+      const rawUser = localStorage.getItem("myluxcards_current_user");
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u && (u.id || u.email)) {
+          const accountId = u.id || u.email;
+          return `${baseKey}_${accountId}`;
+        }
+      }
+    }
+  } catch {}
+  return baseKey;
+}
+
 export default function AddLeadDrawer({ 
   isOpen, 
   mode = "create", 
@@ -155,46 +171,22 @@ export default function AddLeadDrawer({
     const loadMasterConfig = async () => {
       setFetchingConfig(true);
       try {
-        // 1. Sources
+        // 1. Sources (account-scoped)
         try {
-          const storedSources = localStorage.getItem("myluxcards_lead_sources_data_v1");
+          const storageKey = getAccountConfigKey("myluxcards_lead_sources_data_v1");
+          const storedSources = localStorage.getItem(storageKey);
           if (storedSources) {
             const parsed = JSON.parse(storedSources);
-            const activeSources = parsed.filter((s: any) => s.active !== false);
-            if (activeSources.length > 0) {
-              setSources(activeSources.map((s: any) => ({ id: s.id, name: s.name, code: s.code || s.name })));
-            } else {
-              setSources([
-                { id: "src-1", name: "Manual Entry", code: "MANUAL" },
-                { id: "src-2", name: "NFC Tap", code: "NFC" },
-                { id: "src-3", name: "QR Code Scan", code: "QR" },
-                { id: "src-4", name: "Website", code: "WEBSITE" },
-                { id: "src-5", name: "Referral", code: "REFERRAL" },
-                { id: "src-6", name: "Direct Contact", code: "DIRECT" },
-              ]);
-            }
+            const activeSources = parsed.filter((s: any) => s.status === "ACTIVE" || s.active !== false);
+            setSources(activeSources.map((s: any) => ({ id: s.id, name: s.name, code: s.code || s.name })));
           } else {
-            setSources([
-              { id: "src-1", name: "Manual Entry", code: "MANUAL" },
-              { id: "src-2", name: "NFC Tap", code: "NFC" },
-              { id: "src-3", name: "QR Code Scan", code: "QR" },
-              { id: "src-4", name: "Website", code: "WEBSITE" },
-              { id: "src-5", name: "Referral", code: "REFERRAL" },
-              { id: "src-6", name: "Direct Contact", code: "DIRECT" },
-            ]);
+            setSources([]);
           }
         } catch {
-          setSources([
-            { id: "src-1", name: "Manual Entry", code: "MANUAL" },
-            { id: "src-2", name: "NFC Tap", code: "NFC" },
-            { id: "src-3", name: "QR Code Scan", code: "QR" },
-            { id: "src-4", name: "Website", code: "WEBSITE" },
-            { id: "src-5", name: "Referral", code: "REFERRAL" },
-            { id: "src-6", name: "Direct Contact", code: "DIRECT" },
-          ]);
+          setSources([]);
         }
 
-        // 2. Products
+        // 2. Products (API or account-scoped localStorage)
         try {
           const res = await fetch("/api/admin/products");
           const data = await res.json();
@@ -206,29 +198,32 @@ export default function AddLeadDrawer({
               price: p.priceMinor ? Math.round(p.priceMinor / 100) : (p.price_minor ? Math.round(p.price_minor / 100) : 0),
             })));
           } else {
-            const storedProds = localStorage.getItem("myluxcards_products_catalog_v1");
+            const storageKey = getAccountConfigKey("myluxcards_products_catalog_v1");
+            const storedProds = localStorage.getItem(storageKey);
             if (storedProds) {
               const parsed = JSON.parse(storedProds);
-              setAvailableProducts(parsed.map((p: any) => ({ id: p.id, name: p.name || p.title, price: p.price || 0 })));
+              const activeProds = parsed.filter((p: any) => p.status === "ACTIVE" || p.active !== false);
+              setAvailableProducts(activeProds.map((p: any) => ({ id: p.id, name: p.name || p.title, price: p.price || 0 })));
             } else {
-              setAvailableProducts([
-                { id: "prod-1", name: "ZAPPIT NFC Metal Card", price: 1999 },
-                { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price: 999 },
-                { id: "prod-3", name: "Custom Branded NFC Tag", price: 499 },
-              ]);
+              setAvailableProducts([]);
             }
           }
         } catch {
-          setAvailableProducts([
-            { id: "prod-1", name: "ZAPPIT NFC Metal Card", price: 1999 },
-            { id: "prod-2", name: "ZAPPIT Smart Card - PVC", price: 999 },
-            { id: "prod-3", name: "Custom Branded NFC Tag", price: 499 },
-          ]);
+          const storageKey = getAccountConfigKey("myluxcards_products_catalog_v1");
+          const storedProds = localStorage.getItem(storageKey);
+          if (storedProds) {
+            const parsed = JSON.parse(storedProds);
+            const activeProds = parsed.filter((p: any) => p.status === "ACTIVE" || p.active !== false);
+            setAvailableProducts(activeProds.map((p: any) => ({ id: p.id, name: p.name || p.title, price: p.price || 0 })));
+          } else {
+            setAvailableProducts([]);
+          }
         }
 
-        // 3. Lead Stages
+        // 3. Lead Stages (account-scoped)
         try {
-          const storedStages = localStorage.getItem("myluxcards_lead_stages_catalog_v1");
+          const storageKey = getAccountConfigKey("myluxcards_lead_stages_catalog_v1");
+          const storedStages = localStorage.getItem(storageKey);
           if (storedStages) {
             const parsed = JSON.parse(storedStages);
             const activeStages = parsed.filter((s: any) => s.active !== false);
@@ -240,8 +235,6 @@ export default function AddLeadDrawer({
                 { id: "stg-2", name: "Contacted", key: "CONTACTED" },
                 { id: "stg-3", name: "Interested", key: "INTERESTED" },
                 { id: "stg-4", name: "Follow Up", key: "FOLLOW_UP" },
-                { id: "stg-5", name: "Qualified", key: "QUALIFIED" },
-                { id: "stg-6", name: "Proposal", key: "PROPOSAL" },
                 { id: "stg-7", name: "Won", key: "WON" },
                 { id: "stg-8", name: "Lost", key: "LOST" },
               ]);
@@ -252,8 +245,6 @@ export default function AddLeadDrawer({
               { id: "stg-2", name: "Contacted", key: "CONTACTED" },
               { id: "stg-3", name: "Interested", key: "INTERESTED" },
               { id: "stg-4", name: "Follow Up", key: "FOLLOW_UP" },
-              { id: "stg-5", name: "Qualified", key: "QUALIFIED" },
-              { id: "stg-6", name: "Proposal", key: "PROPOSAL" },
               { id: "stg-7", name: "Won", key: "WON" },
               { id: "stg-8", name: "Lost", key: "LOST" },
             ]);
@@ -264,8 +255,6 @@ export default function AddLeadDrawer({
             { id: "stg-2", name: "Contacted", key: "CONTACTED" },
             { id: "stg-3", name: "Interested", key: "INTERESTED" },
             { id: "stg-4", name: "Follow Up", key: "FOLLOW_UP" },
-            { id: "stg-5", name: "Qualified", key: "QUALIFIED" },
-            { id: "stg-6", name: "Proposal", key: "PROPOSAL" },
             { id: "stg-7", name: "Won", key: "WON" },
             { id: "stg-8", name: "Lost", key: "LOST" },
           ]);

@@ -6,6 +6,18 @@ export default function nextConfig(phase: string): NextConfig {
     // Keep development chunks isolated from production builds. Running `next build`
     // must never replace files required by an active `next dev` server.
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: '**.wasabisys.com',
+        },
+        {
+          protocol: 'http',
+          hostname: '**.wasabisys.com',
+        },
+      ],
+    },
     async redirects() {
       return [
         { source: '/index.html', destination: '/', permanent: true },

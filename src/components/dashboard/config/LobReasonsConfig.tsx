@@ -30,83 +30,26 @@ export interface LobReasonItem {
   isSystem?: boolean;
 }
 
-const INITIAL_LOB_REASONS: LobReasonItem[] = [
-  {
-    id: "lob-1",
-    name: "Price Too High",
-    status: "ACTIVE",
-    createdAt: "2026-07-28T10:15:00.000Z",
-    updatedAt: "2026-08-30T12:00:00.000Z",
-    createdBy: "System",
-    usageCount: 18,
-    isSystem: true,
-  },
-  {
-    id: "lob-2",
-    name: "Not Interested",
-    status: "ACTIVE",
-    createdAt: "2026-07-11T14:30:00.000Z",
-    updatedAt: "2026-08-28T16:20:00.000Z",
-    createdBy: "System",
-    usageCount: 12,
-    isSystem: true,
-  },
-  {
-    id: "lob-3",
-    name: "Purchased Elsewhere",
-    status: "ACTIVE",
-    createdAt: "2026-07-05T09:45:00.000Z",
-    updatedAt: "2026-08-25T11:10:00.000Z",
-    createdBy: "System",
-    usageCount: 9,
-    isSystem: false,
-  },
-  {
-    id: "lob-4",
-    name: "No Response",
-    status: "ACTIVE",
-    createdAt: "2026-06-20T16:00:00.000Z",
-    updatedAt: "2026-08-20T14:05:00.000Z",
-    createdBy: "System",
-    usageCount: 15,
-    isSystem: false,
-  },
-  {
-    id: "lob-5",
-    name: "Timing Issue",
-    status: "ACTIVE",
-    createdAt: "2026-06-15T08:20:00.000Z",
-    updatedAt: "2026-08-15T10:00:00.000Z",
-    createdBy: "System",
-    usageCount: 7,
-    isSystem: false,
-  },
-  {
-    id: "lob-6",
-    name: "Competitor Choice",
-    status: "ACTIVE",
-    createdAt: "2026-06-10T11:00:00.000Z",
-    updatedAt: "2026-08-10T12:00:00.000Z",
-    createdBy: "System",
-    usageCount: 11,
-    isSystem: false,
-  },
-  {
-    id: "lob-7",
-    name: "Duplicate Lead",
-    status: "ACTIVE",
-    createdAt: "2026-06-05T14:00:00.000Z",
-    updatedAt: "2026-08-05T16:00:00.000Z",
-    createdBy: "System",
-    usageCount: 4,
-    isSystem: false,
-  },
-];
+function getAccountConfigKey(baseKey: string): string {
+  try {
+    if (typeof window !== "undefined") {
+      const rawUser = localStorage.getItem("myluxcards_current_user");
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        if (u && (u.id || u.email)) {
+          const accountId = u.id || u.email;
+          return `${baseKey}_${accountId}`;
+        }
+      }
+    }
+  } catch {}
+  return baseKey;
+}
 
-const LOCAL_STORAGE_KEY = "myluxcards_lob_reasons_catalog_v1";
+const LOCAL_STORAGE_KEY_BASE = "myluxcards_lob_reasons_catalog_v1";
 
 export function LobReasonsConfig() {
-  const [reasons, setReasons] = useState<LobReasonItem[]>(INITIAL_LOB_REASONS);
+  const [reasons, setReasons] = useState<LobReasonItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Search & Filter State
@@ -130,28 +73,34 @@ export function LobReasonsConfig() {
     status: "ACTIVE" as "ACTIVE" | "INACTIVE",
   });
 
-  // Load from localStorage on mount
+  // Load from account-scoped localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setReasons(parsed);
+        } else {
+          setReasons([]);
         }
+      } else {
+        setReasons([]);
       }
     } catch {
-      // Fallback
+      setReasons([]);
     } finally {
       setIsLoaded(true);
     }
   }, []);
 
-  // Save to localStorage when reasons change
+  // Save to account-scoped localStorage when reasons change
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reasons));
+      const storageKey = getAccountConfigKey(LOCAL_STORAGE_KEY_BASE);
+      localStorage.setItem(storageKey, JSON.stringify(reasons));
     } catch {
       // Ignore storage errors
     }
@@ -819,8 +768,43 @@ export function LobReasonsConfig() {
               ))}
             </div>
           </>
+        ) : reasons.length === 0 ? (
+          /* CLEAN EMPTY STATE - NO ITEMS CONFIGURED */
+          <div style={{ padding: "50px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FileText style={{ width: 22, height: 22 }} />
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>
+              No LOB Reasons Configured Yet
+            </h3>
+            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 400 }}>
+              Start by creating loss-of-business reasons to analyze why leads are lost or disqualified.
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              style={{
+                marginTop: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 20px",
+                fontSize: 13,
+                fontWeight: 700,
+                background: "#0066FF",
+                border: "none",
+                borderRadius: 8,
+                color: "#07080B",
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+              }}
+            >
+              <Plus style={{ width: 16, height: 16, strokeWidth: 2.5 }} />
+              Create Reason
+            </button>
+          </div>
         ) : (
-          /* EMPTY STATE */
+          /* EMPTY STATE - NO SEARCH MATCHES */
           <div style={{ padding: "50px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileText style={{ width: 22, height: 22 }} />

@@ -37,15 +37,15 @@ export class WasabiStorageProvider implements StorageProvider {
   private client: S3Client | null = null;
 
   private getClient(): { client: S3Client; bucket: string; endpoint: string } {
-    const accessKeyId = process.env.WASABI_ACCESS_KEY;
-    const secretAccessKey = process.env.WASABI_SECRET_KEY;
+    const accessKeyId = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
     const bucket = process.env.WASABI_BUCKET;
     const region = process.env.WASABI_REGION || "ap-southeast-1";
     const endpoint = process.env.WASABI_ENDPOINT || "https://s3.wasabisys.com";
 
     if (!accessKeyId || !secretAccessKey || !bucket) {
       throw new Error(
-        "Wasabi Storage is not fully configured. Missing WASABI_ACCESS_KEY, WASABI_SECRET_KEY, or WASABI_BUCKET."
+        "Wasabi Storage is not fully configured. Missing WASABI_ACCESS_KEY (or WASABI_ACCESS_KEY_ID), WASABI_SECRET_KEY (or WASABI_SECRET_ACCESS_KEY), or WASABI_BUCKET."
       );
     }
 
@@ -65,11 +65,10 @@ export class WasabiStorageProvider implements StorageProvider {
   }
 
   public isConfigured(): boolean {
-    return Boolean(
-      process.env.WASABI_ACCESS_KEY &&
-      process.env.WASABI_SECRET_KEY &&
-      process.env.WASABI_BUCKET
-    );
+    const accessKey = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
+    const secretKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
+    const bucket = process.env.WASABI_BUCKET;
+    return Boolean(accessKey && secretKey && bucket);
   }
 
   public getPublicUrl(key: string): string {

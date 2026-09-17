@@ -342,8 +342,13 @@ function clamp(value: unknown, minimum: number, maximum: number, fallback: numbe
 }
 
 function cleanImage(value: string) {
-  if (/^https:\/\/[^\s]+$/i.test(value)) return value.slice(0, 2000);
-  return /^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(value) ? value.slice(0, 7_000_000) : "";
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (/^https?:\/\/[^\s]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
+  if (/^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 7_000_000);
+  if (/^(?:cards|profiles|users|uploads)\/[a-zA-Z0-9_./-]+$/i.test(trimmed)) return trimmed.slice(0, 500);
+  if (/^\/[^\s]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
+  return "";
 }
 
 function cleanUrl(value: unknown) {
