@@ -17,8 +17,10 @@ const isProd = process.env.NODE_ENV === "production";
 const cookiePrefix = isProd ? "__Secure-" : "";
 const hostPrefix = isProd ? "__Host-" : "";
 
+import { getAuthSecret } from "./authSecret";
+
 export const authOptions: NextAuthOptions = {
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026",
+  secret: getAuthSecret(),
   useSecureCookies: isProd,
   cookies: {
     sessionToken: {

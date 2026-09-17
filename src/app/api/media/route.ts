@@ -18,6 +18,8 @@ export async function GET() {
   return Response.json({ message: "Media API endpoint requires POST method for uploads." }, { status: 405 });
 }
 
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
@@ -26,6 +28,16 @@ export async function POST(request: Request) {
   const identity = await currentIdentity();
   if (!identity) {
     return Response.json({ message: "Please sign in." }, { status: 401 });
+  }
+
+  const clientIp = getClientIp(request);
+  const rateLimitKey = `media-upload:${identity.id}:${clientIp}`;
+  const limit = checkRateLimit({ key: rateLimitKey, windowMs: 15 * 60 * 1000, maxRequests: 30 });
+  if (!limit.success) {
+    return Response.json(
+      { message: "Upload rate limit exceeded. Please wait a few minutes before trying again." },
+      { status: 429 }
+    );
   }
 
   const form = await request.formData().catch(() => null);

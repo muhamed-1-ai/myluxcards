@@ -2,8 +2,10 @@ import "server-only";
 import { encode } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 
+import { getAuthSecret } from "./authSecret";
+
 export async function authenticatedResponse(user:{id:string;email:string;name:string;sessionVersion:number}, request?: Request){
-  const secret=process.env.AUTH_SECRET||process.env.NEXTAUTH_SECRET||"myluxcards-auth-secret-session-key-2026";
+  const secret = getAuthSecret();
   const isHttps = request ? (request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")) : (process.env.APP_URL?.startsWith("https://") ?? true);
   const secure = process.env.NODE_ENV === "production" && isHttps;
   const maxAge = 60 * 60 * 24 * 30;

@@ -3,8 +3,9 @@ import { encode } from "next-auth/jwt";
 import { linkGoogleIdentity } from "@/lib/authService";
 import { validMutationOrigin } from "@/lib/adminAuth";
 
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026";
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || "100033105320-vesgkflqqv9nermm0nllqa5mnnhq6kms.apps.googleusercontent.com";
+import { getAuthSecret } from "@/lib/authSecret";
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || "";
 
 interface GoogleTokenPayload {
   sub: string;
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     const sessionToken = await encode({
       token: tokenPayload,
-      secret: AUTH_SECRET,
+      secret: getAuthSecret(),
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 

@@ -4,7 +4,7 @@ import { getAppOrigin } from "@/lib/url";
 
 const REF_COOKIE = "mlc_affiliate_ref";
 const VISITOR_COOKIE = "mlc_affiliate_visitor";
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "myluxcards-auth-secret-session-key-2026";
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || (process.env.NODE_ENV === "production" ? "" : "myluxcards-dev-only-session-secret-key-do-not-use-in-prod");
 
 async function getSessionToken(req: NextRequest) {
   let session = await getToken({ req, secret: AUTH_SECRET, secureCookie: process.env.NODE_ENV === "production" });

@@ -11,6 +11,9 @@ const resolverFile = readFileSync("src/lib/storage/resolver.ts", "utf8");
 const cardsFile = readFileSync("src/lib/cards.ts", "utf8");
 const presignRoute = readFileSync("src/app/api/media/presign/route.ts", "utf8");
 const logoutRoute = readFileSync("src/app/api/auth/logout/route.ts", "utf8");
+const nextConfigFile = readFileSync("next.config.ts", "utf8");
+const loginRoute = readFileSync("src/app/api/auth/login/route.ts", "utf8");
+const authSecretFile = readFileSync("src/lib/authSecret.ts", "utf8");
 
 // Inline helper functions matching current src/lib/adminAuth.ts for proxy regression testing
 function normalizeHost(value) {
@@ -169,35 +172,26 @@ test("18. Wasabi PutObject fallback works without forcing explicit ACL header", 
 // ==========================================
 
 test("19. Proxy origin header normalization for production 3gzappit.com", () => {
-  // Test case A: Standard single host header
   assert.equal(
     validMutationOrigin({ origin: "https://3gzappit.com", host: "3gzappit.com" }),
     true,
     "Standard production origin must pass"
   );
-
-  // Test case B: www origin with non-www host
   assert.equal(
     validMutationOrigin({ origin: "https://www.3gzappit.com", host: "3gzappit.com" }),
     true,
     "www origin with non-www host must pass"
   );
-
-  // Test case C: Multi-host proxy header (Coolify/Nginx comma-separated)
   assert.equal(
     validMutationOrigin({ origin: "https://3gzappit.com", "x-forwarded-host": "3gzappit.com, 3gzappit.com" }),
     true,
     "Comma-separated X-Forwarded-Host proxy header must pass"
   );
-
-  // Test case D: Host header with port number
   assert.equal(
     validMutationOrigin({ origin: "https://3gzappit.com", host: "3gzappit.com:443" }),
     true,
     "Host header with port 443 must pass"
   );
-
-  // Test case E: Reverse proxy internal container port (e.g. 3000) with matching Referer
   assert.equal(
     validMutationOrigin({
       origin: "https://3gzappit.com",
@@ -210,7 +204,6 @@ test("19. Proxy origin header normalization for production 3gzappit.com", () => 
 });
 
 test("20. Genuine cross-origin request forgery attempts are blocked (403)", () => {
-  // Mismatched malicious origin
   assert.equal(
     validMutationOrigin({ origin: "https://malicious-attacker.com", host: "3gzappit.com" }),
     false,
@@ -219,7 +212,7 @@ test("20. Genuine cross-origin request forgery attempts are blocked (403)", () =
 });
 
 // ==========================================
-// GROUP 5: ERROR STATUS MAPPING
+// GROUP 5: ERROR STATUS MAPPING & HARDENING
 // ==========================================
 
 test("21. HTTP Error status codes are correctly mapped", () => {
@@ -229,4 +222,29 @@ test("21. HTTP Error status codes are correctly mapped", () => {
   assert.match(mediaRoute, /status: 413/, "413 for oversized files");
   assert.match(mediaRoute, /status: 500/, "500 for S3 storage upload failures");
   assert.match(mediaRoute, /status: 503/, "503 for unconfigured storage backend");
+});
+
+test("22. Strict production Auth Secret resolution", () => {
+  assert.match(authSecretFile, /Missing AUTH_SECRET/, "Must throw fatal error if AUTH_SECRET missing in production");
+  assert.doesNotMatch(authFile, /"myluxcards-auth-secret-session-key-2026"/, "Auth configuration must not use static hardcoded secret in production");
+});
+
+test("23. Security Headers HSTS & Permissions Policy present in next.config.ts", () => {
+  assert.match(nextConfigFile, /Strict-Transport-Security/, "Must set Strict-Transport-Security header");
+  assert.match(nextConfigFile, /max-age=31536000/, "HSTS must enforce 1 year duration");
+  assert.match(nextConfigFile, /Permissions-Policy/, "Must set Permissions-Policy header");
+});
+
+test("24. Production error response does not expose stack trace", () => {
+  assert.doesNotMatch(loginRoute, /error\.stack/, "Login route 500 error must not expose stack traces");
+});
+
+test("25. Server-side Rate Limiting utility and check in media route", () => {
+  assert.match(mediaRoute, /checkRateLimit/, "Media route must enforce rate limiting");
+  assert.match(mediaRoute, /status: 429/, "Media route must return 429 when rate limit exceeded");
+});
+
+test("26. Open Redirect prevention in NextAuth redirect callback", () => {
+  assert.match(authFile, /canonicalBase/, "Redirect callback must validate against canonical production URL");
+  assert.match(authFile, /finalUrl = `\$\{canonicalBase\}\/dashboard`/, "External unauthorized redirect URLs must default to dashboard");
 });
