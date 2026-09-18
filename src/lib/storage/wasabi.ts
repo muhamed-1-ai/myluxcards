@@ -129,11 +129,14 @@ export class WasabiStorageProvider implements StorageProvider {
     const { client, bucket } = this.getClient();
     const key = sanitizeStorageKey(params.key);
 
+    const size = params.buffer.byteLength || params.buffer.length;
+
     const baseInput = {
       Bucket: bucket,
       Key: key,
       Body: params.buffer,
       ContentType: params.contentType,
+      ContentLength: size,
     };
 
     try {

@@ -47,6 +47,7 @@ export async function POST(request: Request) {
   const validKinds = [
     "logo",
     "cover",
+    "background",
     "avatar",
     "brochure",
     "product",
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
   let storageKey: string;
   if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
     storageKey = `${prefixSegment}cards/${cardId}/${kind}/${uniqueId}.${extension}`;
-  } else if (kind === "avatar" || kind === "logo" || kind === "cover") {
+  } else if (kind === "avatar" || kind === "logo" || kind === "cover" || kind === "background") {
     storageKey = `${prefixSegment}profiles/${identity.id}/${kind}/${uniqueId}.${extension}`;
   } else {
     storageKey = `${prefixSegment}users/${identity.id}/${kind}/${uniqueId}.${extension}`;
