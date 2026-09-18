@@ -3,46 +3,107 @@ const path = require('path');
 const sharp = require('sharp');
 
 async function generateAssets() {
-  const svgPath = path.join(__dirname, '..', 'public', 'assets', 'logo.svg');
-  const svgBuffer = fs.readFileSync(svgPath);
+  const brandSourcePath = path.join(__dirname, '..', 'public', 'branding', 'zappit-logo.png');
+  if (!fs.existsSync(brandSourcePath)) {
+    throw new Error(`Canonical logo not found at: ${brandSourcePath}`);
+  }
 
-  // 1. logo-navbar.png (high DPI navbar image, e.g., 440x100)
-  await sharp(svgBuffer)
-    .resize(440, 100, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png({ compressionLevel: 9, quality: 90 })
-    .toFile(path.join(__dirname, '..', 'public', 'assets', 'logo-navbar.png'));
+  const rawBuffer = fs.readFileSync(brandSourcePath);
+  const metadata = await sharp(rawBuffer).metadata();
 
-  // 2. logo-navbar-keyed.png
-  await sharp(svgBuffer)
-    .resize(440, 100, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png({ compressionLevel: 9, quality: 90 })
-    .toFile(path.join(__dirname, '..', 'public', 'assets', 'logo-navbar-keyed.png'));
+  // Create transparent buffer by keying out white background pixels
+  const { data, info } = await sharp(rawBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  // 3. logo-premium.png (loading screen & footer logo)
-  await sharp(svgBuffer)
-    .resize(500, 114, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png({ compressionLevel: 9, quality: 90 })
-    .toFile(path.join(__dirname, '..', 'public', 'assets', 'logo-premium.png'));
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (r > 240 && g > 240 && b > 240) {
+      data[i + 3] = 0; // set alpha to 0
+    }
+  }
 
-  // 4. favicon.ico (icon mark only)
-  const iconMarkSvg = `
-  <svg width="64" height="64" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="2" width="36" height="36" rx="10" fill="#080B12" stroke="#00D9FF" stroke-width="2"/>
-    <path d="M12 14C16.4 9.6 23.6 9.6 28 14" stroke="#00D9FF" stroke-width="2" stroke-linecap="round"/>
-    <path d="M15 18C17.8 15.2 22.2 15.2 25 18" stroke="#0066FF" stroke-width="2" stroke-linecap="round"/>
-    <path d="M22 17L14 26H20L18 31L26 22H20L22 17Z" fill="#00D9FF"/>
-    <circle cx="28" cy="11" r="2.5" fill="#B026FF"/>
-  </svg>`;
-  
-  await sharp(Buffer.from(iconMarkSvg))
-    .resize(64, 64)
+  const transparentBuffer = await sharp(data, {
+    raw: {
+      width: info.width,
+      height: info.height,
+      channels: 4,
+    },
+  })
     .png()
-    .toFile(path.join(__dirname, '..', 'public', 'favicon.ico'));
+    .toBuffer();
 
-  console.log('Successfully generated crisp Zappit logo assets & favicon!');
+  const publicAssetsDir = path.join(__dirname, '..', 'public', 'assets');
+  const rootAssetsDir = path.join(__dirname, '..', 'assets');
+  const nestedAssetsDir = path.join(__dirname, '..', 'public', 'assets', 'assets');
+
+  [publicAssetsDir, rootAssetsDir, nestedAssetsDir].forEach((dir) => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  });
+
+  // 1. logo-transparent.png
+  fs.writeFileSync(path.join(publicAssetsDir, 'logo-transparent.png'), transparentBuffer);
+  fs.writeFileSync(path.join(rootAssetsDir, 'logo-transparent.png'), transparentBuffer);
+
+  // 2. logo.png and logo-3d.png
+  fs.writeFileSync(path.join(publicAssetsDir, 'logo.png'), transparentBuffer);
+  fs.writeFileSync(path.join(publicAssetsDir, 'logo-3d.png'), transparentBuffer);
+  fs.writeFileSync(path.join(rootAssetsDir, 'logo.png'), transparentBuffer);
+  fs.writeFileSync(path.join(rootAssetsDir, 'logo-3d.png'), transparentBuffer);
+  fs.writeFileSync(path.join(publicAssetsDir, 'zappit-logo.png'), rawBuffer);
+
+  // 3. logo-navbar.png (high DPI navbar image, e.g., 440x220)
+  await sharp(transparentBuffer)
+    .resize(440, 220, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png({ compressionLevel: 9, quality: 90 })
+    .toFile(path.join(publicAssetsDir, 'logo-navbar.png'));
+
+  // 4. logo-navbar-keyed.png
+  await sharp(transparentBuffer)
+    .resize(440, 220, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png({ compressionLevel: 9, quality: 90 })
+    .toFile(path.join(publicAssetsDir, 'logo-navbar-keyed.png'));
+
+  // 5. logo-premium.png (loading screen & footer logo)
+  await sharp(transparentBuffer)
+    .resize(500, 250, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png({ compressionLevel: 9, quality: 90 })
+    .toFile(path.join(publicAssetsDir, 'logo-premium.png'));
+
+  // 6. SVG Wrappers so any image tag loading logo.svg gets the exact high-res image
+  const base64Transparent = transparentBuffer.toString('base64');
+  const svgWrapper = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${info.width} ${info.height}" width="100%" height="100%">
+  <image href="data:image/png;base64,${base64Transparent}" width="${info.width}" height="${info.height}" />
+</svg>`;
+
+  fs.writeFileSync(path.join(publicAssetsDir, 'logo.svg'), svgWrapper);
+  fs.writeFileSync(path.join(publicAssetsDir, 'logo-transparent.svg'), svgWrapper);
+  fs.writeFileSync(path.join(rootAssetsDir, 'logo.svg'), svgWrapper);
+  fs.writeFileSync(path.join(nestedAssetsDir, 'logo.svg'), svgWrapper);
+
+  // 7. favicon.ico and icon-mark.png (cropped signal icon mark)
+  const iconCrop = await sharp(transparentBuffer)
+    .extract({
+      left: Math.floor(info.width * 0.65),
+      top: 10,
+      width: Math.floor(info.width * 0.32),
+      height: Math.floor(info.height * 0.65),
+    })
+    .trim()
+    .resize(64, 64, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  fs.writeFileSync(path.join(__dirname, '..', 'public', 'favicon.ico'), iconCrop);
+  fs.writeFileSync(path.join(publicAssetsDir, 'icon-mark.png'), iconCrop);
+
+  console.log('Successfully built crisp 3G Zappit official logo assets & favicon!');
 }
 
-generateAssets().catch(err => {
+generateAssets().catch((err) => {
   console.error('Error generating assets:', err);
   process.exit(1);
 });

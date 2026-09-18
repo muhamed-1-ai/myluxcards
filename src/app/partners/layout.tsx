@@ -3,8 +3,8 @@ import "../affiliate/affiliate.css";
 export default function PartnerLayout({ children }: { children: React.ReactNode }) {
   return <div className="affiliate-page partner-site">
     <header className="partner-main-nav">
-      <a className="partner-main-logo" href="/" aria-label="MyLuxCards home">
-        <img src="/assets/logo-navbar.png" alt="MyLuxCards" />
+      <a className="partner-main-logo" href="/" aria-label="3G Zappit home">
+        <img src="/assets/logo-navbar.png" alt="3G Zappit" />
       </a>
       <nav aria-label="Main navigation">
         <a href="/">Home</a>

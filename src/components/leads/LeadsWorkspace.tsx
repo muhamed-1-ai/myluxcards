@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   Download,
@@ -64,7 +65,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
-  const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
+  const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -192,6 +193,29 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     } catch (err) {
       console.error("Failed to delete lead", err);
     }
+  };
+
+  const handleOpenActionMenu = (e: React.MouseEvent<HTMLButtonElement>, lead: any) => {
+    e.stopPropagation();
+    if (actionMenuTarget && actionMenuTarget.lead.id === lead.id) {
+      setActionMenuTarget(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 216;
+    const menuHeight = 145;
+
+    let top = rect.bottom + 6;
+    let left = rect.right - menuWidth;
+
+    if (top + menuHeight > window.innerHeight - 12) {
+      top = rect.top - menuHeight - 6;
+    }
+    if (left < 12) {
+      left = 12;
+    }
+
+    setActionMenuTarget({ lead, top, left });
   };
 
   const getAvatarGradient = (name: string) => {
@@ -608,14 +632,14 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                       </td>
 
                       {/* NEXT FOLLOW-UP COLUMN (Matching Reference Pill) */}
-                      <td>
-                        <div className="crm-followup-pill-box">
+                      <td onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}>
+                        <div className="crm-followup-pill-box cursor-pointer">
                           <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
                           <div className="text-left">
                             <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)]">
                               {lead.nextFollowUpAt
                                 ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                                : "No Follow-Up"}
+                                : "NO FOLLOW-UP"}
                             </div>
                             <div className="text-[10px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[120px]">
                               {lead.nextFollowUpNote || "Not scheduled"}
@@ -665,47 +689,15 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
                       {/* ACTIONS COLUMN */}
                       <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="relative inline-block text-left">
-                          <button
-                            type="button"
-                            onClick={() => setActiveActionMenuId(activeActionMenuId === lead.id ? null : lead.id)}
-                            className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-
-                          {activeActionMenuId === lead.id && (
-                            <div
-                              className="absolute right-0 mt-1 w-36 bg-[var(--surface,#FFFFFF)] rounded-xl border border-[var(--border-color,#E2E8F0)] shadow-xl z-30 py-1 font-medium text-xs text-[var(--text-primary,#0F172A)]"
-                              onClick={() => setActiveActionMenuId(null)}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => setSelectedLeadId(lead.id)}
-                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-secondary,#F8FAFC)] flex items-center space-x-2"
-                              >
-                                <Eye className="w-3.5 h-3.5 text-blue-500" />
-                                <span>View Details</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingLead(lead)}
-                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-secondary,#F8FAFC)] flex items-center space-x-2 text-emerald-600 dark:text-emerald-400"
-                              >
-                                <Edit2 className="w-3.5 h-3.5 text-emerald-500" />
-                                <span>Edit Lead</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteLead(lead.id)}
-                                className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 flex items-center space-x-2"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                <span>Delete Lead</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenActionMenu(e, lead)}
+                          className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors focus:outline-none"
+                          title="Actions menu"
+                          aria-label="Actions menu"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -824,12 +816,15 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                       {/* Next Follow-Up Pill */}
-                      <div className="crm-followup-pill-box !py-1 !px-2.5 !rounded-lg">
+                      <div
+                        onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}
+                        className="crm-followup-pill-box !py-1 !px-2.5 !rounded-lg cursor-pointer"
+                      >
                         <Calendar className="w-3 h-3 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
                         <span className="font-bold text-[10.5px] uppercase text-[var(--text-primary,#0F172A)]">
                           {lead.nextFollowUpAt
                             ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                            : "No Follow-up"}
+                            : "NO FOLLOW-UP"}
                         </span>
                       </div>
 
@@ -843,30 +838,12 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                     <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
-                        onClick={() => setSelectedLeadId(lead.id)}
-                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-emerald-500 hover:bg-[var(--border-color,#E2E8F0)]/40"
-                        title="View Details"
-                        aria-label="View details"
+                        onClick={(e) => handleOpenActionMenu(e, lead)}
+                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40"
+                        title="Actions menu"
+                        aria-label="Actions menu"
                       >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingLead(lead)}
-                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-blue-500 hover:bg-[var(--border-color,#E2E8F0)]/40"
-                        title="Edit Lead"
-                        aria-label="Edit lead"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteLead(lead.id)}
-                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-red-500 hover:bg-red-500/10"
-                        title="Delete Lead"
-                        aria-label="Delete lead"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        <MoreVertical className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -902,7 +879,65 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           leadId={selectedLeadId}
           onClose={() => setSelectedLeadId(null)}
           onUpdated={() => fetchLeads()}
+          onEditLead={(lead) => setEditingLead(lead)}
         />
+      )}
+
+      {/* PORTAL ACTIONS MENU (Collision-aware dropdown matching Screenshot 3) */}
+      {actionMenuTarget && createPortal(
+        <div
+          className="fixed inset-0 z-[100] pointer-events-auto"
+          onClick={() => setActionMenuTarget(null)}
+        >
+          <div
+            style={{
+              position: "fixed",
+              top: `${actionMenuTarget.top}px`,
+              left: `${actionMenuTarget.left}px`,
+            }}
+            className="w-[216px] bg-[#0B1528] border border-[#1E293B] shadow-2xl rounded-xl p-2 font-medium text-sm text-[#F1F5F9] animate-in fade-in zoom-in-95 duration-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const id = actionMenuTarget.lead.id;
+                setActionMenuTarget(null);
+                setSelectedLeadId(id);
+              }}
+              className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
+            >
+              <Eye className="w-4 h-4 text-blue-400" />
+              <span>View Details</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const leadToEdit = actionMenuTarget.lead;
+                setActionMenuTarget(null);
+                setEditingLead(leadToEdit);
+              }}
+              className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
+            >
+              <Edit2 className="w-4 h-4 text-emerald-400" />
+              <span>Edit Lead</span>
+            </button>
+            <div className="my-1 border-t border-[#1E293B]" />
+            <button
+              type="button"
+              onClick={() => {
+                const idToDelete = actionMenuTarget.lead.id;
+                setActionMenuTarget(null);
+                handleDeleteLead(idToDelete);
+              }}
+              className="w-full h-10 px-3 hover:bg-red-500/10 rounded-lg flex items-center gap-3 text-left transition-colors text-red-400 focus:outline-none focus:bg-red-500/10"
+            >
+              <Trash2 className="w-4 h-4 text-red-400" />
+              <span>Delete Lead</span>
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

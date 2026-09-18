@@ -4692,7 +4692,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
     </div>
     <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#0066FF", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
       <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
-      <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>MYLUX</span>}</div>
+      <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>ZAPPIT</span>}</div>
       <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
       <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
       <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>

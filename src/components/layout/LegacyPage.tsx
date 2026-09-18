@@ -34,14 +34,16 @@ function NavbarLogoPortal() {
 
   return createPortal(
     <Image
-      src="/assets/logo.svg"
-      alt="Zappit logo"
-      width={240}
-      height={120}
+      src="/assets/logo-transparent.png"
+      alt="3G Zappit logo"
+      width={280}
+      height={140}
       priority
       style={{
         width: 'auto',
-        height: 'auto',
+        height: '70px',
+        maxHeight: '100%',
+        objectFit: 'contain',
       }}
       className="brand-logo"
     />,

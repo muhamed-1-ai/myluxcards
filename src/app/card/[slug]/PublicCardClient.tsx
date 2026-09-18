@@ -756,7 +756,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
             }}
           />}
-          {!card.cover && <span className="pc-hero-wordmark">MYLUX</span>}
+          {!card.cover && <span className="pc-hero-wordmark">ZAPPIT</span>}
           <div className="pc-hero-overlay">
             <div className="pc-hero-bottom">
               {card.logo && (
@@ -861,7 +861,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         return (
           <div className="pc-vehicle-card">
             <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
-              🚗 MYLUX VEHICLE CONNECT
+              🚗 ZAPPIT VEHICLE CONNECT
             </div>
 
             {activeVehicles.length === 0 ? (
@@ -1048,7 +1048,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         return (
           <div className="pc-lost-card">
             <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
-              🏷️ MYLUX LOST &amp; FOUND
+              🏷️ ZAPPIT LOST &amp; FOUND
             </div>
 
             {activeItems.length === 0 ? (

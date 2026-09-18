@@ -1,6 +1,90 @@
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const identity = await currentIdentity();
+  if (!identity) {
+    return Response.json({ message: "Unauthorized." }, { status: 401 });
+  }
+
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+    return Response.json({ message: "Invalid lead ID." }, { status: 400 });
+  }
+
+  try {
+    const leadRes = await pool.query(
+      `SELECT 
+         l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
+         l.email, l.address, l.status, l.source, l.profile_image as "profileImage",
+         COALESCE(l.submission_count, 1) as "submissionCount", 
+         l.first_submitted_at as "firstSubmittedAt",
+         l.last_submitted_at as "lastSubmittedAt", 
+         l.created_at as "createdAt", l.updated_at as "updatedAt",
+         COALESCE(l.total_amount, 0) as "totalAmount", 
+         COALESCE(l.advance_amount, 0) as "advanceAmount",
+         l.assigned_user_id as "assignedUserId",
+         u_assigned.name as "assignedUserName", u_assigned.email as "assignedUserEmail",
+         u_owner.name as "createdByName", u_owner.email as "createdByEmail"
+       FROM leads l
+       LEFT JOIN users u_assigned ON u_assigned.id = l.assigned_user_id
+       LEFT JOIN users u_owner ON u_owner.id = l.owner_user_id
+       WHERE l.id = $1 AND (
+         l.owner_user_id = $2 OR l.assigned_user_id = $2 OR 
+         l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR 
+         $3::text = 'SUPER_ADMIN'
+       )`,
+      [id, identity.id, identity.role]
+    );
+
+    const lead = leadRes.rows[0];
+    if (!lead) {
+      return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+    }
+
+    // Next follow-up
+    const fuRes = await pool.query(
+      `SELECT id, scheduled_at as "scheduledAt", note, status
+       FROM lead_follow_ups
+       WHERE lead_id = $1 AND status = 'SCHEDULED'
+       ORDER BY scheduled_at ASC LIMIT 1`,
+      [id]
+    );
+    const nextFollowUp = fuRes.rows[0] || null;
+
+    // Recent activities
+    const actRes = await pool.query(
+      `SELECT id, type, description, from_value as "fromValue", to_value as "toValue", occurred_at as "occurredAt"
+       FROM lead_activities
+       WHERE lead_id = $1
+       ORDER BY occurred_at DESC LIMIT 50`,
+      [id]
+    );
+    const activities = actRes.rows;
+
+    // Find latest remark if any
+    const latestRemarkObj = activities.find(
+      (a: any) => a.type === "REMARK" || a.type === "NOTE_ADDED" || (a.description && a.description.toLowerCase().includes("remark"))
+    );
+    const lastRemark = latestRemarkObj ? latestRemarkObj.description : null;
+
+    return Response.json({
+      ok: true,
+      lead: {
+        ...lead,
+        stage: lead.status,
+        expectedRevenue: lead.totalAmount || 0,
+        nextFollowUp,
+        activities,
+        lastRemark,
+      },
+    });
+  } catch (error: any) {
+    console.error("[Lead Details API] Error:", error);
+    return Response.json({ message: error.message || "Failed to load lead details." }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });

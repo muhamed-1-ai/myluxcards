@@ -5002,6 +5002,54 @@ body.light-mode .crm-kpi-badge {
   color: #0066FF !important;
 }
 
+/* Public Website Header Logo Sizing Override (Enlarged, Clean & Crisp) */
+.navbar .logo-img-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.navbar .brand-logo,
+.navbar .logo-img-link .brand-logo {
+  height: 70px !important;
+  max-height: 70px !important;
+  max-width: 280px !important;
+  width: auto !important;
+  object-fit: contain !important;
+}
+
+@media (max-width: 1024px) {
+  .navbar .brand-logo,
+  .navbar .logo-img-link .brand-logo {
+    height: 56px !important;
+    max-height: 56px !important;
+    max-width: 220px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar .brand-logo,
+  .navbar .logo-img-link .brand-logo {
+    height: 48px !important;
+    max-height: 48px !important;
+    max-width: 180px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar .brand-logo,
+  .navbar .logo-img-link .brand-logo {
+    height: 44px !important;
+    max-height: 44px !important;
+    max-width: 155px !important;
+  }
+}
+
+
 
 
 
