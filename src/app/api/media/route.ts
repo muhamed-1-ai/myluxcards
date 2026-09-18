@@ -5,7 +5,10 @@ import { getStorageProvider, isWasabiStorageConfigured, sanitizeStorageKey, norm
 
 const allowed = new Map([
   ["image/png", "png"],
+  ["image/x-png", "png"],
   ["image/jpeg", "jpg"],
+  ["image/jpg", "jpg"],
+  ["image/pjpeg", "jpg"],
   ["image/webp", "webp"],
   ["image/gif", "gif"],
   ["application/pdf", "pdf"],
@@ -48,6 +51,7 @@ export async function POST(request: Request) {
     "logo",
     "cover",
     "background",
+    "profileBackground",
     "avatar",
     "brochure",
     "product",
@@ -174,8 +178,8 @@ export async function POST(request: Request) {
 
 function matchesSignature(bytes: Uint8Array, type: string) {
   const ascii = (start: number, length: number) => String.fromCharCode(...bytes.slice(start, start + length));
-  if (type === "image/png") return bytes[0] === 0x89 && ascii(1, 3) === "PNG";
-  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png" || type === "image/x-png") return bytes[0] === 0x89 && ascii(1, 3) === "PNG";
+  if (type === "image/jpeg" || type === "image/jpg" || type === "image/pjpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   if (type === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP";
   if (type === "image/gif") return ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a";
   if (type === "application/pdf") return ascii(0, 5) === "%PDF-";
