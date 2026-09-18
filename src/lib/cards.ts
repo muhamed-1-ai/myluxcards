@@ -346,7 +346,7 @@ function cleanImage(value: string) {
   const trimmed = value.trim();
   if (/^https?:\/\/[^\s]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
   if (/^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 7_000_000);
-  if (/^(?:cards|profiles|users|uploads)\/[a-zA-Z0-9_./-]+$/i.test(trimmed)) return trimmed.slice(0, 500);
+  if (/^(?:[a-zA-Z0-9_-]+\/)?(?:cards|profiles|users|uploads)\/[a-zA-Z0-9_./-]+$/i.test(trimmed)) return trimmed.slice(0, 500);
   if (/^\/[^\s]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
   return "";
 }

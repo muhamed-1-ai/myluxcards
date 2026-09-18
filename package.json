@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/production-regression-suite.test.mjs && node tests/secret-exposure-guardrails.test.mjs",
+    "test": "node tests/production-regression-suite.test.mjs && node tests/secret-exposure-guardrails.test.mjs && node tests/wasabi-storage-integration.test.mjs",
     "test:prisma": "tsx scripts/test-prisma.ts",
     "db:migrate": "tsx scripts/migrate-db.ts",
     "db:migrate:status": "tsx scripts/migration-status.ts",

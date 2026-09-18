@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
-import { getStorageProvider, isWasabiStorageConfigured, sanitizeStorageKey } from "@/lib/storage";
+import { getStorageProvider, isWasabiStorageConfigured, sanitizeStorageKey, normalizeRootPrefix } from "@/lib/storage";
 
 const allowedMimeTypes = new Set([
   "image/png",
@@ -53,14 +53,16 @@ export async function POST(request: Request) {
     };
     const ext = extensionMap[contentType] || "bin";
 
+    const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
+    const prefixSegment = rootPrefix ? `${rootPrefix}/` : "";
     const uniqueId = randomUUID();
     let storageKey: string;
     if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
-      storageKey = `cards/${cardId}/${kind}/${uniqueId}.${ext}`;
+      storageKey = `${prefixSegment}cards/${cardId}/${kind}/${uniqueId}.${ext}`;
     } else if (kind === "avatar" || kind === "logo" || kind === "cover") {
-      storageKey = `profiles/${identity.id}/${kind}/${uniqueId}.${ext}`;
+      storageKey = `${prefixSegment}profiles/${identity.id}/${kind}/${uniqueId}.${ext}`;
     } else {
-      storageKey = `users/${identity.id}/${kind}/${uniqueId}.${ext}`;
+      storageKey = `${prefixSegment}users/${identity.id}/${kind}/${uniqueId}.${ext}`;
     }
 
     storageKey = sanitizeStorageKey(storageKey);

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 import { getSupabaseServiceConfig } from "@/lib/supabaseAuth";
-import { getStorageProvider, isWasabiStorageConfigured, sanitizeStorageKey } from "@/lib/storage";
+import { getStorageProvider, isWasabiStorageConfigured, sanitizeStorageKey, normalizeRootPrefix } from "@/lib/storage";
 
 const allowed = new Map([
   ["image/png", "png"],
@@ -84,15 +84,17 @@ export async function POST(request: Request) {
     return Response.json({ message: "The file contents do not match the selected file type." }, { status: 400 });
   }
 
-  // Construct predictable, safe storage key
+  // Construct predictable, safe storage key with optional root prefix
+  const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
+  const prefixSegment = rootPrefix ? `${rootPrefix}/` : "";
   const uniqueId = randomUUID();
   let storageKey: string;
   if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
-    storageKey = `cards/${cardId}/${kind}/${uniqueId}.${extension}`;
+    storageKey = `${prefixSegment}cards/${cardId}/${kind}/${uniqueId}.${extension}`;
   } else if (kind === "avatar" || kind === "logo" || kind === "cover") {
-    storageKey = `profiles/${identity.id}/${kind}/${uniqueId}.${extension}`;
+    storageKey = `${prefixSegment}profiles/${identity.id}/${kind}/${uniqueId}.${extension}`;
   } else {
-    storageKey = `users/${identity.id}/${kind}/${uniqueId}.${extension}`;
+    storageKey = `${prefixSegment}users/${identity.id}/${kind}/${uniqueId}.${extension}`;
   }
 
   storageKey = sanitizeStorageKey(storageKey);

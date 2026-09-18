@@ -14,23 +14,29 @@ import type {
   PresignedUrlResult,
   StorageObjectMetadata,
 } from "./provider";
-import { resolveMediaUrl, resolveWasabiEndpoint } from "./resolver";
+import { resolveMediaUrl, resolveWasabiEndpoint, normalizeRootPrefix, normalizePublicUrl } from "./resolver";
 
 export interface WasabiConfigStatus {
   isConfigured: boolean;
   hasAccessKey: boolean;
   hasSecretKey: boolean;
   hasBucket: boolean;
+  hasRootPrefix: boolean;
+  hasPublicUrl: boolean;
   bucket: string;
   region: string;
   endpoint: string;
   endpointAutoCorrected: boolean;
+  rootPrefix: string;
+  publicUrl: string;
 }
 
 export function getWasabiConfigStatus(): WasabiConfigStatus {
   const accessKey = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
   const secretKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
   const bucket = process.env.WASABI_BUCKET || "";
+  const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
+  const publicUrl = normalizePublicUrl(process.env.WASABI_PUBLIC_URL);
 
   let resolvedEndpoint = "";
   let resolvedRegion = process.env.WASABI_REGION || "ap-southeast-1";
@@ -50,10 +56,14 @@ export function getWasabiConfigStatus(): WasabiConfigStatus {
     hasAccessKey: Boolean(accessKey),
     hasSecretKey: Boolean(secretKey),
     hasBucket: Boolean(bucket),
+    hasRootPrefix: Boolean(rootPrefix),
+    hasPublicUrl: Boolean(publicUrl),
     bucket,
     region: resolvedRegion,
     endpoint: resolvedEndpoint,
     endpointAutoCorrected: autoCorrected,
+    rootPrefix,
+    publicUrl,
   };
 }
 

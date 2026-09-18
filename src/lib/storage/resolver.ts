@@ -13,6 +13,28 @@ export interface WasabiEndpointResult {
   autoCorrected: boolean;
 }
 
+export function normalizeRootPrefix(rawPrefix?: string): string {
+  if (!rawPrefix) return "";
+  let trimmed = rawPrefix.trim().replace(/\\/g, "/");
+  // Trim leading and trailing slashes
+  trimmed = trimmed.replace(/^\/+|\/+$/g, "");
+  // Remove traversal components
+  const parts = trimmed
+    .split("/")
+    .filter((segment) => segment !== "." && segment !== ".." && segment.length > 0);
+  return parts.join("/");
+}
+
+export function normalizePublicUrl(rawUrl?: string): string {
+  if (!rawUrl) return "";
+  let trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
 export function resolveWasabiEndpoint(
   customEndpoint?: string,
   customRegion?: string,
@@ -86,7 +108,7 @@ export function resolveMediaUrl(urlOrKey: string | null | undefined): string {
   const trimmed = urlOrKey.trim();
   if (!trimmed) return "";
 
-  // Absolute HTTP / HTTPS URLs or data URLs or relative paths starting with '/'
+  // Absolute HTTP / HTTPS URLs or data URLs or relative paths starting with '/' or 'blob:'
   if (
     trimmed.startsWith("http://") ||
     trimmed.startsWith("https://") ||
@@ -97,12 +119,19 @@ export function resolveMediaUrl(urlOrKey: string | null | undefined): string {
     return trimmed;
   }
 
-  // Construct Wasabi public URL for object key
+  const cleanKey = trimmed.replace(/^\/+/, "");
+
+  // If WASABI_PUBLIC_URL is explicitly configured, use it directly
+  const configuredPublicUrl = normalizePublicUrl(process.env.WASABI_PUBLIC_URL);
+  if (configuredPublicUrl) {
+    return `${configuredPublicUrl}/${cleanKey}`;
+  }
+
+  // Construct Wasabi public URL for object key using endpoint + bucket
   const bucket = process.env.WASABI_BUCKET;
   if (bucket) {
     const { endpoint } = resolveWasabiEndpoint();
     const cleanEndpoint = endpoint.replace(/\/+$/, "");
-    const cleanKey = trimmed.replace(/^\/+/, "");
     return `${cleanEndpoint}/${bucket}/${cleanKey}`;
   }
 
@@ -119,11 +148,18 @@ export function extractStorageKey(urlOrKey: string | null | undefined): string |
   const trimmed = urlOrKey.trim();
   if (!trimmed) return null;
 
-  // Wasabi URL pattern
+  // Wasabi public URL pattern with configured WASABI_PUBLIC_URL
+  const configuredPublicUrl = normalizePublicUrl(process.env.WASABI_PUBLIC_URL);
+  if (configuredPublicUrl && trimmed.startsWith(configuredPublicUrl)) {
+    const key = trimmed.slice(configuredPublicUrl.length).replace(/^\/+/, "");
+    if (key) return key;
+  }
+
+  // Wasabi bucket URL pattern
   const bucket = process.env.WASABI_BUCKET;
   if (bucket && trimmed.includes(`/${bucket}/`)) {
     const parts = trimmed.split(`/${bucket}/`);
-    if (parts.length > 1) {
+    if (parts.length > 1 && parts[1]) {
       return parts[1];
     }
   }
@@ -131,7 +167,7 @@ export function extractStorageKey(urlOrKey: string | null | undefined): string |
   // Supabase URL pattern: /storage/v1/object/public/card-media/...
   if (trimmed.includes("/storage/v1/object/public/card-media/")) {
     const parts = trimmed.split("/storage/v1/object/public/card-media/");
-    if (parts.length > 1) {
+    if (parts.length > 1 && parts[1]) {
       return parts[1];
     }
   }
@@ -143,3 +179,4 @@ export function extractStorageKey(urlOrKey: string | null | undefined): string |
 
   return null;
 }
+
