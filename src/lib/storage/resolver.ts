@@ -46,8 +46,18 @@ export function resolveWasabiEndpoint(
   // 1. Trim whitespace
   let endpoint = (rawEndpoint || "").trim();
 
-  // 2. Remove trailing slashes
-  endpoint = endpoint.replace(/\/+$/, "");
+  // Extract base origin (protocol + host), removing path/bucket if included in WASABI_ENDPOINT
+  if (endpoint) {
+    try {
+      if (!/^https?:\/\//i.test(endpoint)) {
+        endpoint = `https://${endpoint}`;
+      }
+      const parsed = new URL(endpoint);
+      endpoint = `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      endpoint = endpoint.replace(/\/+$/, "");
+    }
+  }
 
   // Validate HTTPS protocol in production if endpoint is provided
   if (isProd && endpoint && endpoint.startsWith("http://")) {
@@ -124,15 +134,25 @@ export function resolveMediaUrl(urlOrKey: string | null | undefined): string {
   // If WASABI_PUBLIC_URL is explicitly configured, use it directly
   const configuredPublicUrl = normalizePublicUrl(process.env.WASABI_PUBLIC_URL);
   if (configuredPublicUrl) {
+    const publicUrlParts = configuredPublicUrl.split("/");
+    const lastPublicSegment = publicUrlParts[publicUrlParts.length - 1];
+    if (lastPublicSegment && cleanKey.startsWith(`${lastPublicSegment}/`)) {
+      const deDuplicatedKey = cleanKey.slice(lastPublicSegment.length + 1);
+      return `${configuredPublicUrl}/${deDuplicatedKey}`;
+    }
     return `${configuredPublicUrl}/${cleanKey}`;
   }
 
   // Construct Wasabi public URL for object key using endpoint + bucket
-  const bucket = process.env.WASABI_BUCKET;
+  const bucket = process.env.WASABI_BUCKET?.trim();
   if (bucket) {
     const { endpoint } = resolveWasabiEndpoint();
     const cleanEndpoint = endpoint.replace(/\/+$/, "");
-    return `${cleanEndpoint}/${bucket}/${cleanKey}`;
+    let targetKey = cleanKey;
+    if (targetKey.startsWith(`${bucket}/`)) {
+      targetKey = targetKey.slice(bucket.length + 1);
+    }
+    return `${cleanEndpoint}/${bucket}/${targetKey}`;
   }
 
   // Fallback: return as-is

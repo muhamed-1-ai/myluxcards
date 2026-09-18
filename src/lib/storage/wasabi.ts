@@ -88,9 +88,9 @@ export class WasabiStorageProvider implements StorageProvider {
   private client: S3Client | null = null;
 
   private getClient(): { client: S3Client; bucket: string; endpoint: string } {
-    const accessKeyId = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
-    const bucket = process.env.WASABI_BUCKET;
+    const accessKeyId = (process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID || "").trim();
+    const secretAccessKey = (process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY || "").trim();
+    const bucket = (process.env.WASABI_BUCKET || "").trim();
 
     if (!accessKeyId || !secretAccessKey || !bucket) {
       throw new Error(
@@ -100,17 +100,15 @@ export class WasabiStorageProvider implements StorageProvider {
 
     const { endpoint, region } = resolveWasabiEndpoint();
 
-    if (!this.client) {
-      this.client = new S3Client({
-        region,
-        endpoint,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-        forcePathStyle: true, // S3 path-style URL compatibility for Wasabi
-      });
-    }
+    this.client = new S3Client({
+      region,
+      endpoint,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+      forcePathStyle: true, // S3 path-style URL compatibility for Wasabi
+    });
 
     return { client: this.client, bucket, endpoint };
   }
