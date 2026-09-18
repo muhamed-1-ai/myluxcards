@@ -212,18 +212,18 @@ export default function LeadDetailsDrawer({
   if (!leadId) return null;
 
   // Helper formatting routines
-  const leadName = lead?.name || "Jamsheer jammu";
-  const avatarLetter = leadName.trim().charAt(0).toUpperCase() || "J";
+  const leadName = lead?.name || "Adhil mohammed";
+  const avatarLetter = leadName.trim().charAt(0).toUpperCase() || "A";
   const companyName = lead?.companyName || null;
-  const stage = (lead?.stage || lead?.status || "LOB").toUpperCase();
+  const stage = (lead?.stage || lead?.status || "ZAPPIT").toUpperCase();
 
   const formatCurrency = (amount?: number) => {
-    const val = amount !== undefined && amount !== null && amount !== 0 ? amount : 3446;
+    const val = amount !== undefined && amount !== null ? amount : 0;
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(val);
   };
 
   const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "16 Jun 2026, 04:22 PM";
+    if (!dateStr) return "18 Sept 2026, 12:15 PM";
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
@@ -267,7 +267,7 @@ export default function LeadDetailsDrawer({
         aria-hidden="true"
       />
 
-      {/* Scoped White Panel Container */}
+      {/* Scoped Panel Container with Dual Light & Dark Theme Support */}
       <aside
         role="dialog"
         aria-modal="true"
@@ -276,21 +276,21 @@ export default function LeadDetailsDrawer({
       >
         {/* Loading Skeleton */}
         {loading && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: "#FFFFFF" }}>
-            <div style={{ padding: 24, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: 24, borderBottom: "1px solid var(--ld-card-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 54, height: 54, borderRadius: "50%", backgroundColor: "#E2E8F0" }} className="animate-pulse" />
+                <div style={{ width: 54, height: 54, borderRadius: "50%", backgroundColor: "var(--ld-card-border)" }} className="animate-pulse" />
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ width: 100, height: 12, backgroundColor: "#E2E8F0", borderRadius: 4 }} className="animate-pulse" />
-                  <div style={{ width: 160, height: 20, backgroundColor: "#E2E8F0", borderRadius: 4 }} className="animate-pulse" />
+                  <div style={{ width: 100, height: 12, backgroundColor: "var(--ld-card-border)", borderRadius: 4 }} className="animate-pulse" />
+                  <div style={{ width: 160, height: 20, backgroundColor: "var(--ld-card-border)", borderRadius: 4 }} className="animate-pulse" />
                 </div>
               </div>
               <button onClick={onClose} className="lead-drawer-icon-btn"><X className="w-5 h-5" /></button>
             </div>
             <div style={{ flex: 1, padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ height: 110, backgroundColor: "#F8FAFC", borderRadius: 16 }} className="animate-pulse" />
-              <div style={{ height: 110, backgroundColor: "#F8FAFC", borderRadius: 16 }} className="animate-pulse" />
-              <div style={{ height: 90, backgroundColor: "#F8FAFC", borderRadius: 16 }} className="animate-pulse" />
+              <div style={{ height: 110, backgroundColor: "var(--ld-card-bg)", borderRadius: 16 }} className="animate-pulse" />
+              <div style={{ height: 110, backgroundColor: "var(--ld-card-bg)", borderRadius: 16 }} className="animate-pulse" />
+              <div style={{ height: 90, backgroundColor: "var(--ld-card-bg)", borderRadius: 16 }} className="animate-pulse" />
             </div>
           </div>
         )}
@@ -298,16 +298,16 @@ export default function LeadDetailsDrawer({
         {/* Error State */}
         {!loading && error && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: "50%", backgroundColor: "#FFF1F2", color: "#E11D48", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
               <AlertCircle className="w-6 h-6" />
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Failed to load lead</h3>
-            <p style={{ fontSize: 13, color: "#64748B", marginBottom: 16 }}>{error}</p>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ld-text-title)", marginBottom: 4 }}>Failed to load lead</h3>
+            <p style={{ fontSize: 13, color: "var(--ld-text-muted)", marginBottom: 16 }}>{error}</p>
             <div style={{ display: "flex", gap: 12 }}>
               <button type="button" onClick={fetchLeadDetails} className="lead-drawer-edit-btn" style={{ height: 38, width: "auto", padding: "0 16px" }}>
                 <RefreshCw className="w-3.5 h-3.5" /> Retry
               </button>
-              <button type="button" onClick={onClose} style={{ height: 38, padding: "0 16px", border: "1px solid #CBD5E1", borderRadius: 10, background: "transparent", cursor: "pointer", fontWeight: 600 }}>
+              <button type="button" onClick={onClose} style={{ height: 38, padding: "0 16px", border: "1px solid var(--ld-card-border)", borderRadius: 10, background: "transparent", color: "var(--ld-text-body)", cursor: "pointer", fontWeight: 600 }}>
                 Close
               </button>
             </div>
@@ -331,7 +331,7 @@ export default function LeadDetailsDrawer({
                     <span className="lead-drawer-kicker">LEAD DETAILS</span>
                     <h2 className="lead-drawer-name">{leadName}</h2>
                     <span className="lead-drawer-badge">
-                      {companyName || stage || "LOB"}
+                      {companyName || stage || "ZAPPIT"}
                     </span>
                   </div>
                 </div>
@@ -387,25 +387,25 @@ export default function LeadDetailsDrawer({
 
                     {/* Email */}
                     <div className="lead-drawer-contact-row">
-                      <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <Mail className="lead-drawer-contact-icon" />
                       {lead.email ? (
                         <a href={`mailto:${lead.email}`}>{lead.email}</a>
                       ) : (
-                        <a href="mailto:sinanmm67@gmail.com">sinanmm67@gmail.com</a>
+                        <a href="mailto:adhilmohammedo.v0@gmail.com">adhilmohammedo.v0@gmail.com</a>
                       )}
                     </div>
 
-                    {/* Phone & Inline Actions (Matching Reference 1) */}
+                    {/* Phone & Inline Actions */}
                     <div className="lead-drawer-phone-row">
-                      <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <Phone className="lead-drawer-contact-icon" />
                       <span className="lead-drawer-phone-prefix">IN</span>
                       <span className="lead-drawer-phone-number">
-                        {lead.contactNumber || "+91 76865 64565"}
+                        {lead.contactNumber || "+91 9744850272"}
                       </span>
 
                       {/* WhatsApp Green Icon Circle */}
                       <a
-                        href={`https://wa.me/${(lead.contactNumber || "917686564565").replace(/[^0-9]/g, "")}`}
+                        href={`https://wa.me/${(lead.contactNumber || "919744850272").replace(/[^0-9]/g, "")}`}
                         target="_blank"
                         rel="noreferrer"
                         title="WhatsApp"
@@ -415,7 +415,7 @@ export default function LeadDetailsDrawer({
                       </a>
                       {/* Call Button */}
                       <a
-                        href={`tel:${lead.contactNumber || "+917686564565"}`}
+                        href={`tel:${lead.contactNumber || "+919744850272"}`}
                         title="Call"
                         className="lead-drawer-call-btn"
                       >
@@ -426,16 +426,16 @@ export default function LeadDetailsDrawer({
 
                     {/* Business */}
                     <div className="lead-drawer-contact-row">
-                      <Building className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      <span className="font-semibold text-slate-700">
-                        {companyName || "Business"}
+                      <Building className="lead-drawer-contact-icon" />
+                      <span className="font-semibold">
+                        {companyName || "Zappit"}
                       </span>
                     </div>
 
                     {/* Location / Address */}
                     <div className="lead-drawer-contact-row" style={{ alignItems: "flex-start" }}>
-                      <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" style={{ marginTop: 2 }} />
-                      <span className="font-medium text-slate-700">
+                      <MapPin className="lead-drawer-contact-icon" style={{ marginTop: 2 }} />
+                      <span className="font-medium">
                         {lead.address || "cherumukku kakkad"}
                       </span>
                     </div>
@@ -453,7 +453,7 @@ export default function LeadDetailsDrawer({
                             <span>{followUpPill.label}</span>
                           </div>
                           <a
-                            href={`https://wa.me/${(lead.contactNumber || "917686564565").replace(/[^0-9]/g, "")}`}
+                            href={`https://wa.me/${(lead.contactNumber || "919744850272").replace(/[^0-9]/g, "")}`}
                             target="_blank"
                             rel="noreferrer"
                             title="WhatsApp"
@@ -464,7 +464,7 @@ export default function LeadDetailsDrawer({
                           </a>
                         </div>
 
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", paddingTop: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, paddingTop: 2 }}>
                           Type: <span style={{ textTransform: "uppercase" }}>{lead.nextFollowUp?.type || "CALL"}</span>
                         </div>
 
@@ -474,36 +474,23 @@ export default function LeadDetailsDrawer({
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div className="lead-drawer-followup-pill">
-                            <Calendar className="w-4 h-4" />
-                            <span>DUE TODAY 12:23 PM</span>
-                          </div>
-                          <a
-                            href={`https://wa.me/${(lead.contactNumber || "917686564565").replace(/[^0-9]/g, "")}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="WhatsApp"
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span className="lead-drawer-pipeline-label">No follow-up scheduled</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsScheduling(true)}
                             className="lead-drawer-wa-btn"
-                            style={{ width: 32, height: 32 }}
+                            style={{ width: "auto", height: 32, padding: "0 12px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}
                           >
-                            <MessageSquare className="w-4 h-4 fill-current" />
-                          </a>
-                        </div>
-
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
-                          Type: <span style={{ textTransform: "uppercase" }}>CALL</span>
-                        </div>
-
-                        <div className="lead-drawer-inset-box">
-                          helkooo
+                            + Schedule follow-up
+                          </button>
                         </div>
                       </div>
                     )}
 
                     {isScheduling && (
-                      <form onSubmit={handleScheduleFollowUpSubmit} style={{ marginTop: 8, padding: 14, backgroundColor: "#F8FAFC", borderRadius: 12, border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#0F172A" }}>
+                      <form onSubmit={handleScheduleFollowUpSubmit} style={{ marginTop: 8, padding: 14, backgroundColor: "var(--ld-inset-bg)", borderRadius: 12, border: "1px solid var(--ld-card-border)", display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "var(--ld-text-title)" }}>
                           <span>Schedule Follow-Up</span>
                           <button type="button" onClick={() => setIsScheduling(false)} className="lead-drawer-icon-btn" style={{ width: 24, height: 24 }}>
                             <X className="w-3.5 h-3.5" />
@@ -515,14 +502,14 @@ export default function LeadDetailsDrawer({
                           value={scheduledDateTime}
                           onChange={(e) => setScheduledDateTime(e.target.value)}
                           required
-                          style={{ width: "100%", height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                          style={{ width: "100%", height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid var(--ld-card-border)", backgroundColor: "var(--ld-panel-bg)", color: "var(--ld-text-title)", fontSize: 13 }}
                         />
                         <textarea
                           placeholder="Follow-up note..."
                           value={followUpNote}
                           onChange={(e) => setFollowUpNote(e.target.value)}
                           rows={2}
-                          style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                          style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--ld-card-border)", backgroundColor: "var(--ld-panel-bg)", color: "var(--ld-text-title)", fontSize: 13 }}
                         />
                         <button type="submit" disabled={schedulingLoading} className="lead-drawer-edit-btn" style={{ height: 36, fontSize: 13 }}>
                           {schedulingLoading ? "Scheduling..." : "Save Follow-up"}
@@ -542,10 +529,18 @@ export default function LeadDetailsDrawer({
                   {/* CARD 4: ADVANCED FIELDS */}
                   <section className="lead-drawer-card">
                     <h3 className="lead-drawer-card-title">ADVANCED FIELDS</h3>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
-                      <span className="lead-drawer-pipeline-label">lux</span>
-                      <span className="lead-drawer-pipeline-val">cv</span>
-                    </div>
+                    {lead.customFields && Object.keys(lead.customFields).length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {Object.entries(lead.customFields).map(([k, v]) => (
+                          <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                            <span className="lead-drawer-pipeline-label">{k}</span>
+                            <span className="lead-drawer-pipeline-val">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="lead-drawer-pipeline-label" style={{ fontSize: 13 }}>No custom fields configured.</span>
+                    )}
                   </section>
 
                   {/* CARD 5: PIPELINE */}
@@ -557,13 +552,13 @@ export default function LeadDetailsDrawer({
                         <span className="lead-drawer-pipeline-label">Assigned to</span>
                         <div style={{ textAlign: "right" }}>
                           <div className="lead-drawer-pipeline-val">
-                            <span>{lead.assignedUserName || "harshad"}</span>
+                            <span>{lead.assignedUserName || "Adhil"}</span>
                             <div className="lead-drawer-user-pill">
-                              {(lead.assignedUserName || "H").charAt(0).toUpperCase()}
+                              {(lead.assignedUserName || "A").charAt(0).toUpperCase()}
                             </div>
                           </div>
-                          <div style={{ fontSize: 11, color: "#64748B", fontWeight: 400 }}>
-                            {lead.assignedUserEmail || "harshadmt2001@gmail.com"}
+                          <div style={{ fontSize: 11, color: "var(--ld-text-subtle)", fontWeight: 400 }}>
+                            {lead.assignedUserEmail || "adhilmohammedo.v0@gmail.com"}
                           </div>
                         </div>
                       </div>
@@ -572,7 +567,7 @@ export default function LeadDetailsDrawer({
                       <div className="lead-drawer-pipeline-row">
                         <span className="lead-drawer-pipeline-label">Life cycle</span>
                         <span className="lead-drawer-pipeline-val">
-                          {lead.stage ? lead.stage.toLowerCase() : "malappuram"}
+                          {lead.stage ? lead.stage.toLowerCase() : "contacted"}
                         </span>
                       </div>
 
@@ -580,7 +575,7 @@ export default function LeadDetailsDrawer({
                       <div className="lead-drawer-pipeline-row">
                         <span className="lead-drawer-pipeline-label">Source</span>
                         <span className="lead-drawer-pipeline-val">
-                          {lead.source ? lead.source.toLowerCase() : "hadi"}
+                          {lead.source ? lead.source.toLowerCase() : "direct"}
                         </span>
                       </div>
 
@@ -604,7 +599,7 @@ export default function LeadDetailsDrawer({
                       <div className="lead-drawer-pipeline-row">
                         <span className="lead-drawer-pipeline-label">Created by</span>
                         <span className="lead-drawer-pipeline-val">
-                          {lead.createdByName || "nanu"}
+                          {lead.createdByName || "adhil"}
                         </span>
                       </div>
                     </div>
@@ -614,9 +609,9 @@ export default function LeadDetailsDrawer({
                   <section className="lead-drawer-card">
                     <h3 className="lead-drawer-card-title">REVENUE</h3>
                     <div className="lead-drawer-revenue-wrap">
-                      <div className="lead-drawer-revenue-icon">$</div>
+                      <div className="lead-drawer-revenue-icon">₹</div>
                       <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>Expected</span>
+                        <span className="lead-drawer-pipeline-label" style={{ fontSize: 12 }}>Expected</span>
                         <span className="lead-drawer-revenue-val">
                           {formatCurrency(lead.totalAmount || lead.expectedRevenue)}
                         </span>
@@ -633,15 +628,15 @@ export default function LeadDetailsDrawer({
                   {lead.activities && lead.activities.length > 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {lead.activities.map((act) => (
-                        <div key={act.id} style={{ fontSize: 13, borderBottom: "1px solid #F1F5F9", paddingBottom: 8 }}>
-                          <div style={{ fontWeight: 700, color: "#0F172A" }}>{act.type}</div>
-                          <div style={{ color: "#64748B" }}>{act.description || "Activity recorded"}</div>
-                          <div style={{ fontSize: 11, color: "#94A3B8" }}>{formatDate(act.occurredAt)}</div>
+                        <div key={act.id} style={{ fontSize: 13, borderBottom: "1px solid var(--ld-card-border)", paddingBottom: 8 }}>
+                          <div style={{ fontWeight: 700, color: "var(--ld-text-title)" }}>{act.type}</div>
+                          <div style={{ color: "var(--ld-text-body)" }}>{act.description || "Activity recorded"}</div>
+                          <div style={{ fontSize: 11, color: "var(--ld-text-subtle)" }}>{formatDate(act.occurredAt)}</div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="lead-drawer-inset-box" style={{ textAlign: "center", color: "#64748B" }}>
+                    <div className="lead-drawer-inset-box" style={{ textAlign: "center" }}>
                       No activity records available.
                     </div>
                   )}
