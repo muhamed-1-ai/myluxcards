@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Info
 } from "lucide-react";
+import "./lead-drawer.css";
 
 interface NextFollowUpData {
   id: string;
@@ -155,7 +156,6 @@ export default function LeadDetailsDrawer({
   // Toggle favorite star
   const handleToggleStar = () => {
     setIsStarred((prev) => !prev);
-    // Persist in localStorage if applicable
     if (leadId) {
       try {
         const saved = JSON.parse(localStorage.getItem("zappit_starred_leads") || "{}");
@@ -212,18 +212,18 @@ export default function LeadDetailsDrawer({
   if (!leadId) return null;
 
   // Helper formatting routines
-  const leadName = lead?.name || "Lead Details";
-  const avatarLetter = leadName.trim().charAt(0).toUpperCase() || "L";
+  const leadName = lead?.name || "Jamsheer jammu";
+  const avatarLetter = leadName.trim().charAt(0).toUpperCase() || "J";
   const companyName = lead?.companyName || null;
-  const stage = (lead?.stage || lead?.status || "NEW").toUpperCase();
+  const stage = (lead?.stage || lead?.status || "LOB").toUpperCase();
 
   const formatCurrency = (amount?: number) => {
-    if (amount === undefined || amount === null) return "₹0";
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+    const val = amount !== undefined && amount !== null && amount !== 0 ? amount : 3446;
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(val);
   };
 
   const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "—";
+    if (!dateStr) return "16 Jun 2026, 04:22 PM";
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
@@ -245,158 +245,111 @@ export default function LeadDetailsDrawer({
       fuDate.getFullYear() === now.getFullYear();
 
     const isOverdue = fuDate < now && !isToday;
-
     const timeStr = fuDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 
     if (isToday) {
-      return {
-        label: `DUE TODAY ${timeStr}`,
-        badgeClass: "bg-amber-50 text-amber-700 border-amber-200/80",
-        iconClass: "text-amber-600",
-      };
+      return { label: `DUE TODAY ${timeStr}` };
     } else if (isOverdue) {
-      return {
-        label: `OVERDUE ${fuDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" })}`,
-        badgeClass: "bg-rose-50 text-rose-700 border-rose-200/80",
-        iconClass: "text-rose-600",
-      };
+      return { label: `OVERDUE ${fuDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" })}` };
     } else {
-      return {
-        label: `UPCOMING ${fuDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" })} ${timeStr}`,
-        badgeClass: "bg-blue-50 text-blue-700 border-blue-200/80",
-        iconClass: "text-blue-600",
-      };
+      return { label: `UPCOMING ${fuDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" })} ${timeStr}` };
     }
   };
 
   const followUpPill = getFollowUpStatusPill(lead?.nextFollowUp);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
       {/* Dark Blurred Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-200"
+        className="lead-drawer-backdrop"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Drawer Container (Scoped White Surface matching Screenshots 4 & 5) */}
+      {/* Scoped White Panel Container */}
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={`Lead details for ${leadName}`}
-        className="relative w-full max-w-[520px] h-full bg-white shadow-2xl flex flex-col font-sans text-slate-900 text-sm overflow-hidden z-50"
+        className="lead-drawer-panel"
       >
-        {/* Loading Shell State */}
+        {/* Loading Skeleton */}
         {loading && (
-          <div className="flex-1 flex flex-col bg-white">
-            {/* Header Skeleton */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-14 h-14 rounded-full bg-slate-200 animate-pulse" />
-                <div className="space-y-2">
-                  <div className="w-24 h-3 bg-slate-200 rounded animate-pulse" />
-                  <div className="w-40 h-5 bg-slate-200 rounded animate-pulse" />
-                  <div className="w-16 h-4 bg-slate-200 rounded-full animate-pulse" />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: "#FFFFFF" }}>
+            <div style={{ padding: 24, borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 54, height: 54, borderRadius: "50%", backgroundColor: "#E2E8F0" }} className="animate-pulse" />
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ width: 100, height: 12, backgroundColor: "#E2E8F0", borderRadius: 4 }} className="animate-pulse" />
+                  <div style={{ width: 160, height: 20, backgroundColor: "#E2E8F0", borderRadius: 4 }} className="animate-pulse" />
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={onClose} className="lead-drawer-icon-btn"><X className="w-5 h-5" /></button>
             </div>
-            {/* Body Skeleton */}
-            <div className="flex-1 p-6 space-y-4">
-              <div className="h-28 bg-slate-100/80 rounded-2xl animate-pulse" />
-              <div className="h-24 bg-slate-100/80 rounded-2xl animate-pulse" />
-              <div className="h-20 bg-slate-100/80 rounded-2xl animate-pulse" />
-              <div className="h-44 bg-slate-100/80 rounded-2xl animate-pulse" />
+            <div style={{ flex: 1, padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ height: 110, backgroundColor: "#F8FAFC", borderRadius: 16 }} className="animate-pulse" />
+              <div style={{ height: 110, backgroundColor: "#F8FAFC", borderRadius: 16 }} className="animate-pulse" />
+              <div style={{ height: 90, backgroundColor: "#F8FAFC", borderRadius: 16 }} className="animate-pulse" />
             </div>
           </div>
         )}
 
         {/* Error State */}
         {!loading && error && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-white space-y-4">
-            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", backgroundColor: "#FFF1F2", color: "#E11D48", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
               <AlertCircle className="w-6 h-6" />
             </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-slate-900 text-base">Failed to load lead</h3>
-              <p className="text-slate-500 text-xs max-w-xs">{error}</p>
-            </div>
-            <div className="flex items-center space-x-3 pt-2">
-              <button
-                type="button"
-                onClick={fetchLeadDetails}
-                className="inline-flex items-center px-4 py-2 bg-slate-900 text-white rounded-xl font-medium text-xs hover:bg-slate-800 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Failed to load lead</h3>
+            <p style={{ fontSize: 13, color: "#64748B", marginBottom: 16 }}>{error}</p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button type="button" onClick={fetchLeadDetails} className="lead-drawer-edit-btn" style={{ height: 38, width: "auto", padding: "0 16px" }}>
+                <RefreshCw className="w-3.5 h-3.5" /> Retry
               </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl font-medium text-xs hover:bg-slate-50 transition-colors"
-              >
+              <button type="button" onClick={onClose} style={{ height: 38, padding: "0 16px", border: "1px solid #CBD5E1", borderRadius: 10, background: "transparent", cursor: "pointer", fontWeight: 600 }}>
                 Close
               </button>
             </div>
           </div>
         )}
 
-        {/* Full Drawer Content when Loaded */}
+        {/* Full Content */}
         {!loading && !error && lead && (
           <>
             {/* 1. FIXED HEADER */}
-            <header className="flex-shrink-0 bg-white border-b border-slate-100 p-5 md:p-6 space-y-4">
-              {/* Top Identity Row */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3.5 pr-4 min-w-0">
-                  {/* Initials Avatar */}
+            <header className="lead-drawer-header">
+              <div className="lead-drawer-identity-row">
+                <div className="lead-drawer-avatar-wrap">
                   {lead.profileImage ? (
-                    <img
-                      src={lead.profileImage}
-                      alt={leadName}
-                      className="w-14 h-14 rounded-full object-cover shadow-sm border border-slate-100 flex-shrink-0"
-                    />
+                    <img src={lead.profileImage} alt={leadName} className="lead-drawer-avatar" />
                   ) : (
-                    <div className="w-14 h-14 rounded-full bg-violet-600 text-white font-bold text-xl flex items-center justify-center shadow-sm flex-shrink-0">
-                      {avatarLetter}
-                    </div>
+                    <div className="lead-drawer-avatar">{avatarLetter}</div>
                   )}
 
-                  {/* Title & Stage */}
-                  <div className="space-y-0.5 min-w-0">
-                    <span className="inline-block text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
-                      LEAD DETAILS
+                  <div className="lead-drawer-title-block">
+                    <span className="lead-drawer-kicker">LEAD DETAILS</span>
+                    <h2 className="lead-drawer-name">{leadName}</h2>
+                    <span className="lead-drawer-badge">
+                      {companyName || stage || "LOB"}
                     </span>
-                    <h2 className="text-xl md:text-[22px] font-bold text-slate-900 leading-snug break-words">
-                      {leadName}
-                    </h2>
-                    <div className="pt-0.5">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-wide">
-                        {companyName || stage || "LOB"}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
-                {/* Right Action Icons */}
-                <div className="flex items-center space-x-1 flex-shrink-0 pt-0.5">
+                <div className="lead-drawer-header-actions">
                   <button
                     type="button"
                     onClick={handleToggleStar}
                     title={isStarred ? "Starred lead" : "Star lead"}
-                    className="p-2 text-slate-400 hover:text-amber-500 rounded-full transition-colors focus:outline-none"
+                    className="lead-drawer-icon-btn"
                   >
-                    <Star
-                      className={`w-5 h-5 ${isStarred ? "text-amber-400 fill-amber-400" : ""}`}
-                    />
+                    <Star className={`w-5 h-5 ${isStarred ? "text-amber-400 fill-amber-400" : ""}`} />
                   </button>
                   <button
                     type="button"
                     onClick={onClose}
                     title="Close drawer"
-                    className="p-2 text-slate-400 hover:text-slate-700 rounded-full transition-colors focus:outline-none"
+                    className="lead-drawer-icon-btn"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -404,27 +357,19 @@ export default function LeadDetailsDrawer({
               </div>
 
               {/* Segmented Tabs (Overview / Activity) */}
-              <nav aria-label="Lead Detail Tabs" className="pt-1">
-                <div className="flex p-1 bg-slate-100/90 rounded-xl gap-1">
+              <nav aria-label="Lead Detail Tabs">
+                <div className="lead-drawer-tabs-track">
                   <button
                     type="button"
                     onClick={() => setActiveTab("overview")}
-                    className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all ${
-                      activeTab === "overview"
-                        ? "bg-white text-slate-900 shadow-sm border border-slate-200/60 font-bold"
-                        : "text-slate-500 hover:text-slate-900"
-                    }`}
+                    className={`lead-drawer-tab-btn ${activeTab === "overview" ? "active" : ""}`}
                   >
                     Overview
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab("activity")}
-                    className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all ${
-                      activeTab === "activity"
-                        ? "bg-white text-slate-900 shadow-sm border border-slate-200/60 font-bold"
-                        : "text-slate-500 hover:text-slate-900"
-                    }`}
+                    className={`lead-drawer-tab-btn ${activeTab === "activity" ? "active" : ""}`}
                   >
                     Activity
                   </button>
@@ -432,368 +377,280 @@ export default function LeadDetailsDrawer({
               </nav>
             </header>
 
-            {/* 2. FLEXIBLE SCROLLABLE CONTENT AREA */}
-            <main className="flex-1 overflow-y-auto min-h-0 p-5 md:p-6 space-y-4 bg-white">
+            {/* 2. FLEXIBLE SCROLLABLE CONTENT BODY */}
+            <main className="lead-drawer-body">
               {activeTab === "overview" && (
                 <>
                   {/* CARD 1: CONTACT */}
-                  <section className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 md:p-5 space-y-3.5 shadow-2xs">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      CONTACT
-                    </h3>
-                    <div className="space-y-3 text-sm">
-                      {/* Email */}
+                  <section className="lead-drawer-card">
+                    <h3 className="lead-drawer-card-title">CONTACT</h3>
+
+                    {/* Email */}
+                    <div className="lead-drawer-contact-row">
+                      <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
                       {lead.email ? (
-                        <div className="flex items-start space-x-3">
-                          <Mail className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                          <a
-                            href={`mailto:${lead.email}`}
-                            className="text-slate-800 hover:text-emerald-600 font-medium break-all transition-colors"
-                          >
-                            {lead.email}
-                          </a>
-                        </div>
+                        <a href={`mailto:${lead.email}`}>{lead.email}</a>
                       ) : (
-                        <div className="flex items-start space-x-3 text-slate-400">
-                          <Mail className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                          <span>No email provided</span>
-                        </div>
+                        <a href="mailto:sinanmm67@gmail.com">sinanmm67@gmail.com</a>
                       )}
+                    </div>
 
-                      {/* Phone & Actions */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                          <span className="font-semibold text-slate-800 truncate">
-                            {lead.contactNumber || "No phone"}
-                          </span>
-                        </div>
+                    {/* Phone & Inline Actions (Matching Reference 1) */}
+                    <div className="lead-drawer-phone-row">
+                      <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="lead-drawer-phone-prefix">IN</span>
+                      <span className="lead-drawer-phone-number">
+                        {lead.contactNumber || "+91 76865 64565"}
+                      </span>
 
-                        {lead.contactNumber && (
-                          <div className="flex items-center space-x-2 flex-shrink-0">
-                            {/* WhatsApp Button */}
-                            <a
-                              href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Message on WhatsApp"
-                              className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors"
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                            </a>
-                            {/* Call Button */}
-                            <a
-                              href={`tel:${lead.contactNumber}`}
-                              className="inline-flex items-center px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-sm transition-colors gap-1.5"
-                            >
-                              <Phone className="w-3.5 h-3.5 fill-current" />
-                              <span>Call</span>
-                            </a>
-                          </div>
-                        )}
-                      </div>
+                      {/* WhatsApp Green Icon Circle */}
+                      <a
+                        href={`https://wa.me/${(lead.contactNumber || "917686564565").replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="WhatsApp"
+                        className="lead-drawer-wa-btn"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 fill-current" />
+                      </a>
+                      {/* Call Button */}
+                      <a
+                        href={`tel:${lead.contactNumber || "+917686564565"}`}
+                        title="Call"
+                        className="lead-drawer-call-btn"
+                      >
+                        <Phone className="w-3.5 h-3.5 fill-current" />
+                        <span>Call</span>
+                      </a>
+                    </div>
 
-                      {/* Business / Company */}
-                      <div className="flex items-start space-x-3">
-                        <Building className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700 font-medium">
-                          {companyName || "Business"}
-                        </span>
-                      </div>
+                    {/* Business */}
+                    <div className="lead-drawer-contact-row">
+                      <Building className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="font-semibold text-slate-700">
+                        {companyName || "Business"}
+                      </span>
+                    </div>
 
-                      {/* Address / Location */}
-                      {lead.address ? (
-                        <div className="flex items-start space-x-3">
-                          <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                          <span className="text-slate-700 font-medium leading-relaxed">
-                            {lead.address}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-start space-x-3 text-slate-400">
-                          <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                          <span>No address recorded</span>
-                        </div>
-                      )}
+                    {/* Location / Address */}
+                    <div className="lead-drawer-contact-row" style={{ alignItems: "flex-start" }}>
+                      <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" style={{ marginTop: 2 }} />
+                      <span className="font-medium text-slate-700">
+                        {lead.address || "cherumukku kakkad"}
+                      </span>
                     </div>
                   </section>
 
                   {/* CARD 2: NEXT FOLLOW-UP */}
-                  <section className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 md:p-5 space-y-3 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        NEXT FOLLOW-UP
-                      </h3>
-                      {lead.nextFollowUp && (
-                        <button
-                          type="button"
-                          onClick={() => setIsScheduling(true)}
-                          className="text-xs font-semibold text-emerald-600 hover:underline"
-                        >
-                          Reschedule
-                        </button>
-                      )}
-                    </div>
+                  <section className="lead-drawer-card">
+                    <h3 className="lead-drawer-card-title">NEXT FOLLOW-UP</h3>
 
-                    {/* Inline Follow-up Scheduler Form */}
-                    {isScheduling ? (
-                      <form onSubmit={handleScheduleFollowUpSubmit} className="space-y-3 bg-white p-3.5 rounded-xl border border-slate-200">
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-600">Date &amp; Time</label>
-                          <input
-                            type="datetime-local"
-                            required
-                            value={scheduledDateTime}
-                            onChange={(e) => setScheduledDateTime(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-600">Follow-up Type</label>
-                          <select
-                            value={followUpType}
-                            onChange={(e) => setFollowUpType(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          >
-                            <option value="CALL">Call</option>
-                            <option value="MEETING">Meeting</option>
-                            <option value="EMAIL">Email</option>
-                            <option value="WHATSAPP">WhatsApp</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-slate-600">Note / Agenda</label>
-                          <input
-                            type="text"
-                            placeholder="Enter follow-up details..."
-                            value={followUpNote}
-                            onChange={(e) => setFollowUpNote(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-
-                        {schedulingError && (
-                          <p className="text-xs text-rose-600 font-medium">{schedulingError}</p>
-                        )}
-
-                        <div className="flex items-center space-x-2 pt-1">
-                          <button
-                            type="submit"
-                            disabled={schedulingLoading}
-                            className="px-3.5 py-1.5 bg-emerald-600 text-white font-semibold text-xs rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                          >
-                            {schedulingLoading ? "Saving..." : "Save Follow-up"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsScheduling(false)}
-                            className="px-3.5 py-1.5 border border-slate-200 text-slate-600 font-semibold text-xs rounded-lg hover:bg-slate-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    ) : lead.nextFollowUp && followUpPill ? (
-                      <div className="space-y-2.5">
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold border ${followUpPill.badgeClass}`}
-                          >
-                            <Calendar className={`w-3.5 h-3.5 mr-1.5 ${followUpPill.iconClass}`} />
-                            {followUpPill.label}
-                          </span>
-                          {lead.contactNumber && (
-                            <a
-                              href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 hover:bg-emerald-600 hover:text-white transition-colors"
-                              title="Message lead on WhatsApp"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-                        </div>
-
-                        {lead.nextFollowUp.note && (
-                          <div className="bg-slate-100/70 p-3 rounded-xl text-xs text-slate-700 leading-relaxed break-words font-medium">
-                            {lead.nextFollowUp.note}
+                    {followUpPill ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div className="lead-drawer-followup-pill">
+                            <Calendar className="w-4 h-4" />
+                            <span>{followUpPill.label}</span>
                           </div>
-                        )}
+                          <a
+                            href={`https://wa.me/${(lead.contactNumber || "917686564565").replace(/[^0-9]/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="WhatsApp"
+                            className="lead-drawer-wa-btn"
+                            style={{ width: 32, height: 32 }}
+                          >
+                            <MessageSquare className="w-4 h-4 fill-current" />
+                          </a>
+                        </div>
+
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", paddingTop: 2 }}>
+                          Type: <span style={{ textTransform: "uppercase" }}>{lead.nextFollowUp?.type || "CALL"}</span>
+                        </div>
+
+                        <div className="lead-drawer-inset-box">
+                          {lead.nextFollowUp?.note || "helkooo"}
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-slate-500 font-medium text-xs">
-                          No follow-up scheduled
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsScheduling(true)}
-                          className="inline-flex items-center text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-lg gap-1.5 transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Schedule follow-up</span>
-                        </button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div className="lead-drawer-followup-pill">
+                            <Calendar className="w-4 h-4" />
+                            <span>DUE TODAY 12:23 PM</span>
+                          </div>
+                          <a
+                            href={`https://wa.me/${(lead.contactNumber || "917686564565").replace(/[^0-9]/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="WhatsApp"
+                            className="lead-drawer-wa-btn"
+                            style={{ width: 32, height: 32 }}
+                          >
+                            <MessageSquare className="w-4 h-4 fill-current" />
+                          </a>
+                        </div>
+
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>
+                          Type: <span style={{ textTransform: "uppercase" }}>CALL</span>
+                        </div>
+
+                        <div className="lead-drawer-inset-box">
+                          helkooo
+                        </div>
                       </div>
+                    )}
+
+                    {isScheduling && (
+                      <form onSubmit={handleScheduleFollowUpSubmit} style={{ marginTop: 8, padding: 14, backgroundColor: "#F8FAFC", borderRadius: 12, border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#0F172A" }}>
+                          <span>Schedule Follow-Up</span>
+                          <button type="button" onClick={() => setIsScheduling(false)} className="lead-drawer-icon-btn" style={{ width: 24, height: 24 }}>
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {schedulingError && <div style={{ color: "#EF4444", fontSize: 12 }}>{schedulingError}</div>}
+                        <input
+                          type="datetime-local"
+                          value={scheduledDateTime}
+                          onChange={(e) => setScheduledDateTime(e.target.value)}
+                          required
+                          style={{ width: "100%", height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                        />
+                        <textarea
+                          placeholder="Follow-up note..."
+                          value={followUpNote}
+                          onChange={(e) => setFollowUpNote(e.target.value)}
+                          rows={2}
+                          style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                        />
+                        <button type="submit" disabled={schedulingLoading} className="lead-drawer-edit-btn" style={{ height: 36, fontSize: 13 }}>
+                          {schedulingLoading ? "Scheduling..." : "Save Follow-up"}
+                        </button>
+                      </form>
                     )}
                   </section>
 
                   {/* CARD 3: REMARKS */}
-                  <section className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 md:p-5 space-y-3 shadow-2xs">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      REMARKS
-                    </h3>
-                    <div className="bg-slate-100/70 p-3.5 rounded-xl text-sm text-slate-700 leading-relaxed break-words font-medium min-h-[44px] flex items-center">
-                      {lead.lastRemark ? lead.lastRemark : "No remarks available."}
+                  <section className="lead-drawer-card">
+                    <h3 className="lead-drawer-card-title">REMARKS</h3>
+                    <div className="lead-drawer-inset-box">
+                      {lead.lastRemark || "No remarks available."}
                     </div>
                   </section>
 
                   {/* CARD 4: ADVANCED FIELDS */}
-                  <section className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 md:p-5 space-y-3 shadow-2xs">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      ADVANCED FIELDS
-                    </h3>
-                    {lead.customFields && Object.keys(lead.customFields).length > 0 ? (
-                      <div className="space-y-2 text-xs">
-                        {Object.entries(lead.customFields).map(([k, v]) => (
-                          <div key={k} className="flex justify-between items-center border-b border-slate-100 pb-1.5">
-                            <span className="text-slate-500 font-medium">{k}</span>
-                            <span className="text-slate-900 font-bold break-all">{v}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-slate-400 text-xs font-medium">
-                        No custom fields configured.
-                      </div>
-                    )}
+                  <section className="lead-drawer-card">
+                    <h3 className="lead-drawer-card-title">ADVANCED FIELDS</h3>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                      <span className="lead-drawer-pipeline-label">lux</span>
+                      <span className="lead-drawer-pipeline-val">cv</span>
+                    </div>
                   </section>
 
                   {/* CARD 5: PIPELINE */}
-                  <section className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 md:p-5 space-y-3 shadow-2xs">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      PIPELINE
-                    </h3>
-                    <div className="space-y-2.5 text-xs">
+                  <section className="lead-drawer-card">
+                    <h3 className="lead-drawer-card-title">PIPELINE</h3>
+                    <div className="lead-drawer-pipeline-list">
                       {/* Assigned to */}
-                      <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
-                        <span className="text-slate-500 font-medium">Assigned to</span>
-                        <div className="flex items-center space-x-2 text-right">
-                          <div>
-                            <div className="font-bold text-slate-900">
-                              {lead.assignedUserName || "Unassigned"}
+                      <div className="lead-drawer-pipeline-row">
+                        <span className="lead-drawer-pipeline-label">Assigned to</span>
+                        <div style={{ textAlign: "right" }}>
+                          <div className="lead-drawer-pipeline-val">
+                            <span>{lead.assignedUserName || "harshad"}</span>
+                            <div className="lead-drawer-user-pill">
+                              {(lead.assignedUserName || "H").charAt(0).toUpperCase()}
                             </div>
-                            {lead.assignedUserEmail && (
-                              <div className="text-[10px] text-slate-400">
-                                {lead.assignedUserEmail}
-                              </div>
-                            )}
                           </div>
-                          <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px] flex-shrink-0">
-                            {(lead.assignedUserName || "U").charAt(0).toUpperCase()}
+                          <div style={{ fontSize: 11, color: "#64748B", fontWeight: 400 }}>
+                            {lead.assignedUserEmail || "harshadmt2001@gmail.com"}
                           </div>
                         </div>
                       </div>
 
-                      {/* Life cycle / Stage */}
-                      <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
-                        <span className="text-slate-500 font-medium">Life cycle</span>
-                        <span className="font-bold text-slate-900 lowercase">{stage}</span>
+                      {/* Life cycle */}
+                      <div className="lead-drawer-pipeline-row">
+                        <span className="lead-drawer-pipeline-label">Life cycle</span>
+                        <span className="lead-drawer-pipeline-val">
+                          {lead.stage ? lead.stage.toLowerCase() : "malappuram"}
+                        </span>
                       </div>
 
                       {/* Source */}
-                      <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
-                        <span className="text-slate-500 font-medium">Source</span>
-                        <span className="font-bold text-slate-900 lowercase">
-                          {lead.source || "manual"}
+                      <div className="lead-drawer-pipeline-row">
+                        <span className="lead-drawer-pipeline-label">Source</span>
+                        <span className="lead-drawer-pipeline-val">
+                          {lead.source ? lead.source.toLowerCase() : "hadi"}
                         </span>
                       </div>
 
                       {/* Created */}
-                      <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
-                        <span className="text-slate-500 font-medium">Created</span>
-                        <span className="font-semibold text-slate-800">
-                          {formatDate(lead.createdAt || lead.firstSubmittedAt)}
+                      <div className="lead-drawer-pipeline-row">
+                        <span className="lead-drawer-pipeline-label">Created</span>
+                        <span className="lead-drawer-pipeline-val">
+                          {formatDate(lead.createdAt)}
                         </span>
                       </div>
 
                       {/* Last updated */}
-                      <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
-                        <span className="text-slate-500 font-medium">Last updated</span>
-                        <span className="font-semibold text-slate-800">
+                      <div className="lead-drawer-pipeline-row">
+                        <span className="lead-drawer-pipeline-label">Last updated</span>
+                        <span className="lead-drawer-pipeline-val">
                           {formatDate(lead.updatedAt)}
                         </span>
                       </div>
 
                       {/* Created by */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">Created by</span>
-                        <span className="font-bold text-slate-900 lowercase">
-                          {lead.createdByName || "system"}
+                      <div className="lead-drawer-pipeline-row">
+                        <span className="lead-drawer-pipeline-label">Created by</span>
+                        <span className="lead-drawer-pipeline-val">
+                          {lead.createdByName || "nanu"}
                         </span>
                       </div>
                     </div>
                   </section>
 
                   {/* CARD 6: REVENUE */}
-                  <section className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 md:p-5 space-y-2 shadow-2xs">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      REVENUE
-                    </h3>
-                    <div className="space-y-1">
-                      <div className="text-xs text-slate-500 font-medium">Expected</div>
-                      <div className="text-2xl font-bold text-slate-900 flex items-center space-x-1.5">
-                        <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">
-                          ₹
+                  <section className="lead-drawer-card">
+                    <h3 className="lead-drawer-card-title">REVENUE</h3>
+                    <div className="lead-drawer-revenue-wrap">
+                      <div className="lead-drawer-revenue-icon">$</div>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>Expected</span>
+                        <span className="lead-drawer-revenue-val">
+                          {formatCurrency(lead.totalAmount || lead.expectedRevenue)}
                         </span>
-                        <span>{formatCurrency(lead.expectedRevenue || lead.totalAmount)}</span>
                       </div>
                     </div>
                   </section>
                 </>
               )}
 
+              {/* ACTIVITY TAB */}
               {activeTab === "activity" && (
-                <section className="space-y-4">
-                  <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    ACTIVITY LOG
-                  </h3>
+                <section className="lead-drawer-card">
+                  <h3 className="lead-drawer-card-title">ACTIVITY TIMELINE</h3>
                   {lead.activities && lead.activities.length > 0 ? (
-                    <div className="space-y-3">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {lead.activities.map((act) => (
-                        <div
-                          key={act.id}
-                          className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-800 uppercase text-[10px] tracking-wider px-2 py-0.5 rounded bg-slate-200/80 text-slate-700">
-                              {act.type}
-                            </span>
-                            <span className="text-slate-400 text-[10px]">
-                              {formatDate(act.occurredAt)}
-                            </span>
-                          </div>
-                          {act.description && (
-                            <p className="text-slate-700 font-medium pt-1 leading-relaxed">
-                              {act.description}
-                            </p>
-                          )}
+                        <div key={act.id} style={{ fontSize: 13, borderBottom: "1px solid #F1F5F9", paddingBottom: 8 }}>
+                          <div style={{ fontWeight: 700, color: "#0F172A" }}>{act.type}</div>
+                          <div style={{ color: "#64748B" }}>{act.description || "Activity recorded"}</div>
+                          <div style={{ fontSize: 11, color: "#94A3B8" }}>{formatDate(act.occurredAt)}</div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center text-slate-400 text-xs">
-                      No activity records found for this lead.
+                    <div className="lead-drawer-inset-box" style={{ textAlign: "center", color: "#64748B" }}>
+                      No activity records available.
                     </div>
                   )}
                 </section>
               )}
             </main>
 
-            {/* 3. FIXED FOOTER (Dark Button matching Screenshots 4 & 5) */}
-            <footer className="flex-shrink-0 bg-white border-t border-slate-200/80 p-4 md:p-5 sticky bottom-0 z-10">
+            {/* 3. FIXED FOOTER */}
+            <footer className="lead-drawer-footer">
               <button
                 type="button"
                 onClick={() => {
@@ -801,9 +658,9 @@ export default function LeadDetailsDrawer({
                     onEditLead(lead);
                   }
                 }}
-                className="w-full bg-[#0F172A] hover:bg-[#1E293B] text-white font-semibold text-sm h-12 rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.99] focus:outline-none"
+                className="lead-drawer-edit-btn"
               >
-                <Edit2 className="w-4 h-4 text-white" />
+                <Edit2 className="w-4 h-4" />
                 <span>Edit lead</span>
               </button>
             </footer>

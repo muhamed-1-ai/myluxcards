@@ -1,0 +1,431 @@
+/* --- Lead Details Drawer Scoped Stylesheet (Matching Reference Screenshots 1 & 2) --- */
+
+.lead-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9998;
+  transition: opacity 0.2s ease;
+}
+
+.lead-drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 520px;
+  height: 100vh;
+  height: 100dvh;
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  color-scheme: light;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 9999;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Ensure all child elements default to dark readable text unless specified */
+.lead-drawer-panel *,
+.lead-drawer-panel *::before,
+.lead-drawer-panel *::after {
+  box-sizing: border-box;
+}
+
+/* --- 1. FIXED HEADER --- */
+.lead-drawer-header {
+  flex-shrink: 0;
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #F1F5F9;
+  padding: 24px 24px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lead-drawer-identity-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lead-drawer-avatar-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lead-drawer-avatar {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 9999px;
+  background-color: #8B5CF6;
+  color: #FFFFFF !important;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.25);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.lead-drawer-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lead-drawer-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.lead-drawer-name {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #0F172A !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+  word-break: break-words;
+  font-family: 'Outfit', 'Inter', sans-serif !important;
+}
+
+.lead-drawer-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background-color: #FEE2E2;
+  border: 1px solid #FCA5A5/40;
+  color: #EF4444 !important;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.lead-drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lead-drawer-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: transparent;
+  border: none;
+  color: #94A3B8 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.lead-drawer-icon-btn:hover {
+  background-color: #F1F5F9;
+  color: #334155 !important;
+}
+
+/* --- SEGMENTED TABS --- */
+.lead-drawer-tabs-track {
+  background-color: #F8FAFC;
+  border: 1px solid #F1F5F9;
+  padding: 4px;
+  border-radius: 12px;
+  display: flex;
+  gap: 4px;
+}
+
+.lead-drawer-tab-btn {
+  flex: 1;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: #64748B !important;
+  transition: all 0.15s ease;
+}
+.lead-drawer-tab-btn:hover {
+  color: #0F172A !important;
+}
+.lead-drawer-tab-btn.active {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #E2E8F0;
+}
+
+/* --- 2. FLEXIBLE SCROLLABLE CONTENT AREA --- */
+.lead-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 20px 24px 28px 24px;
+  background-color: #FFFFFF !important;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* CARDS */
+.lead-drawer-card {
+  background-color: #F8FAFC !important;
+  border: 1px solid #F1F5F9;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lead-drawer-card-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #64748B !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* CONTACT CARD ROWS */
+.lead-drawer-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #334155 !important;
+}
+.lead-drawer-contact-row a {
+  color: #334155 !important;
+  font-weight: 500;
+  word-break: break-all;
+}
+.lead-drawer-contact-row a:hover {
+  color: #059669 !important;
+}
+
+.lead-drawer-phone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.lead-drawer-phone-prefix {
+  color: #64748B !important;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.lead-drawer-phone-number {
+  font-weight: 600;
+  color: #1E293B !important;
+}
+
+.lead-drawer-wa-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background-color: #DCFCE7;
+  border: 1px solid #86EFAC;
+  color: #16A34A !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+.lead-drawer-wa-btn:hover {
+  transform: scale(1.08);
+}
+
+.lead-drawer-call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  background-color: #059669;
+  color: #FFFFFF !important;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.2);
+  transition: background-color 0.15s ease;
+}
+.lead-drawer-call-btn:hover {
+  background-color: #047857;
+}
+
+/* FOLLOW UP CARD */
+.lead-drawer-followup-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background-color: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #D97706 !important;
+  font-size: 12px;
+  font-weight: 800;
+  width: fit-content;
+}
+
+.lead-drawer-inset-box {
+  background-color: #F8FAFC;
+  border: 1px solid #F1F5F9;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155 !important;
+  line-height: 1.5;
+}
+
+/* PIPELINE ROWS */
+.lead-drawer-pipeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lead-drawer-pipeline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #E2E8F0/60;
+}
+.lead-drawer-pipeline-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.lead-drawer-pipeline-label {
+  color: #64748B !important;
+  font-weight: 500;
+}
+
+.lead-drawer-pipeline-val {
+  color: #0F172A !important;
+  font-weight: 700;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lead-drawer-user-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background-color: #E2E8F0;
+  color: #334155 !important;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* REVENUE CARD */
+.lead-drawer-revenue-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lead-drawer-revenue-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background-color: #DCFCE7;
+  border: 1px solid #86EFAC;
+  color: #16A34A !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lead-drawer-revenue-val {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #0F172A !important;
+  line-height: 1.1 !important;
+}
+
+/* --- 3. FIXED FOOTER --- */
+.lead-drawer-footer {
+  flex-shrink: 0;
+  background-color: #FFFFFF !important;
+  border-top: 1px solid #F1F5F9;
+  padding: 16px 24px 20px 24px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.lead-drawer-edit-btn {
+  width: 100%;
+  height: 48px;
+  background-color: #0B1528 !important;
+  color: #FFFFFF !important;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(11, 21, 40, 0.2);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.lead-drawer-edit-btn:hover {
+  background-color: #1E293B !important;
+}
+.lead-drawer-edit-btn:active {
+  transform: scale(0.99);
+}
