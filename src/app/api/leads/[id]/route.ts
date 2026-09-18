@@ -13,6 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   try {
+    // STRICT ACCOUNT ISOLATION: A lead can only be retrieved by its owner
     const leadRes = await pool.query(
       `SELECT 
          l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
@@ -29,12 +30,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
        FROM leads l
        LEFT JOIN users u_assigned ON u_assigned.id = l.assigned_user_id
        LEFT JOIN users u_owner ON u_owner.id = l.owner_user_id
-       WHERE l.id = $1 AND (
-         l.owner_user_id = $2 OR l.assigned_user_id = $2 OR 
-         l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR 
-         $3::text = 'SUPER_ADMIN'
-       )`,
-      [id, identity.id, identity.role]
+       WHERE l.id = $1 AND l.owner_user_id = $2`,
+      [id, identity.id]
     );
 
     const lead = leadRes.rows[0];
@@ -42,23 +39,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
     }
 
-    // Next follow-up
+    // Next follow-up scoped to owner
     const fuRes = await pool.query(
       `SELECT id, scheduled_at as "scheduledAt", note, status
        FROM lead_follow_ups
-       WHERE lead_id = $1 AND status = 'SCHEDULED'
+       WHERE lead_id = $1 AND owner_user_id = $2 AND status = 'SCHEDULED'
        ORDER BY scheduled_at ASC LIMIT 1`,
-      [id]
+      [id, identity.id]
     );
     const nextFollowUp = fuRes.rows[0] || null;
 
-    // Recent activities
+    // Recent activities scoped to owner
     const actRes = await pool.query(
       `SELECT id, type, description, from_value as "fromValue", to_value as "toValue", occurred_at as "occurredAt"
        FROM lead_activities
-       WHERE lead_id = $1
+       WHERE lead_id = $1 AND owner_user_id = $2
        ORDER BY occurred_at DESC LIMIT 50`,
-      [id]
+      [id, identity.id]
     );
     const activities = actRes.rows;
 
@@ -116,11 +113,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const note = body.note ? String(body.note).trim() : null;
 
-    // Ensure they have permission
+    // STRICT ACCOUNT ISOLATION: Ensure lead ownership
     const permCheck = await pool.query<{ id: string; owner_user_id: string; status: string }>(
-      `SELECT id, owner_user_id, status FROM leads 
-       WHERE id = $1 AND (owner_user_id = $2 OR assigned_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR $3::text = 'SUPER_ADMIN')`,
-      [id, identity.id, identity.role]
+      `SELECT id, owner_user_id, status FROM leads WHERE id = $1 AND owner_user_id = $2`,
+      [id, identity.id]
     );
 
     const existingLead = permCheck.rows[0];
@@ -133,9 +129,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const result = await pool.query(
       `UPDATE leads
        SET name = $1, company_name = $2, contact_number = $3, email = $4, profile_image = COALESCE($5, profile_image), assigned_user_id = COALESCE($6, assigned_user_id), status = COALESCE($7, status), updated_at = NOW()
-       WHERE id = $8
+       WHERE id = $8 AND owner_user_id = $9
        RETURNING id, name, company_name, contact_number, email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", updated_at`,
-      [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id]
+      [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id, identity.id]
     );
 
     const lead = result.rows[0];
@@ -149,13 +145,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       void pool.query(
         `INSERT INTO lead_activities (owner_user_id, lead_id, type, from_value, to_value, description, occurred_at, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
-        [existingLead.owner_user_id, id, activityType, previousStatus, status, `Stage updated from ${previousStatus} to ${status}`]
+        [identity.id, id, activityType, previousStatus, status, `Stage updated from ${previousStatus} to ${status}`]
       );
     } else {
       void pool.query(
         `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, occurred_at, created_at)
          VALUES ($1, $2, 'LEAD_UPDATED', $3, NOW(), NOW())`,
-        [existingLead.owner_user_id, id, `Updated lead details for ${lead.name}`]
+        [identity.id, id, `Updated lead details for ${lead.name}`]
       );
     }
 
@@ -163,7 +159,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       void pool.query(
         `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, occurred_at, created_at)
          VALUES ($1, $2, 'NOTE_ADDED', $3, NOW(), NOW())`,
-        [existingLead.owner_user_id, id, note]
+        [identity.id, id, note]
       );
     }
 

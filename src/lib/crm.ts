@@ -645,7 +645,7 @@ export async function cancelFollowUp(ownerUserId: string, followUpId: string): P
 
     const fuRes = await client.query<{ id: string; lead_id: string }>(
       `UPDATE lead_follow_ups SET status = 'CANCELLED', updated_at = NOW()
-       WHERE id = $1 AND (owner_user_id = $2 OR $2 IN (SELECT id FROM users WHERE role = 'SUPER_ADMIN' OR role = 'ADMIN'))
+       WHERE id = $1 AND owner_user_id = $2
        RETURNING id, lead_id`,
       [followUpId, ownerUserId]
     );

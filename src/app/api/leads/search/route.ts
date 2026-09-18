@@ -37,26 +37,12 @@ export async function GET(request: NextRequest) {
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
 
   try {
-    let whereClause = "1=1";
-    const params: any[] = [];
-    let paramIndex = 1;
+    // STRICT ACCOUNT ISOLATION: Enforce that all query results belong exclusively to identity.id (owner_user_id)
+    let whereClause = "l.owner_user_id = $1";
+    const params: any[] = [identity.id];
+    let paramIndex = 2;
 
-    // Security constraints based on role
-    if (identity.role === "SUPER_ADMIN") {
-      // Super Admin: All leads
-    } else if (identity.role === "ADMIN") {
-      // Admin: Own leads + Managed users' leads
-      whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex} OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $${paramIndex}))`;
-      params.push(identity.id);
-      paramIndex++;
-    } else {
-      // Normal User: Own leads or leads assigned to them
-      whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex})`;
-      params.push(identity.id);
-      paramIndex++;
-    }
-
-    // Filters
+    // Optional Filters scoped within the user's account
     if (q) {
       whereClause += ` AND (
         l.name ILIKE $${paramIndex} OR 
@@ -105,7 +91,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN 1 ELSE 0 END)::int as open_pipeline,
         SUM(CASE WHEN l.status = 'WON' THEN 1 ELSE 0 END)::int as won_leads,
         SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN COALESCE(l.total_amount, 0) ELSE 0 END)::int as expected_revenue,
-        (SELECT COUNT(*)::int FROM lead_follow_ups f JOIN leads fl ON fl.id = f.lead_id WHERE ${whereClause.replace(/l\./g, 'fl.')} AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
+        (SELECT COUNT(*)::int FROM lead_follow_ups f WHERE f.owner_user_id = $1 AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
       FROM leads l
       WHERE ${whereClause}
     `;
@@ -117,9 +103,9 @@ export async function GET(request: NextRequest) {
         l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
         l.address, l.total_amount as "totalAmount", l.advance_amount as "advanceAmount", l.lead_cycle as "leadCycle",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
-        (SELECT note FROM lead_follow_ups WHERE lead_id = l.id AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
-        (SELECT scheduled_at FROM lead_follow_ups WHERE lead_id = l.id AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
-        (SELECT description FROM lead_activities WHERE lead_id = l.id AND type = 'REMARK' ORDER BY occurred_at DESC LIMIT 1) as "lastRemark"
+        (SELECT note FROM lead_follow_ups WHERE lead_id = l.id AND owner_user_id = $1 AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
+        (SELECT scheduled_at FROM lead_follow_ups WHERE lead_id = l.id AND owner_user_id = $1 AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
+        (SELECT description FROM lead_activities WHERE lead_id = l.id AND owner_user_id = $1 AND type = 'REMARK' ORDER BY occurred_at DESC LIMIT 1) as "lastRemark"
       FROM leads l
       LEFT JOIN users u ON u.id = l.assigned_user_id
       WHERE ${whereClause}
@@ -143,7 +129,7 @@ export async function GET(request: NextRequest) {
       dueToday: kpiRes.rows[0]?.due_today || 0,
       expectedRevenue: kpiRes.rows[0]?.expected_revenue || 0,
     };
-    
+
     const leads = dataRes.rows;
 
     return Response.json({
