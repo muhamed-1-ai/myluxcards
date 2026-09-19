@@ -12,7 +12,7 @@ export async function POST(request:Request){
     if(!validEmail(email)||!password)return Response.json({message:"Email or password is incorrect."},{status:401});
     const user=await authenticateCredentials(email,password);
     if(!user)return Response.json({message:"Email or password is incorrect."},{status:401});
-    return await authenticatedResponse(user);
+    return await authenticatedResponse(user, request);
   } catch (error) {
     console.error("[Login API Error]:", error);
     return Response.json({ message: "Login request could not be completed. Please try again." }, { status: 500 });

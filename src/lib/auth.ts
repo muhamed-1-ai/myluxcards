@@ -5,12 +5,13 @@ import { authenticateCredentials, linkGoogleIdentity } from "./authService";
 
 if (process.env.NODE_ENV === "production") {
   const canonical = "https://3gzappit.com";
-  if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("sslip.io") || process.env.NEXTAUTH_URL.startsWith("http:")) {
+  if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("sslip.io") || process.env.NEXTAUTH_URL.includes("localhost") || process.env.NEXTAUTH_URL.includes("127.0.0.1") || process.env.NEXTAUTH_URL.startsWith("http:")) {
     process.env.NEXTAUTH_URL = canonical;
   }
-  if (!process.env.AUTH_URL || process.env.AUTH_URL.includes("sslip.io") || process.env.AUTH_URL.startsWith("http:")) {
+  if (!process.env.AUTH_URL || process.env.AUTH_URL.includes("sslip.io") || process.env.AUTH_URL.includes("localhost") || process.env.AUTH_URL.includes("127.0.0.1") || process.env.AUTH_URL.startsWith("http:")) {
     process.env.AUTH_URL = canonical;
   }
+  process.env.AUTH_TRUST_HOST = "true";
 }
 
 const isProd = process.env.NODE_ENV === "production";

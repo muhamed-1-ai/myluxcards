@@ -4,17 +4,37 @@ import { NextResponse } from "next/server";
 
 import { getAuthSecret } from "./authSecret";
 
-export async function authenticatedResponse(user:{id:string;email:string;name:string;sessionVersion:number}, request?: Request){
+export async function authenticatedResponse(
+  user: { id: string; email: string; name: string; sessionVersion: number; role?: string; mustChangePassword?: boolean },
+  request?: Request
+) {
   const secret = getAuthSecret();
-  const isHttps = request ? (request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")) : (process.env.APP_URL?.startsWith("https://") ?? true);
+  const isHttps = request
+    ? request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")
+    : (process.env.APP_URL?.startsWith("https://") ?? true);
   const secure = process.env.NODE_ENV === "production" && isHttps;
   const maxAge = 60 * 60 * 24 * 30;
-  const token = await encode({secret, token:{sub:user.id, userId:user.id, email:user.email, name:user.name, sessionVersion:user.sessionVersion || 1}, maxAge});
-  const response = NextResponse.json({user:{id:user.id, email:user.email, name:user.name}});
+  const token = await encode({
+    secret,
+    token: { sub: user.id, userId: user.id, email: user.email, name: user.name, sessionVersion: user.sessionVersion || 1 },
+    maxAge,
+  });
+  const redirectTo = user.mustChangePassword
+    ? "/reset-password?required=1"
+    : user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+    ? "/admin"
+    : "/dashboard";
 
-  response.cookies.set("next-auth.session-token", token, {httpOnly:true, secure:false, sameSite:"lax", path:"/", maxAge});
+  const response = NextResponse.json({
+    user: { id: user.id, email: user.email, name: user.name },
+    role: user.role || "CUSTOMER",
+    mustChangePassword: Boolean(user.mustChangePassword),
+    redirectTo,
+  });
+
+  response.cookies.set("next-auth.session-token", token, { httpOnly: true, secure: false, sameSite: "lax", path: "/", maxAge });
   if (secure) {
-    response.cookies.set("__Secure-next-auth.session-token", token, {httpOnly:true, secure:true, sameSite:"lax", path:"/", maxAge});
+    response.cookies.set("__Secure-next-auth.session-token", token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge });
   }
   return response;
 }

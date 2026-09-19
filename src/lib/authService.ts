@@ -109,7 +109,7 @@ export async function authenticateCredentials(email: string, password: string) {
   const user = result.rows[0];
   if (!user?.password_hash || user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED" || !(await verifyPassword(password, user.password_hash))) return null;
   await pool.query("update users set last_login_at=now() where id=$1", [user.id]);
-  return { id: user.id, email: user.email, name: user.name, sessionVersion: user.session_version };
+  return { id: user.id, email: user.email, name: user.name, sessionVersion: user.session_version, role: user.role, mustChangePassword: user.must_change_password };
 }
 
 async function linkGoogleIdentityOnce(input: { providerAccountId: string; email: string; name: string; image?: string | null }) {
