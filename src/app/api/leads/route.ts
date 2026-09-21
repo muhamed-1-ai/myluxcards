@@ -23,9 +23,20 @@ export async function POST(request: Request) {
       [identity.id]
     );
 
-    const cardId = cardRes.rows[0]?.id;
+    let cardId = cardRes.rows[0]?.id;
     if (!cardId) {
-      return Response.json({ message: "Please create a digital card first." }, { status: 400 });
+      const slug = `card-${identity.id.slice(0, 8)}-${Date.now()}`;
+      const newCardRes = await pool.query<{ id: string }>(
+        `INSERT INTO digital_cards (owner_id, title, name, slug, created_at, updated_at) 
+         VALUES ($1, 'Primary Digital Card', $2, $3, NOW(), NOW()) 
+         RETURNING id`,
+        [identity.id, identity.name || identity.email, slug]
+      );
+      cardId = newCardRes.rows[0]?.id;
+    }
+
+    if (!cardId) {
+      return Response.json({ message: "Failed to resolve card identity." }, { status: 400 });
     }
 
     const result = await createManualLead(identity.id, cardId, {
@@ -40,19 +51,6 @@ export async function POST(request: Request) {
     });
 
     const leadId = result.lead.id;
-
-    // Update optional extended fields (address, total_amount, advance_amount)
-    if (body.address || body.totalAmount !== undefined || body.advanceAmount !== undefined) {
-      await pool.query(
-        `UPDATE leads SET 
-          address = COALESCE($1, address), 
-          total_amount = COALESCE($2, total_amount), 
-          advance_amount = COALESCE($3, advance_amount),
-          updated_at = NOW() 
-         WHERE id = $4`,
-        [body.address || null, body.totalAmount || 0, body.advanceAmount || 0, leadId]
-      );
-    }
 
     // Save initial remark if provided
     if (body.remark && typeof body.remark === "string" && body.remark.trim().length > 0) {

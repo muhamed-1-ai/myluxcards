@@ -39,10 +39,15 @@ export async function GET(request: Request) {
 
       notificationEmitter.on(channelKey, listener);
 
-      // 3. Heartbeat every 25s to keep SSE connection active in proxy/Coolify
+      // 3. Heartbeat every 15s to keep SSE connection active in proxy/Coolify/HTTP3
       heartbeatTimer = setInterval(() => {
-        sendEvent({ type: "HEARTBEAT", timestamp: Date.now() });
-      }, 25000);
+        try {
+          controller.enqueue(encoder.encode(":ping\n\n"));
+          sendEvent({ type: "HEARTBEAT", timestamp: Date.now() });
+        } catch {
+          if (heartbeatTimer) clearInterval(heartbeatTimer);
+        }
+      }, 15000);
     },
     cancel() {
       if (listener) {

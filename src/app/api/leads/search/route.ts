@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     "assigned": "u.name",
     "source": "l.source",
     "created_at": "l.created_at",
-    "totalAmount": "l.total_amount"
+    "totalAmount": "l.created_at"
   };
 
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN 1 ELSE 0 END)::int as open_pipeline,
         SUM(CASE WHEN l.status = 'WON' THEN 1 ELSE 0 END)::int as won_leads,
-        SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN COALESCE(l.total_amount, 0) ELSE 0 END)::int as expected_revenue,
+        0::int as expected_revenue,
         (SELECT COUNT(*)::int FROM lead_follow_ups f WHERE f.owner_user_id = $1 AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
       FROM leads l
       WHERE ${whereClause}
@@ -101,7 +101,6 @@ export async function GET(request: NextRequest) {
         l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
         l.email, l.status as "stage", l.source, l.created_at as "createdAt",
         l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
-        l.address, l.total_amount as "totalAmount", l.advance_amount as "advanceAmount", l.lead_cycle as "leadCycle",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
         (SELECT note FROM lead_follow_ups WHERE lead_id = l.id AND owner_user_id = $1 AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
         (SELECT scheduled_at FROM lead_follow_ups WHERE lead_id = l.id AND owner_user_id = $1 AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
