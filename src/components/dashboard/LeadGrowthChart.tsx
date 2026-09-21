@@ -258,7 +258,7 @@ export function LeadGrowthChart({
           alignItems: "center",
           gap: 2,
           background: "#161822",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          border: "1px solid var(--border-color)",
           padding: 3,
           borderRadius: 10,
           flexShrink: 0
@@ -330,7 +330,7 @@ export function LeadGrowthChart({
           alignItems: "center",
           gap: 6,
           fontSize: 12,
-          color: "#94A3B8",
+          color: "var(--text-muted)",
           fontWeight: 500
         }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0066FF" }} />
@@ -393,7 +393,7 @@ export function LeadGrowthChart({
                     y1={y}
                     x2={measuredWidth - paddingRight}
                     y2={y}
-                    stroke="rgba(255, 255, 255, 0.05)"
+                    stroke="var(--border-color)"
                     strokeDasharray="4 4"
                     strokeWidth="1"
                   />
@@ -511,7 +511,7 @@ export function LeadGrowthChart({
               pointerEvents: "none",
               background: "#121420",
               border: "1px solid rgba(0, 102, 255, 0.4)",
-              color: "#FFFFFF",
+              color: "var(--text-primary)",
               padding: "8px 14px",
               borderRadius: 10,
               boxShadow: "0 10px 24px rgba(0, 0, 0, 0.5)",
@@ -523,12 +523,12 @@ export function LeadGrowthChart({
               whiteSpace: "nowrap",
             }}
           >
-            <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 3 }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 3 }}>
               {hoveredPoint.dateStr || hoveredPoint.label}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0066FF" }} />
-              <span style={{ color: "#FFFFFF" }}>{hoveredPoint.count} New Leads</span>
+              <span style={{ color: "var(--text-primary)" }}>{hoveredPoint.count} New Leads</span>
             </div>
           </div>
         )}

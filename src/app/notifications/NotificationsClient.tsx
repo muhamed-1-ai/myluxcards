@@ -403,7 +403,7 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
                 <p style={{ color: "#0066FF", fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
                   NOTIFICATIONS
                 </p>
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: "#FFFFFF", margin: "2px 0 4px", display: "flex", alignItems: "center", gap: 10 }}>
+                <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 4px", display: "flex", alignItems: "center", gap: 10 }}>
                   Notification Center
                   {unreadCount > 0 && (
                     <span style={{ fontSize: 11, background: "rgba(0, 229, 255, 0.18)", color: "#0066FF", border: "1px solid rgba(0, 229, 255, 0.35)", padding: "2px 10px", borderRadius: 12, fontWeight: 800 }}>
@@ -432,7 +432,7 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
           {preferencesOpen && (
             <div style={{ background: "#0D0E15", border: "1px solid rgba(0, 229, 255, 0.4)", borderRadius: 16, padding: 20, marginBottom: 24, boxShadow: "0 10px 40px rgba(0,0,0,0.8)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>Notification Preferences</h3>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Notification Preferences</h3>
                 <button type="button" onClick={() => setPreferencesOpen(false)} style={{ background: "transparent", border: "none", color: "#888", fontSize: 16, cursor: "pointer" }}>✕</button>
               </div>
 
@@ -444,9 +444,9 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
                   { key: "broadcast_results", title: "Broadcast Results", desc: "Alerts when a campaign completes or fails" },
                   { key: "connection_alerts", title: "WhatsApp Connection Alerts", desc: "Critical alerts if Meta Cloud API disconnects" },
                 ].map((item) => (
-                  <div key={item.key} style={{ background: "#12131A", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={item.key} style={{ background: "var(--surface)", border: "1px solid var(--border-color)", borderRadius: 12, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>{item.title}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{item.title}</div>
                       <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
                     </div>
                     <label className="notif-toggle-switch">
@@ -486,7 +486,7 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
           <div className="notif-summary-grid">
             <div className="notif-summary-card">
               <div>
-                <strong style={{ fontSize: 22, fontWeight: 800, color: "#FFFFFF" }}>{summaryMetrics.total}</strong>
+                <strong style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)" }}>{summaryMetrics.total}</strong>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: "#888888", letterSpacing: "0.05em", display: "block", marginTop: 2 }}>TOTAL</span>
               </div>
               <Bell className="w-5 h-5 text-neutral-400" />
@@ -596,7 +596,7 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
           ) : error ? (
             <div style={{ padding: 40, textAlign: "center", background: "#0B0B0B", border: "1px solid rgba(231,76,60,0.4)", borderRadius: 16 }}>
               <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-              <h3 style={{ fontSize: 16, color: "#FFFFFF", fontWeight: 700, margin: "0 0 6px" }}>Error Loading Notifications</h3>
+              <h3 style={{ fontSize: 16, color: "var(--text-primary)", fontWeight: 700, margin: "0 0 6px" }}>Error Loading Notifications</h3>
               <p style={{ fontSize: 13, color: "#888888", margin: "0 0 14px" }}>{error}</p>
               <button
                 type="button"

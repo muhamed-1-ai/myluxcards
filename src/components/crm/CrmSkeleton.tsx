@@ -10,7 +10,7 @@ export function CrmSkeleton() {
             style={{
               height: 100,
               borderRadius: 14,
-              background: "linear-gradient(90deg, #12131A 25%, #1B1C26 50%, #12131A 75%)",
+              background: "linear-gradient(90deg, var(--surface) 25%, #1B1C26 50%, var(--surface) 75%)",
               backgroundSize: "200% 100%",
               animation: "pulse 1.5s infinite",
             }}
@@ -21,7 +21,7 @@ export function CrmSkeleton() {
         style={{
           height: 320,
           borderRadius: 16,
-          background: "linear-gradient(90deg, #12131A 25%, #1B1C26 50%, #12131A 75%)",
+          background: "linear-gradient(90deg, var(--surface) 25%, #1B1C26 50%, var(--surface) 75%)",
           backgroundSize: "200% 100%",
           animation: "pulse 1.5s infinite",
         }}

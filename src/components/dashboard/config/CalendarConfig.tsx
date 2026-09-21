@@ -563,7 +563,7 @@ export function CalendarConfig() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 16,
-          background: "#12131A",
+          background: "var(--surface)",
           border: "1px solid rgba(0, 229, 255, 0.18)",
           padding: "20px 24px",
           borderRadius: 18,
@@ -576,16 +576,16 @@ export function CalendarConfig() {
             <div style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.1em" }}>
               CALENDAR LEADS VIEW
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#FFF", margin: "2px 0 0", fontFamily: "Inter, system-ui, sans-serif" }}>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0", fontFamily: "Inter, system-ui, sans-serif" }}>
               {titleHeaderLabel}
             </h1>
-            <p style={{ fontSize: 12, color: "#94A3B8", margin: "2px 0 0" }}>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>
               Track pending and completed Follow-Ups with a calendar-first workflow.
             </p>
           </div>
 
           {/* Nav Controls: < August 2026 > + Month Button */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#181924", border: "1px solid rgba(255, 255, 255, 0.08)", padding: 4, borderRadius: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", padding: 4, borderRadius: 10 }}>
             <button
               type="button"
               onClick={handleGoToToday}
@@ -614,7 +614,7 @@ export function CalendarConfig() {
                 borderRadius: 7,
                 border: "none",
                 background: "transparent",
-                color: "#FFF",
+                color: "var(--text-primary)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -633,7 +633,7 @@ export function CalendarConfig() {
                 borderRadius: 7,
                 border: "none",
                 background: "transparent",
-                color: "#FFF",
+                color: "var(--text-primary)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -649,7 +649,7 @@ export function CalendarConfig() {
         {/* Right Controls: View Switcher, Filters & Action Button */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           {/* View Selector (Month, Week, Day, List) */}
-          <div style={{ display: "flex", gap: 3, background: "#181924", padding: 3, borderRadius: 10, border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <div style={{ display: "flex", gap: 3, background: "var(--bg-secondary)", padding: 3, borderRadius: 10, border: "1px solid var(--border-color)" }}>
             {(["MONTH", "WEEK", "DAY", "LIST"] as const).map((view) => {
               const label = view === "MONTH" ? "Month" : view === "WEEK" ? "Week" : view === "DAY" ? "Day" : "List";
               const isActive = activeView === view;
@@ -684,10 +684,10 @@ export function CalendarConfig() {
             style={{
               height: 38,
               padding: "0 12px",
-              background: "#181924",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
               borderRadius: 9,
-              color: "#FFF",
+              color: "var(--text-primary)",
               fontSize: 12,
               fontWeight: 600,
               outline: "none",
@@ -710,10 +710,10 @@ export function CalendarConfig() {
             style={{
               height: 38,
               padding: "0 12px",
-              background: "#181924",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
               borderRadius: 9,
-              color: "#FFF",
+              color: "var(--text-primary)",
               fontSize: 12,
               fontWeight: 600,
               outline: "none",
@@ -762,7 +762,7 @@ export function CalendarConfig() {
         {/* Metric 1: STAGE FOLLOW-UPS */}
         <div
           style={{
-            background: "#12131A",
+            background: "var(--surface)",
             border: "1px solid rgba(0, 229, 255, 0.18)",
             borderRadius: 14,
             padding: "16px 20px",
@@ -773,10 +773,10 @@ export function CalendarConfig() {
           }}
         >
           <div>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               STAGE FOLLOW-UPS
             </span>
-            <div style={{ fontSize: 26, fontWeight: 800, color: "#FFFFFF", marginTop: 2, fontFamily: "Inter, system-ui, sans-serif" }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-primary)", marginTop: 2, fontFamily: "Inter, system-ui, sans-serif" }}>
               {metrics.stageFollowUps}
             </div>
           </div>
@@ -788,7 +788,7 @@ export function CalendarConfig() {
         {/* Metric 2: STAGE LEAD ENTRIES */}
         <div
           style={{
-            background: "#12131A",
+            background: "var(--surface)",
             border: "1px solid rgba(0, 229, 255, 0.18)",
             borderRadius: 14,
             padding: "16px 20px",
@@ -799,7 +799,7 @@ export function CalendarConfig() {
           }}
         >
           <div>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               STAGE LEAD ENTRIES
             </span>
             <div style={{ fontSize: 26, fontWeight: 800, color: "#3B82F6", marginTop: 2, fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -814,7 +814,7 @@ export function CalendarConfig() {
         {/* Metric 3: OVERDUE HISTORY */}
         <div
           style={{
-            background: "#12131A",
+            background: "var(--surface)",
             border: "1px solid rgba(0, 229, 255, 0.18)",
             borderRadius: 14,
             padding: "16px 20px",
@@ -825,7 +825,7 @@ export function CalendarConfig() {
           }}
         >
           <div>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               OVERDUE HISTORY
             </span>
             <div style={{ fontSize: 26, fontWeight: 800, color: "#EF4444", marginTop: 2, fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -840,7 +840,7 @@ export function CalendarConfig() {
         {/* Metric 4: DELAY ANALYTICS */}
         <div
           style={{
-            background: "#12131A",
+            background: "var(--surface)",
             border: "1px solid rgba(0, 229, 255, 0.18)",
             borderRadius: 14,
             padding: "16px 20px",
@@ -851,7 +851,7 @@ export function CalendarConfig() {
           }}
         >
           <div>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               DELAY ANALYTICS
             </span>
             <div style={{ fontSize: 20, fontWeight: 800, color: "#10B981", marginTop: 4, fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -867,7 +867,7 @@ export function CalendarConfig() {
       {/* 3. CALENDAR CONTENT CONTAINER */}
       <div
         style={{
-          background: "#12131A",
+          background: "var(--surface)",
           border: "1px solid rgba(0, 229, 255, 0.18)",
           borderRadius: 18,
           padding: 20,
@@ -923,7 +923,7 @@ export function CalendarConfig() {
                     style={{
                       minHeight: 140,
                       minWidth: 0,
-                      background: dayItem.isCurrentMonth ? "#181924" : "rgba(18, 19, 26, 0.4)",
+                      background: dayItem.isCurrentMonth ? "var(--bg-secondary)" : "rgba(18, 19, 26, 0.4)",
                       border: isToday ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.06)",
                       borderRadius: 12,
                       padding: 10,
@@ -998,7 +998,7 @@ export function CalendarConfig() {
                               borderRadius: 6,
                               fontSize: 11,
                               fontWeight: 700,
-                              color: "#FFF",
+                              color: "var(--text-primary)",
                               minWidth: 0,
                               overflow: "hidden",
                             }}
@@ -1010,7 +1010,7 @@ export function CalendarConfig() {
                                 {ev.type} · {ev.leadName}
                               </span>
                             </div>
-                            <span style={{ fontSize: 10, color: "#94A3B8", flexShrink: 0 }}>
+                            <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>
                               {formatLocalTime(ev.scheduledAt)}
                             </span>
                           </div>
@@ -1060,8 +1060,8 @@ export function CalendarConfig() {
                   <div
                     key={wDay.dateStr}
                     style={{
-                      background: "#181924",
-                      border: wDay.isToday ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.08)",
+                      background: "var(--bg-secondary)",
+                      border: wDay.isToday ? "2px solid #0066FF" : "1px solid var(--border-color)",
                       borderRadius: 14,
                       padding: 12,
                       minHeight: 450,
@@ -1072,10 +1072,10 @@ export function CalendarConfig() {
                     }}
                   >
                     {/* Header for Day in Week */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: 8 }}>
                       <div>
                         <span style={{ fontSize: 11, fontWeight: 800, color: wDay.isToday ? "#0066FF" : "#94A3B8" }}>{wDay.dayName}</span>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#FFF" }}>{wDay.date.getDate()}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>{wDay.date.getDate()}</div>
                       </div>
                       <button
                         type="button"
@@ -1112,12 +1112,12 @@ export function CalendarConfig() {
                                 <span style={{ fontSize: 10, fontWeight: 800, color: ev.stageColor || "#0066FF", background: `${ev.stageColor || "#0066FF"}20`, padding: "2px 6px", borderRadius: 4 }}>
                                   {ev.type}
                                 </span>
-                                <span style={{ fontSize: 11, color: "#94A3B8" }}>{formatLocalTime(ev.scheduledAt)}</span>
+                                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatLocalTime(ev.scheduledAt)}</span>
                               </div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {ev.leadName}
                               </div>
-                              {ev.leadCompany && <div style={{ fontSize: 11, color: "#94A3B8" }}>{ev.leadCompany}</div>}
+                              {ev.leadCompany && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{ev.leadCompany}</div>}
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                                 <span style={{ fontSize: 10, fontWeight: 700, color: ev.status === "COMPLETED" ? "#10B981" : isOverdue ? "#EF4444" : "#0066FF" }}>
                                   {isOverdue ? "OVERDUE" : ev.status}
@@ -1138,10 +1138,10 @@ export function CalendarConfig() {
         {/* VIEW 3: DAY VIEW */}
         {activeView === "DAY" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#181924", padding: 16, borderRadius: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-secondary)", padding: 16, borderRadius: 12 }}>
               <div>
                 <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase" }}>DAY SCHEDULE</span>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>
                   {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                 </h2>
               </div>
@@ -1163,10 +1163,10 @@ export function CalendarConfig() {
 
               if (dayEvents.length === 0) {
                 return (
-                  <div style={{ textAlign: "center", padding: "60px 0", color: "#94A3B8" }}>
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-muted)" }}>
                     <CalendarIcon style={{ width: 40, height: 40, color: "#64748B", margin: "0 auto 12px" }} />
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#FFF", margin: 0 }}>No follow-ups scheduled for this day</h3>
-                    <p style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>Click "Add Follow-Up" to schedule a new call, visit, or meeting.</p>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>No follow-ups scheduled for this day</h3>
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Click "Add Follow-Up" to schedule a new call, visit, or meeting.</p>
                   </div>
                 );
               }
@@ -1184,7 +1184,7 @@ export function CalendarConfig() {
                           alignItems: "center",
                           justifyContent: "space-between",
                           padding: 16,
-                          background: "#181924",
+                          background: "var(--bg-secondary)",
                           border: `1px solid ${ev.stageColor || "#0066FF"}40`,
                           borderRadius: 12,
                           cursor: "pointer",
@@ -1211,19 +1211,19 @@ export function CalendarConfig() {
 
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#FFF", margin: 0 }}>{ev.leadName}</h3>
+                              <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>{ev.leadName}</h3>
                               <span style={{ fontSize: 10, fontWeight: 800, color: ev.stageColor || "#0066FF", background: `${ev.stageColor || "#0066FF"}20`, padding: "2px 8px", borderRadius: 4 }}>
                                 {ev.stageShortForm}
                               </span>
                             </div>
-                            <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
                               {ev.leadCompany ? `${ev.leadCompany} · ` : ""}{ev.description || "No description added"}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 14, fontWeight: 800, color: "#FFF" }}>{formatLocalTime(ev.scheduledAt)}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{formatLocalTime(ev.scheduledAt)}</div>
                           <span style={{ fontSize: 11, fontWeight: 700, color: ev.status === "COMPLETED" ? "#10B981" : isOverdue ? "#EF4444" : "#0066FF" }}>
                             {isOverdue ? "OVERDUE" : ev.status}
                           </span>
@@ -1253,10 +1253,10 @@ export function CalendarConfig() {
                   height: 42,
                   paddingLeft: 42,
                   paddingRight: 16,
-                  background: "#181924",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-color)",
                   borderRadius: 10,
-                  color: "#FFF",
+                  color: "var(--text-primary)",
                   fontSize: 13,
                   outline: "none",
                 }}
@@ -1267,7 +1267,7 @@ export function CalendarConfig() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#0066FF", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                  <tr style={{ borderBottom: "1px solid var(--border-color)", color: "#0066FF", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
                     <th style={{ padding: "12px 14px" }}>Date & Time</th>
                     <th style={{ padding: "12px 14px" }}>Lead Name</th>
                     <th style={{ padding: "12px 14px" }}>Type</th>
@@ -1280,7 +1280,7 @@ export function CalendarConfig() {
                 <tbody>
                   {listViewEvents.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94A3B8" }}>
+                      <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
                         No follow-ups matching the selected criteria.
                       </td>
                     </tr>
@@ -1292,20 +1292,20 @@ export function CalendarConfig() {
                       return (
                         <tr
                           key={ev.id}
-                          style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}
+                          style={{ borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
                           onClick={() => setActiveEventDetail(ev)}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 229, 255, 0.05)")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         >
-                          <td style={{ padding: "14px", color: "#FFF", fontWeight: 700 }}>
+                          <td style={{ padding: "14px", color: "var(--text-primary)", fontWeight: 700 }}>
                             {new Date(ev.scheduledAt).toLocaleDateString()} {formatLocalTime(ev.scheduledAt)}
                           </td>
                           <td style={{ padding: "14px" }}>
-                            <div style={{ fontWeight: 800, color: "#FFF" }}>{ev.leadName}</div>
-                            {ev.leadCompany && <div style={{ fontSize: 11, color: "#94A3B8" }}>{ev.leadCompany}</div>}
+                            <div style={{ fontWeight: 800, color: "var(--text-primary)" }}>{ev.leadName}</div>
+                            {ev.leadCompany && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{ev.leadCompany}</div>}
                           </td>
                           <td style={{ padding: "14px" }}>
-                            <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", background: "rgba(255,255,255,0.08)", padding: "4px 8px", borderRadius: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-primary)", background: "var(--border-color)", padding: "4px 8px", borderRadius: 6 }}>
                               {ev.type}
                             </span>
                           </td>
@@ -1319,13 +1319,13 @@ export function CalendarConfig() {
                               {isOverdue ? "OVERDUE" : ev.status}
                             </span>
                           </td>
-                          <td style={{ padding: "14px", color: "#94A3B8" }}>{ev.createdBy}</td>
+                          <td style={{ padding: "14px", color: "var(--text-muted)" }}>{ev.createdBy}</td>
                           <td style={{ padding: "14px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                             {ev.status !== "COMPLETED" && (
                               <button
                                 type="button"
                                 onClick={() => handleCompleteEvent(ev.id)}
-                                style={{ padding: "6px 12px", fontSize: 11, fontWeight: 800, background: "#10B981", color: "#FFF", border: "none", borderRadius: 6, cursor: "pointer" }}
+                                style={{ padding: "6px 12px", fontSize: 11, fontWeight: 800, background: "#10B981", color: "var(--text-primary)", border: "none", borderRadius: 6, cursor: "pointer" }}
                               >
                                 Complete
                               </button>
@@ -1362,7 +1362,7 @@ export function CalendarConfig() {
             style={{
               width: "100%",
               maxWidth: 640,
-              background: "#12131A",
+              background: "var(--surface)",
               border: "1px solid rgba(0, 229, 255, 0.3)",
               borderRadius: 18,
               boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
@@ -1379,7 +1379,7 @@ export function CalendarConfig() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "20px 24px",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                borderBottom: "1px solid var(--border-color)",
                 background: "#161722",
               }}
             >
@@ -1387,14 +1387,14 @@ export function CalendarConfig() {
                 <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                   CRM SCHEDULING
                 </span>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>
                   Schedule Follow-Up
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsScheduleModalOpen(false)}
-                style={{ background: "#181924", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 8, width: 32, height: 32, color: "#94A3B8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, width: 32, height: 32, color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
@@ -1429,19 +1429,19 @@ export function CalendarConfig() {
                       alignItems: "center",
                       justifyContent: "space-between",
                       padding: "10px 16px",
-                      background: "#181924",
+                      background: "var(--bg-secondary)",
                       border: "1px solid #0066FF",
                       borderRadius: 10,
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: "#FFF" }}>{selectedLead.name}</div>
-                      <div style={{ fontSize: 11, color: "#94A3B8" }}>{selectedLead.companyName || selectedLead.email || selectedLead.contactNumber}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{selectedLead.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{selectedLead.companyName || selectedLead.email || selectedLead.contactNumber}</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedLead(null)}
-                      style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer" }}
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
                     >
                       <X style={{ width: 16, height: 16 }} />
                     </button>
@@ -1460,10 +1460,10 @@ export function CalendarConfig() {
                           height: 44,
                           paddingLeft: 42,
                           paddingRight: 16,
-                          background: "#181924",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          background: "var(--bg-secondary)",
+                          border: "1px solid var(--border-color)",
                           borderRadius: 10,
-                          color: "#FFFFFF",
+                          color: "var(--text-primary)",
                           fontSize: 13,
                           outline: "none",
                         }}
@@ -1473,9 +1473,9 @@ export function CalendarConfig() {
                       )}
                     </div>
 
-                    <div style={{ maxHeight: 160, overflowY: "auto", background: "#181924", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: 10, padding: 4 }}>
+                    <div style={{ maxHeight: 160, overflowY: "auto", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, padding: 4 }}>
                       {leadOptions.length === 0 ? (
-                        <div style={{ padding: 12, fontSize: 12, color: "#94A3B8", textAlign: "center" }}>
+                        <div style={{ padding: 12, fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
                           {isSearchingLeads ? "Searching leads..." : "No leads found. Type a name to search."}
                         </div>
                       ) : (
@@ -1495,8 +1495,8 @@ export function CalendarConfig() {
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             <div>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>{l.name}</span>
-                              <span style={{ fontSize: 11, color: "#94A3B8", marginLeft: 8 }}>{l.companyName}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{l.name}</span>
+                              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>{l.companyName}</span>
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 800, color: l.stageColor, background: `${l.stageColor}20`, padding: "2px 6px", borderRadius: 4 }}>
                               {l.stageKey}
@@ -1521,10 +1521,10 @@ export function CalendarConfig() {
                     width: "100%",
                     height: 44,
                     padding: "0 14px",
-                    background: "#181924",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
                     borderRadius: 10,
-                    color: "#FFFFFF",
+                    color: "var(--text-primary)",
                     fontSize: 13,
                     outline: "none",
                   }}
@@ -1549,10 +1549,10 @@ export function CalendarConfig() {
                       width: "100%",
                       height: 44,
                       padding: "0 14px",
-                      background: "#181924",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
                       borderRadius: 10,
-                      color: "#FFFFFF",
+                      color: "var(--text-primary)",
                       fontSize: 13,
                       outline: "none",
                     }}
@@ -1572,10 +1572,10 @@ export function CalendarConfig() {
                       width: "100%",
                       height: 44,
                       padding: "0 14px",
-                      background: "#181924",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
                       borderRadius: 10,
-                      color: "#FFFFFF",
+                      color: "var(--text-primary)",
                       fontSize: 13,
                       outline: "none",
                     }}
@@ -1597,10 +1597,10 @@ export function CalendarConfig() {
                   style={{
                     width: "100%",
                     padding: "12px 14px",
-                    background: "#181924",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
                     borderRadius: 10,
-                    color: "#FFFFFF",
+                    color: "var(--text-primary)",
                     fontSize: 13,
                     outline: "none",
                     resize: "vertical",
@@ -1616,7 +1616,7 @@ export function CalendarConfig() {
                 justifyContent: "flex-end",
                 gap: 12,
                 padding: "16px 24px",
-                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                borderTop: "1px solid var(--border-color)",
                 background: "#161722",
               }}
             >
@@ -1628,9 +1628,9 @@ export function CalendarConfig() {
                   fontSize: 13,
                   fontWeight: 600,
                   borderRadius: 9,
-                  background: "#181924",
+                  background: "var(--bg-secondary)",
                   color: "#CBD5E1",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  border: "1px solid var(--border-color)",
                   cursor: "pointer",
                 }}
               >
@@ -1695,7 +1695,7 @@ export function CalendarConfig() {
             style={{
               width: "100%",
               maxWidth: 500,
-              background: "#12131A",
+              background: "var(--surface)",
               border: "1px solid rgba(0, 229, 255, 0.3)",
               padding: 24,
               borderRadius: 18,
@@ -1708,11 +1708,11 @@ export function CalendarConfig() {
                 <span style={{ fontSize: 10, fontWeight: 800, color: activeEventDetail.stageColor || "#0066FF", textTransform: "uppercase" }}>
                   {activeEventDetail.type} TASK
                 </span>
-                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
+                <h3 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>
                   {activeEventDetail.leadName}
                 </h3>
                 {activeEventDetail.leadCompany && (
-                  <span style={{ fontSize: 12, color: "#94A3B8" }}>{activeEventDetail.leadCompany}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{activeEventDetail.leadCompany}</span>
                 )}
               </div>
               <button
@@ -1721,13 +1721,13 @@ export function CalendarConfig() {
                   setActiveEventDetail(null);
                   setIsRescheduling(false);
                 }}
-                style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer" }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, background: "#181924", borderRadius: 12, marginBottom: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, background: "var(--bg-secondary)", borderRadius: 12, marginBottom: 20 }}>
               <div style={{ fontSize: 13, color: "#CBD5E1" }}>
                 <strong>Scheduled:</strong> {new Date(activeEventDetail.scheduledAt).toLocaleDateString()} at {formatLocalTime(activeEventDetail.scheduledAt)}
               </div>
@@ -1737,7 +1737,7 @@ export function CalendarConfig() {
                 </div>
               )}
               {activeEventDetail.description && (
-                <div style={{ fontSize: 12, color: "#94A3B8" }}>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   <strong>Notes:</strong> {activeEventDetail.description}
                 </div>
               )}
@@ -1751,27 +1751,27 @@ export function CalendarConfig() {
 
             {/* Reschedule Form Box */}
             {isRescheduling ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "#181924", padding: 14, borderRadius: 12, marginBottom: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "var(--bg-secondary)", padding: 14, borderRadius: 12, marginBottom: 20 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#0066FF" }}>Pick New Date & Time</span>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <input
                     type="date"
                     value={rescheduleDate}
                     onChange={(e) => setRescheduleDate(e.target.value)}
-                    style={{ background: "#12131A", border: "1px solid rgba(255,255,255,0.1)", color: "#FFF", padding: 8, borderRadius: 8, fontSize: 12 }}
+                    style={{ background: "var(--surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: 8, borderRadius: 8, fontSize: 12 }}
                   />
                   <input
                     type="time"
                     value={rescheduleTime}
                     onChange={(e) => setRescheduleTime(e.target.value)}
-                    style={{ background: "#12131A", border: "1px solid rgba(255,255,255,0.1)", color: "#FFF", padding: 8, borderRadius: 8, fontSize: 12 }}
+                    style={{ background: "var(--surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: 8, borderRadius: 8, fontSize: 12 }}
                   />
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => setIsRescheduling(false)}
-                    style={{ padding: "6px 12px", fontSize: 12, background: "none", border: "none", color: "#94A3B8", cursor: "pointer" }}
+                    style={{ padding: "6px 12px", fontSize: 12, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
                   >
                     Cancel
                   </button>
@@ -1796,7 +1796,7 @@ export function CalendarConfig() {
                     setRescheduleTime("10:30");
                     setIsRescheduling(true);
                   }}
-                  style={{ padding: "8px 14px", fontSize: 12, fontWeight: 700, background: "#181924", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 8, color: "#FFF", cursor: "pointer" }}
+                  style={{ padding: "8px 14px", fontSize: 12, fontWeight: 700, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, color: "var(--text-primary)", cursor: "pointer" }}
                 >
                   Reschedule
                 </button>
@@ -1806,7 +1806,7 @@ export function CalendarConfig() {
                 <button
                   type="button"
                   onClick={() => handleCancelEvent(activeEventDetail.id)}
-                  style={{ padding: "8px 14px", fontSize: 12, fontWeight: 700, background: "#181924", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 8, color: "#EF4444", cursor: "pointer" }}
+                  style={{ padding: "8px 14px", fontSize: 12, fontWeight: 700, background: "var(--bg-secondary)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 8, color: "#EF4444", cursor: "pointer" }}
                 >
                   Cancel Task
                 </button>
@@ -1816,7 +1816,7 @@ export function CalendarConfig() {
                 <button
                   type="button"
                   onClick={() => handleCompleteEvent(activeEventDetail.id)}
-                  style={{ padding: "8px 18px", fontSize: 12, fontWeight: 800, background: "#10B981", color: "#FFF", border: "none", borderRadius: 8, cursor: "pointer" }}
+                  style={{ padding: "8px 18px", fontSize: 12, fontWeight: 800, background: "#10B981", color: "var(--text-primary)", border: "none", borderRadius: 8, cursor: "pointer" }}
                 >
                   Mark Completed
                 </button>

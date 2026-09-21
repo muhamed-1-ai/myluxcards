@@ -97,7 +97,7 @@ export function DashboardLayoutSelectorModal({
             <div style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", letterSpacing: "0.06em", textTransform: "uppercase" }}>
               DASHBOARD PREFERENCES
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#FFF", margin: "2px 0 4px" }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 4px" }}>
               Choose Dashboard Layout
             </h2>
             <p style={{ fontSize: 13, color: "#888", margin: 0 }}>
@@ -126,8 +126,8 @@ export function DashboardLayoutSelectorModal({
                 key={opt.id}
                 onClick={() => handleSelect(opt.id)}
                 style={{
-                  background: isSelected ? "rgba(0, 229, 255, 0.05)" : "#12131A",
-                  border: isSelected ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.1)",
+                  background: isSelected ? "rgba(0, 229, 255, 0.05)" : "var(--surface)",
+                  border: isSelected ? "2px solid #0066FF" : "1px solid var(--border-color)",
                   boxShadow: isSelected ? "0 0 20px rgba(0, 229, 255, 0.18)" : "none",
                   borderRadius: 16,
                   padding: 18,
@@ -141,7 +141,7 @@ export function DashboardLayoutSelectorModal({
               >
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: "#0B0C10", border: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {opt.icon}
                     </div>
 

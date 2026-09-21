@@ -142,18 +142,18 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
   if (loading) {
     return (
       <div className="crm-dashboard-skeleton-container" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div className="crm-skeleton-header" style={{ height: 50, borderRadius: 14, background: "#12131A" }} />
-        <div className="crm-skeleton-header" style={{ height: 45, borderRadius: 14, background: "#12131A" }} />
-        <div className="crm-skeleton-grid" style={{ height: 165, borderRadius: 14, background: "#12131A" }} />
+        <div className="crm-skeleton-header" style={{ height: 50, borderRadius: 14, background: "var(--surface)" }} />
+        <div className="crm-skeleton-header" style={{ height: 45, borderRadius: 14, background: "var(--surface)" }} />
+        <div className="crm-skeleton-grid" style={{ height: 165, borderRadius: 14, background: "var(--surface)" }} />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="crm-dashboard-error-container" style={{ padding: 32, textAlign: "center", background: "#12131A", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 16 }}>
+      <div className="crm-dashboard-error-container" style={{ padding: 32, textAlign: "center", background: "var(--surface)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 16 }}>
         <AlertCircle style={{ width: 40, height: 40, color: "#EF4444", margin: "0 auto 12px" }} />
-        <h3 style={{ fontSize: 20, fontWeight: 700, color: "#FFF", marginBottom: 4 }}>Couldn't Load Lead Command Center</h3>
+        <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>Couldn't Load Lead Command Center</h3>
         <p style={{ fontSize: 13, color: "#8A909A", marginBottom: 16 }}>{error || "We couldn't load your lead summary data."}</p>
         <button type="button" onClick={() => fetchDashboardData()} className="crm-btn-add-lead">
           <RefreshCw style={{ width: 16, height: 16 }} /> Retry Loading
@@ -317,7 +317,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
           <span className="crm-kpi-label">TOTAL LEADS</span>
           <div className="crm-kpi-value">{kpis.totalLeads}</div>
-          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+          <div className="crm-kpi-sub" style={{ color: "var(--text-muted)" }}>
             <TrendingUp style={{ width: 12, height: 12, color: "#00E5FF" }} /> All registered leads
           </div>
         </div>
@@ -351,7 +351,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
           <span className="crm-kpi-label">CLOSED LEADS</span>
           <div className="crm-kpi-value">{kpis.wonLeads}</div>
-          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+          <div className="crm-kpi-sub" style={{ color: "var(--text-muted)" }}>
             <TrendingUp style={{ width: 12, height: 12, color: "#0066FF" }} /> Total closed leads
           </div>
         </div>
@@ -385,7 +385,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
           <span className="crm-kpi-label">INTERESTED</span>
           <div className="crm-kpi-value" style={{ color: "#38BDF8" }}>{kpis.interestedLeads}</div>
-          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+          <div className="crm-kpi-sub" style={{ color: "var(--text-muted)" }}>
             <TrendingUp style={{ width: 12, height: 12, color: "#38BDF8" }} /> Qualified prospects
           </div>
         </div>
@@ -402,7 +402,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
           <span className="crm-kpi-label">FOLLOW-UPS</span>
           <div className="crm-kpi-value" style={{ color: "#A78BFA" }}>{kpis.followUpLeads}</div>
-          <div className="crm-kpi-sub" style={{ color: "#94A3B8" }}>
+          <div className="crm-kpi-sub" style={{ color: "var(--text-muted)" }}>
             <TrendingUp style={{ width: 12, height: 12, color: "#A78BFA" }} /> Active follow-up stage
           </div>
         </div>
@@ -418,7 +418,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
             </span>
           </div>
           <span className="crm-kpi-label">CONVERSION RATE</span>
-          <div className="crm-kpi-value" style={{ color: "#FFFFFF" }}>{kpis.conversionRate}%</div>
+          <div className="crm-kpi-value" style={{ color: "var(--text-primary)" }}>{kpis.conversionRate}%</div>
           <div className="crm-kpi-featured-bar-track">
             <div className="crm-kpi-featured-bar-fill" style={{ width: `${Math.min(kpis.conversionRate || 0, 100)}%` }} />
           </div>
@@ -564,10 +564,10 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
       {/* Schedule Follow-Up Modal */}
       {scheduleLead && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setScheduleLead(null)}>
-          <div style={{ width: "100%", maxWidth: 440, background: "#12131A", border: "1px solid rgba(0, 229, 255,0.3)", padding: 24, borderRadius: 16, boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ width: "100%", maxWidth: 440, background: "var(--surface)", border: "1px solid rgba(0, 229, 255,0.3)", padding: 24, borderRadius: 16, boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ marginBottom: 16 }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>SCHEDULE TASK</span>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#FFF", margin: "4px 0 0" }}>Schedule Follow-Up</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: "4px 0 0" }}>Schedule Follow-Up</h2>
             </div>
 
             <form onSubmit={handleScheduleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -576,10 +576,10 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
               </p>
 
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#94A3B8", marginBottom: 4 }}>Date & Time *</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>Date & Time *</label>
                 <input
                   type="datetime-local"
-                  style={{ width: "100%", padding: "10px 12px", background: "#181924", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#FFF", fontSize: 12, outline: "none" }}
+                  style={{ width: "100%", padding: "10px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, color: "var(--text-primary)", fontSize: 12, outline: "none" }}
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
                   required
@@ -587,9 +587,9 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#94A3B8", marginBottom: 4 }}>Note / Task Description</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4 }}>Note / Task Description</label>
                 <textarea
-                  style={{ width: "100%", padding: "10px 12px", background: "#181924", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#FFF", fontSize: 12, outline: "none", resize: "none" }}
+                  style={{ width: "100%", padding: "10px 12px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, color: "var(--text-primary)", fontSize: 12, outline: "none", resize: "none" }}
                   placeholder="e.g. Call regarding pricing proposal"
                   value={scheduleNote}
                   onChange={(e) => setScheduleNote(e.target.value)}
@@ -601,7 +601,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
                 <button
                   type="button"
                   onClick={() => setScheduleLead(null)}
-                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 600, borderRadius: 8, background: "#181924", color: "#CBD5E1", border: "none", cursor: "pointer" }}
+                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 600, borderRadius: 8, background: "var(--bg-secondary)", color: "#CBD5E1", border: "none", cursor: "pointer" }}
                 >
                   Cancel
                 </button>

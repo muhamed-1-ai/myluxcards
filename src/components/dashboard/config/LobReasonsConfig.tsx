@@ -280,7 +280,7 @@ export function LobReasonsConfig() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 16,
-          background: "#12131A",
+          background: "var(--surface)",
           border: "1px solid rgba(0, 229, 255, 0.18)",
           padding: "24px 28px",
           borderRadius: 18,
@@ -291,10 +291,10 @@ export function LobReasonsConfig() {
           <div style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.1em" }}>
             LOSS OF BUSINESS
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: "#FFF", margin: "4px 0 2px", fontFamily: "Inter, system-ui, sans-serif", letterSpacing: "-0.01em" }}>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--text-primary)", margin: "4px 0 2px", fontFamily: "Inter, system-ui, sans-serif", letterSpacing: "-0.01em" }}>
             LOB Reasons
           </h1>
-          <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
             Configure standardized loss-of-business reasons used during Lead stage exits and downstream analysis.
           </p>
         </div>
@@ -308,7 +308,7 @@ export function LobReasonsConfig() {
           justifyContent: "space-between",
           flexWrap: "wrap",
           gap: 16,
-          background: "#12131A",
+          background: "var(--surface)",
           border: "1px solid rgba(0, 229, 255, 0.18)",
           padding: "16px 24px",
           borderRadius: 16,
@@ -338,16 +338,16 @@ export function LobReasonsConfig() {
                 height: 44,
                 paddingLeft: 42,
                 paddingRight: 16,
-                background: "#181924",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 10,
-                color: "#FFFFFF",
+                color: "var(--text-primary)",
                 fontSize: 13,
                 outline: "none",
                 transition: "all 0.2s ease",
               }}
               onFocus={(e) => (e.target.style.borderColor = "rgba(0, 229, 255, 0.6)")}
-              onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.1)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border-color)")}
             />
           </div>
 
@@ -360,10 +360,10 @@ export function LobReasonsConfig() {
                 width: "100%",
                 height: 44,
                 padding: "0 14px",
-                background: "#181924",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 10,
-                color: "#FFFFFF",
+                color: "var(--text-primary)",
                 fontSize: 13,
                 outline: "none",
                 cursor: "pointer",
@@ -436,7 +436,7 @@ export function LobReasonsConfig() {
       {/* 3. LOB REASON REGISTRY CARD */}
       <div
         style={{
-          background: "#12131A",
+          background: "var(--surface)",
           border: "1px solid rgba(0, 229, 255, 0.18)",
           borderRadius: 18,
           padding: 24,
@@ -451,14 +451,14 @@ export function LobReasonsConfig() {
             alignItems: "center",
             paddingBottom: 20,
             marginBottom: 20,
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            borderBottom: "1px solid var(--border-color)",
           }}
         >
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#FFF", margin: 0, fontFamily: "Inter, system-ui, sans-serif" }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0, fontFamily: "Inter, system-ui, sans-serif" }}>
               LOB Reason Registry
             </h2>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: "2px 0 0" }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
               Keep exit reasons clean for Lead workflows, audit trails, and LOB analytics.
             </p>
           </div>
@@ -485,7 +485,7 @@ export function LobReasonsConfig() {
             <div className="lob-reasons-desktop-table" style={{ width: "100%", overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: 700 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", height: 48, background: "#181924" }}>
+                  <tr style={{ borderBottom: "1px solid var(--border-color)", height: 48, background: "var(--bg-secondary)" }}>
                     <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       REASON NAME
                     </th>
@@ -508,7 +508,7 @@ export function LobReasonsConfig() {
                     <tr
                       key={item.id}
                       style={{
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        borderBottom: "1px solid var(--border-color)",
                         height: 68,
                         transition: "background 0.15s ease",
                       }}
@@ -517,7 +517,7 @@ export function LobReasonsConfig() {
                     >
                       {/* Reason Name */}
                       <td style={{ padding: "14px 18px" }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: "#FFFFFF" }}>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
                           {item.name}
                         </div>
                       </td>
@@ -553,8 +553,8 @@ export function LobReasonsConfig() {
                               padding: "4px 12px",
                               borderRadius: 20,
                               background: "rgba(255, 255, 255, 0.06)",
-                              border: "1px solid rgba(255, 255, 255, 0.12)",
-                              color: "#94A3B8",
+                              border: "1px solid var(--border-color)",
+                              color: "var(--text-muted)",
                             }}
                           >
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#94A3B8" }} />
@@ -564,14 +564,14 @@ export function LobReasonsConfig() {
                       </td>
 
                       {/* Created Date */}
-                      <td style={{ padding: "14px 18px", fontSize: 13, color: "#94A3B8" }}>
+                      <td style={{ padding: "14px 18px", fontSize: 13, color: "var(--text-muted)" }}>
                         {formatDate(item.createdAt)}
                       </td>
 
                       {/* Created By */}
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#CBD5E1" }}>
-                          <User style={{ width: 14, height: 14, color: "#94A3B8" }} />
+                          <User style={{ width: 14, height: 14, color: "var(--text-muted)" }} />
                           <span>{item.createdBy}</span>
                         </div>
                       </td>
@@ -587,9 +587,9 @@ export function LobReasonsConfig() {
                               width: 34,
                               height: 34,
                               borderRadius: 8,
-                              background: "#181924",
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              color: "#94A3B8",
+                              background: "var(--bg-secondary)",
+                              border: "1px solid var(--border-color)",
+                              color: "var(--text-muted)",
                               cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
@@ -597,7 +597,7 @@ export function LobReasonsConfig() {
                               transition: "all 0.15s ease",
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
                           >
                             <MoreVertical style={{ width: 16, height: 16 }} />
                           </button>
@@ -611,7 +611,7 @@ export function LobReasonsConfig() {
                                 top: 40,
                                 zIndex: 30,
                                 width: 160,
-                                background: "#181924",
+                                background: "var(--bg-secondary)",
                                 border: "1px solid rgba(0, 229, 255, 0.3)",
                                 borderRadius: 12,
                                 boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
@@ -632,7 +632,7 @@ export function LobReasonsConfig() {
                                   padding: "8px 12px",
                                   fontSize: 12,
                                   fontWeight: 600,
-                                  color: "#FFF",
+                                  color: "var(--text-primary)",
                                   background: "transparent",
                                   border: "none",
                                   borderRadius: 6,
@@ -714,8 +714,8 @@ export function LobReasonsConfig() {
                 <div
                   key={`mobile-${item.id}`}
                   style={{
-                    background: "#181924",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
                     borderRadius: 14,
                     padding: 16,
                     display: "flex",
@@ -724,19 +724,19 @@ export function LobReasonsConfig() {
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#FFFFFF" }}>{item.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{item.name}</div>
                     {item.status === "ACTIVE" ? (
                       <span style={{ fontSize: 10, fontWeight: 800, color: "#10B981", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", padding: "2px 8px", borderRadius: 20 }}>
                         Active
                       </span>
                     ) : (
-                      <span style={{ fontSize: 10, fontWeight: 800, color: "#94A3B8", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", padding: "2px 8px", borderRadius: 20 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", border: "1px solid var(--border-color)", padding: "2px 8px", borderRadius: 20 }}>
                         Inactive
                       </span>
                     )}
                   </div>
 
-                  <div style={{ fontSize: 12, color: "#94A3B8", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <div>Created: <span style={{ color: "#E2E8F0" }}>{formatDate(item.createdAt)}</span></div>
                     <div>By: <span style={{ color: "#E2E8F0" }}>{item.createdBy}</span></div>
                   </div>
@@ -745,7 +745,7 @@ export function LobReasonsConfig() {
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(item)}
-                      style={{ flex: 1, padding: "8px", fontSize: 12, fontWeight: 600, background: "#12131A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#FFF", cursor: "pointer" }}
+                      style={{ flex: 1, padding: "8px", fontSize: 12, fontWeight: 600, background: "var(--surface)", border: "1px solid var(--border-color)", borderRadius: 8, color: "var(--text-primary)", cursor: "pointer" }}
                     >
                       Edit
                     </button>
@@ -759,7 +759,7 @@ export function LobReasonsConfig() {
                     <button
                       type="button"
                       onClick={() => setDeletingReason(item)}
-                      style={{ padding: "8px 12px", fontSize: 12, fontWeight: 600, background: "#12131A", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, color: "#EF4444", cursor: "pointer" }}
+                      style={{ padding: "8px 12px", fontSize: 12, fontWeight: 600, background: "var(--surface)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, color: "#EF4444", cursor: "pointer" }}
                     >
                       <Trash2 style={{ width: 14, height: 14 }} />
                     </button>
@@ -774,10 +774,10 @@ export function LobReasonsConfig() {
             <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileText style={{ width: 22, height: 22 }} />
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
               No LOB Reasons Configured Yet
             </h3>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 400 }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, maxWidth: 400 }}>
               Start by creating loss-of-business reasons to analyze why leads are lost or disqualified.
             </p>
             <button
@@ -809,10 +809,10 @@ export function LobReasonsConfig() {
             <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileText style={{ width: 22, height: 22 }} />
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: 0 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
               No LOB Reasons Match Your Search
             </h3>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 360 }}>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, maxWidth: 360 }}>
               We couldn't find any loss-of-business reasons matching your criteria. Try adjusting your search query or status filter.
             </p>
             <button
@@ -826,7 +826,7 @@ export function LobReasonsConfig() {
                 padding: "8px 18px",
                 fontSize: 12,
                 fontWeight: 700,
-                background: "#181924",
+                background: "var(--bg-secondary)",
                 border: "1px solid rgba(0, 229, 255, 0.3)",
                 borderRadius: 8,
                 color: "#0066FF",
@@ -859,7 +859,7 @@ export function LobReasonsConfig() {
             style={{
               width: "100%",
               maxWidth: 640,
-              background: "#12131A",
+              background: "var(--surface)",
               border: "1px solid rgba(0, 229, 255, 0.3)",
               borderRadius: 18,
               boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
@@ -876,7 +876,7 @@ export function LobReasonsConfig() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "22px 28px",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                borderBottom: "1px solid var(--border-color)",
                 background: "#161722",
               }}
             >
@@ -884,10 +884,10 @@ export function LobReasonsConfig() {
                 <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                   CREATE LOB REASON
                 </span>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: "#FFF", margin: "2px 0 0" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>
                   {editingReason ? "Edit LOB Reason" : "Add LOB Reason"}
                 </h2>
-                <p style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
                   Maintain structured loss-of-business reasons so Lead exits stay consistent, auditable, and ready for analysis.
                 </p>
               </div>
@@ -895,12 +895,12 @@ export function LobReasonsConfig() {
                 type="button"
                 onClick={() => setIsFormOpen(false)}
                 style={{
-                  background: "#181924",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-color)",
                   borderRadius: 8,
                   width: 32,
                   height: 32,
-                  color: "#94A3B8",
+                  color: "var(--text-muted)",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -953,10 +953,10 @@ export function LobReasonsConfig() {
                     width: "100%",
                     height: 48,
                     padding: "0 16px",
-                    background: "#181924",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
                     borderRadius: 10,
-                    color: "#FFFFFF",
+                    color: "var(--text-primary)",
                     fontSize: 14,
                     outline: "none",
                   }}
@@ -979,8 +979,8 @@ export function LobReasonsConfig() {
                       alignItems: "center",
                       gap: 10,
                       padding: "12px 16px",
-                      background: formData.status === "ACTIVE" ? "rgba(0, 229, 255, 0.12)" : "#181924",
-                      border: formData.status === "ACTIVE" ? "1px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.1)",
+                      background: formData.status === "ACTIVE" ? "rgba(0, 229, 255, 0.12)" : "var(--bg-secondary)",
+                      border: formData.status === "ACTIVE" ? "1px solid #0066FF" : "1px solid var(--border-color)",
                       borderRadius: 10,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
@@ -1009,8 +1009,8 @@ export function LobReasonsConfig() {
                       alignItems: "center",
                       gap: 10,
                       padding: "12px 16px",
-                      background: formData.status === "INACTIVE" ? "rgba(255, 255, 255, 0.08)" : "#181924",
-                      border: formData.status === "INACTIVE" ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid rgba(255, 255, 255, 0.1)",
+                      background: formData.status === "INACTIVE" ? "var(--border-color)" : "var(--bg-secondary)",
+                      border: formData.status === "INACTIVE" ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid var(--border-color)",
                       borderRadius: 10,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
@@ -1040,7 +1040,7 @@ export function LobReasonsConfig() {
                 justifyContent: "flex-end",
                 gap: 12,
                 padding: "18px 28px",
-                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                borderTop: "1px solid var(--border-color)",
                 background: "#161722",
               }}
             >
@@ -1052,9 +1052,9 @@ export function LobReasonsConfig() {
                   fontSize: 13,
                   fontWeight: 600,
                   borderRadius: 9,
-                  background: "#181924",
+                  background: "var(--bg-secondary)",
                   color: "#CBD5E1",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  border: "1px solid var(--border-color)",
                   cursor: "pointer",
                 }}
               >
@@ -1103,7 +1103,7 @@ export function LobReasonsConfig() {
             style={{
               width: "100%",
               maxWidth: 440,
-              background: "#12131A",
+              background: "var(--surface)",
               border: "1px solid rgba(239, 68, 68, 0.4)",
               padding: 26,
               borderRadius: 18,
@@ -1116,10 +1116,10 @@ export function LobReasonsConfig() {
                 <AlertTriangle style={{ width: 22, height: 22 }} />
               </div>
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: "#FFF", margin: 0 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
                   {deletingReason.isSystem || deletingReason.usageCount > 0 ? "Protected LOB Reason" : "Delete LOB Reason?"}
                 </h3>
-                <span style={{ fontSize: 11, color: "#94A3B8" }}>{deletingReason.name}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{deletingReason.name}</span>
               </div>
             </div>
 
@@ -1137,7 +1137,7 @@ export function LobReasonsConfig() {
               <button
                 type="button"
                 onClick={() => setDeletingReason(null)}
-                style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "#181924", color: "#CBD5E1", border: "none", cursor: "pointer" }}
+                style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "#CBD5E1", border: "none", cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -1154,7 +1154,7 @@ export function LobReasonsConfig() {
                 <button
                   type="button"
                   onClick={handleConfirmDelete}
-                  style={{ padding: "10px 20px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#EF4444", color: "#FFF", border: "none", cursor: "pointer" }}
+                  style={{ padding: "10px 20px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#EF4444", color: "var(--text-primary)", border: "none", cursor: "pointer" }}
                 >
                   Delete Reason
                 </button>

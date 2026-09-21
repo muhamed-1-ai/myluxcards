@@ -1,22 +1,22 @@
 :root {
-  --d-navy: #07131f;
-  --d-navy2: #0b1d2d;
-  --d-cyan: #0066FF;
+  --d-navy: var(--surface);
+  --d-navy2: var(--bg-secondary);
+  --d-cyan: var(--primary);
   --d-green: #19a86b;
   --d-blue: #2677df;
   --d-orange: #ee8b2c;
   --d-red: #dc4c55;
-  --d-ink: #172331;
-  --d-muted: #687789;
-  --d-line: #e3e9ee;
-  --d-bg: #f3f6f8;
+  --d-ink: var(--text-primary);
+  --d-muted: var(--text-muted);
+  --d-line: var(--border-color);
+  --d-bg: var(--background);
 }
 .dash-auth-loading {
   min-height: 100vh;
   display: grid;
   place-items: center;
   background: var(--d-bg);
-  color: var(--d-navy);
+  color: var(--d-ink);
   font:
     600 16px Georgia,
     serif;
@@ -48,7 +48,7 @@
   position: fixed;
   z-index: 30;
   inset: 0 0 auto 0;
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--d-line);
   display: flex;
   align-items: center;
@@ -97,8 +97,9 @@
   height: calc(100vh - 72px);
   max-height: calc(100vh - 72px);
   width: 244px;
-  background: linear-gradient(165deg, var(--d-navy2), var(--d-navy));
-  color: #c8d0d7;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-right: 1px solid var(--border-color);
   padding: 24px 0;
   display: flex;
   flex-direction: column;
