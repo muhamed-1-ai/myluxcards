@@ -46,18 +46,22 @@ export function Logo({
           alignItems: 'center',
           justifyContent: 'center',
           userSelect: 'none',
+          lineHeight: 1,
+          verticalAlign: 'middle',
         }}
       >
         <Image
           src="/assets/icon-mark.png"
           alt={alt}
-          width={height}
-          height={height}
+          width={height * 2}
+          height={height * 2}
           priority
           style={{
             height: `${height}px`,
             width: `${height}px`,
             objectFit: 'contain',
+            objectPosition: 'center',
+            display: 'block',
           }}
           className="brand-logo-icon"
         />
@@ -71,8 +75,11 @@ export function Logo({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'flex-start',
         userSelect: 'none',
         textDecoration: 'none',
+        lineHeight: 1,
+        verticalAlign: 'middle',
       }}
     >
       <Image
@@ -86,6 +93,8 @@ export function Logo({
           width: 'auto',
           maxWidth: '100%',
           objectFit: 'contain',
+          objectPosition: 'left center',
+          display: 'block',
         }}
         className="brand-logo-img"
       />

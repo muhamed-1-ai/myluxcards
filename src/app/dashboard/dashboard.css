@@ -57,12 +57,19 @@
 .dash-brand {
   width: 212px;
   display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
 }
-.dash-brand img {
-  width: 154px;
-  height: 43px;
+.dash-brand img,
+.dash-brand svg {
+  max-width: 160px;
+  width: auto;
+  height: auto;
+  max-height: 40px;
   object-fit: contain;
-  object-position: left;
+  object-position: left center;
+  display: block;
 }
 .crumb {
   padding-left: 24px;
