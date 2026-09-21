@@ -16,7 +16,7 @@ export async function authenticatedResponse(
   const maxAge = 60 * 60 * 24 * 30;
   const token = await encode({
     secret,
-    token: { sub: user.id, userId: user.id, email: user.email, name: user.name, sessionVersion: user.sessionVersion || 1 },
+    token: { sub: user.id, userId: user.id, email: user.email, name: user.name, sessionVersion: user.sessionVersion || 1, role: user.role || "CUSTOMER" },
     maxAge,
   });
   const redirectTo = user.mustChangePassword

@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { authenticateCredentials, linkGoogleIdentity } from "./authService";
+import { findUserById } from "./repositories/users";
 
 if (process.env.NODE_ENV === "production") {
   const canonical = "https://3gzappit.com";
@@ -63,7 +64,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials.password) return null;
         try {
           const user = await authenticateCredentials(credentials.email, credentials.password);
-          return user ? { id: user.id, email: user.email, name: user.name, sessionVersion: user.sessionVersion } : null;
+          return user ? { id: user.id, email: user.email, name: user.name, role: user.role, sessionVersion: user.sessionVersion } : null;
         } catch (error) {
           console.error("[Auth] Credentials authorization error:", error);
           return null;
@@ -109,7 +110,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name || "",
           image: user.image,
         });
-        Object.assign(user, { id: linked.id, sessionVersion: linked.session_version });
+        Object.assign(user, { id: linked.id, role: linked.role, sessionVersion: linked.session_version });
         console.log("[OAuth][TRACE][LINK_SUCCESS]", { userId: linked.id, role: linked.role });
         console.log("[OAuth][signIn][SUCCESS]", { userId: linked.id, role: linked.role });
         console.log("[OAuth][TRACE][SIGNIN_RETURN_TRUE]", { userId: linked.id });
@@ -126,15 +127,29 @@ export const authOptions: NextAuthOptions = {
       console.log("[OAuth][TRACE][JWT_ENTER]", { hasUser: Boolean(user) });
       if (user) {
         token.userId = user.id;
+        token.role = (user as any)?.role || token.role;
         token.sessionVersion = (user as typeof user & { sessionVersion?: number }).sessionVersion;
       }
-      console.log("[OAuth][TRACE][JWT_SUCCESS]", { userIdExists: Boolean(token.userId) });
+      if (token.userId && !token.role) {
+        try {
+          const dbUser = await findUserById(token.userId as string);
+          if (dbUser) {
+            token.role = dbUser.role;
+            if (dbUser.session_version !== undefined) {
+              token.sessionVersion = dbUser.session_version;
+            }
+          }
+        } catch (err) {
+          console.error("[Auth] Error fetching DB user in jwt callback:", err);
+        }
+      }
+      console.log("[OAuth][TRACE][JWT_SUCCESS]", { userIdExists: Boolean(token.userId), role: token.role });
       return token;
     },
     async session({ session, token }) {
       console.log("[OAuth][TRACE][SESSION_ENTER]", { userIdExists: Boolean(token.userId) });
-      if (session.user) Object.assign(session.user, { id: token.userId, sessionVersion: token.sessionVersion });
-      console.log("[OAuth][TRACE][SESSION_SUCCESS]", { userIdExists: Boolean(session.user?.id) });
+      if (session.user) Object.assign(session.user, { id: token.userId, role: token.role, sessionVersion: token.sessionVersion });
+      console.log("[OAuth][TRACE][SESSION_SUCCESS]", { userIdExists: Boolean(session.user?.id), role: session.user?.role });
       return session;
     },
     async redirect({ url, baseUrl }) {
