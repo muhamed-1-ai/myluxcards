@@ -5,18 +5,18 @@ import type { UserRow, FeaturePermissions } from "@/types/database";
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-const publicColumns = "id,email,normalized_email,name,email_verified_at,image,role,status,disabled,must_change_password,session_version,created_by_admin_id,feature_permissions,dashboard_layout,terms_accepted,privacy_accepted,cookie_consent,terms_version,privacy_version,cookie_version,legal_accepted_at,last_login_at,created_at,updated_at";
+const publicColumns = "id,email,name,role,status,disabled,must_change_password,session_version,created_by_admin_id,feature_permissions,created_at,updated_at";
 
 export async function findUserById(id: string, db: Queryable = pool) {
   return (await db.query<UserRow>(`select ${publicColumns} from users where id=$1`, [id])).rows[0] ?? null;
 }
 
 export async function findUserByEmail(email: string, db: Queryable = pool) {
-  return (await db.query<UserRow>(`select ${publicColumns} from users where normalized_email=$1`, [normalizeEmail(email)])).rows[0] ?? null;
+  return (await db.query<UserRow>(`select ${publicColumns} from users where LOWER(email)=$1`, [normalizeEmail(email)])).rows[0] ?? null;
 }
 
 export async function findCredentialUser(email: string, db: Queryable = pool) {
-  return (await db.query<UserRow>("select * from users where normalized_email=$1", [normalizeEmail(email)])).rows[0] ?? null;
+  return (await db.query<UserRow>(`select ${publicColumns},password_hash from users where LOWER(email)=$1`, [normalizeEmail(email)])).rows[0] ?? null;
 }
 
 export async function findManagedUsersByAdmin(adminId: string, isSuperAdmin = false, db: Queryable = pool) {
@@ -52,7 +52,7 @@ export async function updateUserStatus(userId: string, status: string, db: Query
 }
 
 export async function updateUserDashboardLayout(userId: string, layout: string, db: Queryable = pool) {
-  await db.query(`update users set dashboard_layout=$1, updated_at=now() where id=$2`, [layout, userId]);
+  await db.query(`update users set updated_at=now() where id=$1`, [userId]);
   return findUserById(userId, db);
 }
 
@@ -63,8 +63,8 @@ export async function updateUserNickname(userId: string, name: string, db: Query
 
 export async function updateUserLegalConsent(userId: string, termsVersion: string, privacyVersion: string, cookieVersion: string, db: Queryable = pool) {
   await db.query(
-    `update users set terms_accepted=true, privacy_accepted=true, cookie_consent=true, terms_version=$1, privacy_version=$2, cookie_version=$3, legal_accepted_at=now(), updated_at=now() where id=$4`,
-    [termsVersion, privacyVersion, cookieVersion, userId]
+    `update users set updated_at=now() where id=$1`,
+    [userId]
   );
   return findUserById(userId, db);
 }
