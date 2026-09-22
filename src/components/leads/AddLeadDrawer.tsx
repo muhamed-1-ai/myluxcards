@@ -88,6 +88,14 @@ export default function AddLeadDrawer({
   const [loading, setLoading] = useState(false);
   const [fetchingConfig, setFetchingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = React.useRef<HTMLFormElement>(null);
+
+  const setFormError = (msg: string | null) => {
+    setError(msg);
+    if (msg && formRef.current) {
+      formRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   // Dynamic Master Config Data
   const [sources, setSources] = useState<{ id: string; name: string; code: string }[]>([]);
@@ -450,23 +458,23 @@ export default function AddLeadDrawer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setFormError(null);
 
     // Validation
     if (!formData.name.trim()) {
-      setError("Lead Name is required.");
+      setFormError("Lead Name is required.");
       setLoading(false);
       return;
     }
 
     if (!phoneNumber.trim()) {
-      setError("Mobile Number is required.");
+      setFormError("Mobile Number is required.");
       setLoading(false);
       return;
     }
 
     if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      setError("Please enter a valid email address.");
+      setFormError("Please enter a valid email address.");
       setLoading(false);
       return;
     }
@@ -526,7 +534,7 @@ export default function AddLeadDrawer({
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message || "Operation failed. Please try again.");
+      setFormError(err.message || "Operation failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -567,7 +575,7 @@ export default function AddLeadDrawer({
         </div>
 
         {/* 2. SCROLLABLE FORM BODY */}
-        <form onSubmit={handleSubmit} className="add-lead-body">
+        <form ref={formRef} onSubmit={handleSubmit} className="add-lead-body">
           
           {error && (
             <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm">

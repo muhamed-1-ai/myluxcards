@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
+import { currentIdentity, requireAdmin, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
 import { createAdminManagedUser } from "@/lib/authService";
 import { findManagedUsersByAdmin } from "@/lib/repositories/users";
 
 export async function GET() {
   try {
-    const admin = await requireAdmin();
-    if (!admin) {
+    const identity = await currentIdentity();
+    if (!identity) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+    if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
-    const isSuperAdmin = admin.role === "SUPER_ADMIN";
-    const users = await findManagedUsersByAdmin(admin.id, isSuperAdmin);
+    const isSuperAdmin = identity.role === "SUPER_ADMIN";
+    const users = await findManagedUsersByAdmin(identity.id, isSuperAdmin);
 
     return NextResponse.json({ users });
   } catch (error) {

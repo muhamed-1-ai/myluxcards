@@ -27,10 +27,10 @@ export async function POST(request: Request) {
     if (!cardId) {
       const slug = `card-${identity.id.slice(0, 8)}-${Date.now()}`;
       const newCardRes = await pool.query<{ id: string }>(
-        `INSERT INTO digital_cards (owner_id, title, name, slug, created_at, updated_at) 
-         VALUES ($1, 'Primary Digital Card', $2, $3, NOW(), NOW()) 
+        `INSERT INTO digital_cards (owner_id, slug, created_at, updated_at) 
+         VALUES ($1, $2, NOW(), NOW()) 
          RETURNING id`,
-        [identity.id, identity.name || identity.email, slug]
+        [identity.id, slug]
       );
       cardId = newCardRes.rows[0]?.id;
     }
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       ok: true,
       message: "Lead added successfully.",
       lead: result.lead,
-    });
+    }, { status: 201 });
   } catch (error: any) {
     console.error("[Manual Lead API] Error:", error);
     return Response.json(
