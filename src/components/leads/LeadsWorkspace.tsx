@@ -264,47 +264,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
           {/* Control Actions Row Grouped Logically */}
           <div className="flex items-center gap-4 flex-wrap">
-            {/* Action Group 1: Data & Export Actions */}
-            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setSelectMode(!selectMode)}
-                className={`crm-btn-secondary ${selectMode ? "active" : ""}`}
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
-                <span>Select</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsAddOpen(true)}
-                className="crm-btn-secondary"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Import</span>
-              </button>
-
-              <label className="crm-checkbox-label hidden sm:flex">
-                <input
-                  type="checkbox"
-                  checked={includeArchived}
-                  onChange={(e) => setIncludeArchived(e.target.checked)}
-                  className="rounded text-emerald-600 focus:ring-emerald-500"
-                />
-                <span>Include archived leads in export</span>
-              </label>
-
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="crm-btn-secondary"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export</span>
-              </button>
-            </div>
-
-            {/* Action Group 2: View Controls */}
+            {/* Action Group 1: View Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3">
               <button
                 type="button"
@@ -324,7 +284,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               </button>
             </div>
 
-            {/* Action Group 3: Primary Action */}
+            {/* Action Group 2: Primary Action */}
             <div className="flex items-center">
               <button
                 type="button"
@@ -378,7 +338,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             <span>FILTER LEADS</span>
           </div>
 
-          {/* First Filter Row: Search + 5 dropdowns */}
+          {/* First Filter Row: Search + Stage + Assigned User + Source + Status */}
           <div className="crm-filter-row-primary">
             {/* Search Input */}
             <div className="crm-filter-input-wrap">
@@ -430,17 +390,6 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               <option value="DIRECT">Direct</option>
             </select>
 
-            {/* Office Location Filter */}
-            <select
-              value={officeFilter}
-              onChange={(e) => setOfficeFilter(e.target.value)}
-              className="crm-filter-select"
-            >
-              <option value="">Office Location</option>
-              <option value="main">Main Office</option>
-              <option value="branch">Branch Office</option>
-            </select>
-
             {/* Status Filter */}
             <select
               value={statusFilter}
@@ -453,7 +402,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             </select>
           </div>
 
-          {/* Second Filter Row: Scope + Start Date + End Date */}
+          {/* Second Filter Row: Scope Filter */}
           <div className="crm-filter-row-secondary">
             {/* Scope Filter */}
             <div className="w-full sm:w-[200px]">
@@ -466,31 +415,11 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 <option value="mine">My Leads</option>
               </select>
             </div>
-
-            {/* Date From */}
-            <div className="w-full sm:w-[170px]">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="crm-filter-date"
-              />
-            </div>
-
-            {/* Date To */}
-            <div className="w-full sm:w-[170px]">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="crm-filter-date"
-              />
-            </div>
           </div>
 
           <div className="crm-filter-panel-footer">
             <span className="crm-filter-note">
-              ★ Use filters to refine the pipeline view, then export the same dataset to CSV.
+              ★ Use filters to refine the pipeline view.
             </span>
             <button
               type="button"
