@@ -280,7 +280,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
           {/* Header */}
           <div className="notif-dropdown-header">
             <div className="flex items-center gap-2.5">
-              <span className="font-bold text-white text-base tracking-wide">Notifications</span>
+              <span className="font-bold text-[var(--text-primary)] text-base tracking-wide">Notifications</span>
               {unreadCount > 0 && (
                 <span className="px-2 py-0.5 text-[11px] font-extrabold text-[#0066FF] bg-amber-500/15 border border-amber-500/30 rounded-full">
                   {unreadCount} new
@@ -292,7 +292,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-xs text-[#0066FF] hover:text-amber-300 hover:underline font-bold transition-colors flex items-center gap-1 bg-transparent border-0 p-0 cursor-pointer"
+                className="text-xs text-[#0066FF] hover:text-amber-500 hover:underline font-bold transition-colors flex items-center gap-1 bg-transparent border-0 p-0 cursor-pointer"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark all read
@@ -301,9 +301,9 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
           </div>
 
           {/* Notification List Container */}
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-neutral-800/40">
+          <div className="max-h-[380px] overflow-y-auto divide-y divide-[var(--border-color)]">
             {loading ? (
-              <div className="p-8 text-center text-xs text-neutral-400 tracking-wide">
+              <div className="p-8 text-center text-xs text-[var(--text-muted)] tracking-wide">
                 <div className="notif-skeleton-row" style={{ height: 50, marginBottom: 8 }} />
                 <div className="notif-skeleton-row" style={{ height: 50, marginBottom: 8 }} />
                 <div className="notif-skeleton-row" style={{ height: 50 }} />
@@ -317,7 +317,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                 <h4 style={{ fontSize: 13, fontWeight: 700, color: "#0066FF", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", letterSpacing: "0.03em", margin: "0 0 4px 0", textTransform: "uppercase" }}>
                   No Notifications Yet
                 </h4>
-                <p style={{ fontSize: 12, fontWeight: 400, color: "#9E9E9E", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", lineHeight: 1.5, margin: 0, maxWidth: 220, textAlign: "center" }}>
+                <p style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", lineHeight: 1.5, margin: 0, maxWidth: 220, textAlign: "center" }}>
                   You're all caught up.<br />New activity will appear here.
                 </p>
               </div>
@@ -327,13 +327,13 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                 <div
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className={`p-4 flex items-start gap-3.5 cursor-pointer transition-all duration-150 relative hover:bg-neutral-800/50 ${
+                  className={`p-4 flex items-start gap-3.5 cursor-pointer transition-all duration-150 relative hover:bg-[var(--surface-glow)] ${
                     !n.is_read
                       ? "bg-amber-500/[0.06] border-l-2 border-l-[#0066FF]"
                       : "bg-transparent border-l-2 border-l-transparent"
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#171821] border border-neutral-800/80 shrink-0 flex items-center justify-center mt-0.5 shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shrink-0 flex items-center justify-center mt-0.5 shadow-sm">
                     {getIcon(n.type)}
                   </div>
 
@@ -341,17 +341,17 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                     <div className="flex items-start justify-between gap-2 mb-0.5">
                       <h5
                         className={`text-xs sm:text-sm truncate ${
-                          !n.is_read ? "text-[#F5E6A3] font-bold" : "text-neutral-200 font-medium"
+                          !n.is_read ? "text-[#0066FF] font-bold" : "text-[var(--text-primary)] font-medium"
                         }`}
                       >
                         {n.title}
                       </h5>
-                      <span className="text-[11px] text-neutral-500 shrink-0 font-normal mt-0.5">
+                      <span className="text-[11px] text-[var(--text-muted)] shrink-0 font-normal mt-0.5">
                         {formatTimeAgo(n.created_at)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed font-normal">
+                    <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-relaxed font-normal">
                       {n.body}
                     </p>
                   </div>

@@ -14,7 +14,44 @@ export const CANONICAL_PRODUCTION_DOMAIN = "https://3gzappit.com";
 export function getAppOrigin(request?: Request): string {
   const isProd = process.env.NODE_ENV === "production";
 
-  // 1. Environmental override (server or build-time client env)
+  if (isProd) {
+    const envUrl =
+      process.env.APP_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXTAUTH_URL;
+    if (envUrl) {
+      const cleaned = envUrl.trim().replace(/\/$/, "");
+      const isLocal = /localhost|127\.0\.0\.1/i.test(cleaned);
+      const isCoolifyTemp = /coolify|ssli|preview|docker|local/i.test(cleaned);
+      if (cleaned && /^https?:\/\//i.test(cleaned) && !isLocal && !isCoolifyTemp) {
+        return cleaned;
+      }
+    }
+    return CANONICAL_PRODUCTION_DOMAIN;
+  }
+
+  // 1. Browser runtime context (for local dev interaction)
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  // 2. Derive from incoming Request headers (reverse-proxy aware for local dev)
+  if (request) {
+    try {
+      const forwardedHost = request.headers.get("x-forwarded-host");
+      const host = forwardedHost || request.headers.get("host");
+      if (host) {
+        const cleanHost = host.split(",")[0].trim();
+        const proto = request.headers.get("x-forwarded-proto") || (cleanHost.includes("localhost") || cleanHost.includes("127.0.0.1") ? "http" : "https");
+        return `${proto}://${cleanHost}`;
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  // 3. Environmental override for local development
   const envUrl =
     process.env.APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -23,39 +60,13 @@ export function getAppOrigin(request?: Request): string {
 
   if (envUrl) {
     const cleaned = envUrl.trim().replace(/\/$/, "");
-    const isLocal = /localhost|127\.0\.0\.1/i.test(cleaned);
-    const isCoolifyTemp = /coolify|ssli|preview|docker|local/i.test(cleaned);
-    if (cleaned && /^https?:\/\//i.test(cleaned) && (!isProd || (!isLocal && !isCoolifyTemp))) {
+    if (cleaned && /^https?:\/\//i.test(cleaned) && !cleaned.includes("3gzappit.com")) {
       return cleaned;
     }
   }
 
-  // 2. Production default: Always return canonical public domain
-  if (isProd) {
-    return CANONICAL_PRODUCTION_DOMAIN;
-  }
-
-  // 3. Browser runtime context (for local dev interaction)
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin;
-  }
-
-  // 4. Derive from incoming Request headers (reverse-proxy aware for local dev)
-  if (request) {
-    try {
-      const forwardedHost = request.headers.get("x-forwarded-host");
-      const host = forwardedHost || request.headers.get("host");
-      if (host) {
-        const cleanHost = host.split(",")[0].trim();
-        const proto = request.headers.get("x-forwarded-proto") || (cleanHost.includes("localhost") ? "http" : "https");
-        return `${proto}://${cleanHost}`;
-      }
-    } catch {
-      // Fallback below
-    }
-  }
-
-  return CANONICAL_PRODUCTION_DOMAIN;
+  const port = process.env.PORT || "3000";
+  return `http://localhost:${port}`;
 }
 
 export function cleanSlugString(slug: string): string {

@@ -17,13 +17,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const leadRes = await pool.query(
       `SELECT 
          l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
-         l.email, l.address, l.status, l.source, l.profile_image as "profileImage",
+         l.email, NULL as "address", l.status, l.source, l.profile_image as "profileImage",
          COALESCE(l.submission_count, 1) as "submissionCount", 
          l.first_submitted_at as "firstSubmittedAt",
          l.last_submitted_at as "lastSubmittedAt", 
          l.created_at as "createdAt", l.updated_at as "updatedAt",
-         COALESCE(l.total_amount, 0) as "totalAmount", 
-         COALESCE(l.advance_amount, 0) as "advanceAmount",
+         0 as "totalAmount", 
+         0 as "advanceAmount",
          l.assigned_user_id as "assignedUserId",
          u_assigned.name as "assignedUserName", u_assigned.email as "assignedUserEmail",
          u_owner.name as "createdByName", u_owner.email as "createdByEmail"

@@ -139,21 +139,30 @@ export class WasabiStorageProvider implements StorageProvider {
       ContentLength: size,
     };
 
+    const inputWithAcl = params.isPublic !== false ? { ...baseInput, ACL: "public-read" as const } : baseInput;
+
     try {
-      await client.send(new PutObjectCommand(baseInput));
+      await client.send(new PutObjectCommand(inputWithAcl));
     } catch (primaryError: any) {
-      const errName = primaryError?.name || "";
-      const errCode = primaryError?.Code || primaryError?.code || "";
-      const errMessage = primaryError?.message || "";
-
-      console.error("[Wasabi Storage] Upload failed:", key, {
-        name: errName,
-        code: errCode,
-        message: errMessage,
-        statusCode: primaryError?.$metadata?.httpStatusCode,
-      });
-
-      throw new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+      if (params.isPublic !== false) {
+        try {
+          await client.send(new PutObjectCommand(baseInput));
+        } catch (fallbackError: any) {
+          const errMessage = fallbackError?.message || primaryError?.message || "";
+          console.error("[Wasabi Storage] Upload failed:", key, {
+            message: errMessage,
+            statusCode: fallbackError?.$metadata?.httpStatusCode,
+          });
+          throw new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+        }
+      } else {
+        const errMessage = primaryError?.message || "";
+        console.error("[Wasabi Storage] Upload failed:", key, {
+          message: errMessage,
+          statusCode: primaryError?.$metadata?.httpStatusCode,
+        });
+        throw new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+      }
     }
 
     const publicUrl = this.getPublicUrl(key);

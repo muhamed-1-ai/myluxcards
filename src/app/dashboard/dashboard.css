@@ -6017,3 +6017,235 @@ body.light-mode .crm-pipeline-stage-row {
   background: #F8FAFC !important;
   border-color: #E2E8F0 !important;
 }
+
+/* --- Global Dashboard Shell & Layout Light Mode Overrides --- */
+[data-theme="light"] .dash-shell,
+body.light-mode .dash-shell {
+  background: var(--bg-body) !important;
+}
+
+[data-theme="light"] .dash-top,
+body.light-mode .dash-top {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .dash-side,
+body.light-mode .dash-side {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .dash-side nav > button,
+[data-theme="light"] .dash-side .side-link,
+body.light-mode .dash-side nav > button,
+body.light-mode .dash-side .side-link {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .dash-side nav > button:hover,
+[data-theme="light"] .dash-side nav > button.active,
+[data-theme="light"] .dash-side .side-link:hover,
+[data-theme="light"] .dash-side .side-link.active,
+[data-theme="light"] .subnav button.active,
+body.light-mode .dash-side nav > button.active,
+body.light-mode .dash-side .side-link.active {
+  background: rgba(0, 102, 255, 0.08) !important;
+  color: #0066FF !important;
+  border-left-color: #0066FF !important;
+}
+
+[data-theme="light"] .dash-side nav > button.active span,
+[data-theme="light"] .dash-side .side-link.active span,
+body.light-mode .dash-side nav > button.active span {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .subnav,
+body.light-mode .subnav {
+  border-left: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] .subnav button,
+body.light-mode .subnav button {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .card-owner,
+body.light-mode .card-owner {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .dash-main,
+body.light-mode .dash-main {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .form-card,
+[data-theme="light"] .url-card,
+[data-theme="light"] .preview-card,
+[data-theme="light"] .table-card,
+[data-theme="light"] .welcome-panel,
+[data-theme="light"] .mini-card,
+body.light-mode .form-card,
+body.light-mode .url-card,
+body.light-mode .preview-card,
+body.light-mode .table-card,
+body.light-mode .welcome-panel,
+body.light-mode .mini-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .form-intro,
+[data-theme="light"] .form-actions,
+body.light-mode .form-intro,
+body.light-mode .form-actions {
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .field > span,
+[data-theme="light"] .field label,
+[data-theme="light"] .form-intro h2,
+[data-theme="light"] .form-intro h3,
+[data-theme="light"] .field strong,
+body.light-mode .field > span,
+body.light-mode .field label,
+body.light-mode .form-intro h2 {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .field input,
+[data-theme="light"] .field select,
+[data-theme="light"] .field textarea,
+[data-theme="light"] .add-service input,
+[data-theme="light"] .search input,
+[data-theme="light"] .country-search input,
+[data-theme="light"] .table-tools select,
+body.light-mode .field input,
+body.light-mode .field select,
+body.light-mode .field textarea,
+body.light-mode .search input {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .field input::placeholder,
+[data-theme="light"] .search input::placeholder,
+body.light-mode .field input::placeholder {
+  color: #94A3B8 !important;
+}
+
+[data-theme="light"] .search,
+[data-theme="light"] .country-search,
+body.light-mode .search {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .table-tools,
+[data-theme="light"] .table-footer,
+body.light-mode .table-tools,
+body.light-mode .table-footer {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .table-footer button,
+body.light-mode .table-footer button {
+  background: #F1F5F9 !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .table-footer button.current,
+body.light-mode .table-footer button.current {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .account-popover,
+body.light-mode .account-popover {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .account-popover strong,
+body.light-mode .account-popover strong {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .account-popover span,
+body.light-mode .account-popover span {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .save-finish-reminder,
+body.light-mode .save-finish-reminder {
+  background: rgba(0, 102, 255, 0.05) !important;
+  border-color: rgba(0, 102, 255, 0.2) !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .save-finish-reminder b,
+body.light-mode .save-finish-reminder b {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .profile-colours,
+body.light-mode .profile-colours {
+  background: #F8FAFC !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] .profile-colours h3,
+body.light-mode .profile-colours h3 {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .profile-colours p,
+body.light-mode .profile-colours p {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .profile-preset-card,
+body.light-mode .profile-preset-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .profile-preset-card.active,
+body.light-mode .profile-preset-card.active {
+  background: #F0F7FF !important;
+  border-color: #0066FF !important;
+}
+
+[data-theme="light"] .confirm,
+body.light-mode .confirm {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .confirm p,
+body.light-mode .confirm p {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .dash-toast,
+body.light-mode .dash-toast {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+}
+

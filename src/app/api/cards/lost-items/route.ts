@@ -19,7 +19,10 @@ export async function GET(request: Request) {
     `;
     const params: unknown[] = [identity.id];
 
-    if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
+    if (cardId) {
+      if (!/^[0-9a-f-]{36}$/i.test(cardId)) {
+        return Response.json({ lostItems: [] });
+      }
       query += ` and i.card_id = $2`;
       params.push(cardId);
     }

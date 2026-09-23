@@ -53,19 +53,32 @@ export async function POST(request: Request) {
     };
     const ext = extensionMap[contentType] || "bin";
 
+    const accountId = identity.createdByAdminId || identity.id;
+    const userId = identity.id;
+
+    let category: "profile" | "card" | "company" | "gallery" | "document" = "card";
+    if (kind === "avatar" || kind === "profileBackground") {
+      category = "profile";
+    } else if (kind === "logo") {
+      category = "company";
+    } else if (kind === "portfolio" || kind === "gallery") {
+      category = "gallery";
+    } else if (contentType === "application/pdf") {
+      category = "document";
+    }
+
     const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
     const prefixSegment = rootPrefix ? `${rootPrefix}/` : "";
     const uniqueId = randomUUID();
-    let storageKey: string;
-    if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
-      storageKey = `${prefixSegment}cards/${cardId}/${kind}/${uniqueId}.${ext}`;
-    } else if (kind === "avatar" || kind === "logo" || kind === "cover") {
-      storageKey = `${prefixSegment}profiles/${identity.id}/${kind}/${uniqueId}.${ext}`;
+    
+    let rawKey: string;
+    if (category === "document") {
+      rawKey = `${prefixSegment}documents/accounts/${accountId}/users/${userId}/${kind}-${uniqueId}.${ext}`;
     } else {
-      storageKey = `${prefixSegment}users/${identity.id}/${kind}/${uniqueId}.${ext}`;
+      rawKey = `${prefixSegment}images/uploads/accounts/${accountId}/users/${userId}/${category}/${kind}-${uniqueId}.${ext}`;
     }
 
-    storageKey = sanitizeStorageKey(storageKey);
+    const storageKey = sanitizeStorageKey(rawKey);
 
     const provider = getStorageProvider();
     const presignedResult = await provider.createPresignedUploadUrl({

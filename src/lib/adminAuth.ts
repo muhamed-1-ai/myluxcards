@@ -226,7 +226,13 @@ export async function audit(
   );
 }
 
-export function safeError(error: unknown) {
-  console.error("Admin operation failed:", error);
+export function safeError(error: unknown, context?: Record<string, unknown>) {
+  const err = error instanceof Error ? error : new Error(String(error));
+  console.error("[API_ERROR]", {
+    errorName: err.name,
+    errorMessage: err.message,
+    stack: err.stack,
+    ...context,
+  });
   return Response.json({ message: "The request could not be completed." }, { status: 500 });
 }

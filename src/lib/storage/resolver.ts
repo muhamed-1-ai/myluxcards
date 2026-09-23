@@ -118,45 +118,67 @@ export function resolveMediaUrl(urlOrKey: string | null | undefined): string {
   const trimmed = urlOrKey.trim();
   if (!trimmed) return "";
 
-  // Absolute HTTP / HTTPS URLs or data URLs or relative paths starting with '/' or 'blob:'
   if (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
     trimmed.startsWith("data:") ||
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("blob:")
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("/api/media")
   ) {
     return trimmed;
   }
 
-  const cleanKey = trimmed.replace(/^\/+/, "");
+  // Handle Wasabi endpoint URLs (convert to /api/media?key= if pointing to S3 bucket directly)
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.includes(".wasabisys.com")) {
+      try {
+        const parsed = new URL(trimmed);
+        const pathSegments = parsed.pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+        let extractedKey = "";
 
-  // If WASABI_PUBLIC_URL is explicitly configured, use it directly
-  const configuredPublicUrl = normalizePublicUrl(process.env.WASABI_PUBLIC_URL);
-  if (configuredPublicUrl) {
-    const publicUrlParts = configuredPublicUrl.split("/");
-    const lastPublicSegment = publicUrlParts[publicUrlParts.length - 1];
-    if (lastPublicSegment && cleanKey.startsWith(`${lastPublicSegment}/`)) {
-      const deDuplicatedKey = cleanKey.slice(lastPublicSegment.length + 1);
-      return `${configuredPublicUrl}/${deDuplicatedKey}`;
+        const bucket = process.env.WASABI_BUCKET;
+        if (bucket && pathSegments[0] === bucket) {
+          extractedKey = pathSegments.slice(1).join("/");
+        } else if (
+          parsed.hostname === "s3.wasabisys.com" ||
+          /^s3[.-][a-z0-9-]+\.wasabisys\.com$/i.test(parsed.hostname)
+        ) {
+          // Path-style: https://s3.wasabisys.com/bucket-name/key/path.png
+          extractedKey = pathSegments.slice(1).join("/");
+        } else {
+          // Virtual-host style: https://bucket-name.s3.wasabisys.com/key/path.png
+          extractedKey = pathSegments.join("/");
+        }
+
+        try { extractedKey = decodeURIComponent(extractedKey); } catch {}
+        if (extractedKey) {
+          return `/api/media?key=${encodeURIComponent(extractedKey)}`;
+        }
+      } catch {
+        // Fallthrough if URL parsing fails
+      }
     }
-    return `${configuredPublicUrl}/${cleanKey}`;
+
+    const configuredPublicUrl = normalizePublicUrl(process.env.WASABI_PUBLIC_URL);
+    if (configuredPublicUrl && trimmed.startsWith(configuredPublicUrl)) {
+      let key = trimmed.slice(configuredPublicUrl.length).replace(/^\/+/, "");
+      try { key = decodeURIComponent(key); } catch {}
+      if (key) return `/api/media?key=${encodeURIComponent(key)}`;
+    }
+
+    if (trimmed.includes(" ")) {
+      return encodeURI(trimmed);
+    }
+    return trimmed;
   }
 
-  // Construct Wasabi public URL for object key using endpoint + bucket
-  const bucket = process.env.WASABI_BUCKET?.trim();
-  if (bucket) {
-    const { endpoint } = resolveWasabiEndpoint();
-    const cleanEndpoint = endpoint.replace(/\/+$/, "");
-    let targetKey = cleanKey;
-    if (targetKey.startsWith(`${bucket}/`)) {
-      targetKey = targetKey.slice(bucket.length + 1);
-    }
-    return `${cleanEndpoint}/${bucket}/${targetKey}`;
+  // Handle relative assets or local root paths
+  if (trimmed.startsWith("/")) {
+    return trimmed;
   }
 
-  // Fallback: return as-is
-  return trimmed;
+  // Treat as object key
+  let cleanKey = trimmed.replace(/^\/+/, "");
+  try { cleanKey = decodeURIComponent(cleanKey); } catch {}
+  return `/api/media?key=${encodeURIComponent(cleanKey)}`;
 }
 
 /**

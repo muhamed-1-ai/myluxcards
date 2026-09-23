@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { resolveMediaUrl } from "@/lib/storage/resolver";
 
 type VehicleConnectSettings = {
   vehicleMake?: string;
@@ -189,6 +191,8 @@ type Card = {
   coverScale?: number; coverRotation?: number; coverX?: number; coverY?: number;
   previewAuthorized?: boolean;
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+  profileFormat?: string;
+  modernConfig?: Record<string, any>;
   enabledFeatures?: { digitalProfile: boolean; vehicleConnect: boolean; lostAndFound: boolean };
   profileFeatures?: Record<string, { enabled: boolean; sortOrder: number }>;
   featureOrder?: string[];
@@ -328,7 +332,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     if (typeof window === "undefined") return;
     const searchParams = new URLSearchParams(window.location.search);
     const rawSrc = (searchParams.get("src") || searchParams.get("source") || "").toLowerCase();
-    
+
     let channel = "LINK";
     if (rawSrc === "nfc") channel = "NFC";
     else if (rawSrc === "qr") channel = "QR";
@@ -481,11 +485,11 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     </main>
   );
 
-  const phone    = card.mobile   ? `${card.countryCode}${card.mobile}`   : "";
+  const phone = card.mobile ? `${card.countryCode}${card.mobile}` : "";
   const whatsapp = card.whatsapp ? `${card.countryCode}${card.whatsapp}` : "";
   const location = [card.address, card.city, card.state].filter(Boolean).join(", ");
   const preferredSocialOrder = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "WhatsApp", "Threads"];
-  const socials  = Object.entries(card.social || {})
+  const socials = Object.entries(card.social || {})
     .filter(([, url]) => Boolean(url))
     .sort(([a], [b]) => {
       const ia = preferredSocialOrder.indexOf(a);
@@ -495,9 +499,9 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const initials = card.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "ML";
 
   const cssVars = {
-    "--pc-bg":     card.profileBackground || "#0a0a0a",
-    "--pc-accent": card.profileAccent     || "#b8962e",
-    "--pc-text":   card.profileText       || "#ffffff",
+    "--pc-bg": card.profileBackground || "#0a0a0a",
+    "--pc-accent": card.profileAccent || "#b8962e",
+    "--pc-text": card.profileText || "#ffffff",
   } as React.CSSProperties;
 
   const share = async () => {
@@ -514,7 +518,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     const websiteEnabled = pf.WEBSITE ? pf.WEBSITE.enabled : true;
 
     const vcard = ["BEGIN:VCARD", "VERSION:3.0", `FN:${card.name}`,
-      card.title    && `TITLE:${card.title}`,
+      card.title && `TITLE:${card.title}`,
       card.business && `ORG:${card.business}`,
       contactEnabled && phone && `TEL:${phone}`,
       contactEnabled && card.email && `EMAIL:${card.email}`,
@@ -721,15 +725,15 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
   /* Social platform metadata */
   const SOCIAL: Record<string, { subtitle: string; icon: React.ReactNode; iconBg: string }> = {
-    Facebook:          { subtitle: "Follow me",              icon: <FacebookIcon />,    iconBg: "#1877f2" },
-    Instagram:         { subtitle: "Follow us on Instagram", icon: <InstagramIcon />,   iconBg: "radial-gradient(circle at 30% 107%,#fdf497 0%,#fd5949 45%,#d6249f 60%,#285aeb 90%)" },
-    LinkedIn:          { subtitle: "Follow me",              icon: <LinkedInIcon />,    iconBg: "#0a66c2" },
-    Twitter:           { subtitle: "Follow me",              icon: <TwitterXIcon />,    iconBg: "#000" },
-    YouTube:           { subtitle: "Subscribe",              icon: <YouTubeIcon />,     iconBg: "#ff0000" },
-    "Google Business": { subtitle: "Find us online",         icon: <GoogleLetter />,    iconBg: "#4285f4" },
-    "Google Maps":     { subtitle: "Get directions",         icon: <LocationIcon />,    iconBg: "#4285f4" },
-    WhatsApp:          { subtitle: "Message me",             icon: <WhatsAppBrandIcon />, iconBg: "#25d366" },
-    Threads:           { subtitle: "Follow me",              icon: <ThreadsIcon />,     iconBg: "#000" },
+    Facebook: { subtitle: "Follow me", icon: <FacebookIcon />, iconBg: "#1877f2" },
+    Instagram: { subtitle: "Follow us on Instagram", icon: <InstagramIcon />, iconBg: "radial-gradient(circle at 30% 107%,#fdf497 0%,#fd5949 45%,#d6249f 60%,#285aeb 90%)" },
+    LinkedIn: { subtitle: "Follow me", icon: <LinkedInIcon />, iconBg: "#0a66c2" },
+    Twitter: { subtitle: "Follow me", icon: <TwitterXIcon />, iconBg: "#000" },
+    YouTube: { subtitle: "Subscribe", icon: <YouTubeIcon />, iconBg: "#ff0000" },
+    "Google Business": { subtitle: "Find us online", icon: <GoogleLetter />, iconBg: "#4285f4" },
+    "Google Maps": { subtitle: "Get directions", icon: <LocationIcon />, iconBg: "#4285f4" },
+    WhatsApp: { subtitle: "Message me", icon: <WhatsAppBrandIcon />, iconBg: "#25d366" },
+    Threads: { subtitle: "Follow me", icon: <ThreadsIcon />, iconBg: "#000" },
   };
 
   const pf = card?.profileFeatures || {};
@@ -744,64 +748,66 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {/* ── Feedback Notification Banner ── */}
       {actionToast && <div className="pc-toast-notice">{actionToast}</div>}
 
-      {/* ── HERO CARD (Unified Owner Identity) ── */}
-      <div className="pc-hero">
-        <div className="pc-hero-cover">
-          {card.cover && <img
-            src={card.cover}
-            className="pc-hero-cover-image"
-            alt=""
-            style={{
-              transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
-              objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
-            }}
-          />}
-          {!card.cover && <span className="pc-hero-wordmark">ZAPPIT</span>}
-          <div className="pc-hero-overlay">
-            <div className="pc-hero-bottom">
-              {card.logo && (
-                <div className="pc-hero-logo-badge">
-                  <img
-                    src={card.logo}
-                    alt={card.name || "Logo"}
-                    style={{
-                      transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
-                      objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
-                    }}
-                  />
-                </div>
-              )}
-              <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
-              {card.title && <p className="pc-hero-title">{card.title}</p>}
-              {card.business && <p className="pc-hero-biz">{card.business}</p>}
+      {/* ── HERO CARD (Standard Format Only) ── */}
+      {(!card.profileFormat || card.profileFormat === "standard" || activeView !== "profile") && (
+        <div className="pc-hero">
+          <div className="pc-hero-cover">
+            {card.cover && <img
+              src={resolveMediaUrl(card.cover)}
+              className="pc-hero-cover-image"
+              alt=""
+              style={{
+                transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
+                objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
+              }}
+            />}
+            {!card.cover && <span className="pc-hero-wordmark">ZAPPIT</span>}
+            <div className="pc-hero-overlay">
+              <div className="pc-hero-bottom">
+                {card.logo && (
+                  <div className="pc-hero-logo-badge">
+                    <img
+                      src={resolveMediaUrl(card.logo)}
+                      alt={card.name || "Logo"}
+                      style={{
+                        transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
+                        objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
+                {card.title && <p className="pc-hero-title">{card.title}</p>}
+                {card.business && <p className="pc-hero-biz">{card.business}</p>}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Quick-dial icon buttons */}
-        <div className="pc-hero-icons">
-          {phone && (
-            <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
-              <PhoneIcon />
-            </a>
-          )}
-          {whatsapp && (
-            <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
-              <WhatsAppBrandIcon />
-            </a>
-          )}
-          {card.email && (
-            <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
-              <MailIcon />
-            </a>
-          )}
-          {card.website && (
-            <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-              <WebIcon />
-            </a>
-          )}
+          {/* Quick-dial icon buttons */}
+          <div className="pc-hero-icons">
+            {phone && (
+              <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
+                <PhoneIcon />
+              </a>
+            )}
+            {whatsapp && (
+              <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
+                <WhatsAppBrandIcon />
+              </a>
+            )}
+            {card.email && (
+              <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
+                <MailIcon />
+              </a>
+            )}
+            {card.website && (
+              <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+                <WebIcon />
+              </a>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── DYNAMIC MODE SWITCHER BAR (Visible across all views if > 1 feature enabled) ── */}
       {availableModesCount > 1 && (
@@ -1204,577 +1210,592 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         );
       })()}
 
-      {/* ── VIEW 3: DIGITAL PROFILE (STANDARD) ── */}
+      {/* ── VIEW 3: DIGITAL PROFILE ── */}
       {activeView === "profile" && (
-        <>
-          {/* Action buttons (Save Contact / Share / QR Code) */}
-          <div className="pc-actions">
-            <button className="pc-action-btn pc-action-btn-primary" type="button" onClick={() => setLeadModalOpen(true)}>
-              SHARE YOUR DETAILS
-            </button>
-            <button className="pc-action-btn" type="button" onClick={saveContact}>Save Contact</button>
-            <button className="pc-action-btn" type="button" onClick={() => { track("SHARE"); void share(); }}>Share</button>
-            <button className="pc-action-btn pc-action-qr" onClick={openQr}>
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{flexShrink:0,verticalAlign:"middle"}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
-              {" "}QR Code
-            </button>
-            {card.brochure && (
-              <a
-                className="pc-action-btn"
-                href={card.brochureData || "#"}
-                download={card.brochure}
-                onClick={(e) => { if (!card.brochureData) e.preventDefault(); }}
-              >Brochure</a>
-            )}
-          </div>
-
-          {/* Dynamic Module Ordering for Standard Profile View */}
-          {(() => {
-            const orderKeys = (card.featureOrder || [
-              "BASIC_PROFILE",
-              "CONTACT",
-              "SOCIAL_LINKS",
-              "WEBSITE",
-              "EMERGENCY_CONTACT",
-            ]).filter((key) => key !== "VEHICLE" && key !== "LOST_AND_FOUND");
-
-            return orderKeys.map((featureKey) => {
-              const featureConfig = pf[featureKey];
-              if (featureConfig && featureConfig.enabled === false) return null;
-
-              if (featureKey === "BASIC_PROFILE") {
-                return (
-                  <div key="BASIC_PROFILE" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {card.about && (
-                      <div className="pc-card pc-about">
-                        <h2 className="pc-card-heading">About {card.name.split(" ")[0]}</h2>
-                        <p className="pc-about-text">{card.about}</p>
-                      </div>
-                    )}
-                    {card.services && card.services.length > 0 && (
-                      <div className="pc-card pc-services">
-                        <h2 className="pc-card-heading">Services / Products</h2>
-                        <ul className="pc-services-list">
-                          {card.services.map((s) => <li key={s}>{s}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                );
+        card.profileFormat === "modern" ? (
+          <ModernProfileLayout
+            card={card}
+            onSaveContact={saveContact}
+            onShare={() => { track("SHARE"); void share(); }}
+            onOpenBrochure={card.brochure ? () => {
+              if (card.brochureData) {
+                const a = document.createElement("a");
+                a.href = card.brochureData;
+                a.download = card.brochure;
+                a.click();
               }
+            } : undefined}
+          />
+        ) : (
+          <>
+            {/* Action buttons (Save Contact / Share / QR Code) */}
+            <div className="pc-actions">
+              <button className="pc-action-btn pc-action-btn-primary" type="button" onClick={() => setLeadModalOpen(true)}>
+                SHARE YOUR DETAILS
+              </button>
+              <button className="pc-action-btn" type="button" onClick={saveContact}>Save Contact</button>
+              <button className="pc-action-btn" type="button" onClick={() => { track("SHARE"); void share(); }}>Share</button>
+              <button className="pc-action-btn pc-action-qr" onClick={openQr}>
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{ flexShrink: 0, verticalAlign: "middle" }}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg>
+                {" "}QR Code
+              </button>
+              {card.brochure && (
+                <a
+                  className="pc-action-btn"
+                  href={card.brochureData || "#"}
+                  download={card.brochure}
+                  onClick={(e) => { if (!card.brochureData) e.preventDefault(); }}
+                >Brochure</a>
+              )}
+            </div>
 
-              if (featureKey === "CONTACT") {
-                return (
-                  <div key="CONTACT" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {(phone || card.email || location) && (
-                      <div className="pc-card pc-contact-card">
-                        <div className="pc-contact-header">
-                          {card.cover
-                            ? <img src={card.cover} className="pc-contact-thumb" alt={card.name} />
-                            : card.logo
-                              ? <img src={card.logo} className="pc-contact-thumb pc-contact-thumb--logo" alt={card.name} />
-                              : <div className="pc-contact-thumb pc-contact-initials">{initials}</div>
-                          }
-                          <span className="pc-contact-label">Contact</span>
+            {/* Dynamic Module Ordering for Standard Profile View */}
+            {(() => {
+              const orderKeys = (card.featureOrder || [
+                "BASIC_PROFILE",
+                "CONTACT",
+                "SOCIAL_LINKS",
+                "WEBSITE",
+                "EMERGENCY_CONTACT",
+              ]).filter((key) => key !== "VEHICLE" && key !== "LOST_AND_FOUND");
+
+              return orderKeys.map((featureKey) => {
+                const featureConfig = pf[featureKey];
+                if (featureConfig && featureConfig.enabled === false) return null;
+
+                if (featureKey === "BASIC_PROFILE") {
+                  return (
+                    <div key="BASIC_PROFILE" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {card.about && (
+                        <div className="pc-card pc-about">
+                          <h2 className="pc-card-heading">About {card.name.split(" ")[0]}</h2>
+                          <p className="pc-about-text">{card.about}</p>
                         </div>
-                        <hr className="pc-dashed-rule" />
-                        {phone && (
-                          <div className="pc-contact-row">
-                            <span className="pc-contact-row-label">Call me</span>
-                            <a href={`tel:${phone}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "phone")}>{phone}</a>
-                          </div>
-                        )}
-                        {whatsapp && whatsapp !== phone && (
-                          <div className="pc-contact-row">
-                            <span className="pc-contact-row-label">WhatsApp</span>
-                            <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-contact-row-value" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>{whatsapp}</a>
-                          </div>
-                        )}
-                        {card.email && (
-                          <div className="pc-contact-row">
-                            <span className="pc-contact-row-label">Email</span>
-                            <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
-                          </div>
-                        )}
-                        {location && (
-                          <div className="pc-contact-row">
-                            <span className="pc-contact-row-label">Address</span>
-                            <span className="pc-contact-row-value">{location}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
-              if (featureKey === "WEBSITE") {
-                return (
-                  <div key="WEBSITE" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {card.website && (
-                      <div className="pc-links-group">
-                        <a href={card.website} className="pc-link-row" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-                          <span className="pc-link-icon" style={{ background: "#444" }}><WebIcon /></span>
-                          <span className="pc-link-text">
-                            <span className="pc-link-name">Website</span>
-                            <span className="pc-link-sub">{card.website.replace(/^https?:\/\//, "")}</span>
-                          </span>
-                          <span className="pc-link-arrow">›</span>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
-              if (featureKey === "SOCIAL_LINKS") {
-                return (
-                  <div key="SOCIAL_LINKS" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {socials.length > 0 && (
-                      <div className="pc-links-group">
-                        {socials.map(([name, url]) => {
-                          const cfg = SOCIAL[name] || {
-                            subtitle: "Visit",
-                            icon: <span className="pc-brand-letter">{name[0]}</span>,
-                            iconBg: "#555",
-                          };
-                          return (
-                            <a
-                              key={name}
-                              href={url}
-                              className="pc-link-row"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => track("LINK_CLICK", name.toLowerCase())}
-                            >
-                              <span className="pc-link-icon" style={{ background: cfg.iconBg }}>{cfg.icon}</span>
-                              <span className="pc-link-text">
-                                <span className="pc-link-name">{name}</span>
-                                <span className="pc-link-sub">{cfg.subtitle}</span>
-                              </span>
-                              <span className="pc-link-arrow">›</span>
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
-              if (featureKey === "EMERGENCY_CONTACT") {
-                return (
-                  <div key="EMERGENCY_CONTACT" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {(card.emergencyContact?.name || card.hasEmergencyPhone) && (
-                      <div className="pc-card pc-contact-card" style={{ border: "1px solid rgba(255, 69, 58, 0.4)", background: "rgba(255, 69, 58, 0.05)" }}>
-                        <div className="pc-contact-header">
-                          <span className="pc-contact-label" style={{ color: "#ff453a" }}>🚨 Emergency Contact</span>
+                      )}
+                      {card.services && card.services.length > 0 && (
+                        <div className="pc-card pc-services">
+                          <h2 className="pc-card-heading">Services / Products</h2>
+                          <ul className="pc-services-list">
+                            {card.services.map((s) => <li key={s}>{s}</li>)}
+                          </ul>
                         </div>
-                        <hr className="pc-dashed-rule" />
-                        {card.emergencyContact?.name && (
-                          <div className="pc-contact-row">
-                            <span className="pc-contact-row-label">Contact Name</span>
-                            <span className="pc-contact-row-value">{card.emergencyContact.name} ({card.emergencyContact.relationship || "Emergency"})</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-
-              if (featureKey === "PRODUCTS") {
-                const activeProducts = profileProducts.filter(p => p.enabled !== false);
-                if (activeProducts.length === 0) return null;
-
-                return (
-                  <div key="PRODUCTS" className="pc-card pc-products-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Products</h2>
-                      <span style={{ fontSize: 11, background: "rgba(0, 229, 255, 0.12)", color: "#00E5FF", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(0, 229, 255, 0.3)", fontWeight: 700, letterSpacing: "0.5px" }}>
-                        SHOWCASE
-                      </span>
+                      )}
                     </div>
+                  );
+                }
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-                      {activeProducts.map((prod) => (
-                        <div
-                          key={prod.id}
-                          style={{
-                            background: "rgba(255, 255, 255, 0.04)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                            borderRadius: 14,
-                            overflow: "hidden",
-                            display: "flex",
-                            flexDirection: "column",
-                            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.25)",
-                            transition: "transform 0.2s ease, border-color 0.2s ease",
-                          }}
-                        >
-                          {prod.imageUrl && (
-                            <div style={{ width: "100%", height: 160, overflow: "hidden", background: "#0a0a0c", position: "relative" }}>
-                              <img
-                                src={prod.imageUrl}
-                                alt={prod.name}
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                              />
+                if (featureKey === "CONTACT") {
+                  return (
+                    <div key="CONTACT" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {(phone || card.email || location) && (
+                        <div className="pc-card pc-contact-card">
+                          <div className="pc-contact-header">
+                            {card.cover
+                              ? <img src={resolveMediaUrl(card.cover)} className="pc-contact-thumb" alt={card.name} />
+                              : card.logo
+                                ? <img src={resolveMediaUrl(card.logo)} className="pc-contact-thumb pc-contact-thumb--logo" alt={card.name} />
+                                : <div className="pc-contact-thumb pc-contact-initials">{initials}</div>
+                            }
+                            <span className="pc-contact-label">Contact</span>
+                          </div>
+                          <hr className="pc-dashed-rule" />
+                          {phone && (
+                            <div className="pc-contact-row">
+                              <span className="pc-contact-row-label">Call me</span>
+                              <a href={`tel:${phone}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "phone")}>{phone}</a>
                             </div>
                           )}
-                          <div style={{ padding: 14, display: "flex", flexDirection: "column", flex: 1, gap: 8 }}>
-                            {prod.category && (
-                              <span style={{ alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, color: "#00E5FF", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                                {prod.category}
-                              </span>
-                            )}
-                            <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.3 }}>
-                              {prod.name}
-                            </h3>
-                            {prod.description && (
-                              <p style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.7)", margin: 0, flex: 1, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.4 }}>
-                                {prod.description}
-                              </p>
-                            )}
-                            {prod.price && (
-                              <div style={{ fontSize: 15, fontWeight: 800, color: "#38ef7d", marginTop: 4 }}>
-                                {prod.currency === "INR" ? "₹" : prod.currency === "USD" ? "$" : prod.currency === "EUR" ? "€" : prod.currency === "GBP" ? "£" : `${prod.currency} `}
-                                {prod.price}
-                              </div>
-                            )}
-                            {prod.ctaUrl ? (
+                          {whatsapp && whatsapp !== phone && (
+                            <div className="pc-contact-row">
+                              <span className="pc-contact-row-label">WhatsApp</span>
+                              <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-contact-row-value" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>{whatsapp}</a>
+                            </div>
+                          )}
+                          {card.email && (
+                            <div className="pc-contact-row">
+                              <span className="pc-contact-row-label">Email</span>
+                              <a href={`mailto:${card.email}`} className="pc-contact-row-value" onClick={() => track("LINK_CLICK", "email")}>{card.email}</a>
+                            </div>
+                          )}
+                          {location && (
+                            <div className="pc-contact-row">
+                              <span className="pc-contact-row-label">Address</span>
+                              <span className="pc-contact-row-value">{location}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (featureKey === "WEBSITE") {
+                  return (
+                    <div key="WEBSITE" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {card.website && (
+                        <div className="pc-links-group">
+                          <a href={card.website} className="pc-link-row" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+                            <span className="pc-link-icon" style={{ background: "#444" }}><WebIcon /></span>
+                            <span className="pc-link-text">
+                              <span className="pc-link-name">Website</span>
+                              <span className="pc-link-sub">{card.website.replace(/^https?:\/\//, "")}</span>
+                            </span>
+                            <span className="pc-link-arrow">›</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (featureKey === "SOCIAL_LINKS") {
+                  return (
+                    <div key="SOCIAL_LINKS" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {socials.length > 0 && (
+                        <div className="pc-links-group">
+                          {socials.map(([name, url]) => {
+                            const cfg = SOCIAL[name] || {
+                              subtitle: "Visit",
+                              icon: <span className="pc-brand-letter">{name[0]}</span>,
+                              iconBg: "#555",
+                            };
+                            return (
                               <a
-                                href={prod.ctaUrl}
+                                key={name}
+                                href={url}
+                                className="pc-link-row"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={() => trackActivity("PRODUCT_CTA_CLICKED", { context: prod.name })}
-                                style={{
-                                  marginTop: 8,
-                                  width: "100%",
-                                  textAlign: "center",
-                                  background: "linear-gradient(135deg, #0066FF 0%, #00E5FF 100%)",
-                                  color: "#fff",
-                                  fontWeight: 700,
-                                  fontSize: 12.5,
-                                  padding: "8px 12px",
-                                  borderRadius: 8,
-                                  textDecoration: "none",
-                                  display: "inline-block",
-                                  boxShadow: "0 2px 10px rgba(0, 102, 255, 0.3)",
-                                }}
+                                onClick={() => track("LINK_CLICK", name.toLowerCase())}
                               >
-                                {prod.ctaLabel || "View Details"}
+                                <span className="pc-link-icon" style={{ background: cfg.iconBg }}>{cfg.icon}</span>
+                                <span className="pc-link-text">
+                                  <span className="pc-link-name">{name}</span>
+                                  <span className="pc-link-sub">{cfg.subtitle}</span>
+                                </span>
+                                <span className="pc-link-arrow">›</span>
                               </a>
-                            ) : prod.ctaLabel ? (
-                              <div
-                                style={{
-                                  marginTop: 8,
-                                  width: "100%",
-                                  textAlign: "center",
-                                  background: "rgba(255, 255, 255, 0.08)",
-                                  border: "1px solid rgba(255, 255, 255, 0.15)",
-                                  color: "#fff",
-                                  fontWeight: 600,
-                                  fontSize: 12,
-                                  padding: "6px 12px",
-                                  borderRadius: 8,
-                                }}
-                              >
-                                {prod.ctaLabel}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (featureKey === "EMERGENCY_CONTACT") {
+                  return (
+                    <div key="EMERGENCY_CONTACT" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {(card.emergencyContact?.name || card.hasEmergencyPhone) && (
+                        <div className="pc-card pc-contact-card" style={{ border: "1px solid rgba(255, 69, 58, 0.4)", background: "rgba(255, 69, 58, 0.05)" }}>
+                          <div className="pc-contact-header">
+                            <span className="pc-contact-label" style={{ color: "#ff453a" }}>🚨 Emergency Contact</span>
+                          </div>
+                          <hr className="pc-dashed-rule" />
+                          {card.emergencyContact?.name && (
+                            <div className="pc-contact-row">
+                              <span className="pc-contact-row-label">Contact Name</span>
+                              <span className="pc-contact-row-value">{card.emergencyContact.name} ({card.emergencyContact.relationship || "Emergency"})</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (featureKey === "PRODUCTS") {
+                  const activeProducts = profileProducts.filter(p => p.enabled !== false);
+                  if (activeProducts.length === 0) return null;
+
+                  return (
+                    <div key="PRODUCTS" className="pc-card pc-products-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h2 className="pc-card-heading" style={{ margin: 0 }}>Products</h2>
+                        <span style={{ fontSize: 11, background: "rgba(0, 229, 255, 0.12)", color: "#00E5FF", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(0, 229, 255, 0.3)", fontWeight: 700, letterSpacing: "0.5px" }}>
+                          SHOWCASE
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                        {activeProducts.map((prod) => (
+                          <div
+                            key={prod.id}
+                            style={{
+                              background: "rgba(255, 255, 255, 0.04)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: 14,
+                              overflow: "hidden",
+                              display: "flex",
+                              flexDirection: "column",
+                              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.25)",
+                              transition: "transform 0.2s ease, border-color 0.2s ease",
+                            }}
+                          >
+                            {prod.imageUrl && (
+                              <div style={{ width: "100%", height: 160, overflow: "hidden", background: "#0a0a0c", position: "relative" }}>
+                                <img
+                                  src={prod.imageUrl}
+                                  alt={prod.name}
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
                               </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (featureKey === "SERVICES") {
-                const activeServices = profileServices.filter(s => s.enabled !== false);
-                if (activeServices.length === 0) return null;
-
-                return (
-                  <div key="SERVICES" className="pc-card pc-services-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Services</h2>
-                      <span style={{ fontSize: 11, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(0, 102, 255, 0.3)", fontWeight: 700 }}>
-                        SERVICES
-                      </span>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-                      {activeServices.map((svc) => (
-                        <div key={svc.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", padding: 14, gap: 8 }}>
-                          {svc.imageUrl && (
-                            <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden", background: "#000" }}>
-                              <img src={svc.imageUrl} alt={svc.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            </div>
-                          )}
-                          {svc.category && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0066FF", textTransform: "uppercase" }}>{svc.category}</span>}
-                          <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0 }}>{svc.name}</h3>
-                          {svc.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{svc.description}</p>}
-                          {svc.price && <div style={{ fontSize: 14, fontWeight: 800, color: "#38ef7d" }}>{svc.currency === "INR" ? "₹" : "$"} {svc.price}</div>}
-                          {svc.ctaUrl && (
-                            <a href={svc.ctaUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 6, background: "linear-gradient(135deg, #0066FF 0%, #00E5FF 100%)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 12px", borderRadius: 8, textAlign: "center", textDecoration: "none" }}>
-                              {svc.ctaLabel || "Book Service"}
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (featureKey === "PORTFOLIO") {
-                const activeProjects = profilePortfolio.filter(p => p.enabled !== false);
-                if (activeProjects.length === 0) return null;
-
-                return (
-                  <div key="PORTFOLIO" className="pc-card pc-portfolio-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Portfolio &amp; Projects</h2>
-                      <span style={{ fontSize: 11, background: "rgba(255, 153, 0, 0.12)", color: "#ff9900", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(255, 153, 0, 0.3)", fontWeight: 700 }}>
-                        WORK
-                      </span>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-                      {activeProjects.map((proj) => (
-                        <div key={proj.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", padding: 14, gap: 8 }}>
-                          {proj.imageUrl && (
-                            <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden" }}>
-                              <img src={proj.imageUrl} alt={proj.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            </div>
-                          )}
-                          {proj.category && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#ff9900", textTransform: "uppercase" }}>{proj.category}</span>}
-                          <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0 }}>{proj.title}</h3>
-                          {proj.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{proj.description}</p>}
-                          {proj.projectUrl && (
-                            <a href={proj.projectUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 6, background: "rgba(255, 153, 0, 0.15)", border: "1px solid rgba(255, 153, 0, 0.4)", color: "#ff9900", fontWeight: 700, fontSize: 12, padding: "8px 12px", borderRadius: 8, textAlign: "center", textDecoration: "none" }}>
-                              {proj.ctaLabel || "View Project 🔗"}
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (featureKey === "GALLERY") {
-                const activePhotos = profileGallery.filter(g => g.enabled !== false);
-                if (activePhotos.length === 0) return null;
-
-                return (
-                  <div key="GALLERY" className="pc-card pc-gallery-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>Gallery</h2>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
-                      {activePhotos.map((img) => (
-                        <div key={img.id} style={{ borderRadius: 10, overflow: "hidden", position: "relative", height: 120, background: "#111" }}>
-                          <img src={img.imageUrl} alt={img.title || "Gallery photo"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          {img.title && (
-                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.7)", padding: "4px 6px", fontSize: 10.5, color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                              {img.title}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (featureKey === "VIDEOS") {
-                const activeVideos = profileVideos.filter(v => v.enabled !== false);
-                if (activeVideos.length === 0) return null;
-
-                return (
-                  <div key="VIDEOS" className="pc-card pc-videos-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>Videos</h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                      {activeVideos.map((vid) => (
-                        <div key={vid.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0 }}>{vid.title}</h3>
-                          {vid.embedId && vid.provider === "YouTube" ? (
-                            <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", borderRadius: 10, overflow: "hidden" }}>
-                              <iframe src={`https://www.youtube.com/embed/${vid.embedId}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen />
-                            </div>
-                          ) : vid.videoUrl ? (
-                            <a href={vid.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,0,0,0.15)", border: "1px solid rgba(255,0,0,0.4)", color: "#ff4d4d", padding: "10px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-                              ▶ Watch Video ({vid.provider || "Link"})
-                            </a>
-                          ) : null}
-                          {vid.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{vid.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (featureKey === "PAYMENT_LINKS") {
-                const activePayLinks = profilePaymentLinks.filter(p => p.enabled !== false);
-                if (activePayLinks.length === 0) return null;
-
-                return (
-                  <div key="PAYMENT_LINKS" className="pc-card pc-payment-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>💳 Payment &amp; UPI Links</h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {activePayLinks.map((pay) => (
-                        <div key={pay.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(0, 229, 255, 0.2)", borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{pay.label}</div>
-                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{pay.provider} {pay.upiId ? `• ${pay.upiId}` : ""}</div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            {pay.upiId && (
-                              <button type="button" onClick={() => copyToClipboard(pay.upiId)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>
-                                Copy UPI
-                              </button>
                             )}
-                            {pay.payUrl && (
-                              <a href={pay.payUrl} target="_blank" rel="noopener noreferrer" style={{ background: "#0066FF", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-                                Pay Now
+                            <div style={{ padding: 14, display: "flex", flexDirection: "column", flex: 1, gap: 8 }}>
+                              {prod.category && (
+                                <span style={{ alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, color: "#00E5FF", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                  {prod.category}
+                                </span>
+                              )}
+                              <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.3 }}>
+                                {prod.name}
+                              </h3>
+                              {prod.description && (
+                                <p style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.7)", margin: 0, flex: 1, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.4 }}>
+                                  {prod.description}
+                                </p>
+                              )}
+                              {prod.price && (
+                                <div style={{ fontSize: 15, fontWeight: 800, color: "#38ef7d", marginTop: 4 }}>
+                                  {prod.currency === "INR" ? "₹" : prod.currency === "USD" ? "$" : prod.currency === "EUR" ? "€" : prod.currency === "GBP" ? "£" : `${prod.currency} `}
+                                  {prod.price}
+                                </div>
+                              )}
+                              {prod.ctaUrl ? (
+                                <a
+                                  href={prod.ctaUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => trackActivity("PRODUCT_CTA_CLICKED", { context: prod.name })}
+                                  style={{
+                                    marginTop: 8,
+                                    width: "100%",
+                                    textAlign: "center",
+                                    background: "linear-gradient(135deg, #0066FF 0%, #00E5FF 100%)",
+                                    color: "#fff",
+                                    fontWeight: 700,
+                                    fontSize: 12.5,
+                                    padding: "8px 12px",
+                                    borderRadius: 8,
+                                    textDecoration: "none",
+                                    display: "inline-block",
+                                    boxShadow: "0 2px 10px rgba(0, 102, 255, 0.3)",
+                                  }}
+                                >
+                                  {prod.ctaLabel || "View Details"}
+                                </a>
+                              ) : prod.ctaLabel ? (
+                                <div
+                                  style={{
+                                    marginTop: 8,
+                                    width: "100%",
+                                    textAlign: "center",
+                                    background: "rgba(255, 255, 255, 0.08)",
+                                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                                    color: "#fff",
+                                    fontWeight: 600,
+                                    fontSize: 12,
+                                    padding: "6px 12px",
+                                    borderRadius: 8,
+                                  }}
+                                >
+                                  {prod.ctaLabel}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (featureKey === "SERVICES") {
+                  const activeServices = profileServices.filter(s => s.enabled !== false);
+                  if (activeServices.length === 0) return null;
+
+                  return (
+                    <div key="SERVICES" className="pc-card pc-services-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h2 className="pc-card-heading" style={{ margin: 0 }}>Services</h2>
+                        <span style={{ fontSize: 11, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(0, 102, 255, 0.3)", fontWeight: 700 }}>
+                          SERVICES
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                        {activeServices.map((svc) => (
+                          <div key={svc.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", padding: 14, gap: 8 }}>
+                            {svc.imageUrl && (
+                              <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden", background: "#000" }}>
+                                <img src={svc.imageUrl} alt={svc.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                            )}
+                            {svc.category && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#0066FF", textTransform: "uppercase" }}>{svc.category}</span>}
+                            <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0 }}>{svc.name}</h3>
+                            {svc.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{svc.description}</p>}
+                            {svc.price && <div style={{ fontSize: 14, fontWeight: 800, color: "#38ef7d" }}>{svc.currency === "INR" ? "₹" : "$"} {svc.price}</div>}
+                            {svc.ctaUrl && (
+                              <a href={svc.ctaUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 6, background: "linear-gradient(135deg, #0066FF 0%, #00E5FF 100%)", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 12px", borderRadius: 8, textAlign: "center", textDecoration: "none" }}>
+                                {svc.ctaLabel || "Book Service"}
                               </a>
                             )}
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              if (featureKey === "DOCUMENTS") {
-                const activeDocs = profileDocuments.filter(d => d.enabled !== false);
-                if (activeDocs.length === 0) return null;
+                if (featureKey === "PORTFOLIO") {
+                  const activeProjects = profilePortfolio.filter(p => p.enabled !== false);
+                  if (activeProjects.length === 0) return null;
 
-                return (
-                  <div key="DOCUMENTS" className="pc-card pc-documents-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📁 Documents &amp; Files</h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {activeDocs.map((doc) => (
-                        <a key={doc.id} href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none", color: "#fff" }}>
-                          <div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>📄 {doc.title}</div>
-                            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)" }}>{doc.fileType || "PDF"} {doc.fileSize ? `• ${doc.fileSize}` : ""}</div>
+                  return (
+                    <div key="PORTFOLIO" className="pc-card pc-portfolio-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h2 className="pc-card-heading" style={{ margin: 0 }}>Portfolio &amp; Projects</h2>
+                        <span style={{ fontSize: 11, background: "rgba(255, 153, 0, 0.12)", color: "#ff9900", padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(255, 153, 0, 0.3)", fontWeight: 700 }}>
+                          WORK
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+                        {activeProjects.map((proj) => (
+                          <div key={proj.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", padding: 14, gap: 8 }}>
+                            {proj.imageUrl && (
+                              <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden" }}>
+                                <img src={proj.imageUrl} alt={proj.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                            )}
+                            {proj.category && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#ff9900", textTransform: "uppercase" }}>{proj.category}</span>}
+                            <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#fff", margin: 0 }}>{proj.title}</h3>
+                            {proj.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{proj.description}</p>}
+                            {proj.projectUrl && (
+                              <a href={proj.projectUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 6, background: "rgba(255, 153, 0, 0.15)", border: "1px solid rgba(255, 153, 0, 0.4)", color: "#ff9900", fontWeight: 700, fontSize: 12, padding: "8px 12px", borderRadius: 8, textAlign: "center", textDecoration: "none" }}>
+                                {proj.ctaLabel || "View Project 🔗"}
+                              </a>
+                            )}
                           </div>
-                          <span style={{ fontSize: 12, color: "#0066FF", fontWeight: 700 }}>Download ↓</span>
-                        </a>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              if (featureKey === "ACHIEVEMENTS") {
-                const activeAchievements = profileAchievements.filter(a => a.enabled !== false);
-                if (activeAchievements.length === 0) return null;
+                if (featureKey === "GALLERY") {
+                  const activePhotos = profileGallery.filter(g => g.enabled !== false);
+                  if (activePhotos.length === 0) return null;
 
-                return (
-                  <div key="ACHIEVEMENTS" className="pc-card pc-achievements-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>🏆 Achievements &amp; Awards</h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {activeAchievements.map((ach) => (
-                        <div key={ach.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 215, 0, 0.2)", borderRadius: 12, padding: 14, display: "flex", gap: 12, alignItems: "center" }}>
-                          {ach.imageUrl && (
-                            <img src={ach.imageUrl} alt={ach.title} style={{ width: 50, height: 50, borderRadius: 8, objectFit: "cover" }} />
-                          )}
-                          <div>
-                            <div style={{ fontSize: 14.5, fontWeight: 700, color: "#ffd700" }}>{ach.title}</div>
-                            {ach.organization && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{ach.organization} {ach.achievementDate ? `• ${ach.achievementDate}` : ""}</div>}
-                            {ach.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>{ach.description}</p>}
+                  return (
+                    <div key="GALLERY" className="pc-card pc-gallery-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Gallery</h2>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
+                        {activePhotos.map((img) => (
+                          <div key={img.id} style={{ borderRadius: 10, overflow: "hidden", position: "relative", height: 120, background: "#111" }}>
+                            <img src={img.imageUrl} alt={img.title || "Gallery photo"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            {img.title && (
+                              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.7)", padding: "4px 6px", fontSize: 10.5, color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                {img.title}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              if (featureKey === "CERTIFICATIONS") {
-                const activeCerts = profileCertifications.filter(c => c.enabled !== false);
-                if (activeCerts.length === 0) return null;
+                if (featureKey === "VIDEOS") {
+                  const activeVideos = profileVideos.filter(v => v.enabled !== false);
+                  if (activeVideos.length === 0) return null;
 
-                return (
-                  <div key="CERTIFICATIONS" className="pc-card pc-certifications-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📜 Certifications</h2>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                      {activeCerts.map((cert) => (
-                        <div key={cert.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(0, 229, 255, 0.2)", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{cert.title}</div>
-                          {cert.issuer && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Issuer: {cert.issuer} {cert.issueDate ? `(${cert.issueDate})` : ""}</div>}
-                          {cert.credentialUrl && (
-                            <a href={cert.credentialUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 4, fontSize: 12, color: "#0066FF", fontWeight: 700, textDecoration: "none" }}>
-                              Verify Credential ↗
-                            </a>
-                          )}
-                        </div>
-                      ))}
+                  return (
+                    <div key="VIDEOS" className="pc-card pc-videos-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>Videos</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {activeVideos.map((vid) => (
+                          <div key={vid.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0 }}>{vid.title}</h3>
+                            {vid.embedId && vid.provider === "YouTube" ? (
+                              <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", borderRadius: 10, overflow: "hidden" }}>
+                                <iframe src={`https://www.youtube.com/embed/${vid.embedId}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen />
+                              </div>
+                            ) : vid.videoUrl ? (
+                              <a href={vid.videoUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,0,0,0.15)", border: "1px solid rgba(255,0,0,0.4)", color: "#ff4d4d", padding: "10px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                                ▶ Watch Video ({vid.provider || "Link"})
+                              </a>
+                            ) : null}
+                            {vid.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{vid.description}</p>}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              if (featureKey === "BUSINESS_HOURS") {
-                const hours = (card as any).businessHours || (card as any).hours || null;
-                return (
-                  <div key="BUSINESS_HOURS" className="pc-card pc-hours-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>🕒 Business Hours</h2>
-                    {hours ? (
-                      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>{hours}</div>
-                    ) : (
-                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>Monday – Friday: 9:00 AM – 6:00 PM</div>
-                    )}
-                  </div>
-                );
-              }
+                if (featureKey === "PAYMENT_LINKS") {
+                  const activePayLinks = profilePaymentLinks.filter(p => p.enabled !== false);
+                  if (activePayLinks.length === 0) return null;
 
-              if (featureKey === "LOCATION") {
-                if (!location) return null;
-                return (
-                  <div key="LOCATION" className="pc-card pc-location-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📍 Location &amp; Map</h2>
-                    <div style={{ fontSize: 13.5, color: "#fff", fontWeight: 600 }}>{location}</div>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ alignSelf: "flex-start", background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.4)", color: "#4285f4", padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
-                    >
-                      Open in Google Maps ↗
-                    </a>
-                  </div>
-                );
-              }
-
-              if (featureKey === "RESUME") {
-                const resumeDoc = profileDocuments.find((d) => d.enabled !== false && (d.fileType?.toUpperCase() === "PDF" || d.title.toLowerCase().includes("resume") || d.title.toLowerCase().includes("cv"))) || profileDocuments.filter(d => d.enabled !== false)[0];
-                if (!resumeDoc && !card.brochure) return null;
-
-                return (
-                  <div key="RESUME" className="pc-card pc-resume-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <h2 className="pc-card-heading" style={{ margin: 0 }}>📄 Resume / CV</h2>
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
-                      {resumeDoc ? resumeDoc.title : "Curriculum Vitae / Professional Resume"}
+                  return (
+                    <div key="PAYMENT_LINKS" className="pc-card pc-payment-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>💳 Payment &amp; UPI Links</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {activePayLinks.map((pay) => (
+                          <div key={pay.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(0, 229, 255, 0.2)", borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{pay.label}</div>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{pay.provider} {pay.upiId ? `• ${pay.upiId}` : ""}</div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              {pay.upiId && (
+                                <button type="button" onClick={() => copyToClipboard(pay.upiId)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>
+                                  Copy UPI
+                                </button>
+                              )}
+                              {pay.payUrl && (
+                                <a href={pay.payUrl} target="_blank" rel="noopener noreferrer" style={{ background: "#0066FF", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                                  Pay Now
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <a
-                      href={resumeDoc ? resumeDoc.fileUrl : (card.brochureData || "#")}
-                      download={resumeDoc ? resumeDoc.title : (card.brochure || "resume.pdf")}
-                      style={{ alignSelf: "flex-start", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
-                    >
-                      Download Resume (PDF) ↓
-                    </a>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              return null;
-            });
-          })()}
-        </>
-      )}
+                if (featureKey === "DOCUMENTS") {
+                  const activeDocs = profileDocuments.filter(d => d.enabled !== false);
+                  if (activeDocs.length === 0) return null;
+
+                  return (
+                    <div key="DOCUMENTS" className="pc-card pc-documents-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>📁 Documents &amp; Files</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {activeDocs.map((doc) => (
+                          <a key={doc.id} href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 12, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none", color: "#fff" }}>
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 700 }}>📄 {doc.title}</div>
+                              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)" }}>{doc.fileType || "PDF"} {doc.fileSize ? `• ${doc.fileSize}` : ""}</div>
+                            </div>
+                            <span style={{ fontSize: 12, color: "#0066FF", fontWeight: 700 }}>Download ↓</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (featureKey === "ACHIEVEMENTS") {
+                  const activeAchievements = profileAchievements.filter(a => a.enabled !== false);
+                  if (activeAchievements.length === 0) return null;
+
+                  return (
+                    <div key="ACHIEVEMENTS" className="pc-card pc-achievements-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>🏆 Achievements &amp; Awards</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {activeAchievements.map((ach) => (
+                          <div key={ach.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 215, 0, 0.2)", borderRadius: 12, padding: 14, display: "flex", gap: 12, alignItems: "center" }}>
+                            {ach.imageUrl && (
+                              <img src={ach.imageUrl} alt={ach.title} style={{ width: 50, height: 50, borderRadius: 8, objectFit: "cover" }} />
+                            )}
+                            <div>
+                              <div style={{ fontSize: 14.5, fontWeight: 700, color: "#ffd700" }}>{ach.title}</div>
+                              {ach.organization && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{ach.organization} {ach.achievementDate ? `• ${ach.achievementDate}` : ""}</div>}
+                              {ach.description && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>{ach.description}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (featureKey === "CERTIFICATIONS") {
+                  const activeCerts = profileCertifications.filter(c => c.enabled !== false);
+                  if (activeCerts.length === 0) return null;
+
+                  return (
+                    <div key="CERTIFICATIONS" className="pc-card pc-certifications-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>📜 Certifications</h2>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                        {activeCerts.map((cert) => (
+                          <div key={cert.id} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(0, 229, 255, 0.2)", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{cert.title}</div>
+                            {cert.issuer && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Issuer: {cert.issuer} {cert.issueDate ? `(${cert.issueDate})` : ""}</div>}
+                            {cert.credentialUrl && (
+                              <a href={cert.credentialUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 4, fontSize: 12, color: "#0066FF", fontWeight: 700, textDecoration: "none" }}>
+                                Verify Credential ↗
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (featureKey === "BUSINESS_HOURS") {
+                  const hours = (card as any).businessHours || (card as any).hours || null;
+                  return (
+                    <div key="BUSINESS_HOURS" className="pc-card pc-hours-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>🕒 Business Hours</h2>
+                      {hours ? (
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>{hours}</div>
+                      ) : (
+                        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>Monday – Friday: 9:00 AM – 6:00 PM</div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (featureKey === "LOCATION") {
+                  if (!location) return null;
+                  return (
+                    <div key="LOCATION" className="pc-card pc-location-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>📍 Location &amp; Map</h2>
+                      <div style={{ fontSize: 13.5, color: "#fff", fontWeight: 600 }}>{location}</div>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ alignSelf: "flex-start", background: "rgba(66, 133, 244, 0.15)", border: "1px solid rgba(66, 133, 244, 0.4)", color: "#4285f4", padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
+                      >
+                        Open in Google Maps ↗
+                      </a>
+                    </div>
+                  );
+                }
+
+                if (featureKey === "RESUME") {
+                  const resumeDoc = profileDocuments.find((d) => d.enabled !== false && (d.fileType?.toUpperCase() === "PDF" || d.title.toLowerCase().includes("resume") || d.title.toLowerCase().includes("cv"))) || profileDocuments.filter(d => d.enabled !== false)[0];
+                  if (!resumeDoc && !card.brochure) return null;
+
+                  return (
+                    <div key="RESUME" className="pc-card pc-resume-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <h2 className="pc-card-heading" style={{ margin: 0 }}>📄 Resume / CV</h2>
+                      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+                        {resumeDoc ? resumeDoc.title : "Curriculum Vitae / Professional Resume"}
+                      </div>
+                      <a
+                        href={resumeDoc ? resumeDoc.fileUrl : (card.brochureData || "#")}
+                        download={resumeDoc ? resumeDoc.title : (card.brochure || "resume.pdf")}
+                        style={{ alignSelf: "flex-start", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}
+                      >
+                        Download Resume (PDF) ↓
+                      </a>
+                    </div>
+                  );
+                }
+
+                return null;
+              });
+            })()}
+          </>
+        ))}
 
       {/* ── QR Code modal ── */}
       {qrOpen && (
@@ -1782,7 +1803,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           <div className="pc-qr-modal" onClick={(e) => e.stopPropagation()}>
             <button className="pc-qr-close" type="button" onClick={() => setQrOpen(false)} aria-label="Close">×</button>
             <p className="pc-qr-title">
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden style={{flexShrink:0}}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z"/></svg>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden style={{ flexShrink: 0 }}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg>
               Scan to visit this card
             </p>
             <div className="pc-qr-img">

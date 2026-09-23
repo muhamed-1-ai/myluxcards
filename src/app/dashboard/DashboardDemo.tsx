@@ -12,6 +12,8 @@ import {
 import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDashboard";
 import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
+import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { resolveMediaUrl } from "@/lib/storage/resolver";
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -104,6 +106,8 @@ type Card = {
   start: string; expiry: string; views: number; active: boolean; activatedAt?: string | null;
   analytics?: Record<string, number>;
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
+  profileFormat?: string;
+  modernConfig?: Record<string, any>;
   enabledFeatures?: { digitalProfile: boolean; vehicleConnect: boolean; lostAndFound: boolean };
   vehicleConnect?: VehicleConnectSettings;
   emergencyContact?: EmergencyContactSettings;
@@ -551,6 +555,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         setAuthReady(true);
         return;
       }
+      console.log("[ProfileImageDebug] HYDRATION_STARTED", { userId: user.id });
       const consentValid = Boolean(
         (user as any).terms_accepted &&
         (user as any).privacy_accepted &&
@@ -581,12 +586,21 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         }
       } catch {}
       const firstCard = accountCards[0] || createBlankCard(user);
+      console.log("[ProfileImageDebug] HYDRATION_IMAGE_VALUE", {
+        source: "localStorage",
+        cardId: firstCard.id,
+        logo: firstCard.logo ? firstCard.logo.slice(0, 60) : null,
+        avatar: (firstCard as any).avatar ? (firstCard as any).avatar.slice(0, 60) : null,
+        cover: firstCard.cover ? firstCard.cover.slice(0, 60) : null,
+      });
       setCards(accountCards.length ? accountCards : [firstCard]);
       setSelectedId(firstCard.id);
       setDraft(firstCard);
       lastSavedRef.current = JSON.stringify(firstCard);
       setAuthReady(true);
+      console.log("[ProfileImageDebug] CARDS_FETCH_STARTED");
       fetchWithSessionRefresh("/api/cards", { cache: "no-store" }).then(async (response) => {
+        console.log("[ProfileImageDebug] CARDS_FETCH_RESPONSE", { status: response.status, ok: response.ok });
         if (response.status === 401) {
           localStorage.removeItem("myluxcards_current_user");
           sessionStorage.setItem("myluxcards_auth_next", "/dashboard?tab=cards");
@@ -601,9 +615,21 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         if (Array.isArray(payload.emergencyContacts)) setEmergencyContacts(payload.emergencyContacts);
         setCloudReady(true);
         if (cloudCards.length) {
+          console.log("[ProfileImageDebug] HYDRATION_IMAGE_VALUE", {
+            source: "api/cards",
+            cardId: cloudCards[0].id,
+            logo: cloudCards[0].logo ? cloudCards[0].logo.slice(0, 60) : null,
+            avatar: (cloudCards[0] as any).avatar ? (cloudCards[0] as any).avatar.slice(0, 60) : null,
+            cover: cloudCards[0].cover ? cloudCards[0].cover.slice(0, 60) : null,
+          });
           setCards(cloudCards);
           setSelectedId(cloudCards[0].id);
-          setDraft(cloudCards[0]);
+          setDraft((currentDraft) => {
+            if (currentDraft.logo && currentDraft.logo.startsWith("blob:")) {
+              return { ...cloudCards[0], logo: currentDraft.logo, cover: currentDraft.cover || cloudCards[0].cover };
+            }
+            return cloudCards[0];
+          });
           lastSavedRef.current = JSON.stringify(cloudCards[0]);
           cacheCards(accountId, cloudCards);
         } else {
@@ -645,7 +671,23 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   const notify = (message: string) => {
     setToast(message); window.setTimeout(() => setToast(""), 2600);
   };
-  const update = (key: keyof Card, value: Card[keyof Card]) => { setSaveStatus("unsaved"); setDraft((old) => ({ ...old, [key]: value })); };
+  const update = (key: keyof Card, value: Card[keyof Card]) => {
+    setSaveStatus("unsaved");
+    setDraft((old) => {
+      if (old[key] === value) return old;
+      const isMediaKey = key === "logo" || key === "cover" || key === "profileBackground";
+      if (isMediaKey) {
+        console.log("[ProfileImageDebug] STATE_BEFORE_UPDATE", { key, currentVal: typeof old[key] === "string" ? (old[key] as string).slice(0, 60) : old[key] });
+        console.log("[MediaTrace] IMAGE_STATE_CHANGED", { key, newVal: typeof value === "string" ? value.slice(0, 60) : value });
+      }
+      const updated = { ...old, [key]: value };
+      if (isMediaKey) {
+        console.log("[ProfileImageDebug] STATE_AFTER_UPDATE", { key, newVal: typeof value === "string" ? value.slice(0, 60) : value });
+      }
+      return updated;
+    });
+    setCards((prevCards) => prevCards.map((c) => (c.id === draft.id ? { ...c, [key]: value } : c)));
+  };
   const selectTab = (next: Tab) => { setTab(next); setSidebar(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const requestCardOpen = (card: Card) => {
     if (!card.slug) return;
@@ -672,6 +714,8 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     setSaving(true);
     setSaveStatus("saving");
     if (!silent) notify("Saving your card…");
+    console.log("[ProfileImageDebug] SAVE_STARTED", { cardId: draft.id, section, logo: draft.logo ? draft.logo.slice(0, 60) : null });
+    console.log("[MediaTrace] AUTOSAVE_START", { cardId: draft.id, section, logo: draft.logo ? draft.logo.slice(0, 60) : null });
     const optimizedDraft = {
       ...draft,
       logo: await optimizeProfileImage(draft.logo, 800, 800),
@@ -683,16 +727,33 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     try {
       const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(optimizedDraft) });
       const payload = await response.json().catch(() => ({}));
+      console.log("[ProfileImageDebug] SAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
+      console.log("[MediaTrace] AUTOSAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
       if (!response.ok) {
         if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); setSaving(false); return; }
         throw new Error(payload.message || "Cloud save failed.");
       }
       const cloudCard = payload.card as Card;
-      const cloudSaved = saved.map(card => card.id === optimizedDraft.id ? { ...optimizedDraft, ...cloudCard } : card);
-      setCards(cloudSaved); setDraft({ ...optimizedDraft, ...cloudCard }); setSelectedId(cloudCard.id);
-      if (currentUser) cacheCards(currentUser.id, cloudSaved);
+      setDraft((currentDraft) => {
+        const isLogoNewer = Boolean(currentDraft.logo && currentDraft.logo !== optimizedDraft.logo && currentDraft.logo !== cloudCard.logo);
+        const isCoverNewer = Boolean(currentDraft.cover && currentDraft.cover !== optimizedDraft.cover && currentDraft.cover !== cloudCard.cover);
+
+        const finalLogo = isLogoNewer ? currentDraft.logo : (cloudCard.logo || optimizedDraft.logo);
+        const finalCover = isCoverNewer ? currentDraft.cover : (cloudCard.cover || optimizedDraft.cover);
+
+        const updated = {
+          ...currentDraft,
+          ...cloudCard,
+          logo: finalLogo,
+          cover: finalCover,
+        };
+
+        setCards((prevCards) => prevCards.map((c) => (c.id === updated.id ? updated : c)));
+        if (currentUser) cacheCards(currentUser.id, [updated]);
+        lastSavedRef.current = JSON.stringify(updated);
+        return updated;
+      });
       setCloudReady(true);
-      lastSavedRef.current = JSON.stringify({ ...optimizedDraft, ...cloudCard });
       setSaveStatus("saved");
       if (!silent) notify("Card saved securely.");
     } catch (error) { setSaveStatus("error"); if (!silent) notify(error instanceof Error ? error.message : "Saved in this browser, but cloud save failed. Try again."); }
@@ -700,11 +761,11 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     if (next) selectTab(next);
   };
   useEffect(() => {
-    if (!authReady || !cloudReady || !currentUser || !draft.name || JSON.stringify(draft) === lastSavedRef.current) return;
+    if (!authReady || !cloudReady || !currentUser || !draft.name || uploadingKind || JSON.stringify(draft) === lastSavedRef.current) return;
     setSaveStatus("unsaved");
     const timer = window.setTimeout(() => { void save("dashboard", undefined, true); }, 1200);
     return () => window.clearTimeout(timer);
-  }, [draft, authReady, currentUser]);
+  }, [draft, authReady, cloudReady, currentUser, uploadingKind]);
   const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
@@ -713,6 +774,8 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   };
   const handleFile = async (event: ChangeEvent<HTMLInputElement>, kind: "logo" | "cover" | "brochure") => {
     const file = event.target.files?.[0]; if (!file) return;
+    console.log("[ProfileImageDebug] FILE_SELECTED", { kind, fileName: file.name, fileSize: file.size, fileType: file.type });
+    console.log("[MediaTrace] UPLOAD_START", { kind, fileName: file.name, fileSize: file.size });
     if (kind === "brochure") {
       if (file.type !== "application/pdf" || file.size > 5 * 1024 * 1024) {
         setErrors((e) => ({ ...e, brochure: "PDF only, maximum 5 MB." })); return;
@@ -732,20 +795,45 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         return;
       }
     }
-    const form = new FormData(); form.append("file", file); form.append("kind", kind);
+    let localUrl = "";
+    if (kind !== "brochure") {
+      localUrl = URL.createObjectURL(file);
+      update(kind, localUrl);
+    }
+
+    const form = new FormData();
+    form.append("file", file);
+    form.append("kind", kind);
     setUploadingKind(kind);
     notify("Uploading securely…");
+    console.log("[ProfileImageDebug] MEDIA_UPLOAD_STARTED", { kind, fileName: file.name });
+
     try {
       const response = await fetchWithSessionRefresh("/api/media", { method: "POST", body: form });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.message || "Upload failed.");
-      if (kind === "brochure") setDraft(old => ({ ...old, brochure: file.name, brochureData: payload.url }));
-      else update(kind, payload.url);
+      console.log("[ProfileImageDebug] MEDIA_UPLOAD_RESPONSE", { status: response.status, ok: response.ok, hasUrl: Boolean(payload.url) });
+      if (!response.ok || !payload.url) throw new Error(payload.message || "Upload failed.");
+
+      console.log("[ProfileImageDebug] MEDIA_REFERENCE_RECEIVED", { kind, reference: payload.url.slice(0, 60) });
+      console.log("[MediaTrace] UPLOAD_SUCCESS", { kind, key: payload.key, url: payload.url });
+
+      if (kind === "brochure") {
+        setDraft((old) => ({ ...old, brochure: file.name, brochureData: payload.url }));
+      } else {
+        update(kind, payload.url);
+      }
       notify("Upload complete. Press Save & Finish to publish it.");
-    } catch (error) { notify(error instanceof Error ? error.message : "Upload failed."); }
-    finally {
+    } catch (error) {
+      console.error("[ProfileImageDebug] UPLOAD_ERROR", error);
+      notify(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
       setUploadingKind(null);
       event.target.value = "";
+      if (localUrl && localUrl.startsWith("blob:")) {
+        setTimeout(() => {
+          URL.revokeObjectURL(localUrl);
+        }, 10000);
+      }
     }
   };
   const clearCard = async (cardId: string) => {
@@ -1698,6 +1786,11 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     "CERTIFICATIONS",
   ];
 
+  const socialLinkCount = useMemo(() => {
+    if (!draft.social || typeof draft.social !== "object") return 0;
+    return Object.values(draft.social).filter(Boolean).length;
+  }, [draft.social]);
+
   // Fetch count metadata for section items where applicable
   useEffect(() => {
     let cancelled = false;
@@ -1715,14 +1808,15 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
         }
 
         // Modular sections counts
-        const modularTypes = ["services", "portfolio", "gallery", "videos", "payment_links", "documents", "achievements", "certifications"];
+        const modularTypes = ["services", "portfolio", "gallery", "videos", "payment-links", "documents", "achievements", "certifications"];
         if (draft?.id && /^[0-9a-f-]{36}$/i.test(draft.id)) {
           await Promise.all(modularTypes.map(async (sec) => {
             try {
               const res = await fetch(`/api/cards/profile-sections/${sec}?cardId=${encodeURIComponent(draft.id)}`);
               if (res.ok) {
                 const d = await res.json();
-                if (Array.isArray(d.items)) counts[sec.toUpperCase()] = d.items.length;
+                const canonicalKey = sec.replace("-", "_").toUpperCase();
+                if (Array.isArray(d.items)) counts[canonicalKey] = d.items.length;
               }
             } catch {
               // ignore
@@ -1731,11 +1825,16 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
         }
 
         // Social links count
-        if (draft.social && typeof draft.social === "object") {
-          counts.SOCIAL_LINKS = Object.values(draft.social).filter(Boolean).length;
-        }
+        counts.SOCIAL_LINKS = socialLinkCount;
 
-        if (!cancelled) setItemCounts(counts);
+        if (!cancelled) {
+          setItemCounts((prev) => {
+            const isSame =
+              Object.keys(counts).length === Object.keys(prev).length &&
+              Object.keys(counts).every((k) => prev[k] === counts[k]);
+            return isSame ? prev : counts;
+          });
+        }
       } catch {
         // ignore
       } finally {
@@ -1744,7 +1843,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     };
     void fetchCounts();
     return () => { cancelled = true; };
-  }, [draft.id, draft.social]);
+  }, [draft.id, socialLinkCount]);
 
   const handleToggleFeature = async (key: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
@@ -1890,12 +1989,12 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
       <div className="ps-top-header">
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", letterSpacing: 0.5 }}>PROFILE SECTIONS</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text-primary)", letterSpacing: 0.5 }}>PROFILE SECTIONS</div>
             <span style={{ fontSize: 11.5, fontWeight: 800, color: "#2ecc71", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", padding: "3px 10px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
               <span style={{ fontSize: 8 }}>🟢</span> PROFILE LIVE
             </span>
           </div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", margin: "6px 0 0" }}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0 0" }}>
             Arrange the structure and content of your public card. Drag sections to reorder. Toggling OFF preserves your data and previous position.
           </p>
         </div>
@@ -1914,7 +2013,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
               href={`/${draft.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "9px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+              style={{ background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "9px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
             >
               👁 PREVIEW PROFILE
             </a>
@@ -1927,7 +2026,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                   alert("Profile URL copied to clipboard!");
                 }
               }}
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              style={{ background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: "9px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
             >
               ↗ SHARE
             </button>
@@ -1953,7 +2052,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                 onClick={() => setActiveTab(tab)}
                 style={{
                   background: activeTab === tab ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "transparent",
-                  color: activeTab === tab ? "#fff" : "rgba(255,255,255,0.6)",
+                  color: activeTab === tab ? "#fff" : "var(--text-secondary)",
                   border: "none",
                   padding: "6px 14px",
                   borderRadius: 8,
@@ -1974,7 +2073,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="mylux-input"
-              style={{ height: 36, fontSize: 12.5, paddingLeft: 30, borderRadius: 10, background: "rgba(255,255,255,0.04)" }}
+              style={{ height: 36, fontSize: 12.5, paddingLeft: 30, borderRadius: 10, background: "var(--input-bg)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}
             />
             <span style={{ position: "absolute", left: 10, top: 9, fontSize: 13, opacity: 0.5 }}>🔍</span>
           </div>
@@ -1983,7 +2082,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
         {/* DYNAMIC SECTION CARDS LIST */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
           {filteredOrderKeys.length === 0 ? (
-            <div style={{ padding: 30, background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 12, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+            <div style={{ padding: 30, background: "var(--surface-soft)", border: "1px dashed var(--border-color)", borderRadius: 12, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
               No sections found matching your filter criteria.
             </div>
           ) : (
@@ -2008,8 +2107,8 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                     style={{
                       alignItems: "center",
                       justifyContent: "space-between",
-                      background: isEnabled ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
-                      border: isEnabled ? "1px solid rgba(0, 229, 255, 0.22)" : "1px dashed rgba(255,255,255,0.12)",
+                      background: isEnabled ? "var(--surface)" : "var(--surface-soft)",
+                      border: isEnabled ? "1px solid var(--border-color)" : "1px dashed var(--border-color)",
                       borderRadius: 14,
                       padding: "14px 18px",
                       opacity: isEnabled ? 1 : 0.65,
@@ -2021,17 +2120,17 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
                       <span
                         title="Drag to reorder section"
-                        style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", cursor: "grab", paddingRight: 4, userSelect: "none" }}
+                        style={{ fontSize: 16, color: "var(--text-muted)", cursor: "grab", paddingRight: 4, userSelect: "none" }}
                       >
                         ☰
                       </span>
                       <span style={{ fontSize: 24, flexShrink: 0 }}>{meta.icon}</span>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>{meta.label}</span>
+                          <span style={{ fontSize: 14.5, fontWeight: 800, color: "var(--text-primary)" }}>{meta.label}</span>
                           {getSectionStatusBadge(key)}
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {meta.desc}
                         </div>
                       </div>
@@ -2046,7 +2145,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                           title="Move section up"
                           onClick={() => handleMoveFeature(index, "up")}
                           disabled={index === 0}
-                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, width: 26, height: 26, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: index === 0 ? "not-allowed" : "pointer", opacity: index === 0 ? 0.3 : 1 }}
+                          style={{ background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: 6, width: 26, height: 26, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: index === 0 ? "not-allowed" : "pointer", opacity: index === 0 ? 0.3 : 1 }}
                         >
                           ▲
                         </button>
@@ -2055,7 +2154,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                           title="Move section down"
                           onClick={() => handleMoveFeature(index, "down")}
                           disabled={index === featureOrder.length - 1}
-                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: 6, width: 26, height: 26, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: index === featureOrder.length - 1 ? "not-allowed" : "pointer", opacity: index === featureOrder.length - 1 ? 0.3 : 1 }}
+                          style={{ background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: 6, width: 26, height: 26, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", cursor: index === featureOrder.length - 1 ? "not-allowed" : "pointer", opacity: index === featureOrder.length - 1 ? 0.3 : 1 }}
                         >
                           ▼
                         </button>
@@ -2066,7 +2165,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                         type="button"
                         title="Section Settings & Content Editor"
                         onClick={() => setActiveManagerSection(key)}
-                        style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                        style={{ background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
                       >
                         ⚙ Edit
                       </button>
@@ -4462,12 +4561,370 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
         </button>
       </div>
     </div>
-    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={draft.logo} alt="Image preview" style={{ transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`, objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%` }} /> : <span>YOUR<br />IMAGE</span>}</div></div>
+    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={resolveMediaUrl(draft.logo)} alt="Image preview" style={{ transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`, objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%` }} onLoad={(e) => { const img = e.currentTarget; console.debug("[ProfileImageTrace][IMG]", { kind: "logo", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftLogo: String(draft.logo || ""), resolvedLogo: String(resolveMediaUrl(draft.logo) || ""), timestamp: Date.now() }); console.log("[ProfileImageDebug] IMAGE_LOAD_SUCCESS", { kind: "logo", src: String(img.currentSrc || img.src), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight) }); }} onError={(e) => { const img = e.currentTarget; console.error("[ProfileImageTrace][IMAGE_LOAD_FAILED]", { kind: "logo", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftLogo: String(draft.logo || ""), resolvedLogo: String(resolveMediaUrl(draft.logo) || ""), timestamp: Date.now() }); console.error("[ProfileImageTrace][IMAGE_SRC_FAILURE]", String(img.src || "")); console.error("[ProfileImageDebug] IMAGE_LOAD_FAILED", { kind: "logo", src: String(img.src || "") }); }} /> : <span>YOUR<br />IMAGE</span>}</div></div>
     {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale || 100} onChange={event => update("logoScale", Number(event.target.value))} /><output>{draft.logoScale || 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation || 0} onChange={event => update("logoRotation", Number(event.target.value))} /><output>{draft.logoRotation || 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX || 50} onChange={event => update("logoX", Number(event.target.value))} /></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY || 50} onChange={event => update("logoY", Number(event.target.value))} /></label><button type="button" onClick={() => { update("logoScale", 100); update("logoRotation", 0); update("logoX", 50); update("logoY", 50); }}>Reset image</button></div>}
-    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={draft.cover} alt="Cover preview" style={{ transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`, objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%` }} /> : <span>Cover image preview</span>}</div></div>
+
+    {/* Profile Format Selector Section */}
+    <div className="profile-format-section">
+      <div className="profile-format-header">
+        <h3>Profile Format</h3>
+        <p>Choose how your public profile looks.</p>
+      </div>
+      <div className="profile-format-grid" role="radiogroup" aria-label="Profile Format">
+        {/* Standard Format Card */}
+        <div
+          role="radio"
+          aria-checked={(!draft.profileFormat || draft.profileFormat === "standard")}
+          tabIndex={0}
+          className={`profile-format-card ${(!draft.profileFormat || draft.profileFormat === "standard") ? "selected" : ""}`}
+          onClick={() => update("profileFormat", "standard")}
+          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); update("profileFormat", "standard"); } }}
+        >
+          <div className="profile-format-radio-indicator">
+            {(!draft.profileFormat || draft.profileFormat === "standard") && (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+          <div className="profile-format-preview-thumb">
+            <div className="mini-standard-preview">
+              <div className="mini-std-cover">
+                <div className="mini-std-name" />
+              </div>
+              <div className="mini-std-buttons">
+                <div className="mini-std-btn" />
+                <div className="mini-std-btn" />
+              </div>
+              <div className="mini-std-card" />
+            </div>
+          </div>
+          <span className="profile-format-card-title">Standard</span>
+          <span className="profile-format-card-desc">Your classic Zappit profile.</span>
+        </div>
+
+        {/* Modern Format Card */}
+        <div
+          role="radio"
+          aria-checked={draft.profileFormat === "modern"}
+          tabIndex={0}
+          className={`profile-format-card ${draft.profileFormat === "modern" ? "selected" : ""}`}
+          onClick={() => update("profileFormat", "modern")}
+          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); update("profileFormat", "modern"); } }}
+        >
+          <div className="profile-format-radio-indicator">
+            {draft.profileFormat === "modern" && (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+          <div className="profile-format-preview-thumb">
+            <div className="mini-modern-preview">
+              <div className="mini-mod-cover" />
+              <div className="mini-mod-avatar" />
+              <div className="mini-mod-name" />
+              <div className="mini-mod-btns">
+                <div className="mini-mod-btn" />
+                <div className="mini-mod-btn" />
+              </div>
+              <div className="mini-mod-cards">
+                <div className="mini-mod-row" />
+                <div className="mini-mod-row" />
+              </div>
+            </div>
+          </div>
+          <span className="profile-format-card-title">Modern</span>
+          <span className="profile-format-card-desc">A centered profile with organized contact and social sections.</span>
+        </div>
+      </div>
+
+      {/* Advanced Customization Panel for Modern Format */}
+      {draft.profileFormat === "modern" && (
+        <ModernCustomizerPanel draft={draft} update={update} />
+      )}
+    </div>
+
+    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={resolveMediaUrl(draft.cover)} alt="Cover preview" style={{ transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`, objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%` }} onLoad={(e) => { const img = e.currentTarget; console.debug("[ProfileImageTrace][IMG]", { kind: "cover", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftCover: String(draft.cover || ""), resolvedCover: String(resolveMediaUrl(draft.cover) || ""), timestamp: Date.now() }); console.log("[ProfileImageDebug] IMAGE_LOAD_SUCCESS", { kind: "cover", src: String(img.currentSrc || img.src), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight) }); }} onError={(e) => { const img = e.currentTarget; console.error("[ProfileImageTrace][IMAGE_LOAD_FAILED]", { kind: "cover", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftCover: String(draft.cover || ""), resolvedCover: String(resolveMediaUrl(draft.cover) || ""), timestamp: Date.now() }); console.error("[ProfileImageTrace][IMAGE_SRC_FAILURE]", String(img.src || "")); console.error("[ProfileImageDebug] IMAGE_LOAD_FAILED", { kind: "cover", src: String(img.src || "") }); }} /> : <span>Cover image preview</span>}</div></div>
     {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event => update("coverScale", Number(event.target.value))} /><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event => update("coverRotation", Number(event.target.value))} /><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event => update("coverX", Number(event.target.value))} /><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event => update("coverY", Number(event.target.value))} /><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={() => { update("coverScale", 100); update("coverRotation", 0); update("coverX", 50); update("coverY", 50); }}>Reset cover</button></div>}
   </>;
 }
+
+function ModernCustomizerPanel({ draft, update }: { draft: Card; update: (key: string, value: any) => void }) {
+  const [activeGroup, setActiveGroup] = useState<"colors" | "header" | "typography" | "shape" | null>("colors");
+
+  const mc = draft.modernConfig || {};
+
+  const updateMc = (key: string, value: any) => {
+    update("modernConfig", {
+      ...mc,
+      [key]: value,
+    });
+  };
+
+  const resetMc = () => {
+    update("modernConfig", {});
+  };
+
+  return (
+    <div className="modern-customizer-panel">
+      <div className="modern-customizer-header">
+        <div>
+          <h4>✨ Customize Modern Profile</h4>
+          <p>Fine-tune colors, banner style, typography, and card shapes for your Modern profile.</p>
+        </div>
+        <button
+          type="button"
+          className="reset-profile-colours"
+          style={{ padding: "6px 12px", fontSize: 12 }}
+          onClick={resetMc}
+        >
+          Reset Customization
+        </button>
+      </div>
+
+      {/* Accordion Group Buttons */}
+      <div className="modern-customizer-tabs">
+        <button
+          type="button"
+          className={`modern-tab-btn ${activeGroup === "colors" ? "active" : ""}`}
+          onClick={() => setActiveGroup(activeGroup === "colors" ? null : "colors")}
+        >
+          🎨 Advanced Colors {activeGroup === "colors" ? "▲" : "▼"}
+        </button>
+        <button
+          type="button"
+          className={`modern-tab-btn ${activeGroup === "header" ? "active" : ""}`}
+          onClick={() => setActiveGroup(activeGroup === "header" ? null : "header")}
+        >
+          🖼️ Header &amp; Banner {activeGroup === "header" ? "▲" : "▼"}
+        </button>
+        <button
+          type="button"
+          className={`modern-tab-btn ${activeGroup === "typography" ? "active" : ""}`}
+          onClick={() => setActiveGroup(activeGroup === "typography" ? null : "typography")}
+        >
+          ✍️ Typography {activeGroup === "typography" ? "▲" : "▼"}
+        </button>
+        <button
+          type="button"
+          className={`modern-tab-btn ${activeGroup === "shape" ? "active" : ""}`}
+          onClick={() => setActiveGroup(activeGroup === "shape" ? null : "shape")}
+        >
+          📐 Shape &amp; Spacing {activeGroup === "shape" ? "▲" : "▼"}
+        </button>
+      </div>
+
+      {/* Group Contents */}
+      <div className="modern-customizer-body">
+        {activeGroup === "colors" && (
+          <div className="colour-pickers modern-picker-grid">
+            {[
+              ["Card Surface", "cardBackground", "Card background fill"],
+              ["Card Border", "cardBorder", "Subtle card border color"],
+              ["Muted Text", "mutedText", "Subtitle and label text"],
+              ["Primary Btn Bg", "primaryBtnBg", "Save Contact button fill"],
+              ["Primary Btn Text", "primaryBtnText", "Text color on primary button"],
+              ["Secondary Btn Bg", "secondaryBtnBg", "Brochure/Share button fill"],
+              ["Secondary Btn Text", "secondaryBtnText", "Text color on secondary button"],
+            ].map(([label, key, hint]) => (
+              <label key={key} title={hint}>
+                <span>{label}</span>
+                <div>
+                  <input
+                    type="color"
+                    value={mc[key] || "#000000"}
+                    onChange={(e) => updateMc(key, e.target.value)}
+                  />
+                  <input
+                    className="colour-code"
+                    placeholder="Auto (Theme)"
+                    value={mc[key] || ""}
+                    onChange={(e) => updateMc(key, e.target.value)}
+                  />
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {activeGroup === "header" && (
+          <div className="modern-group-fields">
+            <div className="field">
+              <span>Header Banner Style</span>
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button
+                  type="button"
+                  className={`preset-card ${(!mc.headerStyle || mc.headerStyle === "gradient") ? "active" : ""}`}
+                  style={{ flex: 1, padding: "8px 12px", textAlign: "center" }}
+                  onClick={() => updateMc("headerStyle", "gradient")}
+                >
+                  Gradient Banner
+                </button>
+                <button
+                  type="button"
+                  className={`preset-card ${mc.headerStyle === "solid" ? "active" : ""}`}
+                  style={{ flex: 1, padding: "8px 12px", textAlign: "center" }}
+                  onClick={() => updateMc("headerStyle", "solid")}
+                >
+                  Solid Background
+                </button>
+              </div>
+            </div>
+
+            {(!mc.headerStyle || mc.headerStyle === "gradient") && (
+              <div className="colour-pickers modern-picker-grid" style={{ marginTop: 12 }}>
+                <label>
+                  <span>Gradient Start</span>
+                  <div>
+                    <input
+                      type="color"
+                      value={mc.headerGradientStart || "#061830"}
+                      onChange={(e) => updateMc("headerGradientStart", e.target.value)}
+                    />
+                    <input
+                      className="colour-code"
+                      placeholder="Auto"
+                      value={mc.headerGradientStart || ""}
+                      onChange={(e) => updateMc("headerGradientStart", e.target.value)}
+                    />
+                  </div>
+                </label>
+                <label>
+                  <span>Gradient End</span>
+                  <div>
+                    <input
+                      type="color"
+                      value={mc.headerGradientEnd || "#004b99"}
+                      onChange={(e) => updateMc("headerGradientEnd", e.target.value)}
+                    />
+                    <input
+                      className="colour-code"
+                      placeholder="Auto"
+                      value={mc.headerGradientEnd || ""}
+                      onChange={(e) => updateMc("headerGradientEnd", e.target.value)}
+                    />
+                  </div>
+                </label>
+              </div>
+            )}
+
+            <div className="image-controls" style={{ marginTop: 12 }}>
+              <label>
+                Banner Height
+                <input
+                  type="range"
+                  min="100"
+                  max="240"
+                  value={mc.headerHeight || 140}
+                  onChange={(e) => updateMc("headerHeight", Number(e.target.value))}
+                />
+                <output>{mc.headerHeight || 140}px</output>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {activeGroup === "typography" && (
+          <div className="modern-group-fields">
+            <label className="field">
+              <span>Font Family</span>
+              <select
+                className="mylux-select"
+                style={{ width: "100%", marginTop: 6 }}
+                value={mc.fontFamily || ""}
+                onChange={(e) => updateMc("fontFamily", e.target.value)}
+              >
+                <option value="">Default (System Inter)</option>
+                <option value="'Inter', sans-serif">Inter Clean</option>
+                <option value="'Outfit', sans-serif">Outfit Modern</option>
+                <option value="'Roboto', sans-serif">Roboto Classic</option>
+                <option value="'Playfair Display', serif">Playfair Serif</option>
+                <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
+              </select>
+            </label>
+
+            <div className="image-controls" style={{ marginTop: 12 }}>
+              <label>
+                Name Text Size
+                <input
+                  type="range"
+                  min="18"
+                  max="32"
+                  value={mc.nameSize || 22}
+                  onChange={(e) => updateMc("nameSize", Number(e.target.value))}
+                />
+                <output>{mc.nameSize || 22}px</output>
+              </label>
+              <label>
+                Body Text Size
+                <input
+                  type="range"
+                  min="12"
+                  max="18"
+                  value={mc.bodySize || 14}
+                  onChange={(e) => updateMc("bodySize", Number(e.target.value))}
+                />
+                <output>{mc.bodySize || 14}px</output>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {activeGroup === "shape" && (
+          <div className="modern-group-fields">
+            <div className="image-controls">
+              <label>
+                Card Corner Radius
+                <input
+                  type="range"
+                  min="0"
+                  max="28"
+                  value={mc.cardRadius !== undefined ? mc.cardRadius : 14}
+                  onChange={(e) => updateMc("cardRadius", Number(e.target.value))}
+                />
+                <output>{mc.cardRadius !== undefined ? mc.cardRadius : 14}px</output>
+              </label>
+              <label>
+                Button Corner Radius
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  value={mc.buttonRadius !== undefined ? mc.buttonRadius : 21}
+                  onChange={(e) => updateMc("buttonRadius", Number(e.target.value))}
+                />
+                <output>{mc.buttonRadius !== undefined ? mc.buttonRadius : 21}px</output>
+              </label>
+            </div>
+
+            <div className="field" style={{ marginTop: 12 }}>
+              <span>Spacing Density</span>
+              <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                {[
+                  ["compact", "Compact"],
+                  ["comfortable", "Comfortable"],
+                  ["spacious", "Spacious"],
+                ].map(([val, lbl]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`preset-card ${(!mc.spacingDensity && val === "comfortable") || mc.spacingDensity === val ? "active" : ""}`}
+                    style={{ flex: 1, padding: "8px 12px", textAlign: "center" }}
+                    onClick={() => updateMc("spacingDensity", val)}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, error, wide, children }: { label: string; error?: string; wide?: boolean; children: React.ReactNode }) {
   return <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}><span>{label}</span>{children}{error && <em>{error}</em>}</label>;
 }
@@ -4690,23 +5147,32 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
         </div>
       </div>
     </div>
-    <div className="preview-card"><div className="preview-title"><span>Card Preview</span><i>LIVE</i></div><div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#0066FF", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
-      <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
-      <div className="cover">{card.cover ? <img src={card.cover} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>ZAPPIT</span>}</div>
-      <div className="profile-logo">{card.logo ? <img src={card.logo} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
-      <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
-      <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>
-      <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>
-      {(card.about || card.services.length > 0) && <div className="company-preview">
-        <h4>Business Information</h4>
-        {card.about && <div className="company-about-preview"><h5>About Company</h5><p>{card.about}</p></div>}
-        {card.services.length > 0 && <div className="company-services-preview"><h5>Services / Products</h5><ol>{card.services.map((service) => <li key={service}>{service}</li>)}</ol></div>}
-      </div>}
-      {socialLinks.length > 0 && <div className="social-preview">
-        <h4>Apps &amp; Links</h4>
-        <div>{socialLinks.map((item) => <a className={`social-preview-icon ${item.brand}`} href={item.url} target="_blank" rel="noopener noreferrer" key={item.name} aria-label={`Open ${item.name}`} title={item.name}><SocialBrandIcon brand={item.brand} /></a>)}</div>
-      </div>}
-    </div></div>
+    <div className="preview-card">
+      <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
+      {card.profileFormat === "modern" ? (
+        <div style={{ padding: "8px 0" }}>
+          <ModernProfileLayout card={card} isDashboardPreview />
+        </div>
+      ) : (
+        <div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#0066FF", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
+          <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
+          <div className="cover">{card.cover ? <img src={resolveMediaUrl(card.cover)} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>ZAPPIT</span>}</div>
+          <div className="profile-logo">{card.logo ? <img src={resolveMediaUrl(card.logo)} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
+          <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
+          <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>
+          <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>
+          {(card.about || card.services.length > 0) && <div className="company-preview">
+            <h4>Business Information</h4>
+            {card.about && <div className="company-about-preview"><h5>About Company</h5><p>{card.about}</p></div>}
+            {card.services.length > 0 && <div className="company-services-preview"><h5>Services / Products</h5><ol>{card.services.map((service) => <li key={service}>{service}</li>)}</ol></div>}
+          </div>}
+          {socialLinks.length > 0 && <div className="social-preview">
+            <h4>Apps &amp; Links</h4>
+            <div>{socialLinks.map((item) => <a className={`social-preview-icon ${item.brand}`} href={item.url} target="_blank" rel="noopener noreferrer" key={item.name} aria-label={`Open ${item.name}`} title={item.name}><SocialBrandIcon brand={item.brand} /></a>)}</div>
+          </div>}
+        </div>
+      )}
+    </div>
   </aside>;
 }
 

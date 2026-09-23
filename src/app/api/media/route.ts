@@ -1,3 +1,8 @@
+
+
+
+
+
 import { randomUUID } from "node:crypto";
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 import { getSupabaseServiceConfig } from "@/lib/supabaseAuth";
@@ -17,8 +22,45 @@ const allowed = new Map([
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
-  return Response.json({ message: "Media API endpoint requires POST method for uploads." }, { status: 405 });
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const rawKey = searchParams.get("key");
+  if (!rawKey) {
+    return Response.json({ message: "Media API endpoint requires key parameter for download." }, { status: 400 });
+  }
+
+  let cleanKey: string;
+  try {
+    cleanKey = sanitizeStorageKey(rawKey);
+  } catch {
+    return Response.json({ message: "Invalid media key." }, { status: 400 });
+  }
+
+  if (isWasabiStorageConfigured()) {
+    try {
+      const provider = getStorageProvider();
+      const meta = await provider.headObject(cleanKey).catch(() => null);
+      const bytes = await provider.getObject(cleanKey);
+      if (!bytes) {
+        return Response.json({ message: "Media resource not found." }, { status: 404 });
+      }
+
+      const contentType = meta?.contentType || (cleanKey.endsWith(".png") ? "image/png" : cleanKey.endsWith(".jpg") || cleanKey.endsWith(".jpeg") ? "image/jpeg" : cleanKey.endsWith(".webp") ? "image/webp" : cleanKey.endsWith(".gif") ? "image/gif" : "image/png");
+      console.log("[MediaGET]", { key: cleanKey, objectExists: true, length: bytes.length, contentType });
+      return new Response(Buffer.from(bytes), {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    } catch (error) {
+      console.error("[Media GET Error]", error);
+      return Response.json({ message: "Media resource not found." }, { status: 404 });
+    }
+  }
+
+  return Response.json({ message: "Wasabi storage is not configured." }, { status: 503 });
 }
 
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
@@ -89,17 +131,20 @@ export async function POST(request: Request) {
     return Response.json({ message: "The file contents do not match the selected file type." }, { status: 400 });
   }
 
-  // Construct predictable, safe storage key with optional root prefix
+  // Resolve canonical account and user ID from authenticated server session
+  const accountId = identity.createdByAdminId || identity.id;
+  const userId = identity.id;
   const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
   const prefixSegment = rootPrefix ? `${rootPrefix}/` : "";
   const uniqueId = randomUUID();
+
   let storageKey: string;
   if (cardId && /^[0-9a-f-]{36}$/i.test(cardId)) {
-    storageKey = `${prefixSegment}cards/${cardId}/${kind}/${uniqueId}.${extension}`;
+    storageKey = `${prefixSegment}images/uploads/accounts/${accountId}/users/${identity.id}/cards/${cardId}/${kind}/${uniqueId}.${extension}`;
   } else if (kind === "avatar" || kind === "logo" || kind === "cover" || kind === "background") {
-    storageKey = `${prefixSegment}profiles/${identity.id}/${kind}/${uniqueId}.${extension}`;
+    storageKey = `${prefixSegment}images/uploads/accounts/${accountId}/users/${identity.id}/profiles/${identity.id}/${kind}/${uniqueId}.${extension}`;
   } else {
-    storageKey = `${prefixSegment}users/${identity.id}/${kind}/${uniqueId}.${extension}`;
+    storageKey = `${prefixSegment}images/uploads/accounts/${accountId}/users/${identity.id}/users/${identity.id}/${kind}/${uniqueId}.${extension}`;
   }
 
   storageKey = sanitizeStorageKey(storageKey);
@@ -115,21 +160,38 @@ export async function POST(request: Request) {
         isPublic: true,
       });
 
+      const headCheck = await provider.headObject(uploadResult.key).catch(() => null);
+      console.log("[MediaUpload]", {
+        bucket: process.env.WASABI_BUCKET,
+        accountId,
+        userId,
+        kind,
+        objectKey: uploadResult.key,
+        PUT: "SUCCESS",
+        HEAD: headCheck !== null ? "SUCCESS" : "FAILED",
+      });
+
+      const resolvedUrl = `/api/media?key=${encodeURIComponent(uploadResult.key)}`;
       return Response.json({
-        url: uploadResult.publicUrl,
+        url: resolvedUrl,
         key: uploadResult.key,
+        publicUrl: uploadResult.publicUrl,
         name: file.name,
         provider: "wasabi",
       });
     } catch (error: any) {
-      console.error("[Media API] Wasabi storage upload failed:", {
+      console.error("[MediaUpload]", {
+        bucket: process.env.WASABI_BUCKET,
+        accountId,
+        userId,
+        kind,
+        objectKey: storageKey,
+        PUT: "FAILED",
+        HEAD: "FAILED",
         errorName: error?.name,
         errorCode: error?.code || error?.Code,
         errorMessage: error?.message,
         statusCode: error?.$metadata?.httpStatusCode,
-        requestId: error?.$metadata?.requestId,
-        key: storageKey,
-        kind,
       });
       const msg = error?.message || "Failed to save file to Wasabi storage.";
       return Response.json({ message: msg }, { status: 500 });

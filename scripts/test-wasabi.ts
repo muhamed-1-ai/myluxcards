@@ -10,68 +10,128 @@ async function runWasabiDiagnostic() {
 
   const provider = new WasabiStorageProvider();
 
+  const bucket = process.env.WASABI_BUCKET || "";
+  const region = process.env.WASABI_REGION || "us-east-1";
+  const endpoint = process.env.WASABI_ENDPOINT || "https://s3.wasabisys.com";
+
+  console.log(`Bucket:          ${bucket}`);
+  console.log(`Region:          ${region}`);
+  console.log(`Endpoint:        ${endpoint}`);
+
   if (!provider.isConfigured()) {
-    console.log("⚠️  WASABI STORAGE IS NOT CONFIGURED IN ENVIRONMENT.");
-    console.log("Required variables:");
-    console.log("  - WASABI_ACCESS_KEY");
-    console.log("  - WASABI_SECRET_KEY");
-    console.log("  - WASABI_BUCKET");
-    console.log("Optional variables:");
-    console.log("  - WASABI_REGION (default: ap-southeast-1)");
-    console.log("  - WASABI_ENDPOINT (default: https://s3.wasabisys.com)");
+    console.log("\n⚠️  WASABI STORAGE IS NOT CONFIGURED IN ENVIRONMENT.");
+    console.log("Required variables: WASABI_ACCESS_KEY, WASABI_SECRET_KEY, WASABI_BUCKET");
     process.exit(1);
   }
 
-  console.log(`Bucket:   ${process.env.WASABI_BUCKET}`);
-  console.log(`Region:   ${process.env.WASABI_REGION || "ap-southeast-1"}`);
-  console.log(`Endpoint: ${process.env.WASABI_ENDPOINT || "https://s3.wasabisys.com"}`);
+  const testTimestamp = Date.now();
+  const rawPrefix = (process.env.WASABI_ROOT_PREFIX || "").trim().replace(/^\/+|\/+$/g, "");
+  const rootPrefix = rawPrefix ? `${rawPrefix}/` : "";
+  const testKey = sanitizeStorageKey(`${rootPrefix}admin/diagnostics/wasabi-test-${testTimestamp}.txt`);
+  console.log(`Test object key: ${testKey}`);
+  console.log("------------------------------------------");
 
-  const testKey = sanitizeStorageKey(`admin/test-diagnostic-${Date.now()}.txt`);
-  const testBuffer = Buffer.from("ZAPPIT Wasabi S3 storage connection test successful.");
+  const testBuffer = Buffer.from(`ZAPPIT Wasabi S3 storage connection test payload at ${new Date().toISOString()}`);
 
+  let putSuccess = false;
+  let headSuccess = false;
+  let getSuccess = false;
+  let deleteSuccess = false;
+  let failureReason = "";
+
+  // 1. PUT OBJECT TEST
   try {
-    console.log("\n1. Testing Upload (PutObject)...");
     const uploadRes = await provider.uploadObject({
       buffer: testBuffer,
       key: testKey,
       contentType: "text/plain",
       isPublic: true,
     });
-    console.log("   ✅ Upload succeeded!");
-    console.log("   Canonical URL:", uploadRes.publicUrl);
-
-    console.log("\n2. Testing Head / Object Exists (HeadObject)...");
-    const exists = await provider.objectExists(testKey);
-    if (exists) {
-      console.log("   ✅ Object exists check succeeded!");
-    } else {
-      console.error("   ❌ Object exists check failed!");
+    if (uploadRes.key) {
+      putSuccess = true;
     }
-
-    console.log("\n3. Testing Presigned Upload URL (S3 Request Presigner)...");
-    const presigned = await provider.createPresignedUploadUrl({
-      key: `admin/presigned-test-${Date.now()}.txt`,
-      contentType: "text/plain",
-      expiresInSeconds: 300,
-    });
-    console.log("   ✅ Presigned upload URL generated successfully!");
-    console.log("   Presigned PUT URL (first 80 chars):", presigned.uploadUrl.substring(0, 80) + "...");
-
-    console.log("\n4. Testing Delete (DeleteObject)...");
-    const deleted = await provider.deleteObject(testKey);
-    if (deleted) {
-      console.log("   ✅ Delete succeeded!");
-    } else {
-      console.error("   ❌ Delete failed!");
-    }
-
-    console.log("\n==========================================");
-    console.log("🎉 ALL WASABI STORAGE DIAGNOSTIC TESTS PASSED!");
-    console.log("==========================================");
   } catch (err: any) {
-    console.error("\n❌ WASABI STORAGE DIAGNOSTIC FAILED:", err?.message || err);
+    failureReason = `PUT failed: ${err?.message || err}`;
+  }
+
+  // 2. HEAD OBJECT TEST
+  if (putSuccess) {
+    try {
+      const meta = await provider.headObject(testKey);
+      if (meta && meta.size > 0) {
+        headSuccess = true;
+      }
+    } catch (err: any) {
+      failureReason += ` | HEAD failed: ${err?.message || err}`;
+    }
+  }
+
+  // 3. GET OBJECT TEST
+  if (putSuccess) {
+    try {
+      const data = await provider.getObject(testKey);
+      if (data && data.length > 0) {
+        getSuccess = true;
+      }
+    } catch (err: any) {
+      failureReason += ` | GET failed: ${err?.message || err}`;
+    }
+  }
+
+  let publicHttpGetSuccess = false;
+  if (putSuccess) {
+    try {
+      const publicUrl = provider.getPublicUrl(testKey);
+      console.log(`Public URL:       ${publicUrl}`);
+      const res = await fetch(publicUrl);
+      console.log(`Public HTTP fetch status: ${res.status}`);
+
+      const presignedDownloadUrl = await provider.createPresignedDownloadUrl(testKey, 3600);
+      console.log(`Presigned Download URL generated successfully.`);
+      const presignedRes = await fetch(presignedDownloadUrl);
+      console.log(`Presigned HTTP fetch status: ${presignedRes.status}`);
+
+      if (presignedRes.ok) {
+        publicHttpGetSuccess = true;
+      } else {
+        failureReason += ` | Presigned HTTP GET returned ${presignedRes.status}`;
+      }
+    } catch (err: any) {
+      failureReason += ` | Presigned HTTP GET error: ${err?.message || err}`;
+    }
+  }
+
+  // 4. DELETE OBJECT TEST
+  if (putSuccess) {
+    try {
+      deleteSuccess = await provider.deleteObject(testKey);
+    } catch (err: any) {
+      failureReason += ` | DELETE failed: ${err?.message || err}`;
+    }
+  }
+
+  console.log(`PUT:    ${putSuccess ? "SUCCESS" : "FAILED"}`);
+  console.log(`HEAD:   ${headSuccess ? "SUCCESS" : "FAILED"}`);
+  console.log(`GET:    ${getSuccess ? "SUCCESS" : "FAILED"}`);
+  console.log(`DELETE: ${deleteSuccess ? "SUCCESS" : "FAILED"}`);
+  console.log("==========================================");
+
+  if (!putSuccess || !getSuccess) {
+    console.error("\n❌ WASABI STORAGE DIAGNOSTIC FAILED!");
+    if (failureReason) {
+      console.error(`Details: ${failureReason}`);
+    }
+    console.error("\nRequired IAM Permissions on Wasabi Console for Access Key:");
+    console.error("  - s3:PutObject");
+    console.error("  - s3:GetObject");
+    console.error("  - s3:HeadObject (s3:GetObject)");
+    console.error("  - s3:DeleteObject");
+    console.error("  - s3:ListBucket");
+    console.error(`Target Bucket ARN: arn:aws:s3:::${bucket} and arn:aws:s3:::${bucket}/*`);
     process.exit(1);
   }
+
+  console.log("🎉 ALL WASABI STORAGE DIAGNOSTIC TESTS PASSED SUCCESSFULLY!");
 }
 
 runWasabiDiagnostic();

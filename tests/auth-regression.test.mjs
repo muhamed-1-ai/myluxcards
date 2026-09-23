@@ -28,7 +28,7 @@ test("TEST 2 & 3: NEW AND EXISTING GOOGLE USER (Database columns)", () => {
 });
 
 test("TEST 4: DUPLICATE USER PROTECTION", () => {
-  assert.match(authService, /where normalized_email=\$1/);
+  assert.match(authService, /where LOWER\(email\)=\$1/);
   assert.match(schema, /email\s+String\s+@unique/);
 });
 
@@ -47,7 +47,7 @@ test("TEST 6: ROLE ASSIGNMENT (SUPER_ADMIN protection)", () => {
 test("TEST 7 & 8: SESSION CREATION & PERSISTENCE", () => {
   assert.match(auth, /strategy:\s*"jwt"/);
   assert.match(auth, /sessionToken:/);
-  assert.match(auth, /userId=user\.id/);
+  assert.match(auth, /token\.userId\s*=\s*user\.id/);
 });
 
 test("TEST 9 & 10: EMAIL/PASSWORD & LOGOUT", () => {
@@ -57,8 +57,8 @@ test("TEST 9 & 10: EMAIL/PASSWORD & LOGOUT", () => {
 });
 
 test("TEST 11: CALLBACK URL SECURITY", () => {
-  assert.match(auth, /const canonicalBase = process\.env\.NODE_ENV === "production" \? "https:\/\/3gzappit\.com" : baseUrl/);
-  assert.match(auth, /new URL\(url\)\.origin\s*===\s*new URL\(baseUrl\)\.origin/);
+  assert.match(auth, /const canonicalBase = isProd \? "https:\/\/3gzappit\.com" : baseUrl/);
+  assert.match(auth, /urlOrigin === baseOrigin/);
 });
 
 test("TEST 12: MIDDLEWARE PROTECTION", () => {

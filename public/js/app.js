@@ -1652,28 +1652,6 @@ class LuxApp {
       switchAuthModal('signup-modal', 'login-modal');
     });
 
-    document.getElementById('google-login')?.addEventListener('click', async (event) => {
-      const button = event.currentTarget;
-      const error = document.getElementById('login-error');
-      if (error) error.textContent = '';
-      button.disabled = true;
-      try {
-        const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin', cache: 'no-store' });
-        const { csrfToken } = await csrfResponse.json();
-        if (!csrfResponse.ok || !csrfToken) throw new Error('Unable to start Google sign-in.');
-        const body = new URLSearchParams({ csrfToken, callbackUrl: `${window.location.origin}/dashboard`, json: 'true' });
-        const response = await fetch('/api/auth/signin/google', {
-          method: 'POST', credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.url) throw new Error('Unable to start Google sign-in.');
-        window.location.assign(data.url);
-      } catch (cause) {
-        if (error) error.textContent = cause instanceof Error ? cause.message : 'Unable to start Google sign-in.';
-        button.disabled = false;
-      }
-    });
 
     const signupPassword = document.getElementById('signup-password');
     const passwordRules = {

@@ -75,29 +75,59 @@ function resolveMediaUrl(urlOrKey, env = {}) {
   if (!trimmed) return "";
 
   if (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
     trimmed.startsWith("data:") ||
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("blob:")
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("/api/media")
   ) {
     return trimmed;
   }
 
-  const cleanKey = trimmed.replace(/^\/+/, "");
-  const configuredPublicUrl = normalizePublicUrl(env.WASABI_PUBLIC_URL);
-  if (configuredPublicUrl) {
-    return `${configuredPublicUrl}/${cleanKey}`;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.includes(".wasabisys.com")) {
+      try {
+        const parsed = new URL(trimmed);
+        const pathSegments = parsed.pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+        let extractedKey = "";
+
+        const bucket = env.WASABI_BUCKET;
+        if (bucket && pathSegments[0] === bucket) {
+          extractedKey = pathSegments.slice(1).join("/");
+        } else if (
+          parsed.hostname === "s3.wasabisys.com" ||
+          /^s3[.-][a-z0-9-]+\.wasabisys\.com$/i.test(parsed.hostname)
+        ) {
+          extractedKey = pathSegments.slice(1).join("/");
+        } else {
+          extractedKey = pathSegments.join("/");
+        }
+
+        try { extractedKey = decodeURIComponent(extractedKey); } catch {}
+        if (extractedKey) {
+          return `/api/media?key=${encodeURIComponent(extractedKey)}`;
+        }
+      } catch {}
+    }
+
+    const configuredPublicUrl = normalizePublicUrl(env.WASABI_PUBLIC_URL);
+    if (configuredPublicUrl && trimmed.startsWith(configuredPublicUrl)) {
+      let key = trimmed.slice(configuredPublicUrl.length).replace(/^\/+/, "");
+      try { key = decodeURIComponent(key); } catch {}
+      if (key) return `/api/media?key=${encodeURIComponent(key)}`;
+    }
+
+    if (trimmed.includes(" ")) {
+      return encodeURI(trimmed);
+    }
+    return trimmed;
   }
 
-  const bucket = env.WASABI_BUCKET;
-  if (bucket) {
-    const { endpoint } = resolveWasabiEndpoint(env.WASABI_ENDPOINT, env.WASABI_REGION);
-    const cleanEndpoint = endpoint.replace(/\/+$/, "");
-    return `${cleanEndpoint}/${bucket}/${cleanKey}`;
+  if (trimmed.startsWith("/")) {
+    return trimmed;
   }
 
-  return trimmed;
+  let cleanKey = trimmed.replace(/^\/+/, "");
+  try { cleanKey = decodeURIComponent(cleanKey); } catch {}
+  return `/api/media?key=${encodeURIComponent(cleanKey)}`;
 }
 
 function extractStorageKey(urlOrKey, env = {}) {
@@ -191,7 +221,7 @@ test("Wasabi 5: Public URL Resolution via WASABI_PUBLIC_URL vs Endpoint fallback
     WASABI_REGION: "ap-southeast-1",
   };
   const resolvedCustom = resolveMediaUrl("3gzappit/profiles/user123/avatar/abc.webp", customEnv);
-  assert.equal(resolvedCustom, "https://cdn.3gzappit.com/media/3gzappit/profiles/user123/avatar/abc.webp");
+  assert.equal(resolvedCustom, "/api/media?key=3gzappit%2Fprofiles%2Fuser123%2Favatar%2Fabc.webp");
 
   const fallbackEnv = {
     WASABI_BUCKET: "mybucket",
@@ -199,7 +229,7 @@ test("Wasabi 5: Public URL Resolution via WASABI_PUBLIC_URL vs Endpoint fallback
     WASABI_REGION: "ap-southeast-1",
   };
   const resolvedFallback = resolveMediaUrl("3gzappit/profiles/user123/avatar/abc.webp", fallbackEnv);
-  assert.equal(resolvedFallback, "https://s3.ap-southeast-1.wasabisys.com/mybucket/3gzappit/profiles/user123/avatar/abc.webp");
+  assert.equal(resolvedFallback, "/api/media?key=3gzappit%2Fprofiles%2Fuser123%2Favatar%2Fabc.webp");
 });
 
 test("Wasabi 6: Storage key extraction from public URL and bucket URL", () => {
@@ -249,4 +279,12 @@ test("Wasabi 10: Presigned upload route incorporates rootPrefix & enforces MIME 
 test("Wasabi 11: cleanImage in cards.ts preserves legacy URLs & allows root-prefixed keys", () => {
   assert.match(cardsFile, /function cleanImage\(value: string\)/, "Must export cleanImage helper");
   assert.match(cardsFile, /cards\|profiles\|users\|uploads/, "cleanImage must preserve standard object keys");
+});
+
+test("Wasabi 12: Direct Wasabi URLs are strictly converted to same-origin /api/media proxy URLs", () => {
+  const directWasabiUrl = "https://s3.wasabisys.com/geniusgroup/Luxcards%20App%20Data/images/uploads/accounts/acc123/users/usr123/profiles/usr123/logo/f9e8a7b6.png";
+  const resolved = resolveMediaUrl(directWasabiUrl);
+  assert.doesNotMatch(resolved, /wasabisys\.com/, "Resolved URL must NEVER expose direct Wasabi host");
+  assert.ok(resolved.startsWith("/api/media?key="), "Resolved URL must start with /api/media?key=");
+  assert.match(resolved, /Luxcards%20App%20Data/, "Resolved URL must preserve key encoding");
 });

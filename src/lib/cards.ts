@@ -7,7 +7,7 @@ export const CARD_FIELDS = [
   "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
-  "profileFeatures","featureOrder",
+  "profileFeatures","featureOrder","profileFormat","modernConfig",
 ] as const;
 
 export type ProfileMode = "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
@@ -206,6 +206,8 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   logo:"", cover:"", profileBackground:"#020202", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
   logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
   profileMode: "DIGITAL_PROFILE",
+  profileFormat: "standard",
+  modernConfig: {},
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
   profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
   featureOrder: [ ...DEFAULT_FEATURE_ORDER ],
@@ -231,6 +233,33 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       output.profileMode = ["DIGITAL_PROFILE", "VEHICLE_CONNECT", "LOST_AND_FOUND"].includes(String(value))
         ? String(value)
         : "DIGITAL_PROFILE";
+    } else if (field === "profileFormat") {
+      output.profileFormat = ["standard", "modern"].includes(String(value || "").toLowerCase())
+        ? String(value).toLowerCase()
+        : "standard";
+    } else if (field === "modernConfig" && value && typeof value === "object" && !Array.isArray(value)) {
+      const mc = value as Record<string, unknown>;
+      output.modernConfig = {
+        cardBackground: typeof mc.cardBackground === "string" ? mc.cardBackground : undefined,
+        cardBorder: typeof mc.cardBorder === "string" ? mc.cardBorder : undefined,
+        mutedText: typeof mc.mutedText === "string" ? mc.mutedText : undefined,
+        primaryBtnBg: typeof mc.primaryBtnBg === "string" ? mc.primaryBtnBg : undefined,
+        primaryBtnText: typeof mc.primaryBtnText === "string" ? mc.primaryBtnText : undefined,
+        secondaryBtnBg: typeof mc.secondaryBtnBg === "string" ? mc.secondaryBtnBg : undefined,
+        secondaryBtnText: typeof mc.secondaryBtnText === "string" ? mc.secondaryBtnText : undefined,
+        secondaryBtnBorder: typeof mc.secondaryBtnBorder === "string" ? mc.secondaryBtnBorder : undefined,
+        headerStyle: ["gradient", "solid"].includes(String(mc.headerStyle)) ? String(mc.headerStyle) : undefined,
+        headerGradientStart: typeof mc.headerGradientStart === "string" ? mc.headerGradientStart : undefined,
+        headerGradientEnd: typeof mc.headerGradientEnd === "string" ? mc.headerGradientEnd : undefined,
+        headerHeight: typeof mc.headerHeight === "number" ? Math.max(80, Math.min(300, mc.headerHeight)) : undefined,
+        coverOverlay: typeof mc.coverOverlay === "number" ? Math.max(0, Math.min(100, mc.coverOverlay)) : undefined,
+        fontFamily: typeof mc.fontFamily === "string" ? mc.fontFamily.slice(0, 50) : undefined,
+        nameSize: typeof mc.nameSize === "number" ? Math.max(14, Math.min(40, mc.nameSize)) : undefined,
+        bodySize: typeof mc.bodySize === "number" ? Math.max(10, Math.min(24, mc.bodySize)) : undefined,
+        cardRadius: typeof mc.cardRadius === "number" ? Math.max(0, Math.min(40, mc.cardRadius)) : undefined,
+        buttonRadius: typeof mc.buttonRadius === "number" ? Math.max(0, Math.min(40, mc.buttonRadius)) : undefined,
+        spacingDensity: ["compact", "comfortable", "spacious"].includes(String(mc.spacingDensity)) ? String(mc.spacingDensity) : undefined,
+      };
     } else if (field === "enabledFeatures" && value && typeof value === "object") {
       const v = value as Record<string, unknown>;
       output.enabledFeatures = {
@@ -312,7 +341,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
       else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#0066FF" : "#ffffff";
       else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
-      else if (field === "brochureData") output[field] = /^https:\/\/[^\s]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
+      else if (field === "brochureData") output[field] = /^https?:\/\/[^\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
       else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
     }
   }
@@ -344,10 +373,11 @@ function clamp(value: unknown, minimum: number, maximum: number, fallback: numbe
 function cleanImage(value: string) {
   if (!value) return "";
   const trimmed = value.trim();
-  if (/^https?:\/\/[^\s]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
-  if (/^data:image\/(?:png|jpeg|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 7_000_000);
-  if (/^(?:[a-zA-Z0-9_-]+\/)?(?:cards|profiles|users|uploads)\/[a-zA-Z0-9_./-]+$/i.test(trimmed)) return trimmed.slice(0, 500);
-  if (/^\/[^\s]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
+  if (/^https?:\/\/[^\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
+  if (/^blob:https?:\/\/[^\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
+  if (/^data:image\/(?:png|jpeg|webp|gif|svg\+xml);base64,[a-z0-9+/=\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 7_000_000);
+  if (/^(?:[a-zA-Z0-9_ %-]+\/)*(?:images|documents|cards|profiles|users|uploads)\/[a-zA-Z0-9_ %./-]+$/i.test(trimmed)) return trimmed.slice(0, 500);
+  if (/^\/[^\r\n]+$/i.test(trimmed)) return trimmed.slice(0, 2000);
   return "";
 }
 

@@ -13,6 +13,15 @@ if (process.env.NODE_ENV === "production") {
     process.env.AUTH_URL = canonical;
   }
   process.env.AUTH_TRUST_HOST = "true";
+} else {
+  const port = process.env.PORT || "3000";
+  const defaultLocal = `http://localhost:${port}`;
+  if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("3gzappit.com")) {
+    process.env.NEXTAUTH_URL = defaultLocal;
+  }
+  if (!process.env.AUTH_URL || process.env.AUTH_URL.includes("3gzappit.com")) {
+    process.env.AUTH_URL = defaultLocal;
+  }
 }
 
 const isProd = process.env.NODE_ENV === "production";
@@ -160,7 +169,14 @@ export const authOptions: NextAuthOptions = {
         finalUrl = `${canonicalBase}${url}`;
       } else {
         try {
-          finalUrl = new URL(url).origin === new URL(baseUrl).origin || new URL(url).origin === canonicalBase ? url : `${canonicalBase}/dashboard`;
+          const urlOrigin = new URL(url).origin;
+          const baseOrigin = new URL(baseUrl).origin;
+          const canonicalOrigin = new URL(canonicalBase).origin;
+          if (urlOrigin === baseOrigin || urlOrigin === canonicalOrigin) {
+            finalUrl = url;
+          } else {
+            finalUrl = `${canonicalBase}/dashboard`;
+          }
         } catch {
           finalUrl = `${canonicalBase}/dashboard`;
         }
