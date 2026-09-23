@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
+import { formatCountryCode } from "@/lib/cards";
 
 type VehicleConnectSettings = {
   vehicleMake?: string;
@@ -485,8 +486,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     </main>
   );
 
-  const phone = card.mobile ? `${card.countryCode}${card.mobile}` : "";
-  const whatsapp = card.whatsapp ? `${card.countryCode}${card.whatsapp}` : "";
+  const phone = card.mobile ? `${formatCountryCode(card.countryCode)}${card.mobile}` : "";
+  const whatsapp = card.whatsapp ? `${formatCountryCode(card.countryCode)}${card.whatsapp}` : "";
   const location = [card.address, card.city, card.state].filter(Boolean).join(", ");
   const preferredSocialOrder = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "WhatsApp", "Threads"];
   const socials = Object.entries(card.social || {})
@@ -967,13 +968,13 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                                 });
                               }}
                             >
-                              {num.countryCode ? `${num.countryCode} ` : ""}{num.phoneNumber}
+                              {num.countryCode ? `${formatCountryCode(num.countryCode)} ` : "+ "}{num.phoneNumber}
                             </a>
                             <button
                               type="button"
                               className="pc-copy-icon-btn"
                               title="Copy phone number"
-                              onClick={() => copyToClipboard(num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber)}
+                              onClick={() => copyToClipboard(num.countryCode ? `${formatCountryCode(num.countryCode)} ${num.phoneNumber}` : `+${num.phoneNumber}`)}
                             >
                               ⧉
                             </button>
@@ -1014,13 +1015,13 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                                         });
                                       }}
                                     >
-                                      {num.countryCode ? `${num.countryCode} ` : ""}{num.phoneNumber}
+                                      {num.countryCode ? `${formatCountryCode(num.countryCode)} ` : "+ "}{num.phoneNumber}
                                     </a>
                                     <button
                                       type="button"
                                       className="pc-copy-icon-btn"
                                       title="Copy phone number"
-                                      onClick={() => copyToClipboard(num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber)}
+                                      onClick={() => copyToClipboard(num.countryCode ? `${formatCountryCode(num.countryCode)} ${num.phoneNumber}` : `+${num.phoneNumber}`)}
                                     >
                                       ⧉
                                     </button>

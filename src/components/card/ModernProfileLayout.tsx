@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
+import { formatCountryCode } from "@/lib/cards";
 import {
   Phone,
   Mail,
@@ -17,6 +18,7 @@ import {
   Check,
   ChevronRight,
   Sparkles,
+  Briefcase,
 } from "lucide-react";
 
 export interface ModernProfileConfig {
@@ -189,8 +191,8 @@ export function ModernProfileLayout({
 
   const name = card.name || "Your Name";
   const subtitle = [card.title, card.business].filter(Boolean).join(" – ") || "Title – Company Name";
-  const fullPhone = card.mobile ? `${card.countryCode || ""} ${card.mobile}`.trim() : "";
-  const fullWhatsapp = card.whatsapp ? `${card.countryCode || ""} ${card.whatsapp}`.trim() : "";
+  const fullPhone = card.mobile ? `${formatCountryCode(card.countryCode)} ${card.mobile}`.trim() : "";
+  const fullWhatsapp = card.whatsapp ? `${formatCountryCode(card.countryCode)} ${card.whatsapp}`.trim() : "";
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
   const socialLinks = [
@@ -379,6 +381,34 @@ export function ModernProfileLayout({
                   </a>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── 4.5 BUSINESS INFORMATION (SERVICES / PRODUCTS) CARD ── */}
+        {card.services && card.services.length > 0 && (
+          <div className="zappit-modern-card">
+            <div className="zappit-modern-card-header justify-between">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-[#00E5FF]" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] tracking-wider uppercase text-slate-400 font-semibold leading-none">BUSINESS INFORMATION</span>
+                  <span className="text-sm font-bold leading-tight mt-0.5">Services / Products</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="zappit-modern-services-list">
+              {card.services.map((item, idx) => (
+                <div key={`${item}-${idx}`} className="zappit-modern-service-row">
+                  <div className="zappit-modern-service-num">
+                    {String(idx + 1).padStart(2, "0")}
+                  </div>
+                  <div className="zappit-modern-service-name">
+                    {item}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

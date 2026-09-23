@@ -1,4 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash } from "crypto";
+
+export function formatCountryCode(code?: string | null): string {
+  if (!code) return "+";
+  const trimmed = String(code).trim();
+  if (!trimmed) return "+";
+  return trimmed.startsWith("+") ? trimmed : `+${trimmed}`;
+}
 
 export const CARD_FIELDS = [
   "name","title","business","countryCode","countryIso","mobile","whatsapp","email","website",

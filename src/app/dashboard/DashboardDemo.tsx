@@ -14,6 +14,7 @@ import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
+import { formatCountryCode } from "@/lib/cards";
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -4372,12 +4373,16 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
       const countries = countryModule.default;
       setDialCodes(countries
         .filter((country) => country.idd.root)
-        .map((country) => ({
-          flag: country.flag,
-          code: `${country.idd.root}${country.idd.suffixes?.[0] || ""}`,
-          name: country.name.common,
-          iso: country.cca2,
-        }))
+        .map((country) => {
+          const rawCode = `${country.idd.root}${country.idd.suffixes?.[0] || ""}`;
+          const code = formatCountryCode(rawCode);
+          return {
+            flag: country.flag,
+            code,
+            name: country.name.common,
+            iso: country.cca2,
+          };
+        })
         .sort((a, b) => a.name.localeCompare(b.name)));
       setLocationApi({
         getStatesOfCountry: locationModule.State.getStatesOfCountry,
@@ -4415,7 +4420,7 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
           countryLabel(item).toLowerCase() === normalized ||
           item.name.toLowerCase() === normalized ||
           item.iso.toLowerCase() === normalized ||
-          item.code === normalized
+          item.code.toLowerCase() === normalized
         );
         if (!country) return;
         update("countryIso", country.iso); update("countryCode", country.code);
@@ -4423,8 +4428,8 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
       }} onBlur={() => setCountryQuery(selectedCountry ? countryLabel(selectedCountry) : "")} />
       <datalist id="country-code-options">{dialCodes.map((country) => <option key={country.iso} value={countryLabel(country)} />)}</datalist>
     </div></Field>
-    <Field label="Mobile Number"><div className="phone"><span>{draft.countryCode}</span><input value={draft.mobile} onChange={(e) => { update("mobile", e.target.value.replace(/\D/g, "")); if (same) update("whatsapp", e.target.value.replace(/\D/g, "")); }} inputMode="tel" /></div></Field>
-    <Field label="WhatsApp Number"><div className="phone"><span>{draft.countryCode}</span><input value={draft.whatsapp} disabled={same} onChange={(e) => update("whatsapp", e.target.value.replace(/\D/g, ""))} inputMode="tel" /></div><label className="same"><input type="checkbox" checked={same} onChange={(e) => { setSame(e.target.checked); if (e.target.checked) update("whatsapp", draft.mobile); }} /> Same as mobile</label></Field>
+    <Field label="Mobile Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.mobile} onChange={(e) => { update("mobile", e.target.value.replace(/\D/g, "")); if (same) update("whatsapp", e.target.value.replace(/\D/g, "")); }} inputMode="tel" placeholder="e.g. 9555555345" /></div></Field>
+    <Field label="WhatsApp Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.whatsapp} disabled={same} onChange={(e) => update("whatsapp", e.target.value.replace(/\D/g, ""))} inputMode="tel" placeholder="e.g. 9555555345" /></div><label className="same"><input type="checkbox" checked={same} onChange={(e) => { setSame(e.target.checked); if (e.target.checked) update("whatsapp", draft.mobile); }} /> Same as mobile</label></Field>
     <Field label="Email Address" error={errors.email}><input type="email" value={draft.email} onChange={(e) => update("email", e.target.value)} placeholder="name@company.com" /></Field>
     <Field label="Website" error={errors.website}><input value={draft.website} onChange={(e) => update("website", e.target.value)} placeholder="https://example.com" /></Field>
     <Field label="State / Province"><div className={`country-search ${!selectedCountryIso ? "is-disabled" : ""}`}>
