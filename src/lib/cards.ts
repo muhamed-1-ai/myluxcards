@@ -134,7 +134,7 @@ export interface CardLostItem {
 
 export interface CardProfileProduct {
   id: string;
-  cardId: string;
+  cardId?: string;
   name: string;
   description: string;
   price: string;

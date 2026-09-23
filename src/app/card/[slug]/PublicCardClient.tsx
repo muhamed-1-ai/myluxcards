@@ -1216,6 +1216,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         card.profileFormat === "modern" ? (
           <ModernProfileLayout
             card={card}
+            profileProducts={profileProducts}
             onSaveContact={saveContact}
             onShare={() => { track("SHARE"); void share(); }}
             onOpenBrochure={card.brochure ? () => {

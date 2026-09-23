@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode } from "@/lib/cards";
+import { formatCountryCode, CardProfileProduct } from "@/lib/cards";
 import {
   Phone,
   Mail,
@@ -19,7 +19,9 @@ import {
   ChevronRight,
   Sparkles,
   Briefcase,
+  ShoppingBag,
 } from "lucide-react";
+
 
 export interface ModernProfileConfig {
   cardBackground?: string;
@@ -73,7 +75,9 @@ export interface ModernProfileLayoutProps {
     profileText?: string;
     modernConfig?: ModernProfileConfig;
     slug?: string;
+    id?: string;
   };
+  profileProducts?: CardProfileProduct[];
   onSaveContact?: () => void;
   onShare?: () => void;
   onOpenBrochure?: () => void;
@@ -125,7 +129,7 @@ export function resolveModernThemeTokens(card: ModernProfileLayoutProps["card"])
 
   // Header style
   const headerStyle = mc.headerStyle || "gradient";
-  const headerHeight = mc.headerHeight || 140;
+  const headerHeight = mc.headerHeight || 200;
   const coverOverlay = mc.coverOverlay !== undefined ? mc.coverOverlay / 100 : 0.2;
   const headerGradStart = mc.headerGradientStart || (bgIsLight ? accent : "#061830");
   const headerGradEnd = mc.headerGradientEnd || (bgIsLight ? bg : "#004b99");
@@ -174,12 +178,36 @@ export function resolveModernThemeTokens(card: ModernProfileLayoutProps["card"])
 
 export function ModernProfileLayout({
   card,
+  profileProducts,
   onSaveContact,
   onShare,
   onOpenBrochure,
   isDashboardPreview = false,
 }: ModernProfileLayoutProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
+
+  useEffect(() => {
+    if (profileProducts !== undefined) return;
+    const cardId = card.id;
+    if (!cardId || !/^[0-9a-f-]{36}$/i.test(cardId)) return;
+
+    let isMounted = true;
+    fetch(`/api/cards/profile-products?cardId=${encodeURIComponent(cardId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && Array.isArray(data.products)) {
+          setFetchedProducts(data.products);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [card.id, profileProducts]);
+
+  const effectiveProducts = profileProducts !== undefined ? profileProducts : fetchedProducts;
 
   const handleCopy = (text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -234,15 +262,6 @@ export function ModernProfileLayout({
           ) : (
             <div className="zappit-modern-cover-gradient" />
           )}
-
-          {/* Top Header Row inside Cover */}
-          <div className="zappit-modern-topbar">
-            <div className="zappit-modern-brand-logo">
-              <span className="zappit-logo-icon">⚡</span>
-              <span className="zappit-logo-text">ZAPPIT</span>
-              <span className="zappit-logo-sub">TAP · CONNECT · GROW</span>
-            </div>
-          </div>
 
           {/* Centered Overlapping Avatar */}
           <div className="zappit-modern-avatar-wrap">
@@ -412,6 +431,91 @@ export function ModernProfileLayout({
             </div>
           </div>
         )}
+
+        {/* ── 4.8 MY PRODUCTS CARD ── */}
+        {(() => {
+          const activeProducts = (effectiveProducts || []).filter((p) => p.enabled !== false);
+          if (activeProducts.length === 0) return null;
+
+          return (
+            <div className="zappit-modern-card">
+              <div className="zappit-modern-card-header justify-between">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-[#00E5FF]" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] tracking-wider uppercase text-slate-400 font-semibold leading-none">SHOWCASE</span>
+                    <span className="text-sm font-bold leading-tight mt-0.5">My Products</span>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {activeProducts.length} {activeProducts.length === 1 ? "Product" : "Products"}
+                </span>
+              </div>
+
+              <div className="zappit-modern-products-grid">
+                {activeProducts.map((prod) => {
+                  const resolvedImg = prod.imageUrl ? resolveMediaUrl(prod.imageUrl) : null;
+                  const currencySymbol = prod.currency === "USD" ? "$" : prod.currency === "EUR" ? "€" : "₹";
+                  const formattedPrice = prod.price ? `${currencySymbol}${prod.price}` : null;
+
+                  return (
+                    <div key={prod.id} className="zappit-modern-product-card">
+                      {resolvedImg ? (
+                        <div className="zappit-modern-product-img-wrap">
+                          <img
+                            src={resolvedImg}
+                            alt={prod.name}
+                            className="zappit-modern-product-img"
+                          />
+                        </div>
+                      ) : (
+                        <div className="zappit-modern-product-img-fallback">
+                          <ShoppingBag className="w-8 h-8 text-slate-500 opacity-60" />
+                        </div>
+                      )}
+
+                      <div className="zappit-modern-product-body">
+                        {prod.category && (
+                          <span className="zappit-modern-product-cat">
+                            {prod.category}
+                          </span>
+                        )}
+
+                        <h3 className="zappit-modern-product-title">
+                          {prod.name}
+                        </h3>
+
+                        {formattedPrice && (
+                          <div className="zappit-modern-product-price">
+                            {formattedPrice}
+                          </div>
+                        )}
+
+                        {prod.description && (
+                          <p className="zappit-modern-product-desc">
+                            {prod.description}
+                          </p>
+                        )}
+
+                        {prod.ctaUrl && (
+                          <a
+                            href={prod.ctaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="zappit-modern-product-cta"
+                          >
+                            <span>{prod.ctaLabel || "View / Explore"}</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── 5. APPS & LINKS CARD ── */}
         {socialLinks.length > 0 && (
