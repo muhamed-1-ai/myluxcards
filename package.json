@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/production-regression-suite.test.mjs && node tests/secret-exposure-guardrails.test.mjs && node tests/wasabi-storage-integration.test.mjs && node tests/google-oauth-regression.test.mjs && node tests/multi_tenant_leads_regression.test.mjs && node tests/session-role-propagation.test.mjs && node tests/dynamic-leads-theme-regression.test.mjs && node tests/admin-permissions-suspension.test.mjs",
+    "test": "node tests/production-regression-suite.test.mjs && node tests/secret-exposure-guardrails.test.mjs && node tests/wasabi-storage-integration.test.mjs && node tests/google-oauth-regression.test.mjs && node tests/multi_tenant_leads_regression.test.mjs && node tests/session-role-propagation.test.mjs && node tests/dynamic-leads-theme-regression.test.mjs && node tests/admin-permissions-suspension.test.mjs && node tests/auth-lifecycle-architecture.test.mjs && npx tsx --test tests/vcard-generation-compatibility.test.mjs",
     "test:prisma": "tsx scripts/test-prisma.ts",
     "db:migrate": "tsx scripts/migrate-db.ts",
     "db:migrate:status": "tsx scripts/migration-status.ts",

@@ -13,6 +13,7 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react";
+import { apiFetch, refreshSession } from "@/lib/apiClient";
 
 export interface NotificationItem {
   id: string;
@@ -33,39 +34,27 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-
   // Fetch unread count & initial notifications
   const fetchUnreadCount = async () => {
-    try {
-      const res = await fetch("/api/notifications/unread-count", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch {
-      // ignore
+    const res = await apiFetch<{ unreadCount: number }>("/api/notifications/unread-count");
+    if (res.ok && res.data) {
+      setUnreadCount(res.data.unreadCount || 0);
     }
   };
 
   const fetchDropdownNotifications = async () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/notifications?limit=8", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
+    const res = await apiFetch<{ notifications: NotificationItem[]; unreadCount: number }>("/api/notifications?limit=8");
+    if (res.ok && res.data) {
+      setNotifications(res.data.notifications || []);
+      setUnreadCount(res.data.unreadCount || 0);
     }
+    setLoading(false);
   };
 
   // Real-time Server-Sent Events (SSE) Listener
@@ -75,7 +64,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
     let eventSource: EventSource | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
+    const maxReconnectAttempts = 3;
 
     const connectSSE = () => {
       try {
@@ -104,15 +93,18 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
           }
         };
 
-        eventSource.onerror = () => {
+        eventSource.onerror = async () => {
           if (eventSource) {
             eventSource.close();
             eventSource = null;
           }
           if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts += 1;
-            const backoffMs = Math.min(30000, 5000 * reconnectAttempts);
-            reconnectTimeout = setTimeout(connectSSE, backoffMs);
+            const refreshed = await refreshSession();
+            if (refreshed) {
+              const backoffMs = Math.min(30000, 3000 * reconnectAttempts);
+              reconnectTimeout = setTimeout(connectSSE, backoffMs);
+            }
           }
         };
       } catch {

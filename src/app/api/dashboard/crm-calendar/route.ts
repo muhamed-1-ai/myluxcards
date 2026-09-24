@@ -2,9 +2,9 @@ import { currentIdentity } from "@/lib/adminAuth";
 import { getCrmCalendarData } from "@/lib/crm";
 
 export async function GET(request: Request) {
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ error: "UNAUTHORIZED", message: "Unauthorized account access." }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

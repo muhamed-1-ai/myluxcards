@@ -1,10 +1,10 @@
 import { currentIdentity } from "@/lib/adminAuth";
 import { getDashboardSummaryData } from "@/lib/crm";
 
-export async function GET() {
-  const identity = await currentIdentity();
+export async function GET(request: Request) {
+  const identity = await currentIdentity(request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ error: "UNAUTHORIZED", message: "Unauthorized account access." }, { status: 401 });
   }
 
   try {

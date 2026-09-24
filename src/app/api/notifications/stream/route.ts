@@ -4,9 +4,9 @@ import { getUnreadNotificationCount, notificationEmitter } from "@/lib/notificat
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "UNAUTHORIZED", message: "Unauthorized account access." }, { status: 401 });
   }
 
   const userId = identity.id;

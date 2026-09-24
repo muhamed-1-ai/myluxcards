@@ -4,10 +4,10 @@ import { getUnreadNotificationCount } from "@/lib/notifications";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
-  const identity = await currentIdentity();
+export async function GET(request: Request) {
+  const identity = await currentIdentity(request);
   if (!identity) {
-    return Response.json({ unreadCount: 0 }, { status: 401 });
+    return Response.json({ unreadCount: 0, error: "UNAUTHORIZED", message: "Unauthorized account access." }, { status: 401 });
   }
 
   try {

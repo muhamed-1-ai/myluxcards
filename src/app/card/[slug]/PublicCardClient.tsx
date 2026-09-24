@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
+import { buildVCardString } from "@/lib/vcard";
 
 type VehicleConnectSettings = {
   vehicleMake?: string;
@@ -518,19 +519,38 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     const basicEnabled = pf.BASIC_PROFILE ? pf.BASIC_PROFILE.enabled : true;
     const websiteEnabled = pf.WEBSITE ? pf.WEBSITE.enabled : true;
 
-    const vcard = ["BEGIN:VCARD", "VERSION:3.0", `FN:${card.name}`,
-      card.title && `TITLE:${card.title}`,
-      card.business && `ORG:${card.business}`,
-      contactEnabled && phone && `TEL:${phone}`,
-      contactEnabled && card.email && `EMAIL:${card.email}`,
-      websiteEnabled && card.website && `URL:${card.website}`,
-      contactEnabled && location && `ADR:;;${location};;;;`,
-      "END:VCARD"].filter(Boolean).join("\n");
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([vcard], { type: "text/vcard" }));
-    link.download = `${card.name || "contact"}.vcf`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    if (slug) {
+      // Trigger fresh server vCard download (Mobile compatible with RFC 6350 & proper response headers)
+      const vcardUrl = `/api/cards/public/${encodeURIComponent(slug)}/vcard`;
+      const link = document.createElement("a");
+      link.href = vcardUrl;
+      link.download = `${card.name || "contact"}.vcf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Fallback for draft/preview cards: client-side build using RFC 6350 vCard helper
+      const vcardObj = buildVCardString({
+        profileName: card.name,
+        cardName: card.name,
+        companyName: card.business,
+        title: card.title,
+        phone: contactEnabled ? phone : undefined,
+        email: contactEnabled ? card.email : undefined,
+        website: websiteEnabled ? card.website : undefined,
+        address: contactEnabled ? location : undefined,
+      });
+
+      const blob = new Blob([vcardObj.vcard], { type: "text/vcard;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${vcardObj.fullName || "contact"}.vcf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    }
+
     track("CONTACT_SAVE");
   };
 

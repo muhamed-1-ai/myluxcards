@@ -28,45 +28,27 @@ export type AdminIdentity = {
   legal_accepted_at?: Date | null;
 };
 
-export async function currentIdentity(): Promise<AdminIdentity | null> {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return null;
-    const profile = await findUserById(session.user.id);
-    if (
-      !profile ||
-      profile.disabled ||
-      profile.status === "DISABLED" ||
-      profile.status === "SUSPENDED" ||
-      (Number.isInteger(session.user.sessionVersion) && profile.session_version!==session.user.sessionVersion)
-    ) {
-      return null;
-    }
+import { currentIdentity as currentIdentityCore } from "@/lib/auth/currentIdentity";
 
-    const featurePermissions: FeaturePermissions = normalizeFeaturePermissions(profile.feature_permissions);
+export async function currentIdentity(): Promise<AdminIdentity | null>;
+export async function currentIdentity(req?: Request): Promise<AdminIdentity | null>;
+export async function currentIdentity(req?: Request): Promise<AdminIdentity | null> {
+  // Verification delegate to core auth engine.
+  // Ensures profile.disabled, profile.status === "DISABLED", profile.session_version !== session.user.sessionVersion are verified.
+  const identity = await currentIdentityCore(req);
+  if (!identity) return null;
 
-    return {
-      id: profile.id,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role,
-      status: profile.status,
-      disabled: profile.disabled,
-      mustChangePassword: profile.must_change_password,
-      createdByAdminId: profile.created_by_admin_id,
-      featurePermissions,
-      terms_accepted: profile.terms_accepted,
-      privacy_accepted: profile.privacy_accepted,
-      cookie_consent: profile.cookie_consent,
-      terms_version: profile.terms_version,
-      privacy_version: profile.privacy_version,
-      cookie_version: profile.cookie_version,
-      legal_accepted_at: profile.legal_accepted_at,
-    };
-  } catch (error) {
-    console.error("[Auth] currentIdentity error:", error);
-    return null;
-  }
+  return {
+    id: identity.id,
+    email: identity.email,
+    name: identity.name,
+    role: identity.role,
+    status: identity.status,
+    disabled: identity.disabled,
+    mustChangePassword: identity.mustChangePassword,
+    createdByAdminId: identity.createdByAdminId,
+    featurePermissions: identity.featurePermissions,
+  };
 }
 
 export async function requireAuthenticatedUser(): Promise<AdminIdentity | null> {

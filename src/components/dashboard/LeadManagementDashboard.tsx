@@ -28,6 +28,7 @@ import {
 } from "@/lib/crm";
 import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
+import { apiFetch } from "@/lib/apiClient";
 
 const CrmActivityCalendar = dynamic(
   () => import("./CrmActivityCalendar").then((mod) => mod.CrmActivityCalendar),
@@ -68,18 +69,17 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
   const [scheduleNote, setScheduleNote] = useState("");
   const [scheduling, setScheduling] = useState(false);
 
-  const fetchDashboardData = useCallback(async (isRefresh = false) => {
+  const fetchDashboardData = useCallback(async (isRefresh = false, signal?: AbortSignal) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError("");
 
     try {
-      const res = await fetch("/api/dashboard/lead-summary");
-      const payload = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setData(payload);
-      } else {
-        setError(payload.message || "Failed to load lead summary.");
+      const res = await apiFetch<DashboardSummaryPayload>("/api/dashboard/lead-summary", { signal });
+      if (res.ok && res.data) {
+        setData(res.data);
+      } else if (res.error !== "Request aborted") {
+        setError(res.error || "Failed to load lead summary.");
       }
     } catch {
       setError("Network issue. Failed to load dashboard data.");
@@ -90,7 +90,9 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
   }, []);
 
   useEffect(() => {
-    void fetchDashboardData();
+    const controller = new AbortController();
+    void fetchDashboardData(false, controller.signal);
+    return () => controller.abort();
   }, [fetchDashboardData]);
 
   // Follow-Up Completion Handler
