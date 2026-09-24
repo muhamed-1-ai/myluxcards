@@ -5826,15 +5826,70 @@ body.light-mode .crm-kpi-badge {
 }
 
 .zappit-modern-app-icon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--mod-card-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.zappit-modern-app-tile:hover .zappit-modern-app-icon {
+  transform: scale(1.1);
+}
+
+.zappit-modern-app-icon.instagram {
+  background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(225, 48, 108, 0.45);
+}
+
+.zappit-modern-app-icon.linkedin {
+  background: linear-gradient(135deg, #0a66c2 0%, #004182 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(10, 102, 194, 0.45);
+}
+
+.zappit-modern-app-icon.youtube {
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 0, 0, 0.45);
+}
+
+.zappit-modern-app-icon.facebook {
+  background: linear-gradient(135deg, #1877f2 0%, #0d5bb5 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(24, 119, 242, 0.45);
+}
+
+.zappit-modern-app-icon.twitter {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.zappit-modern-app-icon.website {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45);
+}
+
+.zappit-modern-app-icon.maps,
+.zappit-modern-app-icon.google {
+  background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(234, 67, 53, 0.45);
+}
+
+.zappit-modern-app-icon.whatsapp {
+  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.45);
 }
 
 .zappit-modern-app-name {

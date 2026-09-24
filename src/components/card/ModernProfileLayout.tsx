@@ -84,6 +84,68 @@ export interface ModernProfileLayoutProps {
   isDashboardPreview?: boolean;
 }
 
+function SocialBrandLogo({ brand }: { brand: string }) {
+  const normalized = brand.toLowerCase();
+  if (normalized === "instagram") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" rx="5.5" ry="5.5" />
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" strokeWidth="3" />
+      </svg>
+    );
+  }
+  if (normalized === "linkedin") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
+        <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.64a1.6 1.6 0 1 0 1.6 1.6 1.6 1.6 0 0 0-1.6-1.6z" />
+      </svg>
+    );
+  }
+  if (normalized === "youtube") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-hidden="true">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+      </svg>
+    );
+  }
+  if (normalized === "facebook") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-white" aria-hidden="true">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      </svg>
+    );
+  }
+  if (normalized === "twitter" || normalized === "x") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+    );
+  }
+  if (normalized === "whatsapp") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-white" aria-hidden="true">
+        <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.763.459 3.484 1.332 5.001L2 22l5.148-1.348a9.96 9.96 0 0 0 4.864 1.258h.004c5.504 0 9.987-4.478 9.988-9.984 0-2.668-1.039-5.176-2.928-7.066A9.914 9.914 0 0 0 12.012 2zm0 16.516a8.27 8.27 0 0 1-4.225-1.157l-.303-.18-3.14.822.836-3.06-.197-.314A8.256 8.256 0 0 1 3.73 11.984c0-4.566 3.716-8.281 8.286-8.281 2.213 0 4.292.862 5.856 2.428a8.232 8.232 0 0 1 2.424 5.857c-.001 4.567-3.717 8.283-8.284 8.283zm4.54-6.195c-.249-.124-1.472-.726-1.7-.809-.228-.083-.394-.124-.56.125-.166.248-.642.809-.787.974-.145.166-.29.187-.539.063a6.79 6.79 0 0 1-2.001-1.233 7.487 7.487 0 0 1-1.385-1.724c-.145-.248-.016-.383.109-.507.112-.112.249-.29.373-.435.124-.145.166-.249.249-.415.083-.166.042-.311-.021-.435-.062-.124-.56-1.348-.767-1.846-.201-.486-.406-.42-.56-.427l-.477-.008c-.166 0-.435.062-.663.311s-.871.851-.871 2.074.892 2.406 1.016 2.572c.124.166 1.756 2.681 4.254 3.76.595.257 1.06.41 1.423.526.598.19 1.142.163 1.572.099.48-.071 1.472-.602 1.679-1.183.207-.58.207-1.078.145-1.182-.062-.104-.228-.166-.477-.29z" />
+      </svg>
+    );
+  }
+  if (normalized === "maps" || normalized === "google") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-hidden="true">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-none stroke-white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
 export function getLuminance(hex?: string): number {
   if (!hex || typeof hex !== "string") return 0;
   const clean = hex.replace("#", "").trim();
@@ -538,13 +600,7 @@ export function ModernProfileLayout({
                   className="zappit-modern-app-tile"
                 >
                   <div className={`zappit-modern-app-icon ${item.brand}`}>
-                    {item.brand === "instagram" && <span>📸</span>}
-                    {item.brand === "website" && <Globe className="w-4 h-4 text-sky-400" />}
-                    {item.brand === "linkedin" && <span className="font-bold text-blue-400 text-xs">in</span>}
-                    {item.brand === "youtube" && <span className="text-red-500 text-xs">▶</span>}
-                    {item.brand === "facebook" && <span className="font-bold text-blue-500 text-xs">f</span>}
-                    {item.brand === "twitter" && <span className="font-bold text-sky-400 text-xs">𝕏</span>}
-                    {item.brand === "maps" && <span>📍</span>}
+                    <SocialBrandLogo brand={item.brand} />
                   </div>
                   <span className="zappit-modern-app-name">{item.name}</span>
                   <span className="zappit-modern-app-arrow">→</span>
