@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await requirePermission("leads");
+  const identity = await requirePermission("all_leads");
   if (!identity) {
     const user = await currentIdentity();
     if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });

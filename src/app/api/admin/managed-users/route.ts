@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentIdentity, requireAdmin, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
 import { createAdminManagedUser } from "@/lib/authService";
 import { findManagedUsersByAdmin } from "@/lib/repositories/users";
+import { normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 
 export async function GET() {
   try {
@@ -14,7 +15,11 @@ export async function GET() {
     }
 
     const isSuperAdmin = identity.role === "SUPER_ADMIN";
-    const users = await findManagedUsersByAdmin(identity.id, isSuperAdmin);
+    const rawUsers = await findManagedUsersByAdmin(identity.id, isSuperAdmin);
+    const users = rawUsers.map((u) => ({
+      ...u,
+      feature_permissions: normalizeFeaturePermissions(u.feature_permissions),
+    }));
 
     return NextResponse.json({ users });
   } catch (error) {

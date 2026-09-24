@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { authOptions } from "./auth";
 import { pool } from "./db";
 import { findUserById, findManagedUserById } from "./repositories/users";
-import { AppRole, AccountStatus, FeaturePermissions, DEFAULT_FEATURE_PERMISSIONS } from "@/types/database";
+import { AppRole, AccountStatus, FeaturePermissions } from "@/types/database";
+import { FeatureKey, isFeatureAllowed, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 
 export type AdminRole = AppRole;
 
@@ -42,10 +43,7 @@ export async function currentIdentity(): Promise<AdminIdentity | null> {
       return null;
     }
 
-    const featurePermissions: FeaturePermissions = {
-      ...DEFAULT_FEATURE_PERMISSIONS,
-      ...(profile.feature_permissions as Partial<FeaturePermissions> | undefined),
-    } as FeaturePermissions;
+    const featurePermissions: FeaturePermissions = normalizeFeaturePermissions(profile.feature_permissions);
 
     return {
       id: profile.id,
@@ -93,15 +91,13 @@ export async function requireSuperAdmin() {
   return identity;
 }
 
-export async function requirePermission(permission: keyof FeaturePermissions): Promise<AdminIdentity | null> {
+export async function requirePermission(permission: FeatureKey): Promise<AdminIdentity | null> {
   const identity = await currentIdentity();
   if (!identity) return null;
-  // SUPER_ADMIN and ADMIN always have all features for their own account
   if (identity.role === "SUPER_ADMIN" || identity.role === "ADMIN") {
     return identity;
   }
-  // USER check
-  if (!identity.featurePermissions || !identity.featurePermissions[permission]) {
+  if (!isFeatureAllowed(identity.featurePermissions, permission, identity.role)) {
     return null;
   }
   return identity;

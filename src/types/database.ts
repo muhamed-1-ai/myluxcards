@@ -1,35 +1,12 @@
 export type AppRole = "CUSTOMER" | "USER" | "ADMIN" | "SUPER_ADMIN";
 export type AccountStatus = "ACTIVE" | "PENDING_PAYMENT" | "SUSPENDED" | "DISABLED";
 
-export interface FeaturePermissions {
-  [key: string]: boolean;
-  dashboard: boolean;
-  profile: boolean;
-  nfc_card: boolean;
-  qr_profile: boolean;
-  crm: boolean;
-  leads: boolean;
-  lost_found: boolean;
-  vehicle: boolean;
-  orders: boolean;
-  analytics: boolean;
-  products: boolean;
-  notifications: boolean;
-}
+import { DEFAULT_FEATURE_PERMISSIONS as REGISTRY_DEFAULT, FeatureKey } from "@/lib/permissionsRegistry";
+
+export type FeaturePermissions = Record<string, boolean>;
 
 export const DEFAULT_FEATURE_PERMISSIONS: FeaturePermissions = {
-  dashboard: true,
-  profile: true,
-  nfc_card: true,
-  qr_profile: true,
-  crm: true,
-  leads: true,
-  lost_found: true,
-  vehicle: true,
-  orders: true,
-  analytics: true,
-  products: true,
-  notifications: true,
+  ...REGISTRY_DEFAULT,
 };
 
 export interface UserRow {

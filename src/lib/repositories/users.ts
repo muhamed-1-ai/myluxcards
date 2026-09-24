@@ -41,13 +41,13 @@ export async function findManagedUserById(adminId: string, targetUserId: string,
 }
 
 export async function updateUserPermissions(userId: string, permissions: Record<string, boolean>, db: Queryable = pool) {
-  await db.query(`update users set feature_permissions=$1::jsonb, updated_at=now() where id=$2`, [JSON.stringify(permissions), userId]);
+  await db.query(`update users set feature_permissions=$1::jsonb, session_version=session_version+1, updated_at=now() where id=$2`, [JSON.stringify(permissions), userId]);
   return findUserById(userId, db);
 }
 
 export async function updateUserStatus(userId: string, status: string, db: Queryable = pool) {
   const disabled = status === "DISABLED" || status === "SUSPENDED";
-  await db.query(`update users set status=$1, disabled=$2, updated_at=now() where id=$3`, [status, disabled, userId]);
+  await db.query(`update users set status=$1, disabled=$2, session_version=session_version+1, updated_at=now() where id=$3`, [status, disabled, userId]);
   return findUserById(userId, db);
 }
 

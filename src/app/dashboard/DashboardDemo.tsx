@@ -15,6 +15,7 @@ import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
+import { isFeatureAllowed, isGroupAllowed, getFirstPermittedTab } from "@/lib/permissionsRegistry";
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -1016,175 +1017,236 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
 
         <nav className="side-nav-scroll scrollbar-thin">
           {/* Section: Dashboards */}
-          <div className="side-nav-group">
-            <span className="side-group-title">Dashboards</span>
-            <button
-              type="button"
-              className={`side-nav-item ${tab === "dashboard" ? "active" : ""}`}
-              onClick={() => { selectTab("dashboard"); setSidebar(false); }}
-            >
-              <span className="side-nav-item-left">
-                <LayoutDashboard className="side-nav-icon" />
-                <span>Overview</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              className={`side-nav-item ${tab === "leads" ? "active" : ""}`}
-              onClick={() => { selectTab("leads"); setSidebar(false); }}
-            >
-              <span className="side-nav-item-left">
-                <Users className="side-nav-icon" />
-                <span>All Leads</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              className={`side-nav-item ${tab === "analytics" ? "active" : ""}`}
-              onClick={() => { selectTab("analytics"); setSidebar(false); }}
-            >
-              <span className="side-nav-item-left">
-                <BarChart2 className="side-nav-icon" />
-                <span>QR Activity</span>
-              </span>
-            </button>
-          </div>
-
-          {/* Section: Management (Master Configuration) */}
-          <div className="side-nav-group">
-            <span className="side-group-title">Management</span>
-            <div className="side-config-group">
-              <button
-                type="button"
-                className={`side-nav-item side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(tab) ? "active" : ""}`}
-                onClick={() => setMasterConfigOpen((prev) => !prev)}
-              >
-                <span className="side-nav-item-left">
-                  <SlidersHorizontal className="side-nav-icon" />
-                  <span>Master Config</span>
-                </span>
-                <ChevronDown className={`side-chevron ${masterConfigOpen ? "expanded" : ""}`} />
-              </button>
-
-              {masterConfigOpen && (
-                <div className="side-subnav-list">
-                  <button
-                    type="button"
-                    className={`side-subnav-item ${tab === "config-sources" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-sources" as Tab); setSidebar(false); }}
-                  >
-                    <span>Lead Sources</span>
-                    {tab === "config-sources" && <span className="side-subnav-dot" />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`side-subnav-item ${tab === "config-products" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-products" as Tab); setSidebar(false); }}
-                  >
-                    <span>Products</span>
-                    {tab === "config-products" && <span className="side-subnav-dot" />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`side-subnav-item ${tab === "config-stages" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-stages" as Tab); setSidebar(false); }}
-                  >
-                    <span>Lead Stages</span>
-                    {tab === "config-stages" && <span className="side-subnav-dot" />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`side-subnav-item ${tab === "config-calendar" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-calendar" as Tab); setSidebar(false); }}
-                  >
-                    <span>Calendar</span>
-                    {tab === "config-calendar" && <span className="side-subnav-dot" />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`side-subnav-item ${tab === "config-reasons" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-reasons" as Tab); setSidebar(false); }}
-                  >
-                    <span>LOB Reasons</span>
-                    {tab === "config-reasons" && <span className="side-subnav-dot" />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`side-subnav-item ${tab === "config-dynamic" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-dynamic" as Tab); setSidebar(false); }}
-                  >
-                    <span>Dynamic Leads</span>
-                    {tab === "config-dynamic" && <span className="side-subnav-dot" />}
-                  </button>
-                </div>
+          {(isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) ||
+            isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) ||
+            isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role)) && (
+            <div className="side-nav-group">
+              <span className="side-group-title">Dashboards</span>
+              {isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) && (
+                <button
+                  type="button"
+                  className={`side-nav-item ${tab === "dashboard" ? "active" : ""}`}
+                  onClick={() => { selectTab("dashboard"); setSidebar(false); }}
+                >
+                  <span className="side-nav-item-left">
+                    <LayoutDashboard className="side-nav-icon" />
+                    <span>Overview</span>
+                  </span>
+                </button>
+              )}
+              {isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) && (
+                <button
+                  type="button"
+                  className={`side-nav-item ${tab === "leads" ? "active" : ""}`}
+                  onClick={() => { selectTab("leads"); setSidebar(false); }}
+                >
+                  <span className="side-nav-item-left">
+                    <Users className="side-nav-icon" />
+                    <span>All Leads</span>
+                  </span>
+                </button>
+              )}
+              {isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role) && (
+                <button
+                  type="button"
+                  className={`side-nav-item ${tab === "analytics" ? "active" : ""}`}
+                  onClick={() => { selectTab("analytics"); setSidebar(false); }}
+                >
+                  <span className="side-nav-item-left">
+                    <BarChart2 className="side-nav-icon" />
+                    <span>QR Activity</span>
+                  </span>
+                </button>
               )}
             </div>
-          </div>
+          )}
 
-          {/* Section: Card & Profile */}
-          <div className="side-nav-group">
-            <span className="side-group-title">Card &amp; Profile</span>
-            <div className="side-card-profile-box">
-              <div className="side-card-profile-header">
-                <span className="side-card-owner-info">
-                  <span className="side-card-status-dot" style={{ background: selected.active ? "#10B981" : "#F59E0B" }} />
-                  <strong className="side-card-name-text">{selected.name}</strong>
-                </span>
-                <span className="side-card-status-pill">
-                  {selected.active ? "Published" : "Draft"}
-                </span>
-              </div>
-              <div className="side-subnav-list">
-                {(["modes", "contact", "social", "company", "appearance"] as Tab[]).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className={`side-subnav-item ${tab === item ? "active" : ""}`}
-                    onClick={() => { selectTab(item); setSidebar(false); }}
-                  >
-                    <span>
-                      {item === "modes"
-                        ? "Profile Features"
-                        : item === "contact"
-                        ? "Contact Info"
-                        : item === "social"
-                        ? "Apps & Links"
-                        : item === "company"
-                        ? "Company"
-                        : "Card Design"}
-                    </span>
-                    {tab === item && <span className="side-subnav-dot" />}
-                  </button>
-                ))}
+          {/* Section: Management (Master Configuration) */}
+          {isGroupAllowed("Master Config", currentUser?.featurePermissions) && (
+            <div className="side-nav-group">
+              <span className="side-group-title">Management</span>
+              <div className="side-config-group">
+                <button
+                  type="button"
+                  className={`side-nav-item side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(tab) ? "active" : ""}`}
+                  onClick={() => setMasterConfigOpen((prev) => !prev)}
+                >
+                  <span className="side-nav-item-left">
+                    <SlidersHorizontal className="side-nav-icon" />
+                    <span>Master Config</span>
+                  </span>
+                  <ChevronDown className={`side-chevron ${masterConfigOpen ? "expanded" : ""}`} />
+                </button>
+
+                {masterConfigOpen && (
+                  <div className="side-subnav-list">
+                    {isFeatureAllowed(currentUser?.featurePermissions, "lead_sources", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "config-sources" ? "active" : ""}`}
+                        onClick={() => { selectTab("config-sources" as Tab); setSidebar(false); }}
+                      >
+                        <span>Lead Sources</span>
+                        {tab === "config-sources" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "config_products", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "config-products" ? "active" : ""}`}
+                        onClick={() => { selectTab("config-products" as Tab); setSidebar(false); }}
+                      >
+                        <span>Products</span>
+                        {tab === "config-products" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "lead_stages", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "config-stages" ? "active" : ""}`}
+                        onClick={() => { selectTab("config-stages" as Tab); setSidebar(false); }}
+                      >
+                        <span>Lead Stages</span>
+                        {tab === "config-stages" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "calendar", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "config-calendar" ? "active" : ""}`}
+                        onClick={() => { selectTab("config-calendar" as Tab); setSidebar(false); }}
+                      >
+                        <span>Calendar</span>
+                        {tab === "config-calendar" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "lob_reasons", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "config-reasons" ? "active" : ""}`}
+                        onClick={() => { selectTab("config-reasons" as Tab); setSidebar(false); }}
+                      >
+                        <span>LOB Reasons</span>
+                        {tab === "config-reasons" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "dynamic_leads", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "config-dynamic" ? "active" : ""}`}
+                        onClick={() => { selectTab("config-dynamic" as Tab); setSidebar(false); }}
+                      >
+                        <span>Dynamic Leads</span>
+                        {tab === "config-dynamic" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Section: Card & Profile */}
+          {isGroupAllowed("Card & Profile", currentUser?.featurePermissions) && (
+            <div className="side-nav-group">
+              <span className="side-group-title">Card &amp; Profile</span>
+              <div className="side-card-profile-box">
+                <div className="side-card-profile-header">
+                  <span className="side-card-owner-info">
+                    <span className="side-card-status-dot" style={{ background: selected.active ? "#10B981" : "#F59E0B" }} />
+                    <strong className="side-card-name-text">{selected.name}</strong>
+                  </span>
+                  <span className="side-card-status-pill">
+                    {selected.active ? "Published" : "Draft"}
+                  </span>
+                </div>
+                <div className="side-subnav-list">
+                  {isFeatureAllowed(currentUser?.featurePermissions, "profile_features", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "modes" ? "active" : ""}`}
+                      onClick={() => { selectTab("modes"); setSidebar(false); }}
+                    >
+                      <span>Profile Features</span>
+                      {tab === "modes" && <span className="side-subnav-dot" />}
+                    </button>
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "contact_info", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "contact" ? "active" : ""}`}
+                      onClick={() => { selectTab("contact"); setSidebar(false); }}
+                    >
+                      <span>Contact Info</span>
+                      {tab === "contact" && <span className="side-subnav-dot" />}
+                    </button>
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "apps_links", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "social" ? "active" : ""}`}
+                      onClick={() => { selectTab("social"); setSidebar(false); }}
+                    >
+                      <span>Apps &amp; Links</span>
+                      {tab === "social" && <span className="side-subnav-dot" />}
+                    </button>
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "company", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "company" ? "active" : ""}`}
+                      onClick={() => { selectTab("company"); setSidebar(false); }}
+                    >
+                      <span>Company</span>
+                      {tab === "company" && <span className="side-subnav-dot" />}
+                    </button>
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "card_design", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "appearance" ? "active" : ""}`}
+                      onClick={() => { selectTab("appearance"); setSidebar(false); }}
+                    >
+                      <span>Card Design</span>
+                      {tab === "appearance" && <span className="side-subnav-dot" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Section: Workspace */}
           <div className="side-nav-group">
             <span className="side-group-title">Workspace</span>
-            <button
-              type="button"
-              className={`side-nav-item ${tab === "cards" ? "active" : ""}`}
-              onClick={() => { selectTab("cards"); setSidebar(false); }}
-            >
-              <span className="side-nav-item-left">
-                <CreditCard className="side-nav-icon" />
-                <span>My Cards</span>
-              </span>
-            </button>
-            <a className="side-nav-item side-link" href="/notifications">
-              <span className="side-nav-item-left">
-                <Bell className="side-nav-icon" />
-                <span>Notifications</span>
-              </span>
-            </a>
-            <a className="side-nav-item side-link" href="/orders">
-              <span className="side-nav-item-left">
-                <FileText className="side-nav-icon" />
-                <span>My Orders</span>
-              </span>
-            </a>
+            {isFeatureAllowed(currentUser?.featurePermissions, "my_cards", currentUser?.role) && (
+              <button
+                type="button"
+                className={`side-nav-item ${tab === "cards" ? "active" : ""}`}
+                onClick={() => { selectTab("cards"); setSidebar(false); }}
+              >
+                <span className="side-nav-item-left">
+                  <CreditCard className="side-nav-icon" />
+                  <span>My Cards</span>
+                </span>
+              </button>
+            )}
+            {isFeatureAllowed(currentUser?.featurePermissions, "notifications", currentUser?.role) && (
+              <a className="side-nav-item side-link" href="/notifications">
+                <span className="side-nav-item-left">
+                  <Bell className="side-nav-icon" />
+                  <span>Notifications</span>
+                </span>
+              </a>
+            )}
+            {isFeatureAllowed(currentUser?.featurePermissions, "my_orders", currentUser?.role) && (
+              <a className="side-nav-item side-link" href="/orders">
+                <span className="side-nav-item-left">
+                  <FileText className="side-nav-icon" />
+                  <span>My Orders</span>
+                </span>
+              </a>
+            )}
             {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
               <a className="side-nav-item side-link side-admin-link" href="/admin">
                 <span className="side-nav-item-left">

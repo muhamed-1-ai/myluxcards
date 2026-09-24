@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LeadsPage() {
-  const identity = await requirePermission("leads");
+  const identity = await requirePermission("all_leads");
   
   if (!identity) {
     const user = await currentIdentity();

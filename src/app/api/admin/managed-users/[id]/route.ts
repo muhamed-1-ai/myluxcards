@@ -3,6 +3,7 @@ import { requireManagedUserOwnership, validMutationOrigin, audit, safeError } fr
 import { updateUserPermissions, updateUserStatus, updateUserNickname } from "@/lib/repositories/users";
 import { pool } from "@/lib/db";
 import { getCanonicalUserQrUrl, getPublicCardUrl } from "@/lib/url";
+import { normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   try {
@@ -97,8 +98,13 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       id: managedUser.id,
     });
 
+    const userWithNormalizedPerms = {
+      ...managedUser,
+      feature_permissions: normalizeFeaturePermissions(managedUser.feature_permissions),
+    };
+
     return NextResponse.json({
-      user: managedUser,
+      user: userWithNormalizedPerms,
       profile: {
         phone: profile.phone || null,
         internalNotes: profile.internal_notes || null,
@@ -157,21 +163,47 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
     let updatedUser = managedUser;
 
-    if (name && typeof name === "string") {
-      updatedUser = await updateUserNickname(managedUser.id, name);
-    }
-
     if (status && typeof status === "string" && ["ACTIVE", "PENDING_PAYMENT", "SUSPENDED", "DISABLED"].includes(status)) {
+      // 1. Self-suspension check
+      if ((status === "SUSPENDED" || status === "DISABLED") && identity.id === managedUser.id) {
+        return NextResponse.json({ message: "Self-suspension is not permitted. You cannot suspend your own account." }, { status: 400 });
+      }
+
+      // 2. Target user is SUPER_ADMIN check
+      if (managedUser.role === "SUPER_ADMIN") {
+        if (identity.role !== "SUPER_ADMIN") {
+          return NextResponse.json({ message: "Only Super Admins can alter a Super Admin account." }, { status: 403 });
+        }
+        if (status === "SUSPENDED" || status === "DISABLED") {
+          const superCountRes = await pool.query<{ count: string }>(
+            `SELECT count(*) FROM users WHERE role = 'SUPER_ADMIN' AND status = 'ACTIVE' AND disabled = false`
+          );
+          const activeSuperCount = parseInt(superCountRes.rows[0]?.count || "0", 10);
+          if (activeSuperCount <= 1) {
+            return NextResponse.json({ message: "Cannot suspend the last active Super Admin account." }, { status: 400 });
+          }
+        }
+      }
+
       const oldStatus = managedUser.status;
       updatedUser = await updateUserStatus(managedUser.id, status);
-      const actionName = status === "SUSPENDED" ? "USER_SUSPENDED" : status === "ACTIVE" ? "USER_ACTIVATED" : "USER_STATUS_CHANGED";
-      await audit(identity, actionName, "users", managedUser.id, { status: oldStatus }, { status });
+      const actionName = status === "SUSPENDED" ? "USER_SUSPENDED" : status === "ACTIVE" ? "USER_REACTIVATED" : "USER_STATUS_CHANGED";
+      await audit(identity, actionName, "users", managedUser.id, { status: oldStatus }, { status: updatedUser.status });
+    }
+
+    if (name && typeof name === "string" && name.trim().length >= 2) {
+      updatedUser = await updateUserNickname(managedUser.id, name.trim());
     }
 
     if (featurePermissions && typeof featurePermissions === "object") {
+      // Preserve explicit false booleans & normalize 17 keys
+      const normalizedPermissions = normalizeFeaturePermissions({
+        ...(managedUser.feature_permissions as Record<string, boolean> || {}),
+        ...featurePermissions,
+      });
       const oldPermissions = managedUser.feature_permissions;
-      updatedUser = await updateUserPermissions(managedUser.id, featurePermissions);
-      await audit(identity, "USER_PERMISSION_CHANGED", "users", managedUser.id, { permissions: oldPermissions }, { permissions: featurePermissions });
+      updatedUser = await updateUserPermissions(managedUser.id, normalizedPermissions);
+      await audit(identity, "USER_PERMISSION_CHANGED", "users", managedUser.id, { permissions: oldPermissions }, { permissions: normalizedPermissions });
     }
 
     await audit(identity, "USER_UPDATED", "users", managedUser.id, managedUser, updatedUser);

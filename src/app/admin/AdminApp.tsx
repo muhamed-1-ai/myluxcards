@@ -2,8 +2,9 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
-import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
 import type { AdminIdentity } from "@/lib/adminAuth";
+import { FEATURE_CATALOGUE, FeatureKey, FeatureGroup, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
+import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
 
 type Section = "overview"|"managed_users"|"team_calendar"|"team_leads"|"team_analytics"|"team_lob_reasons"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
@@ -321,30 +322,24 @@ function Admins({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate
 }
 function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
   const [showCreate,setShowCreate]=useState(false);
-  const [selectedUser,setSelectedUser]=useState<Row|null>(null);
+  const [permissionUser,setPermissionUser]=useState<Row|null>(null);
+  const [suspendModal,setSuspendModal]=useState<{user: Row; action: "SUSPEND" | "REACTIVATE"} | null>(null);
   const [qrModalUser,setQrModalUser]=useState<Row|null>(null);
   const [detailsData,setDetailsData]=useState<any|null>(null);
   const [detailsLoading,setDetailsLoading]=useState(false);
   const [ordersModalData,setOrdersModalData]=useState<any|null>(null);
   const [ordersLoading,setOrdersLoading]=useState(false);
   const [creating,setCreating]=useState(false);
-  const [updating,setUpdating]=useState(false);
   const [copyNotice,setCopyNotice]=useState("");
+  const [statusFilter,setStatusFilter]=useState<string>("ALL");
+  const [searchFilter,setSearchFilter]=useState<string>("");
 
-  const featureList: Array<{key: string; label: string}> = [
-    {key:"dashboard",label:"Dashboard"},
-    {key:"profile",label:"Profile"},
-    {key:"nfc_card",label:"NFC Card"},
-    {key:"qr_profile",label:"QR Profile"},
-    {key:"crm",label:"CRM"},
-    {key:"leads",label:"Leads"},
-    {key:"lost_found",label:"Lost & Found"},
-    {key:"vehicle",label:"Vehicle"},
-    {key:"orders",label:"Orders"},
-    {key:"analytics",label:"Analytics"},
-    {key:"products",label:"Products"},
-    {key:"notifications",label:"Notifications"},
-  ];
+  const filteredUsers = rows.filter((user) => {
+    const matchesStatus = statusFilter === "ALL" || user.status === statusFilter;
+    const q = searchFilter.toLowerCase().trim();
+    const matchesSearch = !q || (user.name && user.name.toLowerCase().includes(q)) || (user.email && user.email.toLowerCase().includes(q));
+    return matchesStatus && matchesSearch;
+  });
 
   const copyToClipboard = (text: string, label: string) => {
     if (!text || text === "Not provided") return;
@@ -434,42 +429,6 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
     }
   };
 
-  const savePermissions = async (user: Row, newPermissions: Record<string, boolean>) => {
-    setUpdating(true);
-    try {
-      const response = await fetch(`/api/admin/managed-users/${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ featurePermissions: newPermissions }),
-      });
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || "Failed to update permissions.");
-      alert("User feature permissions updated successfully.");
-      setSelectedUser(null);
-      await reload();
-    } catch (err: any) {
-      alert(err.message || "Failed to save permissions.");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const changeStatus = async (user: Row, newStatus: string) => {
-    if (!confirm(`Change ${user.email} status to ${newStatus}?`)) return;
-    try {
-      const response = await fetch(`/api/admin/managed-users/${user.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || "Failed to update status.");
-      await reload();
-    } catch (err: any) {
-      alert(err.message || "Failed to update status.");
-    }
-  };
-
   return (
     <>
       {copyNotice && (
@@ -478,22 +437,40 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h2>Managed Users ({rows.length})</h2>
-          <p style={{ fontSize: "13px", color: "#888" }}>Users created by and assigned to your Admin account.</p>
+          <h2>Managed Users ({filteredUsers.length})</h2>
+          <p style={{ fontSize: "13px", color: "var(--admin-muted)" }}>Manage user accounts, granular dashboard permissions, and access status.</p>
         </div>
-        <button className="gold" onClick={() => setShowCreate(true)} style={{ padding: "8px 16px" }}>
-          + Create User
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Filter by name/email..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            style={{ padding: "8px 12px", background: "var(--admin-bg)", color: "var(--admin-text)", border: "1px solid var(--admin-border)", borderRadius: "6px", fontSize: "13px" }}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: "8px 12px", background: "var(--admin-bg)", color: "var(--admin-text)", border: "1px solid var(--admin-border)", borderRadius: "6px", fontSize: "13px" }}
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="SUSPENDED">Suspended</option>
+          </select>
+          <button className="gold" onClick={() => setShowCreate(true)} style={{ padding: "8px 16px" }}>
+            + Create User
+          </button>
+        </div>
       </div>
 
-      {!rows.length ? (
-        <Empty title="No managed users yet" text="Click '+ Create User' to assign your first user account." />
+      {!filteredUsers.length ? (
+        <Empty title="No matching users found" text="Try adjusting search filter or click '+ Create User' to add a new account." />
       ) : (
         <Table
           heads={["User", "Role", "Status", "Created", "Actions"]}
-          rows={rows.map((user) => [
+          rows={filteredUsers.map((user) => [
             <>
               <b>{user.name || "Unnamed"}</b>
               <small>{user.email}</small>
@@ -511,16 +488,16 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
               <button className="small gold" onClick={() => openOrdersModal(user)}>
                 Orders
               </button>
-              <button className="small" onClick={() => setSelectedUser(user)}>
+              <button className="small" onClick={() => setPermissionUser(user)}>
                 Permissions
               </button>
               {user.status === "ACTIVE" ? (
-                <button className="small danger" onClick={() => changeStatus(user, "SUSPENDED")}>
+                <button className="small danger" onClick={() => setSuspendModal({ user, action: "SUSPEND" })}>
                   Suspend
                 </button>
               ) : (
-                <button className="small gold" onClick={() => changeStatus(user, "ACTIVE")}>
-                  Activate
+                <button className="small gold" onClick={() => setSuspendModal({ user, action: "REACTIVATE" })}>
+                  Reactivate
                 </button>
               )}
             </div>,
@@ -661,100 +638,8 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
                     <h4 style={{ margin: "0 0 8px", color: "#2ecc71" }}>🟢 PROFILE &amp; FEATURE VISIBILITY</h4>
                     <div><strong>Profile Status:</strong> <span style={{ color: detailsData.digitalCard.active ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}>{detailsData.digitalCard.active ? "LIVE" : "HIDDEN / DISABLED"}</span></div>
                     <div><strong>Public URL:</strong> <a href={getPublicCardUrl(detailsData.digitalCard.slug)} target="_blank" rel="noopener noreferrer" style={{ color: "#00E5FF" }}>/{detailsData.digitalCard.slug}</a></div>
-                    <div style={{ marginTop: 10, fontSize: 12 }}>
-                      <strong>Active Features State:</strong>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", marginTop: 6 }}>
-                        {Object.entries(detailsData.digitalCard.profile?.profileFeatures || { BASIC_PROFILE: { enabled: true }, CONTACT: { enabled: true } }).map(([featKey, cfg]: [string, any]) => (
-                          <div key={featKey} style={{ display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: 4 }}>
-                            <span>{featKey.replace("_", " ")}</span>
-                            <span style={{ color: cfg?.enabled !== false ? "#2ecc71" : "#e74c3c", fontWeight: 700 }}>{cfg?.enabled !== false ? "ON" : "OFF"}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
-
-                {Array.isArray(detailsData.digitalCard?.profileProducts) && detailsData.digitalCard.profileProducts.length > 0 && (
-                  <div style={{ background: "#111", padding: "12px", borderRadius: "6px", marginBottom: "14px", border: "1px solid #222" }}>
-                    <h4 style={{ margin: "0 0 8px", color: "#00E5FF" }}>🛍️ USER PROFILE SHOWCASE PRODUCTS ({detailsData.digitalCard.profileProducts.length})</h4>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {detailsData.digitalCard.profileProducts.map((p: any) => (
-                        <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", padding: "6px 10px", borderRadius: 4 }}>
-                          <div>
-                            <span style={{ fontWeight: 700, color: "#fff" }}>{p.name}</span>
-                            {p.price && <span style={{ color: "#38ef7d", marginLeft: 8, fontSize: 12 }}>({p.currency === "INR" ? "₹" : p.currency} {p.price})</span>}
-                          </div>
-                          <span style={{ color: p.enabled ? "#2ecc71" : "#e74c3c", fontSize: 11, fontWeight: 700 }}>
-                            {p.enabled ? "VISIBLE" : "HIDDEN"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ background: "#111", padding: "12px", borderRadius: "6px", border: "1px solid #222" }}>
-                  <h4 style={{ margin: "0 0 8px", color: "#0066FF" }}>SHIPPING INFORMATION</h4>
-                  <div><strong>Recipient Name:</strong> {detailsData.shippingAddress?.recipientName || "Not provided"}</div>
-                  <div><strong>Phone:</strong> {detailsData.shippingAddress?.phone || "Not provided"}</div>
-                  <div><strong>Alternate Phone:</strong> {detailsData.shippingAddress?.alternatePhone || "Not provided"}</div>
-                  <div><strong>House / Building:</strong> {detailsData.shippingAddress?.house || "Not provided"}</div>
-                  <div><strong>Street:</strong> {detailsData.shippingAddress?.street || "Not provided"}</div>
-                  <div><strong>Locality:</strong> {detailsData.shippingAddress?.locality || "Not provided"}</div>
-                  <div><strong>City:</strong> {detailsData.shippingAddress?.city || "Not provided"}</div>
-                  <div><strong>District:</strong> {detailsData.shippingAddress?.district || "Not provided"}</div>
-                  <div><strong>State:</strong> {detailsData.shippingAddress?.state || "Not provided"}</div>
-                  <div><strong>PIN Code:</strong> {detailsData.shippingAddress?.pinCode || "Not provided"}</div>
-                  <div><strong>Country:</strong> {detailsData.shippingAddress?.country || "Not provided"}</div>
-                  <div><strong>Delivery Instructions:</strong> {detailsData.shippingAddress?.deliveryInstructions || "Not provided"}</div>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      )}
-
-      {/* ORDERS MODAL */}
-      {(ordersModalData || ordersLoading) && (
-        <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setOrdersModalData(null)}>
-          <section className="customer-detail" role="dialog" style={{ maxWidth: "750px" }}>
-            <header>
-              <div>
-                <small>USER ORDERS</small>
-                <h2>{ordersModalData?.user?.name || "User Orders"}</h2>
-                <p>{ordersModalData?.user?.email}</p>
-              </div>
-              <button onClick={() => setOrdersModalData(null)}>×</button>
-            </header>
-
-            {ordersLoading ? (
-              <p style={{ padding: "20px" }}>Loading orders...</p>
-            ) : ordersModalData?.orders?.length === 0 ? (
-              <p style={{ padding: "20px", color: "#888" }}>No orders placed by this user yet.</p>
-            ) : (
-              <div style={{ padding: "16px 0", overflowX: "auto" }}>
-                <Table
-                  heads={["Order #", "Date", "Amount", "Payment", "Order Status", "Card Status", "Tracking / AWB", "Action"]}
-                  rows={ordersModalData?.orders?.map((o: any) => [
-                    <b>#{o.orderNumber}</b>,
-                    new Date(o.createdAt).toLocaleDateString(),
-                    `₹${(o.totalMinor / 100).toFixed(2)}`,
-                    <span style={{ color: o.paymentStatus === "PAID" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{o.paymentStatus}</span>,
-                    <span className="pill">{o.status}</span>,
-                    <span className="pill">{o.cardStatus}</span>,
-                    o.trackingNumber ? `${o.courier || "Courier"}: ${o.trackingNumber}` : "Not Dispatched",
-                    <button
-                      className="small gold"
-                      onClick={() => {
-                        setOrdersModalData(null);
-                        openShipOrder(o.id);
-                      }}
-                    >
-                      Open Order
-                    </button>
-                  ])}
-                />
               </div>
             )}
           </section>
@@ -762,55 +647,332 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
       )}
 
       {/* PERMISSIONS MODAL */}
-      {selectedUser && (
-        <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setSelectedUser(null)}>
-          <section className="customer-detail" role="dialog" style={{ maxWidth: "550px" }}>
-            <header>
-              <div>
-                <small>FEATURE PERMISSIONS</small>
-                <h2>{selectedUser.name || selectedUser.email}</h2>
-                <p>Toggle feature access for this user. Disabled features return 403 server-side.</p>
-              </div>
-              <button onClick={() => setSelectedUser(null)}>×</button>
-            </header>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formEl = e.currentTarget;
-                const permissions: Record<string, boolean> = {};
-                featureList.forEach((f) => {
-                  const inputEl = formEl.elements.namedItem(`perm_${f.key}`) as HTMLInputElement | null;
-                  permissions[f.key] = inputEl ? inputEl.checked : false;
-                });
-                savePermissions(selectedUser, permissions);
-              }}
-              style={{ padding: "20px 0" }}
-            >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
-                {featureList.map((f) => {
-                  const currentPermissions = selectedUser.feature_permissions || {};
-                  const isChecked = currentPermissions[f.key] !== false;
-                  return (
-                    <label key={f.key} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", cursor: "pointer" }}>
-                      <input type="checkbox" name={`perm_${f.key}`} defaultChecked={isChecked} style={{ width: "18px", height: "18px" }} />
-                      <span>{f.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" onClick={() => setSelectedUser(null)} style={{ padding: "8px 16px" }}>
-                  Cancel
-                </button>
-                <button className="gold" disabled={updating} type="submit" style={{ padding: "8px 16px" }}>
-                  {updating ? "Saving..." : "Save Feature Permissions"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
+      {permissionUser && (
+        <AdminPermissionsModal
+          user={permissionUser}
+          onClose={() => setPermissionUser(null)}
+          onSaved={reload}
+        />
+      )}
+
+      {/* SUSPEND MODAL */}
+      {suspendModal && (
+        <AdminSuspendModal
+          user={suspendModal.user}
+          action={suspendModal.action}
+          onClose={() => setSuspendModal(null)}
+          onConfirmed={reload}
+        />
       )}
     </>
+  );
+}
+
+function AdminPermissionsModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: Row;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLatestPermissions = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`/api/admin/managed-users/${user.id}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("Failed to fetch target user permissions.");
+        const data = await res.json();
+        if (isMounted) {
+          const fetchedPerms = data.user?.feature_permissions || user.feature_permissions;
+          setPermissions(normalizeFeaturePermissions(fetchedPerms));
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message || "Could not load user permissions.");
+          setPermissions(normalizeFeaturePermissions(user.feature_permissions));
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchLatestPermissions();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [user, onClose]);
+
+  const handleToggle = (key: string) => {
+    setPermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+    setIsDirty(true);
+  };
+
+  const handleSelectAll = () => {
+    const allTrue: Record<string, boolean> = {};
+    FEATURE_CATALOGUE.forEach((f) => {
+      allTrue[f.key] = true;
+    });
+    setPermissions(allTrue);
+    setIsDirty(true);
+  };
+
+  const handleDeselectAll = () => {
+    const allFalse: Record<string, boolean> = {};
+    FEATURE_CATALOGUE.forEach((f) => {
+      allFalse[f.key] = false;
+    });
+    setPermissions(allFalse);
+    setIsDirty(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/admin/managed-users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featurePermissions: permissions }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to save permissions.");
+      await onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Failed to save feature permissions.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const enabledCount = FEATURE_CATALOGUE.filter((f) => permissions[f.key] !== false).length;
+  const isSuperOrAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+
+  const groupedFeatures: Record<FeatureGroup, typeof FEATURE_CATALOGUE> = {
+    Dashboards: FEATURE_CATALOGUE.filter((f) => f.group === "Dashboards"),
+    "Master Config": FEATURE_CATALOGUE.filter((f) => f.group === "Master Config"),
+    "Card & Profile": FEATURE_CATALOGUE.filter((f) => f.group === "Card & Profile"),
+    Workspace: FEATURE_CATALOGUE.filter((f) => f.group === "Workspace"),
+  };
+
+  return (
+    <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="admin-perm-dialog" role="dialog" aria-modal="true">
+        <div className="admin-perm-header">
+          <div className="admin-perm-title-group">
+            <small style={{ color: "var(--admin-cyan)", fontWeight: 800, letterSpacing: "0.1em" }}>USER FEATURE PERMISSIONS</small>
+            <h2>{user.name || user.email}</h2>
+            <p>Choose which dashboard features this user can access.</p>
+            <div className="admin-perm-header-badges">
+              <span className="admin-perm-badge role">{user.role === "CUSTOMER" ? "USER" : user.role}</span>
+              <span className={`admin-perm-badge ${user.status?.toLowerCase() === "active" ? "active" : "suspended"}`}>
+                {user.status}
+              </span>
+              <span className="admin-perm-count-pill">{enabledCount} / 17 Features Enabled</span>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--admin-bg)", border: "1px solid var(--admin-border)", color: "var(--admin-text)", cursor: "pointer", fontSize: "18px" }}>
+            ✕
+          </button>
+        </div>
+
+        <div className="admin-perm-body">
+          {error && (
+            <div style={{ padding: "12px 16px", borderRadius: "8px", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#EF4444", fontSize: "13px" }}>
+              {error}
+            </div>
+          )}
+
+          {isSuperOrAdmin && (
+            <div style={{ padding: "12px 16px", borderRadius: "8px", background: "rgba(0, 102, 255, 0.12)", border: "1px solid var(--admin-border)", color: "var(--admin-cyan)", fontSize: "13px" }}>
+              <strong>Admin Role Notice:</strong> Administrative accounts (`ADMIN` / `SUPER_ADMIN`) have unrestricted platform permissions for their account. These granular toggles apply directly to managed user accounts (`USER`).
+            </div>
+          )}
+
+          {loading ? (
+            <p style={{ padding: "40px 0", textAlign: "center", color: "var(--admin-muted)" }}>Loading feature permissions...</p>
+          ) : (
+            <>
+              <div className="admin-perm-actions-bar">
+                <span className="admin-perm-count-pill">17 Feature Access Controls</span>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button type="button" className="small" onClick={handleSelectAll} disabled={saving}>
+                    Select All
+                  </button>
+                  <button type="button" className="small" onClick={handleDeselectAll} disabled={saving}>
+                    Deselect All
+                  </button>
+                </div>
+              </div>
+
+              {(["Dashboards", "Master Config", "Card & Profile", "Workspace"] as FeatureGroup[]).map((groupName) => (
+                <div key={groupName} className="admin-perm-group-card">
+                  <div className="admin-perm-group-title">{groupName}</div>
+                  <div className="admin-perm-grid">
+                    {groupedFeatures[groupName].map((feature) => {
+                      const isChecked = permissions[feature.key] !== false;
+                      return (
+                        <div key={feature.key} className="admin-perm-item">
+                          <div className="admin-perm-item-info">
+                            <strong>{feature.label}</strong>
+                            <small>{feature.description}</small>
+                          </div>
+                          <label className="admin-switch">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggle(feature.key)}
+                              disabled={saving}
+                            />
+                            <span className="admin-switch-slider" />
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        <div className="admin-perm-footer">
+          <span style={{ fontSize: "12px", color: isDirty ? "var(--admin-cyan)" : "var(--admin-muted)" }}>
+            {isDirty ? "● Unsaved changes in draft" : "All permissions in sync"}
+          </span>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button type="button" className="small" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="small gold" onClick={handleSave} disabled={saving || loading}>
+              {saving ? "Saving..." : "Save Feature Permissions"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminSuspendModal({
+  user,
+  action,
+  onClose,
+  onConfirmed,
+}: {
+  user: Row;
+  action: "SUSPEND" | "REACTIVATE";
+  onClose: () => void;
+  onConfirmed: () => Promise<void>;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    setError("");
+    const newStatus = action === "SUSPEND" ? "SUSPENDED" : "ACTIVE";
+    try {
+      const res = await fetch(`/api/admin/managed-users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || `Failed to ${action.toLowerCase()} user.`);
+      await onConfirmed();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || `Could not ${action.toLowerCase()} user.`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="admin-perm-dialog" style={{ maxWidth: "520px" }} role="dialog" aria-modal="true">
+        <div className="admin-perm-header">
+          <div className="admin-perm-title-group">
+            <small style={{ color: action === "SUSPEND" ? "#EF4444" : "#10B981", fontWeight: 800, letterSpacing: "0.1em" }}>
+              {action === "SUSPEND" ? "SUSPEND ACCOUNT" : "REACTIVATE ACCOUNT"}
+            </small>
+            <h2>{user.name || user.email}</h2>
+            <p>{user.email}</p>
+          </div>
+          <button type="button" onClick={onClose} style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--admin-bg)", border: "1px solid var(--admin-border)", color: "var(--admin-text)", cursor: "pointer", fontSize: "18px" }}>
+            ✕
+          </button>
+        </div>
+
+        <div className="admin-perm-body">
+          {error && (
+            <div style={{ padding: "12px 16px", borderRadius: "8px", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#EF4444", fontSize: "13px" }}>
+              {error}
+            </div>
+          )}
+
+          {action === "SUSPEND" ? (
+            <div style={{ fontSize: "13px", lineHeight: "1.6", color: "var(--admin-text)" }}>
+              <p style={{ margin: "0 0 10px 0" }}>
+                Are you sure you want to suspend <strong>{user.name || user.email}</strong>?
+              </p>
+              <ul style={{ margin: 0, paddingLeft: "20px", color: "var(--admin-muted)" }}>
+                <li>Immediately revokes all active browser sessions and JWT tokens.</li>
+                <li>Blocks future sign-in attempts (including Google OAuth).</li>
+                <li>All stored user data, digital cards, and lead entries remain preserved.</li>
+                <li>Public NFC & QR profile cards remain active per system policy unless explicitly disabled.</li>
+              </ul>
+            </div>
+          ) : (
+            <div style={{ fontSize: "13px", lineHeight: "1.6", color: "var(--admin-text)" }}>
+              <p style={{ margin: "0 0 10px 0" }}>
+                Reactivate account for <strong>{user.name || user.email}</strong>?
+              </p>
+              <ul style={{ margin: 0, paddingLeft: "20px", color: "var(--admin-muted)" }}>
+                <li>Restores sign-in capability and dashboard access.</li>
+                <li>Previously revoked sessions remain invalid; user will be required to log in fresh.</li>
+                <li>All existing feature permissions and saved settings are restored intact.</li>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="admin-perm-footer">
+          <button type="button" className="small" onClick={onClose} disabled={submitting}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={action === "SUSPEND" ? "small danger" : "small gold"}
+            onClick={handleConfirm}
+            disabled={submitting}
+          >
+            {submitting ? "Processing..." : action === "SUSPEND" ? "Suspend Account" : "Reactivate Account"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
