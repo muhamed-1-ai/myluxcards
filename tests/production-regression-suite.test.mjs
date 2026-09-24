@@ -248,3 +248,12 @@ test("26. Open Redirect prevention in NextAuth redirect callback", () => {
   assert.match(authFile, /canonicalBase/, "Redirect callback must validate against canonical production URL");
   assert.match(authFile, /finalUrl = `\$\{canonicalBase\}\/dashboard`/, "External unauthorized redirect URLs must default to dashboard");
 });
+
+test("27. Next.config.ts distDir configuration is not dynamically overridden between dev and build", () => {
+  assert.doesNotMatch(
+    nextConfigFile,
+    /distDir:\s*phase\s*===\s*PHASE_DEVELOPMENT_SERVER/,
+    "next.config.ts must not isolate .next-dev dynamically, as it causes asset 404/MIME errors in dev mode"
+  );
+});
+

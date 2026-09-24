@@ -39,6 +39,57 @@ export async function POST(request: Request) {
       return Response.json({ message: "Failed to resolve card identity." }, { status: 400 });
     }
 
+    // Fetch account's field definitions for server-side validation
+    const defsRes = await pool.query(
+      `SELECT id, name, input_type as "inputType", is_required as "isRequired", options
+       FROM lead_field_definitions
+       WHERE owner_user_id = $1 AND status = 'ACTIVE'`,
+      [identity.id]
+    );
+    const activeDefs = defsRes.rows;
+
+    const rawCustomInput = body.customFields || body.customFieldValues || {};
+    const processedValues: { defId: string; key: string; val: any }[] = [];
+
+    // Validate active custom fields against definitions
+    for (const def of activeDefs) {
+      const defId = def.id;
+      const keyName = def.name;
+      // Value can be keyed by ID or by name
+      let submittedVal = rawCustomInput[defId] !== undefined ? rawCustomInput[defId] : rawCustomInput[keyName];
+
+      if (def.isRequired) {
+        const isEmpty =
+          submittedVal === undefined ||
+          submittedVal === null ||
+          submittedVal === "" ||
+          (Array.isArray(submittedVal) && submittedVal.length === 0);
+        if (isEmpty) {
+          return Response.json(
+            { message: `Field "${def.name}" is required.`, fieldKey: defId },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (submittedVal !== undefined && submittedVal !== null && submittedVal !== "") {
+        // Validate type constraints
+        if (def.inputType === "NUMBER") {
+          const num = Number(submittedVal);
+          if (isNaN(num)) {
+            return Response.json({ message: `Field "${def.name}" must be a valid number.` }, { status: 400 });
+          }
+          submittedVal = num;
+        }
+
+        processedValues.push({
+          defId,
+          key: keyName,
+          val: submittedVal,
+        });
+      }
+    }
+
     const result = await createManualLead(identity.id, cardId, {
       name: body.name,
       companyName: body.companyName,
@@ -51,6 +102,17 @@ export async function POST(request: Request) {
     });
 
     const leadId = result.lead.id;
+
+    // Save custom field values
+    for (const item of processedValues) {
+      await pool.query(
+        `INSERT INTO lead_field_values (lead_id, field_definition_id, owner_user_id, field_key, value, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (lead_id, field_definition_id) DO UPDATE
+         SET value = EXCLUDED.value, updated_at = NOW()`,
+        [leadId, item.defId, identity.id, item.key, JSON.stringify(item.val)]
+      );
+    }
 
     // Save initial remark if provided
     if (body.remark && typeof body.remark === "string" && body.remark.trim().length > 0) {
@@ -74,11 +136,14 @@ export async function POST(request: Request) {
       }
     }
 
-    return Response.json({
-      ok: true,
-      message: "Lead added successfully.",
-      lead: result.lead,
-    }, { status: 201 });
+    return Response.json(
+      {
+        ok: true,
+        message: "Lead added successfully.",
+        lead: result.lead,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error("[Manual Lead API] Error:", error);
     return Response.json(

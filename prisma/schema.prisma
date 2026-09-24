@@ -25,14 +25,16 @@ model User {
   createdByAdmin User?  @relation("AdminManagedUsers", fields: [createdByAdminId], references: [id], onDelete: SetNull)
   managedUsers   User[] @relation("AdminManagedUsers")
 
-  digitalCards  DigitalCard[]
-  orders        Order[]
-  accounts      Account[]
-  profile       Profile?
-  leads         Lead[]
-  assignedLeads Lead[]         @relation("LeadAssignedUser")
-  followUps     LeadFollowUp[]
-  activities    LeadActivity[]
+  digitalCards         DigitalCard[]
+  orders               Order[]
+  accounts             Account[]
+  profile              Profile?
+  leads                Lead[]
+  assignedLeads        Lead[]                @relation("LeadAssignedUser")
+  followUps            LeadFollowUp[]
+  activities           LeadActivity[]
+  leadFieldDefinitions LeadFieldDefinition[]
+  leadFieldValues      LeadFieldValue[]
 
   @@map("users")
 }
@@ -110,11 +112,12 @@ model Lead {
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
-  owner        User           @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  assignedUser User?          @relation("LeadAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  card         DigitalCard    @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  followUps    LeadFollowUp[]
-  activities   LeadActivity[]
+  owner             User             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  assignedUser      User?            @relation("LeadAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  card              DigitalCard      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  followUps         LeadFollowUp[]
+  activities        LeadActivity[]
+  customFieldValues LeadFieldValue[]
 
   @@unique([ownerUserId, contactNumberNormalized])
   @@index([ownerUserId, status])
@@ -287,3 +290,45 @@ model AdminAuditLog {
 
   @@map("admin_audit_logs")
 }
+
+model LeadFieldDefinition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId String   @map("owner_user_id") @db.Uuid
+  name        String
+  inputType   String   @map("input_type")
+  isRequired  Boolean  @default(false) @map("is_required")
+  status      String   @default("ACTIVE")
+  sortOrder   Int      @default(1) @map("sort_order")
+  options     Json     @default("[]")
+  config      Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  owner  User             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  values LeadFieldValue[]
+
+  @@index([ownerUserId, sortOrder])
+  @@index([ownerUserId, status])
+  @@map("lead_field_definitions")
+}
+
+model LeadFieldValue {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId            String   @map("lead_id") @db.Uuid
+  fieldDefinitionId String   @map("field_definition_id") @db.Uuid
+  ownerUserId       String   @map("owner_user_id") @db.Uuid
+  fieldKey          String   @map("field_key")
+  value             Json
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  lead            Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fieldDefinition LeadFieldDefinition @relation(fields: [fieldDefinitionId], references: [id], onDelete: Cascade)
+  owner           User                @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, fieldDefinitionId])
+  @@index([leadId])
+  @@index([ownerUserId])
+  @@map("lead_field_values")
+}
+

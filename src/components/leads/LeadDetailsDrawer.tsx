@@ -529,18 +529,64 @@ export default function LeadDetailsDrawer({
                   {/* CARD 4: ADVANCED FIELDS */}
                   <section className="lead-drawer-card">
                     <h3 className="lead-drawer-card-title">ADVANCED FIELDS</h3>
-                    {lead.customFields && Object.keys(lead.customFields).length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {Object.entries(lead.customFields).map(([k, v]) => (
-                          <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
-                            <span className="lead-drawer-pipeline-label">{k}</span>
-                            <span className="lead-drawer-pipeline-val">{v}</span>
+                    {(() => {
+                      const detailed = (lead as any).customFieldsDetailed;
+                      const rawMap = lead.customFields || (lead as any).customFieldValues || {};
+                      
+                      if (Array.isArray(detailed) && detailed.length > 0) {
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {detailed.map((item: any) => {
+                              let displayVal = item.value;
+                              if (displayVal === null || displayVal === undefined) return null;
+                              if (typeof displayVal === "boolean") displayVal = displayVal ? "Yes" : "No";
+                              if (Array.isArray(displayVal)) displayVal = displayVal.join(", ");
+                              if (typeof displayVal === "object" && displayVal !== null) {
+                                if (displayVal.url) {
+                                  return (
+                                    <div key={item.fieldDefinitionId || item.fieldName} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                                      <span className="lead-drawer-pipeline-label">{item.fieldName}</span>
+                                      <a href={displayVal.url} target="_blank" rel="noreferrer" style={{ color: "#3B82F6", textDecoration: "underline", fontWeight: 600 }}>
+                                        📁 {displayVal.name || "Download File"}
+                                      </a>
+                                    </div>
+                                  );
+                                }
+                                displayVal = JSON.stringify(displayVal);
+                              }
+
+                              return (
+                                <div key={item.fieldDefinitionId || item.fieldName} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                                  <span className="lead-drawer-pipeline-label">{item.fieldName}</span>
+                                  <span className="lead-drawer-pipeline-val" style={{ fontWeight: 600 }}>{String(displayVal)}</span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="lead-drawer-pipeline-label" style={{ fontSize: 13 }}>No custom fields configured.</span>
-                    )}
+                        );
+                      }
+
+                      const entries = Object.entries(rawMap).filter(([_, v]) => v !== null && v !== undefined && v !== "");
+                      if (entries.length > 0) {
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {entries.map(([k, v]) => {
+                              let valStr = typeof v === "object" ? JSON.stringify(v) : String(v);
+                              return (
+                                <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13 }}>
+                                  <span className="lead-drawer-pipeline-label">{k}</span>
+                                  <span className="lead-drawer-pipeline-val" style={{ fontWeight: 600 }}>{valStr}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <span className="lead-drawer-pipeline-label" style={{ fontSize: 13 }}>No custom fields configured.</span>
+                      );
+                    })()}
                   </section>
 
                   {/* CARD 5: PIPELINE */}

@@ -14,7 +14,10 @@ import {
   History,
   Trash2,
   Plus,
-  Minus
+  Minus,
+  UploadCloud,
+  FileText,
+  Check
 } from "lucide-react";
 
 export interface AddLeadDrawerProps {
@@ -114,15 +117,21 @@ export default function AddLeadDrawer({
   const [newAdvanceAmount, setNewAdvanceAmount] = useState("");
   const [newAdvanceNote, setNewAdvanceNote] = useState("");
 
+  interface DynamicFieldDef {
+    id: string;
+    name: string;
+    inputType: "TEXT" | "TEXTAREA" | "NUMBER" | "SELECT" | "RADIO" | "CHECKBOX" | "DATE" | "FILE" | "DATETIME";
+    isRequired: boolean;
+    status: string;
+    sortOrder: number;
+    options?: { id: string; label: string; value: string }[];
+  }
+
   // Dynamic Advanced Custom Fields
-  const [customFields, setCustomFields] = useState<CustomField[]>([
-    { key: "number", label: "number", type: "text", placeholder: "Enter number" },
-    { key: "call", label: "call", type: "text", placeholder: "Enter call" },
-  ]);
-  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({
-    number: "",
-    call: "",
-  });
+  const [dynamicFields, setDynamicFields] = useState<DynamicFieldDef[]>([]);
+  const [dynamicFieldsLoading, setDynamicFieldsLoading] = useState(false);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
 
   // Form State
   const [countryCode, setCountryCode] = useState("+91");
@@ -281,20 +290,18 @@ export default function AddLeadDrawer({
           }
         }
 
-        // 5. Dynamic Custom Fields
+        // 5. Dynamic Custom Fields from API database
         try {
-          const storedDyn = localStorage.getItem("myluxcards_lead_dynamics_fields");
-          if (storedDyn) {
-            const parsed = JSON.parse(storedDyn);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setCustomFields(parsed);
-              const initialVals: Record<string, string> = {};
-              parsed.forEach((f: CustomField) => { initialVals[f.key] = ""; });
-              setCustomFieldValues(prev => ({ ...initialVals, ...prev }));
-            }
+          setDynamicFieldsLoading(true);
+          const res = await fetch("/api/leads/custom-fields");
+          const data = await res.json();
+          if (res.ok && Array.isArray(data.fields)) {
+            setDynamicFields(data.fields);
           }
         } catch (err) {
           console.error("Failed to read dynamic custom fields", err);
+        } finally {
+          setDynamicFieldsLoading(false);
         }
       } finally {
         setFetchingConfig(false);
@@ -371,6 +378,19 @@ export default function AddLeadDrawer({
       } else {
         setAdvanceRecords([]);
       }
+      if (leadData?.id) {
+        fetch(`/api/leads/${leadData.id}`)
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.lead && d.lead.customFieldValues) {
+              setCustomFieldValues((prev) => ({
+                ...prev,
+                ...d.lead.customFieldValues,
+              }));
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       // Reset form for Create Mode
       setCountryCode("+91");
@@ -393,10 +413,7 @@ export default function AddLeadDrawer({
         followUpNote: "",
         customTotalAmount: "",
       });
-      setCustomFieldValues({
-        number: "",
-        call: "",
-      });
+      setCustomFieldValues({});
     }
   }, [isOpen, mode, leadData, identity.id, sources, stages]);
 
@@ -448,6 +465,35 @@ export default function AddLeadDrawer({
     setNewAdvanceAmount("");
     setNewAdvanceNote("");
     setIsRequestingAdvance(false);
+  };
+
+  // Custom Field File Upload Handler
+  const handleCustomFileUpload = async (fieldId: string, file: File) => {
+    setUploadingFieldId(fieldId);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("kind", "document");
+
+      const res = await fetch("/api/media", {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "File upload failed.");
+
+      const fileObj = {
+        url: data.url || data.publicUrl,
+        name: file.name,
+        size: file.size,
+        key: data.key,
+      };
+      setCustomFieldValues((prev) => ({ ...prev, [fieldId]: fileObj }));
+    } catch (err: any) {
+      alert(err.message || "File upload failed.");
+    } finally {
+      setUploadingFieldId(null);
+    }
   };
 
   const handleRemoveAdvanceRecord = (id: string) => {
@@ -1153,22 +1199,177 @@ export default function AddLeadDrawer({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {customFields.map(f => (
-                <div key={f.key}>
-                  <label className="add-lead-label lowercase">
-                    {f.label}
-                  </label>
-                  <input 
-                    type={f.type || "text"}
-                    value={customFieldValues[f.key] || ""}
-                    onChange={e => setCustomFieldValues({ ...customFieldValues, [f.key]: e.target.value })}
-                    placeholder={f.placeholder || `Enter ${f.label}`}
-                    className="add-lead-input"
-                  />
-                </div>
-              ))}
-            </div>
+            {dynamicFieldsLoading ? (
+              <div className="p-4 text-center text-xs text-slate-400">Loading custom fields...</div>
+            ) : dynamicFields.length === 0 ? (
+              <div className="add-lead-empty-box">No custom fields configured for this workspace.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {dynamicFields.map(f => {
+                  const val = customFieldValues[f.id] !== undefined ? customFieldValues[f.id] : (customFieldValues[f.name] !== undefined ? customFieldValues[f.name] : "");
+                  const isFullWidth = f.inputType === "TEXTAREA" || f.inputType === "FILE";
+
+                  return (
+                    <div key={f.id} className={isFullWidth ? "col-span-1 sm:col-span-2" : ""}>
+                      <label className="add-lead-label">
+                        {f.name}
+                        {f.isRequired && <span className="text-rose-500 ml-1">*</span>}
+                      </label>
+
+                      {f.inputType === "TEXT" && (
+                        <input
+                          type="text"
+                          value={typeof val === "string" ? val : ""}
+                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                          placeholder={`Enter ${f.name}`}
+                          className="add-lead-input"
+                        />
+                      )}
+
+                      {f.inputType === "TEXTAREA" && (
+                        <textarea
+                          rows={3}
+                          value={typeof val === "string" ? val : ""}
+                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                          placeholder={`Enter ${f.name}`}
+                          className="add-lead-input !h-auto py-2"
+                        />
+                      )}
+
+                      {f.inputType === "NUMBER" && (
+                        <input
+                          type="number"
+                          value={val !== undefined && val !== null ? val : ""}
+                          onChange={e => {
+                            const v = e.target.value;
+                            setCustomFieldValues({ ...customFieldValues, [f.id]: v === "" ? "" : Number(v) });
+                          }}
+                          placeholder={`Enter ${f.name}`}
+                          className="add-lead-input font-bold"
+                        />
+                      )}
+
+                      {f.inputType === "SELECT" && (
+                        <div className="relative">
+                          <select
+                            value={typeof val === "string" ? val : ""}
+                            onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                            className="add-lead-select"
+                          >
+                            <option value="">Select option...</option>
+                            {(f.options || []).map(opt => (
+                              <option key={opt.id || opt.value} value={opt.value}>
+                                {opt.label || opt.value}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                        </div>
+                      )}
+
+                      {f.inputType === "RADIO" && (
+                        <div className="flex flex-wrap gap-3 pt-1">
+                          {(f.options || []).map(opt => (
+                            <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                              <input
+                                type="radio"
+                                name={`radio_${f.id}`}
+                                value={opt.value}
+                                checked={val === opt.value}
+                                onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                                className="w-4 h-4 accent-emerald-500"
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {f.inputType === "CHECKBOX" && (
+                        <div className="flex flex-wrap gap-3 pt-1">
+                          {(f.options || []).map(opt => {
+                            const arr = Array.isArray(val) ? val : [];
+                            const isChecked = arr.includes(opt.value);
+                            return (
+                              <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={e => {
+                                    const nextArr = e.target.checked
+                                      ? [...arr, opt.value]
+                                      : arr.filter(v => v !== opt.value);
+                                    setCustomFieldValues({ ...customFieldValues, [f.id]: nextArr });
+                                  }}
+                                  className="w-4 h-4 rounded accent-emerald-500"
+                                />
+                                <span>{opt.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {f.inputType === "DATE" && (
+                        <input
+                          type="date"
+                          value={typeof val === "string" ? val : ""}
+                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                          className="add-lead-input"
+                        />
+                      )}
+
+                      {f.inputType === "DATETIME" && (
+                        <input
+                          type="datetime-local"
+                          value={typeof val === "string" ? val : ""}
+                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                          className="add-lead-input"
+                        />
+                      )}
+
+                      {f.inputType === "FILE" && (
+                        <div>
+                          {val && typeof val === "object" && val.url ? (
+                            <div className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-800/60 bg-emerald-950/20 text-xs text-emerald-300">
+                              <span className="truncate font-semibold max-w-[200px] sm:max-w-[300px]">
+                                📁 {val.name || "Attachment"}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <a href={val.url} target="_blank" rel="noreferrer" className="text-emerald-400 underline hover:text-emerald-300 font-bold">
+                                  View
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setCustomFieldValues({ ...customFieldValues, [f.id]: null })}
+                                  className="p-1 text-rose-400 hover:text-rose-300"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-700 bg-slate-900/40 hover:bg-slate-800/60 cursor-pointer text-xs text-slate-300 transition-colors">
+                              <UploadCloud className="w-4 h-4 text-emerald-400" />
+                              <span>{uploadingFieldId === f.id ? "Uploading file..." : "Click to select & upload file (PDF, PNG, JPG max 5MB)"}</span>
+                              <input
+                                type="file"
+                                className="hidden"
+                                disabled={uploadingFieldId === f.id}
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleCustomFileUpload(f.id, file);
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
         </form>

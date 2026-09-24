@@ -40,6 +40,10 @@ const LobReasonsConfig = dynamic(
   () => import("@/components/dashboard/config/LobReasonsConfig").then((mod) => mod.LobReasonsConfig),
   { ssr: false }
 );
+const LeadDynamicsConfig = dynamic(
+  () => import("@/components/dashboard/config/LeadDynamicsConfig").then((mod) => mod.LeadDynamicsConfig),
+  { ssr: false }
+);
 const LeadsWorkspace = dynamic(
   () => import("@/components/leads/LeadsWorkspace"),
   { ssr: false }
@@ -85,7 +89,7 @@ import {
   FileText,
 } from "lucide-react";
 
-type Tab = "dashboard" | "leads" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons";
+type Tab = "dashboard" | "leads" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons" | "config-dynamic";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -1052,7 +1056,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
             <div className="side-config-group">
               <button
                 type="button"
-                className={`side-nav-item side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons"].includes(tab) ? "active" : ""}`}
+                className={`side-nav-item side-parent-btn ${["config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(tab) ? "active" : ""}`}
                 onClick={() => setMasterConfigOpen((prev) => !prev)}
               >
                 <span className="side-nav-item-left">
@@ -1103,6 +1107,14 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
                   >
                     <span>LOB Reasons</span>
                     {tab === "config-reasons" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`side-subnav-item ${tab === "config-dynamic" ? "active" : ""}`}
+                    onClick={() => { selectTab("config-dynamic" as Tab); setSidebar(false); }}
+                  >
+                    <span>Dynamic Leads</span>
+                    {tab === "config-dynamic" && <span className="side-subnav-dot" />}
                   </button>
                 </div>
               )}
@@ -1290,6 +1302,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
         {tab === "config-stages" && <section><LeadStagesConfig /></section>}
         {tab === "config-calendar" && <section><CalendarConfig /></section>}
         {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
+        {tab === "config-dynamic" && <section><LeadDynamicsConfig /></section>}
 
         <DashboardLayoutSelectorModal
           currentLayout={dashboardLayout}

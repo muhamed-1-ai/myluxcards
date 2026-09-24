@@ -39,6 +39,39 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
     }
 
+    // Fetch saved custom field values for this lead
+    const customValuesRes = await pool.query(
+      `SELECT v.field_definition_id as "fieldDefinitionId", v.field_key as "fieldKey", v.value,
+              d.name as "fieldName", d.input_type as "inputType", d.is_required as "isRequired", d.options
+       FROM lead_field_values v
+       LEFT JOIN lead_field_definitions d ON d.id = v.field_definition_id
+       WHERE v.lead_id = $1 AND v.owner_user_id = $2`,
+      [id, identity.id]
+    );
+
+    const customFieldValuesMap: Record<string, any> = {};
+    const customFieldsDetailed: Array<any> = [];
+
+    for (const row of customValuesRes.rows) {
+      const val = row.value;
+      const keyId = row.fieldDefinitionId;
+      const keyName = row.fieldName || row.fieldKey;
+
+      // Store in map under both fieldId and fieldKey for flexibility
+      customFieldValuesMap[keyId] = val;
+      if (keyName) {
+        customFieldValuesMap[keyName] = val;
+      }
+
+      customFieldsDetailed.push({
+        fieldDefinitionId: keyId,
+        fieldKey: row.fieldKey,
+        fieldName: keyName,
+        inputType: row.inputType || "TEXT",
+        value: val,
+      });
+    }
+
     // Next follow-up scoped to owner
     const fuRes = await pool.query(
       `SELECT id, scheduled_at as "scheduledAt", note, status
@@ -74,6 +107,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         nextFollowUp,
         activities,
         lastRemark,
+        customFieldValues: customFieldValuesMap,
+        customFieldsDetailed,
       },
     });
   } catch (error: any) {
@@ -137,6 +172,46 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const lead = result.rows[0];
     if (!lead) {
       return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+    }
+
+    // Save/update custom fields if passed
+    const rawCustomInput = body.customFields || body.customFieldValues;
+    if (rawCustomInput && typeof rawCustomInput === "object") {
+      const defsRes = await pool.query(
+        `SELECT id, name, input_type as "inputType", is_required as "isRequired"
+         FROM lead_field_definitions
+         WHERE owner_user_id = $1 AND status = 'ACTIVE'`,
+        [identity.id]
+      );
+      const activeDefs = defsRes.rows;
+
+      for (const def of activeDefs) {
+        const defId = def.id;
+        const keyName = def.name;
+        let val = rawCustomInput[defId] !== undefined ? rawCustomInput[defId] : rawCustomInput[keyName];
+
+        if (def.isRequired) {
+          const isEmpty =
+            val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
+          if (isEmpty) {
+            return Response.json({ message: `Field "${def.name}" is required.` }, { status: 400 });
+          }
+        }
+
+        if (val !== undefined && val !== null) {
+          if (def.inputType === "NUMBER" && val !== "") {
+            const num = Number(val);
+            if (!isNaN(num)) val = num;
+          }
+          await pool.query(
+            `INSERT INTO lead_field_values (lead_id, field_definition_id, owner_user_id, field_key, value, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+             ON CONFLICT (lead_id, field_definition_id) DO UPDATE
+             SET value = EXCLUDED.value, updated_at = NOW()`,
+            [id, defId, identity.id, keyName, JSON.stringify(val)]
+          );
+        }
+      }
     }
 
     // Log update activity
