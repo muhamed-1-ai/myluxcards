@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardProfileProduct } from "@/lib/cards";
+import { ProfileActions } from "./ProfileActions";
 import {
   Phone,
   Mail,
@@ -79,6 +80,7 @@ export interface ModernProfileLayoutProps {
   };
   profileProducts?: CardProfileProduct[];
   onSaveContact?: () => void;
+  onShareDetails?: () => void;
   onShare?: () => void;
   onOpenBrochure?: () => void;
   isDashboardPreview?: boolean;
@@ -242,6 +244,7 @@ export function ModernProfileLayout({
   card,
   profileProducts,
   onSaveContact,
+  onShareDetails,
   onShare,
   onOpenBrochure,
   isDashboardPreview = false,
@@ -354,36 +357,15 @@ export function ModernProfileLayout({
         </div>
 
         {/* ── 3. PRIMARY ACTION ROW ── */}
-        <div className="zappit-modern-actions-grid">
-          <button
-            type="button"
-            className="zappit-modern-btn-primary"
-            onClick={onSaveContact}
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Save Contact</span>
-          </button>
-
-          {hasBrochure && (
-            <button
-              type="button"
-              className="zappit-modern-btn-glass"
-              onClick={onOpenBrochure}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Brochure</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="zappit-modern-btn-glass"
-            onClick={onShare}
-          >
-            <Share2 className="w-4 h-4" />
-            <span>Share</span>
-          </button>
-        </div>
+        <ProfileActions
+          card={card}
+          onSaveContact={onSaveContact}
+          onShareDetails={onShareDetails}
+          onShare={onShare}
+          onOpenBrochure={onOpenBrochure}
+          layoutStyle="modern"
+          isDashboardPreview={isDashboardPreview}
+        />
 
         {/* ── 4. CONTACT DETAILS CARD ── */}
         {(fullPhone || card.email || fullWhatsapp) && (

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import CookieConsent from '@/components/ui/CookieConsent';
 
 export const metadata: Metadata = {
   title: 'Zappit | One Tap. Your Digital World Connected.',
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }

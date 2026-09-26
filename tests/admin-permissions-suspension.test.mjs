@@ -39,6 +39,12 @@ test("Feature groups cover all 17 features under 4 categories", () => {
 });
 
 test("normalizeFeaturePermissions normalizes legacy permissions and default values", () => {
+  // Empty or undefined raw permissions default to ZERO access (all 17 false)
+  const emptyPermissions = normalizeFeaturePermissions({});
+  for (const f of FEATURE_CATALOGUE) {
+    assert.equal(emptyPermissions[f.key], false);
+  }
+
   // Legacy input with old keys like crm, nfc_card, qr_profile, analytics
   const legacyPermissions = {
     crm: true,
@@ -55,7 +61,7 @@ test("normalizeFeaturePermissions normalizes legacy permissions and default valu
     assert.equal(typeof normalized[f.key], "boolean");
   }
 
-  // legacy mapping check: crm -> lead_sources (if not overridden), lead_stages, dynamic_leads
+  // legacy mapping check: crm -> lead_stages, dynamic_leads (since crm is true)
   assert.equal(normalized.lead_stages, true);
   assert.equal(normalized.dynamic_leads, true);
 
@@ -69,10 +75,13 @@ test("isFeatureAllowed correctly evaluates roles and explicit denials", () => {
     all_leads: false
   });
 
-  // User role with explicit false is DENIED
+  // User role with unconfigured or false feature is DENIED
   assert.equal(isFeatureAllowed(perm, "all_leads", "USER"), false);
   // User role with explicit true is ALLOWED
   assert.equal(isFeatureAllowed(perm, "overview", "USER"), true);
+
+  // Default empty permissions return false for ordinary USER
+  assert.equal(isFeatureAllowed(undefined, "overview", "USER"), false);
 
   // Admin/Super Admin override explicit denials for platform admin
   assert.equal(isFeatureAllowed(perm, "all_leads", "SUPER_ADMIN"), true);
@@ -88,7 +97,8 @@ test("isGroupAllowed evaluates true if any child feature in group is allowed", (
 });
 
 test("getFirstPermittedTab falls back to first allowed feature tab when Overview is disabled", () => {
-  const overviewDisabled = { ...DEFAULT_FEATURE_PERMISSIONS, overview: false };
+  const allEnabled = FEATURE_CATALOGUE.reduce((acc, f) => ({ ...acc, [f.key]: true }), {});
+  const overviewDisabled = { ...allEnabled, overview: false };
   const firstTab = getFirstPermittedTab(overviewDisabled);
   assert.equal(firstTab, "leads");
 

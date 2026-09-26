@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
+import LeadIdentityBlock from "./LeadIdentityBlock";
 import "../../app/dashboard/leads/leads.css";
 
 interface LeadsWorkspaceProps {
@@ -441,7 +442,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             <thead>
               <tr>
                 {selectMode && <th style={{ width: 40 }}><input type="checkbox" /></th>}
-                <th style={{ minWidth: 220 }}>LEAD NAME</th>
+                <th style={{ minWidth: 340, width: 360 }}>LEAD NAME</th>
                 <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
                 <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
                 <th>STAGE</th>
@@ -509,55 +510,11 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
                       {/* LEAD NAME COLUMN */}
                       <td>
-                        <div className="flex items-start space-x-3">
-                          <div className={`w-9 h-9 rounded-full ${getAvatarGradient(leadName)} font-bold flex items-center justify-center text-sm shadow-sm flex-shrink-0 mt-0.5`}>
-                            {avatarLetter}
-                          </div>
-
-                          <div className="space-y-0.5">
-                            <div className="flex items-center space-x-2">
-                              <Star
-                                onClick={(e) => toggleStar(e, lead.id)}
-                                className={`w-3.5 h-3.5 transition-colors cursor-pointer ${isStarred ? "text-amber-400 fill-amber-400" : "text-[var(--text-secondary,#94A3B8)] hover:text-amber-400"}`}
-                              />
-                              <span className="font-bold text-[var(--text-primary,#0F172A)] text-sm group-hover:text-emerald-500 transition-colors">
-                                {leadName}
-                              </span>
-                            </div>
-
-                            {lead.email && (
-                              <div className="text-[11.5px] text-[var(--text-secondary,#94A3B8)]">
-                                {lead.email}
-                              </div>
-                            )}
-
-                            <div className="text-[11.5px] text-[var(--text-secondary,#94A3B8)] flex items-center space-x-1.5 pt-0.5">
-                              <span>{lead.contactNumber || "No phone"}</span>
-                              {lead.contactNumber && (
-                                <>
-                                  <a
-                                    href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="WhatsApp Message"
-                                    className="text-emerald-500 hover:scale-110 transition-transform p-0.5"
-                                  >
-                                    <MessageSquare className="w-3.5 h-3.5 fill-emerald-500/20" />
-                                  </a>
-                                  <a
-                                    href={`tel:${lead.contactNumber}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Call Lead"
-                                    className="text-[var(--text-secondary,#94A3B8)] hover:text-emerald-500 transition-colors p-0.5"
-                                  >
-                                    <Phone className="w-3.5 h-3.5" />
-                                  </a>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                        <LeadIdentityBlock
+                          lead={lead}
+                          isStarred={isStarred}
+                          onToggleStar={toggleStar}
+                        />
                       </td>
 
                       {/* NEXT FOLLOW-UP COLUMN (Matching Reference Pill) */}
@@ -670,75 +627,30 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                     isSelected ? "bg-emerald-500/5" : ""
                   }`}
                 >
-                  {/* Top Row: Select checkbox, Avatar, Name, Star, Stage Badge */}
+                  {/* Top Row: Select checkbox, Lead Identity, Stage Badge */}
                   <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {selectMode && (
-                        <div onClick={(e) => toggleSelectLead(e, lead.id)} className="flex-shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="rounded text-emerald-600 focus:ring-emerald-500"
-                          />
-                        </div>
-                      )}
-                      <div className={`w-9 h-9 rounded-full ${getAvatarGradient(leadName)} font-bold flex items-center justify-center text-sm shadow-sm flex-shrink-0`}>
-                        {avatarLetter}
+                    {selectMode && (
+                      <div onClick={(e) => toggleSelectLead(e, lead.id)} className="flex-shrink-0 pt-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-[var(--text-primary,#0F172A)] text-sm truncate">
-                            {leadName}
-                          </span>
-                          <Star
-                            onClick={(e) => toggleStar(e, lead.id)}
-                            className={`w-3.5 h-3.5 flex-shrink-0 cursor-pointer ${
-                              isStarred ? "text-amber-400 fill-amber-400" : "text-[var(--text-secondary,#94A3B8)]"
-                            }`}
-                          />
-                        </div>
-                        {lead.companyName && (
-                          <div className="text-xs text-[var(--text-secondary,#64748B)] truncate">
-                            {lead.companyName}
-                          </div>
-                        )}
-                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <LeadIdentityBlock
+                        lead={lead}
+                        isStarred={isStarred}
+                        onToggleStar={toggleStar}
+                      />
                     </div>
 
                     <span className={`${getStageBadgeClass(lead.stage || lead.status)} flex-shrink-0 text-[10px]`}>
                       {lead.stage || lead.status || "NEW"}
                     </span>
-                  </div>
-
-                  {/* Contact & 1-Tap Quick Actions */}
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-color,#E2E8F0)]/40 dark:border-white/5">
-                    <div className="text-xs text-[var(--text-secondary,#64748B)] truncate">
-                      {lead.email || lead.contactNumber || "No email"}
-                    </div>
-
-                    {lead.contactNumber && (
-                      <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <a
-                          href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, '')}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="h-8 px-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold flex items-center gap-1.5"
-                          title="WhatsApp"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 fill-emerald-500/20" />
-                          <span>WhatsApp</span>
-                        </a>
-                        <a
-                          href={`tel:${lead.contactNumber}`}
-                          className="h-8 px-2.5 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-bold flex items-center gap-1.5"
-                          title="Call"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          <span>Call</span>
-                        </a>
-                      </div>
-                    )}
                   </div>
 
                   {/* Metadata Row: Next Follow-Up, Assigned To, Total Amount, Action Menu */}

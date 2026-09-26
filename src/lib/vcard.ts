@@ -11,6 +11,7 @@ export interface VCardInput {
   companyName?: string | null;
   title?: string | null;
   phone?: string | null;
+  additionalPhones?: Array<{ label?: string; number: string }> | null;
   email?: string | null;
   website?: string | null;
   address?: string | null;
@@ -119,6 +120,16 @@ export function buildVCardString(input: VCardInput): VCardBuildResult {
   if (phone) {
     // Standardize phone number format for TEL tag
     lines.push(`TEL;TYPE=CELL:${escapeVCardValue(phone)}`);
+  }
+
+  if (Array.isArray(input.additionalPhones)) {
+    for (const p of input.additionalPhones) {
+      const pNum = cleanText(p.number);
+      if (pNum && pNum !== phone) {
+        const typeLabel = (cleanText(p.label) || "WORK").toUpperCase().replace(/[^A-Z]/g, "") || "WORK";
+        lines.push(`TEL;TYPE=${typeLabel}:${escapeVCardValue(pNum)}`);
+      }
+    }
   }
 
   const email = cleanText(input.email);

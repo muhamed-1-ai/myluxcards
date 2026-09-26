@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { ProfileActions } from "@/components/card/ProfileActions";
+import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
 import { buildVCardString } from "@/lib/vcard";
@@ -233,6 +235,15 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [isPreviewParam, setIsPreviewParam] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== "undefined") {
+      setIsPreviewParam(new URLSearchParams(window.location.search).get("preview") === "1");
+    }
+  }, []);
 
   // Visitor interactive state for Vehicle Connect and Lost & Found
   const [actionToast, setActionToast] = useState("");
@@ -472,7 +483,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     </main>
   );
 
-  const isDashboardPreview = card.previewAuthorized === true || (!/^[0-9a-f-]{36}$/i.test(card.id || "") && new URLSearchParams(window.location.search).get("preview") === "1");
+  const isDashboardPreview = card.previewAuthorized === true || (!/^[0-9a-f-]{36}$/i.test(card.id || "") && isPreviewParam);
   if (!card.active && !isDashboardPreview) return (
     <main className="pc-state">
       {showStatusBubble && (
@@ -1238,6 +1249,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             card={card}
             profileProducts={profileProducts}
             onSaveContact={saveContact}
+            onShareDetails={() => setLeadModalOpen(true)}
             onShare={() => { track("SHARE"); void share(); }}
             onOpenBrochure={card.brochure ? () => {
               if (card.brochureData) {
@@ -1250,26 +1262,22 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           />
         ) : (
           <>
-            {/* Action buttons (Save Contact / Share / QR Code) */}
-            <div className="pc-actions">
-              <button className="pc-action-btn pc-action-btn-primary" type="button" onClick={() => setLeadModalOpen(true)}>
-                SHARE YOUR DETAILS
-              </button>
-              <button className="pc-action-btn" type="button" onClick={saveContact}>Save Contact</button>
-              <button className="pc-action-btn" type="button" onClick={() => { track("SHARE"); void share(); }}>Share</button>
-              <button className="pc-action-btn pc-action-qr" onClick={openQr}>
-                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden style={{ flexShrink: 0, verticalAlign: "middle" }}><path fill="currentColor" d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm8-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 13h7v7H3v-7Zm2 2v3h3v-3H5Zm10 0h2v2h-2v-2Zm-2-2h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-2 4h2v2h-2v-2Zm2 0h2v2h-2v-2Zm-4 2h2v2h-2v-2Z" /></svg>
-                {" "}QR Code
-              </button>
-              {card.brochure && (
-                <a
-                  className="pc-action-btn"
-                  href={card.brochureData || "#"}
-                  download={card.brochure}
-                  onClick={(e) => { if (!card.brochureData) e.preventDefault(); }}
-                >Brochure</a>
-              )}
-            </div>
+            {/* Action buttons (Save Contact / Share Your Details / Share / QR Code) */}
+            <ProfileActions
+              card={card}
+              onSaveContact={saveContact}
+              onShareDetails={() => setLeadModalOpen(true)}
+              onShare={() => { track("SHARE"); void share(); }}
+              onOpenBrochure={card.brochure ? () => {
+                if (card.brochureData) {
+                  const a = document.createElement("a");
+                  a.href = card.brochureData;
+                  a.download = card.brochure;
+                  a.click();
+                }
+              } : undefined}
+              layoutStyle="standard"
+            />
 
             {/* Dynamic Module Ordering for Standard Profile View */}
             {(() => {
@@ -1831,7 +1839,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             <div className="pc-qr-img">
               {qrLoading ? <span className="pc-qr-loading">Generating…</span> : qrSvg ? <div dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <span className="pc-qr-loading">{qrError || "QR code unavailable"}</span>}
             </div>
-            <p className="pc-qr-url">{typeof window !== "undefined" ? window.location.href : ""}</p>
+            <p className="pc-qr-url">{mounted ? window.location.href : ""}</p>
             <div className="pc-qr-actions">
               {qrError && <button type="button" className="pc-qr-download" onClick={openQr} disabled={qrLoading}>Try again</button>}
               {!qrError && (
@@ -1849,130 +1857,13 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         </div>
       )}
 
-      {/* ── Lead Capture Modal ── */}
-      {leadModalOpen && (
-        <div className="pc-lead-modal-overlay" onClick={() => setLeadModalOpen(false)} role="dialog" aria-modal="true" aria-label="Share Your Details">
-          <div className="pc-lead-modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <button className="pc-lead-modal-close" type="button" onClick={() => setLeadModalOpen(false)} aria-label="Close modal">×</button>
-
-            {!leadSuccess ? (
-              <>
-                <div className="pc-lead-modal-header-block">
-                  <h2 className="pc-lead-modal-title">SHARE YOUR DETAILS</h2>
-                  <p className="pc-lead-modal-subtitle">
-                    Leave your contact information and the profile owner can get back to you.
-                  </p>
-                </div>
-
-                {leadErrors.general && (
-                  <div className="pc-lead-error-banner" role="alert">
-                    {leadErrors.general}
-                  </div>
-                )}
-
-                <form onSubmit={handleLeadSubmit} className="pc-lead-form" noValidate>
-                  <div className="pc-lead-field-group">
-                    <label htmlFor="lead-name" className="pc-lead-label">
-                      Name <span className="pc-req" style={{ color: "#0066FF" }}>*</span>
-                    </label>
-                    <input
-                      id="lead-name"
-                      type="text"
-                      className={`pc-lead-input ${leadErrors.name ? "has-error" : ""}`}
-                      placeholder="Enter your name"
-                      value={leadName}
-                      onChange={(e) => setLeadName(e.target.value)}
-                      maxLength={100}
-                      disabled={leadSubmitting}
-                      autoFocus
-                    />
-                    {leadErrors.name && <span className="pc-lead-field-error" style={{ color: "#e74c3c", fontSize: 12 }}>{leadErrors.name}</span>}
-                  </div>
-
-                  <div className="pc-lead-field-group">
-                    <label htmlFor="lead-company" className="pc-lead-label">Company Name</label>
-                    <input
-                      id="lead-company"
-                      type="text"
-                      className="pc-lead-input"
-                      placeholder="Enter company name"
-                      value={leadCompany}
-                      onChange={(e) => setLeadCompany(e.target.value)}
-                      maxLength={150}
-                      disabled={leadSubmitting}
-                    />
-                  </div>
-
-                  <div className="pc-lead-field-group">
-                    <label htmlFor="lead-contact" className="pc-lead-label">
-                      Contact Number <span className="pc-req" style={{ color: "#0066FF" }}>*</span>
-                    </label>
-                    <input
-                      id="lead-contact"
-                      type="tel"
-                      className={`pc-lead-input ${leadErrors.contactNumber ? "has-error" : ""}`}
-                      placeholder="+91 98765 43210"
-                      value={leadContact}
-                      onChange={(e) => setLeadContact(e.target.value)}
-                      maxLength={30}
-                      disabled={leadSubmitting}
-                    />
-                    {leadErrors.contactNumber && <span className="pc-lead-field-error" style={{ color: "#e74c3c", fontSize: 12 }}>{leadErrors.contactNumber}</span>}
-                  </div>
-
-                  <div className="pc-lead-field-group">
-                    <label htmlFor="lead-email" className="pc-lead-label">Email</label>
-                    <input
-                      id="lead-email"
-                      type="email"
-                      className={`pc-lead-input ${leadErrors.email ? "has-error" : ""}`}
-                      placeholder="you@example.com"
-                      value={leadEmail}
-                      onChange={(e) => setLeadEmail(e.target.value)}
-                      maxLength={255}
-                      disabled={leadSubmitting}
-                    />
-                    {leadErrors.email && <span className="pc-lead-field-error" style={{ color: "#e74c3c", fontSize: 12 }}>{leadErrors.email}</span>}
-                  </div>
-
-                  <button type="submit" className="pc-lead-submit-btn" disabled={leadSubmitting}>
-                    {leadSubmitting ? "SHARING..." : "SHARE DETAILS"}
-                  </button>
-                </form>
-              </>
-            ) : (
-              <div className="pc-lead-success-box">
-                <div className="pc-lead-success-icon" aria-hidden>
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <h2 className="pc-lead-modal-title" style={{ fontSize: 22, marginTop: 8 }}>DETAILS SHARED</h2>
-                <p className="pc-lead-modal-subtitle" style={{ fontSize: 14, lineHeight: 1.5 }}>
-                  Thank you, <strong>{leadName}</strong>. Your contact information has been shared successfully.
-                </p>
-                <p style={{ color: "#9A9FAE", fontSize: 13, margin: "4px 0 16px" }}>
-                  The profile owner can now get back to you.
-                </p>
-                <button
-                  type="button"
-                  className="pc-lead-submit-btn"
-                  onClick={() => {
-                    setLeadModalOpen(false);
-                    setLeadSuccess(false);
-                    setLeadName("");
-                    setLeadCompany("");
-                    setLeadContact("");
-                    setLeadEmail("");
-                  }}
-                >
-                  DONE
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ── Share Your Details Modal ── */}
+      <ShareDetailsModal
+        isOpen={leadModalOpen}
+        onClose={() => setLeadModalOpen(false)}
+        slug={slug}
+        recipientName={card.name}
+      />
 
       {/* ── Footer ── */}
       <footer className="pc-footer">

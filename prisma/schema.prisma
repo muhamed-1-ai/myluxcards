@@ -35,6 +35,7 @@ model User {
   activities           LeadActivity[]
   leadFieldDefinitions LeadFieldDefinition[]
   leadFieldValues      LeadFieldValue[]
+  sharedContacts       SharedContact[]
 
   @@map("users")
 }
@@ -86,11 +87,32 @@ model DigitalCard {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz
 
-  owner         User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  physicalCards Card[]
-  leads         Lead[]
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  physicalCards  Card[]
+  leads          Lead[]
+  sharedContacts SharedContact[]
 
   @@map("digital_cards")
+}
+
+model SharedContact {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senderName        String   @map("sender_name")
+  senderEmail       String?  @map("sender_email")
+  senderBusiness    String?  @map("sender_business")
+  senderPhoneNumbers Json    @map("sender_phone_numbers")
+  whatsappNumber    String?  @map("whatsapp_number")
+  receiverProfileId String   @map("receiver_profile_id") @db.Uuid
+  cardId            String?  @map("card_id") @db.Uuid
+  status            String   @default("NEW")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  receiver User         @relation(fields: [receiverProfileId], references: [id], onDelete: Cascade)
+  card     DigitalCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([receiverProfileId, createdAt])
+  @@index([cardId])
+  @@map("shared_contacts")
 }
 
 model Lead {

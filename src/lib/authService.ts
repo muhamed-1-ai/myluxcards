@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { pool, withTransaction } from "./db";
 import { normalizeEmail } from "./repositories/users";
 import type { UserRow, FeaturePermissions } from "@/types/database";
-import { DEFAULT_FEATURE_PERMISSIONS } from "@/types/database";
+import { ZERO_FEATURE_PERMISSIONS, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 
 const PASSWORD_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,7 +51,7 @@ export async function createCredentialUser(input: { name: string; email: string;
       await db.query<Pick<UserRow, "id" | "email" | "name" | "role" | "session_version">>(
         `insert into users(email,name,password_hash,feature_permissions,role)
       values($1,$2,$3,$4::jsonb,'CUSTOMER') returning id,email,name,role,session_version`,
-        [email, name, passwordHash, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
+        [email, name, passwordHash, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
       )
     ).rows[0];
     await db.query("insert into profiles(id) values($1)", [user.id]);
@@ -76,10 +76,7 @@ export async function createAdminManagedUser(input: {
   const passwordHash = input.password ? await hashPassword(input.password) : null;
   const status = input.status || "ACTIVE";
   const disabled = status === "DISABLED" || status === "SUSPENDED";
-  const permissions: FeaturePermissions = {
-    ...DEFAULT_FEATURE_PERMISSIONS,
-    ...(input.featurePermissions || {}),
-  } as FeaturePermissions;
+  const permissions: FeaturePermissions = normalizeFeaturePermissions(input.featurePermissions || {});
 
   return withTransaction(async (db) => {
     const existing = (await db.query<{ id: string }>("select id from users where LOWER(email)=$1", [email])).rows[0];
@@ -161,7 +158,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
         await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
           `insert into users(email,name,role,feature_permissions)
         values($1,$2,$3,$4::jsonb) returning id,email,name,session_version,role,disabled,status`,
-          [email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
+          [email, name, assignedRole, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
       await db.query("insert into profiles(id) values($1)", [user.id]);

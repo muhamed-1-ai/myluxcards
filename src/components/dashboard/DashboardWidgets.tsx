@@ -176,7 +176,7 @@ export function CompactTodayCard({
           TODAY SUMMARY
         </span>
         <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          {new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+          {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
         </span>
       </div>
 

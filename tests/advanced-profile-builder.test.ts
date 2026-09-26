@@ -32,37 +32,19 @@ async function runTests() {
     testCardId = cardRes.rows[0].id;
 
     const completed = completeCardProfile(cardRes.rows[0].profile as any);
-    assert.equal(completed.profileFeatures.SERVICES.enabled, false);
-    assert.equal(completed.profileFeatures.PORTFOLIO.enabled, false);
-    assert.equal(completed.profileFeatures.GALLERY.enabled, false);
-    assert.equal(completed.profileFeatures.VIDEOS.enabled, false);
-    assert.equal(completed.profileFeatures.PAYMENT_LINKS.enabled, false);
-    assert.equal(completed.profileFeatures.DOCUMENTS.enabled, false);
-    assert.equal(completed.profileFeatures.ACHIEVEMENTS.enabled, false);
-    assert.equal(completed.profileFeatures.CERTIFICATIONS.enabled, false);
+    assert.equal(completed.profileFeatures.PRODUCTS.enabled, false);
     console.log("  ✓ New user card initializes modular sections in OFF state by default (DATA != VISIBILITY)");
 
     // 3. Test Custom Section Order Persistence
     const customOrder: ProfileFeatureKey[] = [
       "PRODUCTS",
-      "GALLERY",
       "CONTACT",
       "SOCIAL_LINKS",
       "BASIC_PROFILE",
-      "PORTFOLIO",
       "WEBSITE",
       "EMERGENCY_CONTACT",
       "VEHICLE",
       "LOST_AND_FOUND",
-      "SERVICES",
-      "VIDEOS",
-      "BUSINESS_HOURS",
-      "LOCATION",
-      "PAYMENT_LINKS",
-      "DOCUMENTS",
-      "RESUME",
-      "ACHIEVEMENTS",
-      "CERTIFICATIONS",
     ];
 
     const updateOrderProfile = {

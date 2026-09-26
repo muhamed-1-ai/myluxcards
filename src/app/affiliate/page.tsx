@@ -1,4 +1,5 @@
 export const metadata = { title: "Affiliate Program | MyLuxCards" };
+export const dynamic = "force-dynamic";
 
 export default function AffiliatePage() {
   return <main>

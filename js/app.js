@@ -1808,9 +1808,188 @@ class LuxApp {
   }
 }
 
+class Card3DMotionController {
+  constructor() {
+    this.modal = document.getElementById('login-modal');
+    this.stage = document.getElementById('login-nfc-stage');
+    this.wrapper = document.getElementById('login-nfc-wrapper');
+    this.shadow = document.getElementById('login-nfc-shadow');
+    this.toggleBtn = document.getElementById('nfc-motion-toggle');
+    this.toggleText = document.getElementById('nfc-motion-text');
+    this.toggleIcon = document.getElementById('nfc-motion-icon');
+    this.pwdToggle = document.getElementById('login-password-toggle');
+
+    if (!this.wrapper) return;
+
+    this.isPaused = false;
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (this.reducedMotion) {
+      this.isPaused = true;
+      this.updateToggleButtonState();
+    }
+
+    this.rotationY = -20;
+    this.initialPoseX = 8;
+    this.initialPoseZ = -6;
+    this.mouseTiltX = 0;
+    this.mouseTiltY = 0;
+    this.targetMouseTiltX = 0;
+    this.targetMouseTiltY = 0;
+    this.lastTime = null;
+    this.animFrameId = null;
+
+    this.initListeners();
+    this.initPasswordToggle();
+    this.checkModalState();
+  }
+
+  updateToggleButtonState() {
+    if (this.toggleText) {
+      this.toggleText.textContent = this.isPaused ? 'Resume Motion' : 'Pause Motion';
+    }
+    if (this.toggleIcon) {
+      if (this.isPaused) {
+        this.toggleIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+      } else {
+        this.toggleIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+      }
+    }
+    if (this.toggleBtn) {
+      this.toggleBtn.setAttribute('aria-pressed', this.isPaused ? 'true' : 'false');
+    }
+  }
+
+  initPasswordToggle() {
+    if (this.pwdToggle) {
+      this.pwdToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('login-password');
+        if (!input) return;
+        const isShow = input.type === 'password';
+        input.type = isShow ? 'text' : 'password';
+        this.pwdToggle.textContent = isShow ? 'Hide' : 'Show';
+        this.pwdToggle.setAttribute('aria-pressed', isShow ? 'true' : 'false');
+      });
+    }
+  }
+
+  initListeners() {
+    if (this.toggleBtn) {
+      this.toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.isPaused = !this.isPaused;
+        this.updateToggleButtonState();
+        if (!this.isPaused) this.startLoop();
+      });
+    }
+
+    if (this.stage) {
+      this.stage.addEventListener('mousemove', (e) => {
+        if (this.reducedMotion) return;
+        const rect = this.stage.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const mouseX = (e.clientX - centerX) / (rect.width / 2);
+        const mouseY = (e.clientY - centerY) / (rect.height / 2);
+
+        this.targetMouseTiltX = -mouseY * 4;
+        this.targetMouseTiltY = mouseX * 4;
+      });
+
+      this.stage.addEventListener('mouseleave', () => {
+        this.targetMouseTiltX = 0;
+        this.targetMouseTiltY = 0;
+      });
+    }
+
+    if (this.modal) {
+      const observer = new MutationObserver(() => this.checkModalState());
+      observer.observe(this.modal, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    document.addEventListener('visibilitychange', () => this.checkModalState());
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', (e) => {
+        this.reducedMotion = e.matches;
+        if (this.reducedMotion) {
+          this.isPaused = true;
+          this.updateToggleButtonState();
+          this.renderFrame(0);
+        }
+      });
+    }
+  }
+
+  checkModalState() {
+    const isModalOpen = this.modal?.classList.contains('open');
+    const isVisible = document.visibilityState === 'visible';
+    if (isModalOpen && isVisible) {
+      this.startLoop();
+    } else {
+      this.stopLoop();
+    }
+  }
+
+  startLoop() {
+    if (this.animFrameId) return;
+    this.lastTime = performance.now();
+    const tick = (now) => {
+      const delta = now - (this.lastTime || now);
+      this.lastTime = now;
+      this.renderFrame(delta, now);
+      if (this.modal?.classList.contains('open') && document.visibilityState === 'visible') {
+        this.animFrameId = requestAnimationFrame(tick);
+      } else {
+        this.stopLoop();
+      }
+    };
+    this.animFrameId = requestAnimationFrame(tick);
+  }
+
+  stopLoop() {
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = null;
+    }
+    this.lastTime = null;
+  }
+
+  renderFrame(delta, now = performance.now()) {
+    if (!this.isPaused) {
+      this.rotationY = (this.rotationY + (delta / 1000) * 18) % 360;
+    }
+
+    this.mouseTiltX += (this.targetMouseTiltX - this.mouseTiltX) * 0.1;
+    this.mouseTiltY += (this.targetMouseTiltY - this.mouseTiltY) * 0.1;
+
+    const floatY = Math.sin((now / 5000) * 2 * Math.PI) * 5;
+
+    const currentX = this.initialPoseX + this.mouseTiltX;
+    const currentY = this.rotationY + this.mouseTiltY;
+    const currentZ = this.initialPoseZ;
+
+    if (this.wrapper) {
+      this.wrapper.style.transform = `translateY(${floatY}px) rotateX(${currentX}deg) rotateY(${currentY}deg) rotateZ(${currentZ}deg)`;
+    }
+
+    if (this.shadow) {
+      const shadowScale = 1 - Math.abs(floatY) * 0.02;
+      const shadowOpacity = 0.45 - Math.abs(floatY) * 0.02;
+      this.shadow.style.transform = `translateX(-50%) scale(${shadowScale})`;
+      this.shadow.style.opacity = shadowOpacity;
+    }
+  }
+}
+
 // Instantiate App on DOM complete
 const initLuxApp = () => {
   if (!window.app) window.app = new LuxApp();
+  if (window.app && !window.app.card3D) {
+    window.app.card3D = new Card3DMotionController();
+  }
 };
 
 if (document.readyState === 'loading') {
@@ -1818,3 +1997,4 @@ if (document.readyState === 'loading') {
 } else {
   initLuxApp();
 }
+

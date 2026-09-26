@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import type { AdminIdentity } from "@/lib/adminAuth";
@@ -677,34 +677,31 @@ function AdminPermissionsModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const [savedPermissions, setSavedPermissions] = useState<Record<string, boolean>>({});
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
+
+  const fetchLatestPermissions = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/managed-users/${user.id}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch target user permissions.");
+      const data = await res.json();
+      const fetchedPerms = normalizeFeaturePermissions(data.user?.feature_permissions || user.feature_permissions);
+      setSavedPermissions(fetchedPerms);
+      setPermissions(fetchedPerms);
+    } catch (err: any) {
+      setError(err.message || "Could not load user permissions.");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     let isMounted = true;
-    const fetchLatestPermissions = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch(`/api/admin/managed-users/${user.id}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch target user permissions.");
-        const data = await res.json();
-        if (isMounted) {
-          const fetchedPerms = data.user?.feature_permissions || user.feature_permissions;
-          setPermissions(normalizeFeaturePermissions(fetchedPerms));
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || "Could not load user permissions.");
-          setPermissions(normalizeFeaturePermissions(user.feature_permissions));
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
     fetchLatestPermissions();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -715,14 +712,17 @@ function AdminPermissionsModal({
       isMounted = false;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [user, onClose]);
+  }, [fetchLatestPermissions, onClose]);
+
+  const isDirty = useMemo(() => {
+    return FEATURE_CATALOGUE.some((f) => Boolean(permissions[f.key]) !== Boolean(savedPermissions[f.key]));
+  }, [permissions, savedPermissions]);
 
   const handleToggle = (key: string) => {
     setPermissions((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
-    setIsDirty(true);
   };
 
   const handleSelectAll = () => {
@@ -731,7 +731,6 @@ function AdminPermissionsModal({
       allTrue[f.key] = true;
     });
     setPermissions(allTrue);
-    setIsDirty(true);
   };
 
   const handleDeselectAll = () => {
@@ -740,7 +739,6 @@ function AdminPermissionsModal({
       allFalse[f.key] = false;
     });
     setPermissions(allFalse);
-    setIsDirty(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -756,6 +754,7 @@ function AdminPermissionsModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to save permissions.");
+      setSavedPermissions(permissions);
       await onSaved();
       onClose();
     } catch (err: any) {
@@ -765,7 +764,7 @@ function AdminPermissionsModal({
     }
   };
 
-  const enabledCount = FEATURE_CATALOGUE.filter((f) => permissions[f.key] !== false).length;
+  const enabledCount = FEATURE_CATALOGUE.filter((f) => permissions[f.key] === true).length;
   const isSuperOrAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 
   const groupedFeatures: Record<FeatureGroup, typeof FEATURE_CATALOGUE> = {
@@ -798,8 +797,11 @@ function AdminPermissionsModal({
 
         <div className="admin-perm-body">
           {error && (
-            <div style={{ padding: "12px 16px", borderRadius: "8px", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#EF4444", fontSize: "13px" }}>
-              {error}
+            <div style={{ padding: "12px 16px", borderRadius: "8px", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#EF4444", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>{error}</span>
+              <button type="button" className="small" onClick={fetchLatestPermissions} style={{ marginLeft: "12px" }}>
+                Retry
+              </button>
             </div>
           )}
 
@@ -830,7 +832,7 @@ function AdminPermissionsModal({
                   <div className="admin-perm-group-title">{groupName}</div>
                   <div className="admin-perm-grid">
                     {groupedFeatures[groupName].map((feature) => {
-                      const isChecked = permissions[feature.key] !== false;
+                      const isChecked = permissions[feature.key] === true;
                       return (
                         <div key={feature.key} className="admin-perm-item">
                           <div className="admin-perm-item-info">

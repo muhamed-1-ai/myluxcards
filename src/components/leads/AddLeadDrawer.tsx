@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { 
   X, 
   AlertCircle, 
@@ -886,19 +888,21 @@ export default function AddLeadDrawer({
                   <label className="add-lead-label">
                     Next Follow-up
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                    <input 
-                      type="date"
-                      value={formData.followUpDate}
-                      onChange={e => setFormData({ ...formData, followUpDate: e.target.value })}
-                      className="add-lead-input sm:col-span-3 !px-3"
-                    />
-                    <input 
-                      type="time"
-                      value={formData.followUpTime}
-                      onChange={e => setFormData({ ...formData, followUpTime: e.target.value })}
-                      className="add-lead-input sm:col-span-2 !px-2 text-center"
-                    />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex-1 min-w-[190px]">
+                      <DatePicker
+                        value={formData.followUpDate}
+                        onChange={(dateStr) => setFormData((prev) => ({ ...prev, followUpDate: dateStr }))}
+                        placeholder="Select Date"
+                      />
+                    </div>
+                    <div className="w-full sm:w-[170px] min-w-[150px]">
+                      <TimePicker
+                        value={formData.followUpTime}
+                        onChange={(timeStr) => setFormData((prev) => ({ ...prev, followUpTime: timeStr }))}
+                        placeholder="Select Time"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1311,21 +1315,32 @@ export default function AddLeadDrawer({
                       )}
 
                       {f.inputType === "DATE" && (
-                        <input
-                          type="date"
+                        <DatePicker
                           value={typeof val === "string" ? val : ""}
-                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                          className="add-lead-input"
+                          onChange={(dateStr) => setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr })}
+                          placeholder="Select Date"
                         />
                       )}
 
                       {f.inputType === "DATETIME" && (
-                        <input
-                          type="datetime-local"
-                          value={typeof val === "string" ? val : ""}
-                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                          className="add-lead-input"
-                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <DatePicker
+                            value={typeof val === "string" && val.includes("T") ? val.split("T")[0] : (typeof val === "string" ? val : "")}
+                            onChange={(dateStr) => {
+                              const existingTime = typeof val === "string" && val.includes("T") ? val.split("T")[1] : "10:00";
+                              setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr ? `${dateStr}T${existingTime}` : "" });
+                            }}
+                            placeholder="Select Date"
+                          />
+                          <TimePicker
+                            value={typeof val === "string" && val.includes("T") ? val.split("T")[1].slice(0, 5) : "10:00"}
+                            onChange={(timeStr) => {
+                              const existingDate = typeof val === "string" && val.includes("T") ? val.split("T")[0] : new Date().toISOString().split("T")[0];
+                              setCustomFieldValues({ ...customFieldValues, [f.id]: `${existingDate}T${timeStr}` });
+                            }}
+                            placeholder="Select Time"
+                          />
+                        </div>
                       )}
 
                       {f.inputType === "FILE" && (

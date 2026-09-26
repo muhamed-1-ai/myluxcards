@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { TimePicker } from "@/components/ui/TimePicker";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -1536,50 +1538,26 @@ export function CalendarConfig() {
               </div>
 
               {/* FIELD 3: SCHEDULED DATE & TIME */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                <div style={{ flex: "1 1 180px" }}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
                     SCHEDULED DATE *
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={scheduledDateStr}
-                    onChange={(e) => setScheduledDateStr(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 44,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                    }}
-                    required
+                    onChange={(dateStr) => setScheduledDateStr(dateStr)}
+                    placeholder="Select Date"
                   />
                 </div>
 
-                <div>
+                <div style={{ flex: "1 1 150px" }}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
                     SCHEDULED TIME *
                   </label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={scheduledTimeStr}
-                    onChange={(e) => setScheduledTimeStr(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 44,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                    }}
-                    required
+                    onChange={(timeStr) => setScheduledTimeStr(timeStr)}
+                    placeholder="Select Time"
                   />
                 </div>
               </div>
@@ -1753,19 +1731,21 @@ export function CalendarConfig() {
             {isRescheduling ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, background: "var(--bg-secondary)", padding: 14, borderRadius: 12, marginBottom: 20 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#0066FF" }}>Pick New Date & Time</span>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <input
-                    type="date"
-                    value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
-                    style={{ background: "var(--surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: 8, borderRadius: 8, fontSize: 12 }}
-                  />
-                  <input
-                    type="time"
-                    value={rescheduleTime}
-                    onChange={(e) => setRescheduleTime(e.target.value)}
-                    style={{ background: "var(--surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)", padding: 8, borderRadius: 8, fontSize: 12 }}
-                  />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  <div style={{ flex: "1 1 160px" }}>
+                    <DatePicker
+                      value={rescheduleDate}
+                      onChange={(dateStr) => setRescheduleDate(dateStr)}
+                      placeholder="Select Date"
+                    />
+                  </div>
+                  <div style={{ flex: "1 1 140px" }}>
+                    <TimePicker
+                      value={rescheduleTime}
+                      onChange={(timeStr) => setRescheduleTime(timeStr)}
+                      placeholder="Select Time"
+                    />
+                  </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                   <button

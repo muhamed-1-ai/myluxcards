@@ -13,9 +13,10 @@ import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDa
 import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
-import { isFeatureAllowed, isGroupAllowed, getFirstPermittedTab } from "@/lib/permissionsRegistry";
+import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab } from "@/lib/permissionsRegistry";
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -361,11 +362,41 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const qTab = new URLSearchParams(window.location.search).get("tab");
-      if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons"].includes(qTab)) {
+      if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
         setTab(qTab as Tab);
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (currentUser && currentUser.role !== "SUPER_ADMIN" && currentUser.role !== "ADMIN") {
+      const isTabAllowed = (t: Tab) => {
+        if (t === "dashboard") return isFeatureAllowed(currentUser.featurePermissions, "overview", currentUser.role);
+        if (t === "leads") return isFeatureAllowed(currentUser.featurePermissions, "all_leads", currentUser.role);
+        if (t === "analytics") return isFeatureAllowed(currentUser.featurePermissions, "qr_activity", currentUser.role);
+        if (t === "config-sources") return isFeatureAllowed(currentUser.featurePermissions, "lead_sources", currentUser.role);
+        if (t === "config-products") return isFeatureAllowed(currentUser.featurePermissions, "config_products", currentUser.role);
+        if (t === "config-stages") return isFeatureAllowed(currentUser.featurePermissions, "lead_stages", currentUser.role);
+        if (t === "config-calendar") return isFeatureAllowed(currentUser.featurePermissions, "calendar", currentUser.role);
+        if (t === "config-reasons") return isFeatureAllowed(currentUser.featurePermissions, "lob_reasons", currentUser.role);
+        if (t === "config-dynamic") return isFeatureAllowed(currentUser.featurePermissions, "dynamic_leads", currentUser.role);
+        if (t === "modes") return isFeatureAllowed(currentUser.featurePermissions, "profile_features", currentUser.role);
+        if (t === "contact") return isFeatureAllowed(currentUser.featurePermissions, "contact_info", currentUser.role);
+        if (t === "social") return isFeatureAllowed(currentUser.featurePermissions, "apps_links", currentUser.role);
+        if (t === "company") return isFeatureAllowed(currentUser.featurePermissions, "company", currentUser.role);
+        if (t === "appearance") return isFeatureAllowed(currentUser.featurePermissions, "card_design", currentUser.role);
+        if (t === "cards") return isFeatureAllowed(currentUser.featurePermissions, "my_cards", currentUser.role);
+        return false;
+      };
+
+      if (!isTabAllowed(tab)) {
+        const firstPermitted = getFirstPermittedTab(currentUser.featurePermissions, currentUser.role);
+        if (firstPermitted && isTabAllowed(firstPermitted as Tab)) {
+          setTab(firstPermitted as Tab);
+        }
+      }
+    }
+  }, [currentUser, tab]);
   const [sidebar, setSidebar] = useState(false);
   const [toast, setToast] = useState("");
   const [sameAsMobile, setSameAsMobile] = useState(true);
@@ -984,6 +1015,65 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     return <div className="dash-auth-loading">Opening your dashboard…</div>;
   }
 
+  const userRole = currentUser.role || identity.role;
+  const userPermissions = currentUser.featurePermissions || identity.featurePermissions;
+  const isSuperOrAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN";
+  const hasAnyFeatureAccess = isSuperOrAdmin || FEATURE_CATALOGUE.some((f) => isFeatureAllowed(userPermissions, f.key, userRole));
+
+  if (!hasAnyFeatureAccess) {
+    return (
+      <div className="dash-shell flex flex-col min-h-screen bg-[#070C18] text-slate-100 font-sans">
+        {/* Top Header Bar */}
+        <header className="dash-main-header flex items-center justify-between px-6 py-4 bg-[#0B172A] border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <span className="font-extrabold text-xl tracking-tight text-white">Zappit</span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Access Pending
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={toggleThemeWithTransition}
+              className="dash-theme-btn text-xs px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
+            >
+              {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+            </button>
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <span className="font-medium text-white">{currentUser?.name || currentUser?.email}</span>
+              <span className="text-xs text-slate-400">({currentUser?.email})</span>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer"
+            >
+              Sign out
+            </button>
+          </div>
+        </header>
+
+        {/* Access Pending Card */}
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-[#0B172A] border border-slate-800 rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
+              <Clock className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Access pending</h2>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              Your account is active, but no features have been enabled yet. Please contact your administrator.
+            </p>
+            <div className="pt-4 border-t border-slate-800/80 w-full flex items-center justify-between text-xs text-slate-500">
+              <span>Account Role: <strong className="text-slate-300">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
+              <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dash-shell">
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
@@ -1230,22 +1320,6 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
                   <span>My Cards</span>
                 </span>
               </button>
-            )}
-            {isFeatureAllowed(currentUser?.featurePermissions, "notifications", currentUser?.role) && (
-              <a className="side-nav-item side-link" href="/notifications">
-                <span className="side-nav-item-left">
-                  <Bell className="side-nav-icon" />
-                  <span>Notifications</span>
-                </span>
-              </a>
-            )}
-            {isFeatureAllowed(currentUser?.featurePermissions, "my_orders", currentUser?.role) && (
-              <a className="side-nav-item side-link" href="/orders">
-                <span className="side-nav-item-left">
-                  <FileText className="side-nav-icon" />
-                  <span>My Orders</span>
-                </span>
-              </a>
             )}
             {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
               <a className="side-nav-item side-link side-admin-link" href="/admin">
@@ -1793,18 +1867,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     CONTACT: { label: "Contact Details", icon: "📞", desc: "Phone, WhatsApp, email & vCard save contact button", category: "PERSONAL" },
     SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Instagram, LinkedIn, X, YouTube & web profiles", category: "PERSONAL" },
     WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Company website URL & downloadable PDF brochure", category: "PERSONAL" },
-    RESUME: { label: "Resume / CV", icon: "📄", desc: "Professional resume & CV attachment download", category: "PERSONAL" },
     PRODUCTS: { label: "Products", icon: "🛍️", desc: "Custom profile products with pricing, photos & CTAs", category: "BUSINESS" },
-    SERVICES: { label: "Services", icon: "💼", desc: "Professional services offered with pricing & descriptions", category: "BUSINESS" },
-    PORTFOLIO: { label: "Portfolio", icon: "🎨", desc: "Project showcase grid, client work & project links", category: "BUSINESS" },
-    BUSINESS_HOURS: { label: "Business Hours", icon: "🕒", desc: "Weekly operating schedule & availability hours", category: "BUSINESS" },
-    LOCATION: { label: "Location & Map", icon: "📍", desc: "Office address, location map & directions link", category: "BUSINESS" },
-    PAYMENT_LINKS: { label: "Payment Links", icon: "💳", desc: "UPI ID, PayPal, Razorpay & payment button links", category: "BUSINESS" },
-    GALLERY: { label: "Photo Gallery", icon: "🖼️", desc: "High-resolution photo gallery & lightbox slider", category: "MEDIA" },
-    VIDEOS: { label: "Video Showcase", icon: "🎬", desc: "YouTube, Vimeo & video embed showcases", category: "MEDIA" },
-    DOCUMENTS: { label: "Documents", icon: "📁", desc: "Downloadable PDF files, catalogs & documents", category: "MEDIA" },
-    ACHIEVEMENTS: { label: "Achievements", icon: "🏆", desc: "Honors, awards, key metrics & milestones", category: "CREDENTIALS" },
-    CERTIFICATIONS: { label: "Certifications", icon: "📜", desc: "Verified professional certifications & licenses", category: "CREDENTIALS" },
     VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Vehicle details, parking notes & direct contact", category: "SPECIAL" },
     LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Tagged item lost-and-found finder contact form", category: "SPECIAL" },
     EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Emergency contact details & rapid safety response", category: "SPECIAL" },
@@ -1812,9 +1875,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
 
   const SECTION_CATEGORIES = [
     { key: "PERSONAL", title: "PERSONAL", desc: "Basic details, contact info & links" },
-    { key: "BUSINESS", title: "BUSINESS", desc: "Products, services, portfolio & locations" },
-    { key: "MEDIA", title: "MEDIA", desc: "Photos, videos & file attachments" },
-    { key: "CREDENTIALS", title: "CREDENTIALS", desc: "Awards, milestones & certifications" },
+    { key: "BUSINESS", title: "BUSINESS", desc: "Custom profile products & store" },
     { key: "SPECIAL", title: "SPECIAL", desc: "Vehicle Connect, Lost & Found & Emergency" },
   ];
 
@@ -1827,17 +1888,6 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     VEHICLE: { enabled: true, sortOrder: 5 },
     LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
     PRODUCTS: { enabled: false, sortOrder: 7 },
-    SERVICES: { enabled: false, sortOrder: 8 },
-    PORTFOLIO: { enabled: false, sortOrder: 9 },
-    GALLERY: { enabled: false, sortOrder: 10 },
-    VIDEOS: { enabled: false, sortOrder: 11 },
-    BUSINESS_HOURS: { enabled: false, sortOrder: 12 },
-    LOCATION: { enabled: false, sortOrder: 13 },
-    PAYMENT_LINKS: { enabled: false, sortOrder: 14 },
-    DOCUMENTS: { enabled: false, sortOrder: 15 },
-    RESUME: { enabled: false, sortOrder: 16 },
-    ACHIEVEMENTS: { enabled: false, sortOrder: 17 },
-    CERTIFICATIONS: { enabled: false, sortOrder: 18 },
   };
 
   const featureOrder = (draft as any).featureOrder || [
@@ -1849,17 +1899,6 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
     "VEHICLE",
     "LOST_AND_FOUND",
     "PRODUCTS",
-    "SERVICES",
-    "PORTFOLIO",
-    "GALLERY",
-    "VIDEOS",
-    "BUSINESS_HOURS",
-    "LOCATION",
-    "PAYMENT_LINKS",
-    "DOCUMENTS",
-    "RESUME",
-    "ACHIEVEMENTS",
-    "CERTIFICATIONS",
   ];
 
   const socialLinkCount = useMemo(() => {
@@ -1884,7 +1923,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
         }
 
         // Modular sections counts
-        const modularTypes = ["services", "portfolio", "gallery", "videos", "payment-links", "documents", "achievements", "certifications"];
+        const modularTypes: string[] = [];
         if (draft?.id && /^[0-9a-f-]{36}$/i.test(draft.id)) {
           await Promise.all(modularTypes.map(async (sec) => {
             try {
@@ -2424,16 +2463,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
         {activeManagerSection === "VEHICLE" && <VehiclesManager cardId={draft.id} contactNumbers={[]} emergencyContacts={[]} />}
         {activeManagerSection === "LOST_AND_FOUND" && <LostItemsManager cardId={draft.id} contactNumbers={[]} />}
         {activeManagerSection === "EMERGENCY_CONTACT" && <EmergencyContactsManager emergencyContacts={[]} onRefresh={onContactsRefresh} />}
-        {activeManagerSection && ["SERVICES", "PORTFOLIO", "GALLERY", "VIDEOS", "PAYMENT_LINKS", "DOCUMENTS", "ACHIEVEMENTS", "CERTIFICATIONS"].includes(activeManagerSection) && (
-          <GenericProfileSectionManager
-            cardId={draft.id}
-            section={activeManagerSection.toLowerCase()}
-            title={featureMetadata[activeManagerSection]?.label || activeManagerSection}
-            icon={featureMetadata[activeManagerSection]?.icon || "⚡"}
-            mediaKind={activeManagerSection.toLowerCase()}
-          />
-        )}
-        {activeManagerSection && ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "BUSINESS_HOURS", "LOCATION", "RESUME"].includes(activeManagerSection) && (
+        {activeManagerSection && ["BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE"].includes(activeManagerSection) && (
           <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", borderRadius: 10, color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 1.6 }}>
             💡 Content for <strong>{featureMetadata[activeManagerSection]?.label}</strong> can be updated directly under the main profile form tabs. Toggle visibility using the ON/OFF switch in Profile Sections.
           </div>
@@ -2588,9 +2618,6 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
         </div>
       </div>
 
-      {/* ── ACCOUNT CONTACT NUMBERS MANAGER ── */}
-      <AccountContactNumbersManager contactNumbers={contactNumbers} onRefresh={onContactsRefresh} />
-
       {/* ── EMERGENCY CONTACTS MANAGER ── */}
       <EmergencyContactsManager emergencyContacts={emergencyContacts} onRefresh={onContactsRefresh} />
 
@@ -2602,16 +2629,6 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
 
       {/* ── CUSTOM PROFILE PRODUCTS MANAGEMENT ── */}
       <ProfileProductsManager cardId={draft.id} />
-
-      {/* ── MODULAR DYNAMIC PROFILE SECTIONS MANAGERS ── */}
-      <GenericProfileSectionManager cardId={draft.id} section="services" title="SERVICES" icon="💼" mediaKind="service" />
-      <GenericProfileSectionManager cardId={draft.id} section="portfolio" title="PORTFOLIO & PROJECTS" icon="🎨" mediaKind="portfolio" />
-      <GenericProfileSectionManager cardId={draft.id} section="gallery" title="PHOTO GALLERY" icon="🖼️" mediaKind="gallery" />
-      <GenericProfileSectionManager cardId={draft.id} section="videos" title="VIDEO SHOWCASE" icon="🎬" mediaKind="video" />
-      <GenericProfileSectionManager cardId={draft.id} section="payment-links" title="PAYMENT LINKS & UPI" icon="💳" mediaKind="document" />
-      <GenericProfileSectionManager cardId={draft.id} section="documents" title="DOCUMENTS & FILES" icon="📁" mediaKind="document" />
-      <GenericProfileSectionManager cardId={draft.id} section="achievements" title="ACHIEVEMENTS & AWARDS" icon="🏆" mediaKind="achievement" />
-      <GenericProfileSectionManager cardId={draft.id} section="certifications" title="CERTIFICATIONS" icon="📜" mediaKind="certification" />
     </>
   );
 }
@@ -4644,366 +4661,13 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
     <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={resolveMediaUrl(draft.logo)} alt="Image preview" style={{ transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`, objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%` }} onLoad={(e) => { const img = e.currentTarget; console.debug("[ProfileImageTrace][IMG]", { kind: "logo", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftLogo: String(draft.logo || ""), resolvedLogo: String(resolveMediaUrl(draft.logo) || ""), timestamp: Date.now() }); console.log("[ProfileImageDebug] IMAGE_LOAD_SUCCESS", { kind: "logo", src: String(img.currentSrc || img.src), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight) }); }} onError={(e) => { const img = e.currentTarget; console.error("[ProfileImageTrace][IMAGE_LOAD_FAILED]", { kind: "logo", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftLogo: String(draft.logo || ""), resolvedLogo: String(resolveMediaUrl(draft.logo) || ""), timestamp: Date.now() }); console.error("[ProfileImageTrace][IMAGE_SRC_FAILURE]", String(img.src || "")); console.error("[ProfileImageDebug] IMAGE_LOAD_FAILED", { kind: "logo", src: String(img.src || "") }); }} /> : <span>YOUR<br />IMAGE</span>}</div></div>
     {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale || 100} onChange={event => update("logoScale", Number(event.target.value))} /><output>{draft.logoScale || 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation || 0} onChange={event => update("logoRotation", Number(event.target.value))} /><output>{draft.logoRotation || 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX || 50} onChange={event => update("logoX", Number(event.target.value))} /></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY || 50} onChange={event => update("logoY", Number(event.target.value))} /></label><button type="button" onClick={() => { update("logoScale", 100); update("logoRotation", 0); update("logoX", 50); update("logoY", 50); }}>Reset image</button></div>}
 
-    {/* Profile Format Selector Section */}
-    <div className="profile-format-section">
-      <div className="profile-format-header">
-        <h3>Profile Format</h3>
-        <p>Choose how your public profile looks.</p>
-      </div>
-      <div className="profile-format-grid" role="radiogroup" aria-label="Profile Format">
-        {/* Standard Format Card */}
-        <div
-          role="radio"
-          aria-checked={(!draft.profileFormat || draft.profileFormat === "standard")}
-          tabIndex={0}
-          className={`profile-format-card ${(!draft.profileFormat || draft.profileFormat === "standard") ? "selected" : ""}`}
-          onClick={() => update("profileFormat", "standard")}
-          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); update("profileFormat", "standard"); } }}
-        >
-          <div className="profile-format-radio-indicator">
-            {(!draft.profileFormat || draft.profileFormat === "standard") && (
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </div>
-          <div className="profile-format-preview-thumb">
-            <div className="mini-standard-preview">
-              <div className="mini-std-cover">
-                <div className="mini-std-name" />
-              </div>
-              <div className="mini-std-buttons">
-                <div className="mini-std-btn" />
-                <div className="mini-std-btn" />
-              </div>
-              <div className="mini-std-card" />
-            </div>
-          </div>
-          <span className="profile-format-card-title">Standard</span>
-          <span className="profile-format-card-desc">Your classic Zappit profile.</span>
-        </div>
-
-        {/* Modern Format Card */}
-        <div
-          role="radio"
-          aria-checked={draft.profileFormat === "modern"}
-          tabIndex={0}
-          className={`profile-format-card ${draft.profileFormat === "modern" ? "selected" : ""}`}
-          onClick={() => update("profileFormat", "modern")}
-          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); update("profileFormat", "modern"); } }}
-        >
-          <div className="profile-format-radio-indicator">
-            {draft.profileFormat === "modern" && (
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </div>
-          <div className="profile-format-preview-thumb">
-            <div className="mini-modern-preview">
-              <div className="mini-mod-cover" />
-              <div className="mini-mod-avatar" />
-              <div className="mini-mod-name" />
-              <div className="mini-mod-btns">
-                <div className="mini-mod-btn" />
-                <div className="mini-mod-btn" />
-              </div>
-              <div className="mini-mod-cards">
-                <div className="mini-mod-row" />
-                <div className="mini-mod-row" />
-              </div>
-            </div>
-          </div>
-          <span className="profile-format-card-title">Modern</span>
-          <span className="profile-format-card-desc">A centered profile with organized contact and social sections.</span>
-        </div>
-      </div>
-
-      {/* Advanced Customization Panel for Modern Format */}
-      {draft.profileFormat === "modern" && (
-        <ModernCustomizerPanel draft={draft} update={update} />
-      )}
-    </div>
 
     <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={resolveMediaUrl(draft.cover)} alt="Cover preview" style={{ transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`, objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%` }} onLoad={(e) => { const img = e.currentTarget; console.debug("[ProfileImageTrace][IMG]", { kind: "cover", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftCover: String(draft.cover || ""), resolvedCover: String(resolveMediaUrl(draft.cover) || ""), timestamp: Date.now() }); console.log("[ProfileImageDebug] IMAGE_LOAD_SUCCESS", { kind: "cover", src: String(img.currentSrc || img.src), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight) }); }} onError={(e) => { const img = e.currentTarget; console.error("[ProfileImageTrace][IMAGE_LOAD_FAILED]", { kind: "cover", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftCover: String(draft.cover || ""), resolvedCover: String(resolveMediaUrl(draft.cover) || ""), timestamp: Date.now() }); console.error("[ProfileImageTrace][IMAGE_SRC_FAILURE]", String(img.src || "")); console.error("[ProfileImageDebug] IMAGE_LOAD_FAILED", { kind: "cover", src: String(img.src || "") }); }} /> : <span>Cover image preview</span>}</div></div>
     {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event => update("coverScale", Number(event.target.value))} /><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event => update("coverRotation", Number(event.target.value))} /><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event => update("coverX", Number(event.target.value))} /><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event => update("coverY", Number(event.target.value))} /><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={() => { update("coverScale", 100); update("coverRotation", 0); update("coverX", 50); update("coverY", 50); }}>Reset cover</button></div>}
   </>;
 }
 
-function ModernCustomizerPanel({ draft, update }: { draft: Card; update: (key: string, value: any) => void }) {
-  const [activeGroup, setActiveGroup] = useState<"colors" | "header" | "typography" | "shape" | null>("colors");
 
-  const mc = draft.modernConfig || {};
-
-  const updateMc = (key: string, value: any) => {
-    update("modernConfig", {
-      ...mc,
-      [key]: value,
-    });
-  };
-
-  const resetMc = () => {
-    update("modernConfig", {});
-  };
-
-  return (
-    <div className="modern-customizer-panel">
-      <div className="modern-customizer-header">
-        <div>
-          <h4>✨ Customize Modern Profile</h4>
-          <p>Fine-tune colors, banner style, typography, and card shapes for your Modern profile.</p>
-        </div>
-        <button
-          type="button"
-          className="reset-profile-colours"
-          style={{ padding: "6px 12px", fontSize: 12 }}
-          onClick={resetMc}
-        >
-          Reset Customization
-        </button>
-      </div>
-
-      {/* Accordion Group Buttons */}
-      <div className="modern-customizer-tabs">
-        <button
-          type="button"
-          className={`modern-tab-btn ${activeGroup === "colors" ? "active" : ""}`}
-          onClick={() => setActiveGroup(activeGroup === "colors" ? null : "colors")}
-        >
-          🎨 Advanced Colors {activeGroup === "colors" ? "▲" : "▼"}
-        </button>
-        <button
-          type="button"
-          className={`modern-tab-btn ${activeGroup === "header" ? "active" : ""}`}
-          onClick={() => setActiveGroup(activeGroup === "header" ? null : "header")}
-        >
-          🖼️ Header &amp; Banner {activeGroup === "header" ? "▲" : "▼"}
-        </button>
-        <button
-          type="button"
-          className={`modern-tab-btn ${activeGroup === "typography" ? "active" : ""}`}
-          onClick={() => setActiveGroup(activeGroup === "typography" ? null : "typography")}
-        >
-          ✍️ Typography {activeGroup === "typography" ? "▲" : "▼"}
-        </button>
-        <button
-          type="button"
-          className={`modern-tab-btn ${activeGroup === "shape" ? "active" : ""}`}
-          onClick={() => setActiveGroup(activeGroup === "shape" ? null : "shape")}
-        >
-          📐 Shape &amp; Spacing {activeGroup === "shape" ? "▲" : "▼"}
-        </button>
-      </div>
-
-      {/* Group Contents */}
-      <div className="modern-customizer-body">
-        {activeGroup === "colors" && (
-          <div className="colour-pickers modern-picker-grid">
-            {[
-              ["Card Surface", "cardBackground", "Card background fill"],
-              ["Card Border", "cardBorder", "Subtle card border color"],
-              ["Muted Text", "mutedText", "Subtitle and label text"],
-              ["Primary Btn Bg", "primaryBtnBg", "Save Contact button fill"],
-              ["Primary Btn Text", "primaryBtnText", "Text color on primary button"],
-              ["Secondary Btn Bg", "secondaryBtnBg", "Brochure/Share button fill"],
-              ["Secondary Btn Text", "secondaryBtnText", "Text color on secondary button"],
-            ].map(([label, key, hint]) => (
-              <label key={key} title={hint}>
-                <span>{label}</span>
-                <div>
-                  <input
-                    type="color"
-                    value={mc[key] || "#000000"}
-                    onChange={(e) => updateMc(key, e.target.value)}
-                  />
-                  <input
-                    className="colour-code"
-                    placeholder="Auto (Theme)"
-                    value={mc[key] || ""}
-                    onChange={(e) => updateMc(key, e.target.value)}
-                  />
-                </div>
-              </label>
-            ))}
-          </div>
-        )}
-
-        {activeGroup === "header" && (
-          <div className="modern-group-fields">
-            <div className="field">
-              <span>Header Banner Style</span>
-              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                <button
-                  type="button"
-                  className={`preset-card ${(!mc.headerStyle || mc.headerStyle === "gradient") ? "active" : ""}`}
-                  style={{ flex: 1, padding: "8px 12px", textAlign: "center" }}
-                  onClick={() => updateMc("headerStyle", "gradient")}
-                >
-                  Gradient Banner
-                </button>
-                <button
-                  type="button"
-                  className={`preset-card ${mc.headerStyle === "solid" ? "active" : ""}`}
-                  style={{ flex: 1, padding: "8px 12px", textAlign: "center" }}
-                  onClick={() => updateMc("headerStyle", "solid")}
-                >
-                  Solid Background
-                </button>
-              </div>
-            </div>
-
-            {(!mc.headerStyle || mc.headerStyle === "gradient") && (
-              <div className="colour-pickers modern-picker-grid" style={{ marginTop: 12 }}>
-                <label>
-                  <span>Gradient Start</span>
-                  <div>
-                    <input
-                      type="color"
-                      value={mc.headerGradientStart || "#061830"}
-                      onChange={(e) => updateMc("headerGradientStart", e.target.value)}
-                    />
-                    <input
-                      className="colour-code"
-                      placeholder="Auto"
-                      value={mc.headerGradientStart || ""}
-                      onChange={(e) => updateMc("headerGradientStart", e.target.value)}
-                    />
-                  </div>
-                </label>
-                <label>
-                  <span>Gradient End</span>
-                  <div>
-                    <input
-                      type="color"
-                      value={mc.headerGradientEnd || "#004b99"}
-                      onChange={(e) => updateMc("headerGradientEnd", e.target.value)}
-                    />
-                    <input
-                      className="colour-code"
-                      placeholder="Auto"
-                      value={mc.headerGradientEnd || ""}
-                      onChange={(e) => updateMc("headerGradientEnd", e.target.value)}
-                    />
-                  </div>
-                </label>
-              </div>
-            )}
-
-            <div className="image-controls" style={{ marginTop: 12 }}>
-              <label>
-                Banner Height
-                <input
-                  type="range"
-                  min="100"
-                  max="240"
-                  value={mc.headerHeight || 140}
-                  onChange={(e) => updateMc("headerHeight", Number(e.target.value))}
-                />
-                <output>{mc.headerHeight || 140}px</output>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {activeGroup === "typography" && (
-          <div className="modern-group-fields">
-            <label className="field">
-              <span>Font Family</span>
-              <select
-                className="mylux-select"
-                style={{ width: "100%", marginTop: 6 }}
-                value={mc.fontFamily || ""}
-                onChange={(e) => updateMc("fontFamily", e.target.value)}
-              >
-                <option value="">Default (System Inter)</option>
-                <option value="'Inter', sans-serif">Inter Clean</option>
-                <option value="'Outfit', sans-serif">Outfit Modern</option>
-                <option value="'Roboto', sans-serif">Roboto Classic</option>
-                <option value="'Playfair Display', serif">Playfair Serif</option>
-                <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
-              </select>
-            </label>
-
-            <div className="image-controls" style={{ marginTop: 12 }}>
-              <label>
-                Name Text Size
-                <input
-                  type="range"
-                  min="18"
-                  max="32"
-                  value={mc.nameSize || 22}
-                  onChange={(e) => updateMc("nameSize", Number(e.target.value))}
-                />
-                <output>{mc.nameSize || 22}px</output>
-              </label>
-              <label>
-                Body Text Size
-                <input
-                  type="range"
-                  min="12"
-                  max="18"
-                  value={mc.bodySize || 14}
-                  onChange={(e) => updateMc("bodySize", Number(e.target.value))}
-                />
-                <output>{mc.bodySize || 14}px</output>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {activeGroup === "shape" && (
-          <div className="modern-group-fields">
-            <div className="image-controls">
-              <label>
-                Card Corner Radius
-                <input
-                  type="range"
-                  min="0"
-                  max="28"
-                  value={mc.cardRadius !== undefined ? mc.cardRadius : 14}
-                  onChange={(e) => updateMc("cardRadius", Number(e.target.value))}
-                />
-                <output>{mc.cardRadius !== undefined ? mc.cardRadius : 14}px</output>
-              </label>
-              <label>
-                Button Corner Radius
-                <input
-                  type="range"
-                  min="0"
-                  max="30"
-                  value={mc.buttonRadius !== undefined ? mc.buttonRadius : 21}
-                  onChange={(e) => updateMc("buttonRadius", Number(e.target.value))}
-                />
-                <output>{mc.buttonRadius !== undefined ? mc.buttonRadius : 21}px</output>
-              </label>
-            </div>
-
-            <div className="field" style={{ marginTop: 12 }}>
-              <span>Spacing Density</span>
-              <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-                {[
-                  ["compact", "Compact"],
-                  ["comfortable", "Comfortable"],
-                  ["spacious", "Spacious"],
-                ].map(([val, lbl]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    className={`preset-card ${(!mc.spacingDensity && val === "comfortable") || mc.spacingDensity === val ? "active" : ""}`}
-                    style={{ flex: 1, padding: "8px 12px", textAlign: "center" }}
-                    onClick={() => updateMc("spacingDensity", val)}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function Field({ label, error, wide, children }: { label: string; error?: string; wide?: boolean; children: React.ReactNode }) {
   return <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}><span>{label}</span>{children}{error && <em>{error}</em>}</label>;
@@ -5016,10 +4680,15 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
   const [qrLoading, setQrLoading] = useState(false);
   const [qrDownloading, setQrDownloading] = useState(false);
   const [qrError, setQrError] = useState("");
+  const [shareDetailsModalOpen, setShareDetailsModalOpen] = useState(false);
   const qrPngUrlRef = useRef<string | null>(null);
-  const displayHost = process.env.NODE_ENV === "production"
-    ? "3gzappit.com"
-    : (typeof window !== "undefined" && window.location?.host ? window.location.host : "3gzappit.com");
+  const [displayHost, setDisplayHost] = useState("3gzappit.com");
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production" && typeof window !== "undefined" && window.location?.host) {
+      setDisplayHost(window.location.host);
+    }
+  }, []);
 
   useEffect(() => {
     setQrOpen(false);
@@ -5231,7 +4900,14 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
       <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
       {card.profileFormat === "modern" ? (
         <div style={{ padding: "8px 0" }}>
-          <ModernProfileLayout card={card} isDashboardPreview />
+          <ModernProfileLayout
+            card={card}
+            isDashboardPreview
+            onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
+            onShareDetails={() => setShareDetailsModalOpen(true)}
+            onShare={() => alert("Share demo: in live public profile this opens share options.")}
+            onOpenBrochure={card.brochure ? () => alert("Brochure demo: downloads your uploaded brochure file.") : undefined}
+          />
         </div>
       ) : (
         <div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#0066FF", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
@@ -5239,7 +4915,12 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
           <div className="cover">{card.cover ? <img src={resolveMediaUrl(card.cover)} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>ZAPPIT</span>}</div>
           <div className="profile-logo">{card.logo ? <img src={resolveMediaUrl(card.logo)} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
           <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
-          <div className="profile-actions"><button>＋ Save Contact</button><button>▤ Brochure</button><button>↗ Share</button></div>
+          <div className="profile-actions">
+            <button type="button" onClick={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}>＋ Save Contact</button>
+            <button type="button" onClick={() => setShareDetailsModalOpen(true)} style={{ background: "rgba(0, 102, 255, 0.25)", borderColor: "#00E5FF", color: "#ffffff" }}>Share Your Details</button>
+            {card.brochure && <button type="button">▤ Brochure</button>}
+            <button type="button" onClick={() => alert("Share demo: in live public profile this opens share options.")}>↗ Share</button>
+          </div>
           <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>
           {(card.about || card.services.length > 0) && <div className="company-preview">
             <h4>Business Information</h4>
@@ -5252,6 +4933,12 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
           </div>}
         </div>
       )}
+      <ShareDetailsModal
+        isOpen={shareDetailsModalOpen}
+        onClose={() => setShareDetailsModalOpen(false)}
+        slug={card.slug}
+        recipientName={card.name}
+      />
     </div>
   </aside>;
 }

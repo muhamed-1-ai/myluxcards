@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Users,
   UserCheck,
   Flame,
   Clock,
-  Trophy,
-  Percent,
   Plus,
   AlertCircle,
   Phone,
@@ -17,7 +16,6 @@ import {
   ArrowUpRight,
   TrendingUp,
   Search,
-  Calendar,
   ChevronDown,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -284,28 +282,26 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
 
           {/* Start Date */}
-          <div className="crm-filter-control-wrap">
-            <input
-              type="date"
+          <div className="crm-filter-control-wrap min-w-[180px]">
+            <DatePicker
               value={startDateFilter}
-              onChange={(e) => setStartDateFilter(e.target.value)}
-              className="crm-filter-date"
+              onChange={(dateStr) => setStartDateFilter(dateStr)}
+              placeholder="Start Date"
             />
           </div>
 
           {/* End Date */}
-          <div className="crm-filter-control-wrap">
-            <input
-              type="date"
+          <div className="crm-filter-control-wrap min-w-[180px]">
+            <DatePicker
               value={endDateFilter}
-              onChange={(e) => setEndDateFilter(e.target.value)}
-              className="crm-filter-date"
+              onChange={(dateStr) => setEndDateFilter(dateStr)}
+              placeholder="End Date"
             />
           </div>
         </div>
       </div>
 
-      {/* 3. BALANCED 4x2 KPI CARDS GRID (Matching Reference Layout) */}
+      {/* 3. KPI CARDS GRID */}
       <div className="crm-kpi-grid">
         {/* Card 1: Total Leads */}
         <div className="crm-kpi-card">
@@ -358,24 +354,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
         </div>
 
-        {/* Card 4: Won Deals */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-top">
-            <div className="crm-kpi-badge" style={{ color: "#10B981", background: "rgba(16, 185, 129, 0.12)", borderColor: "rgba(16, 185, 129, 0.25)" }}>
-              <Trophy style={{ width: 17, height: 17 }} />
-            </div>
-            <span className="crm-kpi-pill" style={{ color: "#10B981", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
-              Converted
-            </span>
-          </div>
-          <span className="crm-kpi-label">WON DEALS</span>
-          <div className="crm-kpi-value" style={{ color: "#10B981" }}>{kpis.wonLeads}</div>
-          <div className="crm-kpi-sub" style={{ color: "#10B981" }}>
-            <TrendingUp style={{ width: 12, height: 12 }} /> Converted deals
-          </div>
-        </div>
-
-        {/* Card 5: Interested Leads */}
+        {/* Card 4: Interested Leads */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
             <div className="crm-kpi-badge" style={{ color: "#38BDF8", background: "rgba(56, 189, 248, 0.12)", borderColor: "rgba(56, 189, 248, 0.25)" }}>
@@ -392,7 +371,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           </div>
         </div>
 
-        {/* Card 6: Follow-Ups */}
+        {/* Card 5: Follow-Ups */}
         <div className="crm-kpi-card">
           <div className="crm-kpi-top">
             <div className="crm-kpi-badge" style={{ color: "#A78BFA", background: "rgba(167, 139, 250, 0.12)", borderColor: "rgba(167, 139, 250, 0.25)" }}>
@@ -407,48 +386,6 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
           <div className="crm-kpi-sub" style={{ color: "var(--text-muted)" }}>
             <TrendingUp style={{ width: 12, height: 12, color: "#A78BFA" }} /> Active follow-up stage
           </div>
-        </div>
-
-        {/* Card 7: Conversion Rate (Featured Highlight Card Matching Image 1 Reference Card 2) */}
-        <div className="crm-kpi-card crm-kpi-card-featured">
-          <div className="crm-kpi-top">
-            <div className="crm-kpi-badge" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.16)", borderColor: "rgba(0, 229, 255, 0.35)", borderRadius: "50%" }}>
-              <Percent style={{ width: 16, height: 16 }} />
-            </div>
-            <span className="crm-kpi-pill" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.15)", border: "1px solid rgba(0, 229, 255, 0.35)" }}>
-              Conversion
-            </span>
-          </div>
-          <span className="crm-kpi-label">CONVERSION RATE</span>
-          <div className="crm-kpi-value" style={{ color: "var(--text-primary)" }}>{kpis.conversionRate}%</div>
-          <div className="crm-kpi-featured-bar-track">
-            <div className="crm-kpi-featured-bar-fill" style={{ width: `${Math.min(kpis.conversionRate || 0, 100)}%` }} />
-          </div>
-          <div className="crm-kpi-featured-footer">
-            <span>{kpis.wonLeads} won deals</span>
-            <span>{kpis.totalLeads} total</span>
-          </div>
-        </div>
-
-        {/* Card 8: Daily Follow-Up Capacity (Fills 8th Slot in 4x2 Grid) */}
-        <div className="crm-kpi-card crm-kpi-card-capacity">
-          <div className="crm-kpi-top">
-            <div className="crm-kpi-badge" style={{ color: "#00E5FF" }}>
-              <Calendar style={{ width: 17, height: 17 }} />
-            </div>
-            <span className="crm-kpi-pill" style={{ color: "#00E5FF", background: "rgba(0, 229, 255, 0.12)", border: "1px solid rgba(0, 229, 255, 0.3)" }}>
-              {totalDueFollowUps} Due
-            </span>
-          </div>
-          <span className="crm-kpi-label">DAILY CAPACITY</span>
-          <div className="crm-kpi-value" style={{ fontSize: 24, margin: "10px 0 2px" }}>Active</div>
-          <button
-            type="button"
-            className="crm-kpi-capacity-btn"
-            onClick={() => onNavigateTab && onNavigateTab("leads")}
-          >
-            <CheckCircle2 style={{ width: 13, height: 13 }} /> Today's Follow-Ups: {totalDueFollowUps}
-          </button>
         </div>
       </div>
 

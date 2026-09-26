@@ -27,18 +27,7 @@ export type ProfileFeatureKey =
   | "EMERGENCY_CONTACT"
   | "VEHICLE"
   | "LOST_AND_FOUND"
-  | "PRODUCTS"
-  | "SERVICES"
-  | "PORTFOLIO"
-  | "GALLERY"
-  | "VIDEOS"
-  | "BUSINESS_HOURS"
-  | "LOCATION"
-  | "PAYMENT_LINKS"
-  | "DOCUMENTS"
-  | "RESUME"
-  | "ACHIEVEMENTS"
-  | "CERTIFICATIONS";
+  | "PRODUCTS";
 
 export interface ProfileFeatureItemConfig {
   enabled: boolean;
@@ -56,17 +45,6 @@ export const DEFAULT_PROFILE_FEATURES: ProfileFeaturesConfig = {
   VEHICLE: { enabled: true, sortOrder: 5 },
   LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
   PRODUCTS: { enabled: false, sortOrder: 7 },
-  SERVICES: { enabled: false, sortOrder: 8 },
-  PORTFOLIO: { enabled: false, sortOrder: 9 },
-  GALLERY: { enabled: false, sortOrder: 10 },
-  VIDEOS: { enabled: false, sortOrder: 11 },
-  BUSINESS_HOURS: { enabled: false, sortOrder: 12 },
-  LOCATION: { enabled: false, sortOrder: 13 },
-  PAYMENT_LINKS: { enabled: false, sortOrder: 14 },
-  DOCUMENTS: { enabled: false, sortOrder: 15 },
-  RESUME: { enabled: false, sortOrder: 16 },
-  ACHIEVEMENTS: { enabled: false, sortOrder: 17 },
-  CERTIFICATIONS: { enabled: false, sortOrder: 18 },
 };
 
 export const DEFAULT_FEATURE_ORDER: ProfileFeatureKey[] = [
@@ -78,17 +56,6 @@ export const DEFAULT_FEATURE_ORDER: ProfileFeatureKey[] = [
   "VEHICLE",
   "LOST_AND_FOUND",
   "PRODUCTS",
-  "SERVICES",
-  "PORTFOLIO",
-  "GALLERY",
-  "VIDEOS",
-  "BUSINESS_HOURS",
-  "LOCATION",
-  "PAYMENT_LINKS",
-  "DOCUMENTS",
-  "RESUME",
-  "ACHIEVEMENTS",
-  "CERTIFICATIONS",
 ];
 
 export interface EnabledFeatures {
@@ -278,9 +245,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       const pfObj = value as Record<string, unknown>;
       const validKeys: ProfileFeatureKey[] = [
         "BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT",
-        "VEHICLE", "LOST_AND_FOUND", "PRODUCTS", "SERVICES", "PORTFOLIO", "GALLERY",
-        "VIDEOS", "BUSINESS_HOURS", "LOCATION", "PAYMENT_LINKS", "DOCUMENTS", "RESUME",
-        "ACHIEVEMENTS", "CERTIFICATIONS"
+        "VEHICLE", "LOST_AND_FOUND", "PRODUCTS"
       ];
       const cleanedPF: Partial<ProfileFeaturesConfig> = {};
       for (const k of validKeys) {
@@ -298,9 +263,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
     } else if (field === "featureOrder" && Array.isArray(value)) {
       const validKeys: ProfileFeatureKey[] = [
         "BASIC_PROFILE", "CONTACT", "SOCIAL_LINKS", "WEBSITE", "EMERGENCY_CONTACT",
-        "VEHICLE", "LOST_AND_FOUND", "PRODUCTS", "SERVICES", "PORTFOLIO", "GALLERY",
-        "VIDEOS", "BUSINESS_HOURS", "LOCATION", "PAYMENT_LINKS", "DOCUMENTS", "RESUME",
-        "ACHIEVEMENTS", "CERTIFICATIONS"
+        "VEHICLE", "LOST_AND_FOUND", "PRODUCTS"
       ];
       const filtered = value.map(v => String(v)).filter((v): v is ProfileFeatureKey => validKeys.includes(v as ProfileFeatureKey));
       const missing = validKeys.filter(k => !filtered.includes(k));

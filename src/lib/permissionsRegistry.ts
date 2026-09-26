@@ -60,30 +60,34 @@ export const FEATURE_CATALOGUE: FeatureDefinition[] = [
   { key: "my_orders", label: "My Orders", group: "Workspace", description: "Orders history & status", dashboardTab: "orders-tab" },
 ];
 
+export const ZERO_FEATURE_PERMISSIONS: Record<FeatureKey, boolean> = {
+  overview: false,
+  all_leads: false,
+  qr_activity: false,
+  lead_sources: false,
+  config_products: false,
+  lead_stages: false,
+  calendar: false,
+  lob_reasons: false,
+  dynamic_leads: false,
+  profile_features: false,
+  contact_info: false,
+  apps_links: false,
+  company: false,
+  card_design: false,
+  my_cards: false,
+  notifications: false,
+  my_orders: false,
+};
+
 export const DEFAULT_FEATURE_PERMISSIONS: Record<FeatureKey, boolean> = {
-  overview: true,
-  all_leads: true,
-  qr_activity: true,
-  lead_sources: true,
-  config_products: true,
-  lead_stages: true,
-  calendar: true,
-  lob_reasons: true,
-  dynamic_leads: true,
-  profile_features: true,
-  contact_info: true,
-  apps_links: true,
-  company: true,
-  card_design: true,
-  my_cards: true,
-  notifications: true,
-  my_orders: true,
+  ...ZERO_FEATURE_PERMISSIONS,
 };
 
 export function normalizeFeaturePermissions(raw: unknown): Record<FeatureKey, boolean> {
-  const result: Record<FeatureKey, boolean> = { ...DEFAULT_FEATURE_PERMISSIONS };
+  const result: Record<FeatureKey, boolean> = { ...ZERO_FEATURE_PERMISSIONS };
 
-  if (!raw || typeof raw !== "object") return result;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
   const obj = raw as Record<string, unknown>;
 
   // Direct 17 feature keys evaluate first
@@ -138,23 +142,25 @@ export function normalizeFeaturePermissions(raw: unknown): Record<FeatureKey, bo
   return result;
 }
 
-export function isGroupAllowed(group: FeatureGroup, permissions: Record<string, boolean> | undefined): boolean {
+export function isGroupAllowed(group: FeatureGroup, permissions: Record<string, boolean> | undefined, userRole?: string): boolean {
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return true;
   const normalized = normalizeFeaturePermissions(permissions);
   const groupFeatures = FEATURE_CATALOGUE.filter((f) => f.group === group);
-  return groupFeatures.some((f) => normalized[f.key] !== false);
+  return groupFeatures.some((f) => normalized[f.key] === true);
 }
 
 export function isFeatureAllowed(permissions: Record<string, boolean> | undefined, key: FeatureKey, userRole?: string): boolean {
   // SUPER_ADMIN and ADMIN always have full platform permissions
   if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return true;
   const normalized = normalizeFeaturePermissions(permissions);
-  return normalized[key] !== false;
+  return normalized[key] === true;
 }
 
-export function getFirstPermittedTab(permissions: Record<string, boolean> | undefined): string | null {
+export function getFirstPermittedTab(permissions: Record<string, boolean> | undefined, userRole?: string): string | null {
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return "dashboard";
   const normalized = normalizeFeaturePermissions(permissions);
   for (const feature of FEATURE_CATALOGUE) {
-    if (normalized[feature.key] !== false) {
+    if (normalized[feature.key] === true) {
       return feature.dashboardTab;
     }
   }

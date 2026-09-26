@@ -196,11 +196,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 
     if (featurePermissions && typeof featurePermissions === "object") {
-      // Preserve explicit false booleans & normalize 17 keys
-      const normalizedPermissions = normalizeFeaturePermissions({
-        ...(managedUser.feature_permissions as Record<string, boolean> || {}),
-        ...featurePermissions,
-      });
+      // Normalize submitted feature permissions map
+      const normalizedPermissions = normalizeFeaturePermissions(featurePermissions);
       const oldPermissions = managedUser.feature_permissions;
       updatedUser = await updateUserPermissions(managedUser.id, normalizedPermissions);
       await audit(identity, "USER_PERMISSION_CHANGED", "users", managedUser.id, { permissions: oldPermissions }, { permissions: normalizedPermissions });
