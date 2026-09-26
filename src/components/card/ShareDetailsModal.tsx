@@ -261,7 +261,7 @@ export function ShareDetailsModal({ isOpen, onClose, slug, recipientName }: Shar
             </div>
             <div>
               <h2 id="share-details-dialog-title" style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>
-                Share Your Details
+                Share Your Contacts
               </h2>
               <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'rgba(255, 255, 255, 0.65)' }}>
                 {recipientName ? `Send your contact information to ${recipientName} and connect instantly.` : 'Send your contact information and connect instantly.'}
@@ -573,7 +573,7 @@ export function ShareDetailsModal({ isOpen, onClose, slug, recipientName }: Shar
                     gap: 8,
                   }}
                 >
-                  {submitting ? 'Sharing Details...' : 'Share Details'}
+                  {submitting ? 'Sharing Contact...' : 'Share Your Contacts'}
                 </button>
               </div>
             </form>

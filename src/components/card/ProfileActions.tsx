@@ -54,7 +54,7 @@ export function ProfileActions({
             }}
           >
             <Users className="w-4 h-4 flex-shrink-0 text-[#00E5FF]" />
-            <span>Share Details</span>
+            <span>Share Your Contacts</span>
           </button>
         )}
 
@@ -109,7 +109,7 @@ export function ProfileActions({
           }}
         >
           <Users className="w-4 h-4 flex-shrink-0 mr-1.5 text-[#00E5FF]" />
-          <span>Share Details</span>
+          <span>Share Your Contacts</span>
         </button>
       )}
 
