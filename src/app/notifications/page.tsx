@@ -4,6 +4,8 @@ import { currentIdentity } from "@/lib/adminAuth";
 import NotificationsClient from "./NotificationsClient";
 import "../dashboard/dashboard.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Notification Center | MyLuxCards",
   description: "Manage and view real-time notifications for leads, WhatsApp messages, and follow-ups.",

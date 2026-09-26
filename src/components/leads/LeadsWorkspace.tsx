@@ -241,6 +241,48 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     return "badge-stage-blue";
   };
 
+  const getSourceBadge = (source?: string) => {
+    const s = (source || "").toUpperCase().trim();
+    if (s === "NFC" || s === "NFC TAP" || s.includes("NFC")) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-500/15 text-sky-400 border border-sky-500/35 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+          🟦 NFC Tap
+        </span>
+      );
+    }
+    if (s === "MANUAL") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/35 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          🟨 Manual
+        </span>
+      );
+    }
+    if (s === "QR" || s === "QR SCAN" || s.includes("QR")) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/35 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          🟩 QR Scan
+        </span>
+      );
+    }
+    if (s === "WEBSITE" || s === "DIRECT") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/35 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          🟩 Website
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/35 shadow-sm">
+        <span className="w-2 h-2 rounded-full bg-purple-400" />
+        {source || "Profile Share"}
+      </span>
+    );
+  };
+
   return (
     <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none gap-6">
 
@@ -446,6 +488,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
                 <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
                 <th>STAGE</th>
+                <th>SOURCE</th>
                 <th>LAST REMARK</th>
                 <th
                   className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
@@ -556,6 +599,11 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                         <span className={getStageBadgeClass(lead.stage || lead.status)}>
                           {lead.stage || lead.status || "NEW"}
                         </span>
+                      </td>
+
+                      {/* SOURCE COLUMN */}
+                      <td>
+                        {getSourceBadge(lead.source)}
                       </td>
 
                       {/* LAST REMARK COLUMN */}

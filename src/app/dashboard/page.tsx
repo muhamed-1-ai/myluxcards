@@ -4,6 +4,8 @@ import { currentIdentity } from "@/lib/adminAuth";
 import DashboardDemo from "./DashboardDemo";
 import "./dashboard.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Card Dashboard | MyLuxCards",
   description: "Manage your MyLux digital business cards.",

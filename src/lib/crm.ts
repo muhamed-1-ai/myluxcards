@@ -83,20 +83,87 @@ export interface DashboardSummaryPayload {
   growthTimeline?: LeadGrowthPoint[];
 }
 
+export interface DashboardFilterOptions {
+  search?: string;
+  office?: string;
+  user?: string;
+  stage?: string;
+  source?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 /**
- * Aggregates all CRM Command Center summary data for a user in efficient parallel DB queries.
+ * Aggregates all CRM Command Center summary data for a user in efficient parallel DB queries with dynamic filtering.
  */
-export async function getDashboardSummaryData(ownerUserId: string): Promise<DashboardSummaryPayload> {
+export async function getDashboardSummaryData(
+  ownerUserId: string,
+  filters?: DashboardFilterOptions
+): Promise<DashboardSummaryPayload> {
   if (!ownerUserId) {
     throw new Error("Unauthorized user ID");
   }
 
-  const nowIso = new Date().toISOString();
+  // Dynamic WHERE conditions for leads l table
+  const whereConditions: string[] = ["l.owner_user_id = $1"];
+  const params: any[] = [ownerUserId];
+  let paramIdx = 2;
+
+  if (filters?.search && filters.search.trim()) {
+    const q = `%${filters.search.trim()}%`;
+    whereConditions.push(
+      `(l.name ILIKE $${paramIdx} OR l.company_name ILIKE $${paramIdx} OR l.email ILIKE $${paramIdx} OR l.contact_number ILIKE $${paramIdx})`
+    );
+    params.push(q);
+    paramIdx++;
+  }
+
+  if (filters?.stage && filters.stage.trim()) {
+    whereConditions.push(`l.status = $${paramIdx}`);
+    params.push(filters.stage.trim());
+    paramIdx++;
+  }
+
+  if (filters?.source && filters.source.trim()) {
+    whereConditions.push(`l.source ILIKE $${paramIdx}`);
+    params.push(`%${filters.source.trim()}%`);
+    paramIdx++;
+  }
+
+  if (filters?.status && filters.status.trim()) {
+    const st = filters.status.trim().toLowerCase();
+    if (st === "active") {
+      whereConditions.push(`l.status NOT IN ('WON', 'LOST')`);
+    } else if (st === "closed") {
+      whereConditions.push(`l.status IN ('WON', 'LOST')`);
+    }
+  }
+
+  if (filters?.startDate && filters.startDate.trim()) {
+    whereConditions.push(`l.created_at >= $${paramIdx}`);
+    params.push(new Date(`${filters.startDate.trim()}T00:00:00.000Z`).toISOString());
+    paramIdx++;
+  }
+
+  if (filters?.endDate && filters.endDate.trim()) {
+    whereConditions.push(`l.created_at <= $${paramIdx}`);
+    params.push(new Date(`${filters.endDate.trim()}T23:59:59.999Z`).toISOString());
+    paramIdx++;
+  }
+
+  if (filters?.office && filters.office.trim()) {
+    whereConditions.push(`(l.company_name ILIKE $${paramIdx} OR l.name ILIKE $${paramIdx})`);
+    params.push(`%${filters.office.trim()}%`);
+    paramIdx++;
+  }
+
+  const leadsWhereClause = whereConditions.join(" AND ");
 
   // Query 1: KPI Counts
   const kpiRes = pool.query<{ status: string; count: string }>(
-    `SELECT status, COUNT(*) as count FROM leads WHERE owner_user_id = $1 GROUP BY status`,
-    [ownerUserId]
+    `SELECT l.status, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.status`,
+    params
   );
 
   // Query 2: Pipeline Leads (top 5 per stage limited at DB level via CTE)
@@ -118,7 +185,7 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
               l.submission_count, l.updated_at,
               ROW_NUMBER() OVER (PARTITION BY l.status ORDER BY l.updated_at DESC) as rn
        FROM leads l
-       WHERE l.owner_user_id = $1
+       WHERE ${leadsWhereClause}
      )
      SELECT rl.id, rl.name, rl.company_name, rl.contact_number, rl.email, rl.status, rl.source,
             rl.submission_count, rl.updated_at,
@@ -131,10 +198,10 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
      ) f ON true
      WHERE rl.rn <= 5
      ORDER BY rl.updated_at DESC`,
-    [ownerUserId]
+    params
   );
 
-  // Query 3: Follow-Ups (Today, Overdue, Upcoming - bounded to top 50)
+  // Query 3: Follow-Ups (filtered by matching leads)
   const followUpsRes = pool.query<{
     id: string;
     lead_id: string;
@@ -150,12 +217,13 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
      FROM lead_follow_ups f
      JOIN leads l ON l.id = f.lead_id
      WHERE f.owner_user_id = $1 AND f.status = 'SCHEDULED'
+     ${whereConditions.length > 1 ? "AND " + whereConditions.slice(1).join(" AND ") : ""}
      ORDER BY f.scheduled_at ASC
      LIMIT 50`,
-    [ownerUserId]
+    params
   );
 
-  // Query 4: Recent Activities
+  // Query 4: Recent Activities (filtered by matching leads)
   const activityRes = pool.query<{
     id: string;
     lead_id: string;
@@ -171,24 +239,36 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
      FROM lead_activities a
      LEFT JOIN leads l ON l.id = a.lead_id
      WHERE a.owner_user_id = $1
+     ${whereConditions.length > 1 ? "AND " + whereConditions.slice(1).join(" AND ") : ""}
      ORDER BY a.occurred_at DESC
      LIMIT 15`,
-    [ownerUserId]
+    params
   );
 
   // Query 5: Source Stats
   const sourceRes = pool.query<{ source: string; count: string }>(
-    `SELECT source, COUNT(*) as count FROM leads WHERE owner_user_id = $1 GROUP BY source ORDER BY count DESC`,
-    [ownerUserId]
+    `SELECT l.source, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.source ORDER BY count DESC`,
+    params
+  );
+
+  // Query 6: Lead Growth Timeline Points
+  const growthRes = pool.query<{ date: string; count: string }>(
+    `SELECT DATE(l.created_at)::text as date, COUNT(*) as count
+     FROM leads l
+     WHERE ${leadsWhereClause}
+     GROUP BY DATE(l.created_at)
+     ORDER BY date ASC`,
+    params
   );
 
   // Await all parallel queries
-  const [kpiData, pipelineData, followUpData, activityData, sourceData] = await Promise.all([
+  const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData] = await Promise.all([
     kpiRes,
     pipelineRes,
     followUpsRes,
     activityRes,
     sourceRes,
+    growthRes,
   ]);
 
   // Process KPIs
@@ -349,6 +429,12 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
     count: parseInt(row.count, 10),
   }));
 
+  // Process Growth Timeline
+  const growthTimeline: LeadGrowthPoint[] = growthData.rows.map((row) => ({
+    date: row.date,
+    count: parseInt(row.count, 10),
+  }));
+
   return {
     kpis,
     attentionItems,
@@ -359,6 +445,7 @@ export async function getDashboardSummaryData(ownerUserId: string): Promise<Dash
     upcomingFollowUps,
     recentActivity,
     sourceStats,
+    growthTimeline,
   };
 }
 

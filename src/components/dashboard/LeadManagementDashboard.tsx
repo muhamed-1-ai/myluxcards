@@ -50,6 +50,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [officeFilter, setOfficeFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
@@ -67,31 +68,80 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
   const [scheduleNote, setScheduleNote] = useState("");
   const [scheduling, setScheduling] = useState(false);
 
-  const fetchDashboardData = useCallback(async (isRefresh = false, signal?: AbortSignal) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError("");
+  // Debounce search query input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    try {
-      const res = await apiFetch<DashboardSummaryPayload>("/api/dashboard/lead-summary", { signal });
-      if (res.ok && res.data) {
-        setData(res.data);
-      } else if (res.error !== "Request aborted") {
-        setError(res.error || "Failed to load lead summary.");
+  const fetchDashboardData = useCallback(
+    async (isRefresh = false, signal?: AbortSignal) => {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError("");
+
+      try {
+        const queryParams = new URLSearchParams();
+        if (debouncedSearch) queryParams.set("search", debouncedSearch);
+        if (officeFilter) queryParams.set("office", officeFilter);
+        if (userFilter) queryParams.set("user", userFilter);
+        if (stageFilter) queryParams.set("stage", stageFilter);
+        if (sourceFilter) queryParams.set("source", sourceFilter);
+        if (statusFilter) queryParams.set("status", statusFilter);
+        if (startDateFilter) queryParams.set("startDate", startDateFilter);
+        if (endDateFilter) queryParams.set("endDate", endDateFilter);
+
+        const queryString = queryParams.toString();
+        const endpoint = `/api/dashboard/lead-summary${queryString ? `?${queryString}` : ""}`;
+
+        const res = await apiFetch<DashboardSummaryPayload>(endpoint, { signal });
+        if (res.ok && res.data) {
+          setData(res.data);
+        } else if (res.error !== "Request aborted") {
+          setError(res.error || "Failed to load lead summary.");
+        }
+      } catch {
+        setError("Network issue. Failed to load dashboard data.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } catch {
-      setError("Network issue. Failed to load dashboard data.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+    },
+    [
+      debouncedSearch,
+      officeFilter,
+      userFilter,
+      stageFilter,
+      sourceFilter,
+      statusFilter,
+      startDateFilter,
+      endDateFilter,
+    ]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
     void fetchDashboardData(false, controller.signal);
     return () => controller.abort();
   }, [fetchDashboardData]);
+
+  const hasActiveFilters = Boolean(
+    searchQuery || officeFilter || userFilter || stageFilter || sourceFilter || statusFilter || startDateFilter || endDateFilter
+  );
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setOfficeFilter("");
+    setUserFilter("");
+    setStageFilter("");
+    setSourceFilter("");
+    setStatusFilter("");
+    setStartDateFilter("");
+    setEndDateFilter("");
+  };
 
   // Follow-Up Completion Handler
   const handleCompleteFollowUp = async (followUpId: string) => {
@@ -263,6 +313,9 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
               <option value="NFC">NFC Tap</option>
               <option value="QR">QR Scan</option>
               <option value="Direct">Direct</option>
+              <option value="SHARE">Share</option>
+              <option value="PROFILE_SHARE_DETAILS">Profile Share</option>
+              <option value="MANUAL">Manual</option>
             </select>
             <ChevronDown className="crm-filter-arrow" />
           </div>
@@ -298,6 +351,31 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
               placeholder="End Date"
             />
           </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="crm-filter-control-wrap"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 14px",
+                height: "38px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#EF4444",
+                background: "rgba(239, 68, 68, 0.1)",
+                border: "1px solid rgba(239, 68, 68, 0.25)",
+                borderRadius: "10px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       </div>
 

@@ -4,6 +4,8 @@ import { currentIdentity, requirePermission } from "@/lib/adminAuth";
 import LeadsWorkspace from "@/components/leads/LeadsWorkspace";
 import "./leads.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "CRM Leads | ZAPPIT",
   description: "Manage your ZAPPIT CRM leads.",

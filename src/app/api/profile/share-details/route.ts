@@ -24,7 +24,7 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function POST(request: Request) {
   if (!validMutationOrigin(request)) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
@@ -37,22 +37,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     );
   }
 
-  const { slug } = await params;
   try {
-    const cleanedSlug = cleanSlug(slug);
+    const body = await request.json().catch(() => ({}));
+    const targetSlug = String(body.slug || body.profileSlug || body.cardId || "").trim();
+
+    if (!targetSlug) {
+      return Response.json({ message: "Profile identifier (slug) is required." }, { status: 400 });
+    }
+
+    const cleanedSlug = cleanSlug(targetSlug);
 
     // Resolve card and owner SERVER-SIDE
     const cardRes = await pool.query<{ id: string; owner_id: string; active: boolean }>(
-      `SELECT id, owner_id, active FROM digital_cards WHERE slug = $1 LIMIT 1`,
+      `SELECT id, owner_id, active FROM digital_cards WHERE slug = $1 OR id::text = $1 LIMIT 1`,
       [cleanedSlug]
     );
 
     const card = cardRes.rows[0];
     if (!card || !card.active) {
-      return Response.json({ message: "Card unavailable." }, { status: 404 });
+      return Response.json({ message: "Profile unavailable." }, { status: 404 });
     }
-
-    const body = await request.json().catch(() => ({}));
 
     // Input Validation
     const name = String(body.name || "").trim().slice(0, 100);
@@ -65,7 +69,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return Response.json({ message: "Please enter your business or company name." }, { status: 400 });
     }
 
-    const rawMobile = String(body.mobileNumber || body.contactNumber || "").trim();
+    const rawMobile = String(body.mobileNumber || body.contactNumber || body.phone || "").trim();
     const phoneRes = normalizePhoneNumber(rawMobile);
     if (!phoneRes.isValid) {
       return Response.json({ message: "Please enter a valid mobile phone number." }, { status: 400 });
@@ -90,30 +94,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       whatsappNumber = waRes.normalized;
     }
 
-    // Process additional phone numbers (up to 5 max)
-    const additionalNumbersInput = Array.isArray(body.additionalNumbers) ? body.additionalNumbers : [];
-    const validAdditionalNumbers: Array<{ label: string; number: string }> = [];
-
-    for (let i = 0; i < Math.min(5, additionalNumbersInput.length); i++) {
-      const item = additionalNumbersInput[i];
-      if (item && item.number) {
-        const itemNum = String(item.number).trim();
-        const norm = normalizePhoneNumber(itemNum);
-        if (norm.isValid) {
-          const itemLabel = String(item.label || "Mobile").trim().slice(0, 30);
-          validAdditionalNumbers.push({ label: itemLabel, number: norm.normalized });
-        }
-      }
-    }
-
-    // Combine all phone numbers into structured array
-    const allPhoneNumbers = [
-      { label: "Mobile", number: phoneRes.normalized, isPrimary: true },
-      ...(whatsappNumber ? [{ label: "WhatsApp", number: whatsappNumber, isPrimary: false }] : []),
-      ...validAdditionalNumbers.map((n) => ({ label: n.label, number: n.number, isPrimary: false })),
-    ];
-
-    // Ensure database table exists
+    // Ensure database table shared_contacts exists
     await pool.query(`
       CREATE TABLE IF NOT EXISTS shared_contacts (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -139,14 +120,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         name,
         email,
         businessName,
-        JSON.stringify(allPhoneNumbers),
+        JSON.stringify([{ label: "Mobile", number: phoneRes.normalized, isPrimary: true }]),
         whatsappNumber,
         card.owner_id,
         card.id,
       ]
     );
 
-    // Upsert into leads table for CRM visibility with NFC Tap source attribution
+    // Upsert into leads table with source: "NFC Tap"
     const leadResult = await upsertLead({
       ownerUserId: card.owner_id,
       cardId: card.id,
@@ -166,7 +147,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       userId: card.owner_id,
       type: "SYSTEM_ALERT",
       title: "NEW SHARED CONTACT",
-      body: `${name} from ${businessName} shared their contact details with you.`,
+      body: `${name} from ${businessName} shared their contact details with you (NFC Tap).`,
       entityType: "lead",
       entityId: leadResult.lead.id,
       actionUrl: "/dashboard?tab=leads",
@@ -176,24 +157,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         senderBusiness: businessName,
         contactNumber: phoneRes.normalized,
         email,
+        source: "NFC Tap",
       },
     });
-
-    // Build vCard for visitor download
-    const additionalVCardPhones: Array<{ label: string; number: string }> = [];
-    if (whatsappNumber) {
-      additionalVCardPhones.push({ label: "WhatsApp", number: whatsappNumber });
-    }
-    for (const item of validAdditionalNumbers) {
-      additionalVCardPhones.push({ label: item.label, number: item.number });
-    }
 
     const vcardBuild = buildVCardString({
       profileName: name,
       companyName: businessName,
       phone: phoneRes.normalized,
       email: email,
-      additionalPhones: additionalVCardPhones,
     });
 
     const safeFilename = `${name.replace(/[^a-zA-Z0-9_-]/g, "_")}_vCard.vcf`;
@@ -201,12 +173,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return Response.json({
       ok: true,
       message: "Your details have been shared successfully.",
+      lead: {
+        id: leadResult.lead.id,
+        name: leadResult.lead.name,
+        phone: leadResult.lead.contact_number,
+        company: leadResult.lead.company_name,
+        source: leadResult.lead.source,
+        status: leadResult.lead.status,
+      },
       vcard: vcardBuild.vcard,
       filename: safeFilename,
-      sharedContactId: insertRes.rows[0]?.id,
     });
   } catch (error) {
-    console.error("[Share Details API Error]:", error);
+    console.error("[Profile Share Details API Error]:", error);
     return Response.json(
       { message: "We couldn't share your details right now. Please try again." },
       { status: 500 }
