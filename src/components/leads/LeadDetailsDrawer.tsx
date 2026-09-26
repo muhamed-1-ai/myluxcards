@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Info
 } from "lucide-react";
+import LeadSourceBadge from "./LeadSourceBadge";
 import "./lead-drawer.css";
 
 interface NextFollowUpData {
@@ -330,9 +331,12 @@ export default function LeadDetailsDrawer({
                   <div className="lead-drawer-title-block">
                     <span className="lead-drawer-kicker">LEAD DETAILS</span>
                     <h2 className="lead-drawer-name">{leadName}</h2>
-                    <span className="lead-drawer-badge">
-                      {companyName || stage || "ZAPPIT"}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                      <span className="lead-drawer-badge">
+                        {companyName || stage || "ZAPPIT"}
+                      </span>
+                      <LeadSourceBadge source={lead.source} compact />
+                    </div>
                   </div>
                 </div>
 

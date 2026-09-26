@@ -26,6 +26,7 @@ import {
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
 import LeadIdentityBlock from "./LeadIdentityBlock";
+import LeadSourceBadge from "./LeadSourceBadge";
 import "../../app/dashboard/leads/leads.css";
 
 interface LeadsWorkspaceProps {
@@ -239,48 +240,6 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     if (st === "FOLLOW_UP" || st === "CONTACTED" || st === "MEETING_SCHEDULED" || st === "ACTIVE") return "badge-stage-amber";
     if (st === "LOST" || st === "CLOSED_LOST" || st === "INACTIVE") return "badge-stage-red";
     return "badge-stage-blue";
-  };
-
-  const getSourceBadge = (source?: string) => {
-    const s = (source || "").toUpperCase().trim();
-    if (s === "NFC" || s === "NFC TAP" || s.includes("NFC")) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-500/15 text-sky-400 border border-sky-500/35 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-          🟦 NFC Tap
-        </span>
-      );
-    }
-    if (s === "MANUAL") {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/35 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
-          🟨 Manual
-        </span>
-      );
-    }
-    if (s === "QR" || s === "QR SCAN" || s.includes("QR")) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/35 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          🟩 QR Scan
-        </span>
-      );
-    }
-    if (s === "WEBSITE" || s === "DIRECT") {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/35 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          🟩 Website
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/35 shadow-sm">
-        <span className="w-2 h-2 rounded-full bg-purple-400" />
-        {source || "Profile Share"}
-      </span>
-    );
   };
 
   return (
@@ -603,7 +562,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
                       {/* SOURCE COLUMN */}
                       <td>
-                        {getSourceBadge(lead.source)}
+                        <LeadSourceBadge source={lead.source} />
                       </td>
 
                       {/* LAST REMARK COLUMN */}
