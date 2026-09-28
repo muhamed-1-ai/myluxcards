@@ -5654,22 +5654,22 @@ body.light-mode .crm-kpi-badge {
 }
 
 .zappit-modern-container {
-  background: var(--mod-bg, #050B14);
-  border: 1px solid var(--mod-card-border, rgba(0, 140, 255, 0.25));
+  background: var(--profile-background, var(--mod-bg, #050B14));
+  border: 1px solid var(--profile-border, var(--mod-card-border, rgba(0, 140, 255, 0.25)));
   border-radius: var(--mod-card-radius, 20px);
   padding: 16px;
   box-sizing: border-box;
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
 
 .zappit-modern-cover {
   position: relative;
-  height: var(--mod-header-height, 200px);
+  height: var(--mod-header-height, 180px);
   border-radius: var(--mod-card-radius, 14px);
-  overflow: visible;
-  background: var(--mod-header-bg, #0d1b2a);
+  overflow: hidden;
+  background: var(--profile-surface, var(--mod-header-bg, #0d1b2a));
 }
 
 .zappit-modern-cover-img {
@@ -5677,13 +5677,23 @@ body.light-mode .crm-kpi-badge {
   height: 100%;
   object-fit: cover;
   border-radius: var(--mod-card-radius, 14px);
+  transform-origin: center center;
 }
 
 .zappit-modern-cover-gradient {
   width: 100%;
   height: 100%;
   border-radius: var(--mod-card-radius, 14px);
-  background: var(--mod-header-bg, linear-gradient(135deg, #061830 0%, #032b57 50%, #004b99 100%));
+  background: var(--profile-surface, var(--mod-header-bg, linear-gradient(135deg, #061830 0%, #032b57 50%, #004b99 100%)));
+}
+
+.zappit-modern-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.15) 60%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: var(--mod-card-radius, 14px);
 }
 
 .zappit-modern-topbar {
@@ -5694,55 +5704,61 @@ body.light-mode .crm-kpi-badge {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  z-index: 2;
+  z-index: 3;
 }
 
 .zappit-modern-brand-logo {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--mod-card-bg, rgba(5, 11, 20, 0.65));
+  background: var(--profile-surface, var(--mod-card-bg, rgba(5, 11, 20, 0.65)));
   backdrop-filter: blur(8px);
   padding: 4px 10px;
   border-radius: 20px;
-  border: 1px solid var(--mod-card-border, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--profile-border, var(--mod-card-border, rgba(255, 255, 255, 0.1)));
 }
 
 .zappit-logo-icon {
   font-size: 14px;
-  color: var(--mod-accent, #00E5FF);
+  color: var(--profile-primary, var(--mod-accent, #00E5FF));
 }
 
 .zappit-logo-text {
   font-weight: 800;
   font-size: 13px;
   letter-spacing: 1px;
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
 }
 
 .zappit-logo-sub {
   font-size: 9px;
-  color: var(--mod-muted-text, #94a3b8);
+  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
   letter-spacing: 0.5px;
   margin-left: 2px;
 }
 
 .zappit-modern-avatar-wrap {
-  position: absolute;
-  bottom: -52px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  pointer-events: none;
 }
 
 .zappit-modern-avatar-ring {
-  width: 108px;
-  height: 108px;
   border-radius: 50%;
   padding: 3.5px;
-  background: var(--mod-btn-primary-bg, linear-gradient(135deg, #00E5FF, #0066FF));
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  background: var(--profile-primary-gradient, var(--mod-btn-primary-bg, linear-gradient(135deg, #00E5FF, #0066FF)));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  flex-shrink: 0;
 }
 
 .zappit-modern-avatar-img {
@@ -5750,51 +5766,58 @@ body.light-mode .crm-kpi-badge {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--mod-bg, #050B14);
+  border: 3px solid var(--profile-background, var(--mod-bg, #050B14));
   box-sizing: border-box;
+  transform-origin: center center;
 }
 
 .zappit-modern-avatar-fallback {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--mod-card-bg, #0a1628);
-  border: 3px solid var(--mod-bg, #050B14);
+  background: var(--profile-surface, var(--mod-card-bg, #0a1628));
+  border: 3px solid var(--profile-background, var(--mod-bg, #050B14));
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 30px;
   font-weight: 800;
-  color: var(--mod-accent, #00E5FF);
+  color: var(--profile-primary, var(--mod-accent, #00E5FF));
   box-sizing: border-box;
 }
 
 .zappit-modern-header {
-  margin-top: 60px;
+  margin-top: 14px;
   text-align: center;
   margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .zappit-modern-name {
   font-size: var(--mod-name-size, 22px);
   font-weight: 800;
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
   letter-spacing: -0.01em;
   margin: 0;
   line-height: 1.25;
+  word-break: break-word;
 }
 
 .zappit-modern-subtitle {
   font-size: var(--mod-body-size, 14px);
-  color: var(--mod-muted-text, #94a3b8);
-  margin-top: 4px;
+  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
+  margin: 0;
   font-weight: 500;
+  word-break: break-word;
 }
 
 .zappit-modern-actions-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: var(--mod-gap, 14px);
   justify-content: center;
   align-items: center;
@@ -5803,45 +5826,46 @@ body.light-mode .crm-kpi-badge {
 
 .zappit-modern-btn-primary,
 .zappit-modern-btn-glass {
-  flex: 1 1 auto;
-  min-width: max-content;
-  height: 44px;
-  max-height: 44px;
-  border-radius: var(--mod-btn-radius, 22px);
+  flex: 1 1 calc(33.333% - 10px);
+  min-width: 110px;
+  height: 48px;
+  max-height: 48px;
+  border-radius: var(--mod-btn-radius, 24px);
   padding: 0 14px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  white-space: nowrap;
+  gap: 8px;
   box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
 .zappit-modern-btn-primary {
-  background: var(--mod-btn-primary-bg, linear-gradient(135deg, #0066FF, #00D5FF));
+  background: var(--profile-primary-gradient, var(--mod-btn-primary-bg, linear-gradient(135deg, #0066FF, #00D5FF)));
   border: none;
-  color: var(--mod-btn-primary-text, #ffffff);
+  color: var(--profile-primary-text, var(--mod-btn-primary-text, #ffffff));
   font-weight: 700;
-  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.25);
+  box-shadow: 0 4px 16px var(--profile-secondary-bg, rgba(0, 102, 255, 0.25));
 }
 
 .zappit-modern-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 102, 255, 0.4);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px var(--profile-secondary-bg, rgba(0, 102, 255, 0.4));
 }
 
 .zappit-modern-btn-glass {
-  background: var(--mod-btn-glass-bg, rgba(15, 23, 42, 0.65));
-  border: 1px solid var(--mod-btn-glass-border, rgba(0, 229, 255, 0.3));
-  color: var(--mod-btn-glass-text, #ffffff);
+  background: var(--profile-secondary-bg, var(--mod-btn-glass-bg, rgba(15, 23, 42, 0.65)));
+  border: 1px solid var(--profile-secondary-border, var(--mod-btn-glass-border, rgba(0, 229, 255, 0.3)));
+  color: var(--profile-secondary-text, var(--mod-btn-glass-text, #ffffff));
 }
 
 .zappit-modern-btn-glass:hover {
   transform: translateY(-1px);
-  opacity: 0.9;
+  border-color: var(--profile-border-hover, var(--profile-primary));
+  opacity: 0.95;
 }
 
 .zappit-modern-btn-primary span,
@@ -5859,7 +5883,7 @@ body.light-mode .crm-kpi-badge {
   height: 16px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 520px) {
   .zappit-modern-actions-grid {
     flex-direction: column;
     gap: 8px;
@@ -5868,13 +5892,13 @@ body.light-mode .crm-kpi-badge {
   .zappit-modern-btn-primary,
   .zappit-modern-btn-glass {
     width: 100%;
-    height: 44px;
+    height: 48px;
   }
 }
 
 .zappit-modern-card {
-  background: var(--mod-card-bg, #0a1628);
-  border: 1px solid var(--mod-card-border, rgba(30, 58, 115, 0.45));
+  background: var(--profile-surface, var(--mod-card-bg, #0a1628));
+  border: 1px solid var(--profile-border, var(--mod-card-border, rgba(30, 58, 115, 0.45)));
   border-radius: var(--mod-card-radius, 14px);
   padding: 14px 16px;
   margin-bottom: var(--mod-gap, 14px);
@@ -5886,9 +5910,9 @@ body.light-mode .crm-kpi-badge {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--mod-card-border, rgba(255, 255, 255, 0.06));
+  border-bottom: 1px solid var(--profile-border, var(--mod-card-border, rgba(255, 255, 255, 0.06)));
   padding-bottom: 8px;
 }
 
@@ -5902,8 +5926,8 @@ body.light-mode .crm-kpi-badge {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--mod-row-bg, rgba(15, 27, 48, 0.7));
-  border: 1px solid var(--mod-row-border, rgba(30, 58, 115, 0.5));
+  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
+  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
   border-radius: var(--mod-card-radius, 10px);
   padding: 10px 12px;
 }
@@ -5920,11 +5944,13 @@ body.light-mode .crm-kpi-badge {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: var(--profile-primary-gradient, var(--profile-primary));
+  color: var(--profile-primary-text, #ffffff);
 }
 
 .zappit-modern-icon-circle.blue {
-  background: var(--mod-btn-primary-bg, linear-gradient(135deg, #0066FF, #00B2FF));
-  color: var(--mod-btn-primary-text, #ffffff);
+  background: var(--profile-primary-gradient, var(--mod-btn-primary-bg, linear-gradient(135deg, #0066FF, #00B2FF)));
+  color: var(--profile-primary-text, var(--mod-btn-primary-text, #ffffff));
 }
 
 .zappit-modern-icon-circle.green {
@@ -5943,21 +5969,21 @@ body.light-mode .crm-kpi-badge {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--mod-muted-text, #64748b);
+  color: var(--profile-muted, var(--mod-muted-text, #64748b));
   letter-spacing: 0.5px;
 }
 
 .zappit-modern-val {
   font-size: var(--mod-body-size, 13px);
   font-weight: 500;
-  color: var(--mod-text, #e2e8f0);
+  color: var(--profile-text, var(--mod-text, #e2e8f0));
   overflow-wrap: break-word;
 }
 
 .zappit-modern-copy-btn {
   background: transparent;
   border: none;
-  color: var(--mod-muted-text, #64748b);
+  color: var(--profile-muted, var(--mod-muted-text, #64748b));
   padding: 6px;
   cursor: pointer;
   border-radius: 6px;
@@ -5968,7 +5994,7 @@ body.light-mode .crm-kpi-badge {
 }
 
 .zappit-modern-copy-btn:hover {
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
 }
 
 .zappit-modern-chat-btn {
@@ -5998,8 +6024,8 @@ body.light-mode .crm-kpi-badge {
 }
 
 .zappit-modern-app-tile {
-  background: var(--mod-row-bg, rgba(15, 27, 48, 0.7));
-  border: 1px solid var(--mod-row-border, rgba(30, 58, 115, 0.5));
+  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
+  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
   border-radius: var(--mod-card-radius, 12px);
   padding: 12px 8px;
   display: flex;
@@ -6012,15 +6038,15 @@ body.light-mode .crm-kpi-badge {
 
 .zappit-modern-app-tile:hover {
   transform: translateY(-2px);
-  border-color: var(--mod-accent, rgba(0, 229, 255, 0.5));
+  border-color: var(--profile-border-hover, var(--profile-primary, rgba(0, 229, 255, 0.5)));
 }
 
 .zappit-modern-app-icon {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--profile-primary-gradient, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--profile-border, rgba(255, 255, 255, 0.15));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6064,7 +6090,7 @@ body.light-mode .crm-kpi-badge {
 }
 
 .zappit-modern-app-icon.website {
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  background: var(--profile-primary-gradient, linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%));
   border: none;
   box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45);
 }
@@ -6085,19 +6111,19 @@ body.light-mode .crm-kpi-badge {
 .zappit-modern-app-name {
   font-size: 11px;
   font-weight: 600;
-  color: var(--mod-text, #e2e8f0);
+  color: var(--profile-text, var(--mod-text, #e2e8f0));
   text-align: center;
 }
 
 .zappit-modern-app-arrow {
   font-size: 10px;
-  color: var(--mod-accent, #00E5FF);
+  color: var(--profile-primary, var(--mod-accent, #00E5FF));
   margin-top: 2px;
 }
 
 .zappit-modern-about-body {
   font-size: var(--mod-body-size, 13px);
-  color: var(--mod-muted-text, #94a3b8);
+  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
   line-height: 1.5;
 }
 
@@ -6116,8 +6142,8 @@ body.light-mode .crm-kpi-badge {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--mod-row-bg, rgba(0, 229, 255, 0.05));
-  border: 1px solid var(--mod-row-border, rgba(0, 229, 255, 0.2));
+  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(0, 229, 255, 0.05)));
+  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(0, 229, 255, 0.2)));
   padding: 6px 14px;
   border-radius: 20px;
 }
@@ -6136,13 +6162,13 @@ body.light-mode .crm-kpi-badge {
   gap: 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--mod-row-bg, rgba(15, 27, 48, 0.7));
-  border: 1px solid var(--mod-row-border, rgba(30, 58, 115, 0.5));
+  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
+  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
   transition: all 0.2s ease;
 }
 
 .zappit-modern-service-row:hover {
-  border-color: var(--mod-accent, #00E5FF);
+  border-color: var(--profile-border-hover, var(--profile-primary, #00E5FF));
 }
 
 .zappit-modern-service-num {
@@ -6152,8 +6178,8 @@ body.light-mode .crm-kpi-badge {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--mod-accent, #00E5FF);
-  color: #000000;
+  background: var(--profile-primary, var(--mod-accent, #00E5FF));
+  color: var(--profile-primary-text, #000000);
   font-size: 11px;
   font-weight: 800;
   flex-shrink: 0;
@@ -6162,7 +6188,7 @@ body.light-mode .crm-kpi-badge {
 .zappit-modern-service-name {
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
   line-height: 1.4;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -6188,14 +6214,14 @@ body.light-mode .crm-kpi-badge {
   display: flex;
   flex-direction: column;
   border-radius: 12px;
-  background: var(--mod-row-bg, rgba(15, 27, 48, 0.7));
-  border: 1px solid var(--mod-row-border, rgba(30, 58, 115, 0.5));
+  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
+  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
   overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .zappit-modern-product-card:hover {
-  border-color: var(--mod-accent, #00E5FF);
+  border-color: var(--profile-border-hover, var(--profile-primary, #00E5FF));
 }
 
 .zappit-modern-product-img-wrap {
@@ -6238,10 +6264,11 @@ body.light-mode .crm-kpi-badge {
   align-self: flex-start;
   font-size: 10px;
   font-weight: 700;
-  color: var(--mod-accent, #00E5FF);
+  color: var(--profile-primary, var(--mod-accent, #00E5FF));
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: rgba(0, 229, 255, 0.1);
+  background: var(--profile-surface, rgba(0, 229, 255, 0.1));
+  border: 1px solid var(--profile-border, rgba(0, 229, 255, 0.2));
   padding: 2px 8px;
   border-radius: 6px;
 }
@@ -6249,7 +6276,7 @@ body.light-mode .crm-kpi-badge {
 .zappit-modern-product-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--mod-text, #ffffff);
+  color: var(--profile-text, var(--mod-text, #ffffff));
   line-height: 1.3;
   margin: 0;
   word-break: break-word;
@@ -6259,13 +6286,13 @@ body.light-mode .crm-kpi-badge {
 .zappit-modern-product-price {
   font-size: 15px;
   font-weight: 800;
-  color: #38ef7d;
+  color: var(--profile-primary, #38ef7d);
   margin-top: 2px;
 }
 
 .zappit-modern-product-desc {
   font-size: 12px;
-  color: var(--mod-muted-text, #94a3b8);
+  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
   line-height: 1.4;
   margin: 0;
   flex: 1;

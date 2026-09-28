@@ -7,6 +7,7 @@ import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
 import { buildVCardString } from "@/lib/vcard";
+import { resolveThemeTokens } from "@/lib/themeTokens";
 
 type VehicleConnectSettings = {
   vehicleMake?: string;
@@ -522,11 +523,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     });
   const initials = card.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "ML";
 
-  const cssVars = {
-    "--pc-bg": card.profileBackground || "#0a0a0a",
-    "--pc-accent": card.profileAccent || "#b8962e",
-    "--pc-text": card.profileText || "#ffffff",
-  } as React.CSSProperties;
+  const { styleObj: cssVars } = resolveThemeTokens(card);
 
   const share = async () => {
     const data = { title: card.name, text: `${card.name}'s digital business card`, url: window.location.href };

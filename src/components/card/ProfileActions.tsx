@@ -36,6 +36,10 @@ export function ProfileActions({
             type="button"
             className="zappit-modern-btn-primary"
             onClick={onSaveContact}
+            style={{
+              background: "var(--profile-primary-gradient, var(--mod-btn-primary-bg))",
+              color: "var(--profile-primary-text, var(--mod-btn-primary-text))",
+            }}
           >
             <UserPlus className="w-4 h-4 flex-shrink-0" />
             <span>Save Contact</span>
@@ -48,12 +52,12 @@ export function ProfileActions({
             className="zappit-modern-btn-glass zappit-btn-share-details"
             onClick={onShareDetails}
             style={{
-              borderColor: "rgba(0, 229, 255, 0.4)",
-              background: "rgba(0, 102, 255, 0.15)",
-              color: "#ffffff",
+              borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
+              background: "var(--profile-secondary-bg, var(--mod-btn-glass-bg))",
+              color: "var(--profile-secondary-text, var(--mod-btn-glass-text))",
             }}
           >
-            <Users className="w-4 h-4 flex-shrink-0 text-[#00E5FF]" />
+            <Users className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
             <span>Share Your Contacts</span>
           </button>
         )}
@@ -63,8 +67,13 @@ export function ProfileActions({
             type="button"
             className="zappit-modern-btn-glass"
             onClick={onOpenBrochure}
+            style={{
+              borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
+              background: "var(--profile-secondary-bg, var(--mod-btn-glass-bg))",
+              color: "var(--profile-secondary-text, var(--mod-btn-glass-text))",
+            }}
           >
-            <FileText className="w-4 h-4 flex-shrink-0" />
+            <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
             <span>Brochure</span>
           </button>
         )}
@@ -74,8 +83,13 @@ export function ProfileActions({
             type="button"
             className="zappit-modern-btn-glass"
             onClick={onShare}
+            style={{
+              borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
+              background: "var(--profile-secondary-bg, var(--mod-btn-glass-bg))",
+              color: "var(--profile-secondary-text, var(--mod-btn-glass-text))",
+            }}
           >
-            <Share2 className="w-4 h-4 flex-shrink-0" />
+            <Share2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
             <span>Share</span>
           </button>
         )}
@@ -91,6 +105,11 @@ export function ProfileActions({
           className="pc-action-btn pc-action-btn-primary"
           type="button"
           onClick={onSaveContact}
+          style={{
+            background: "var(--profile-primary-gradient, var(--pc-accent))",
+            color: "var(--profile-primary-text, #ffffff)",
+            borderColor: "var(--profile-primary, var(--pc-accent))",
+          }}
         >
           <UserPlus className="w-4 h-4 flex-shrink-0 mr-1.5" />
           <span>Save Contact</span>
@@ -103,12 +122,12 @@ export function ProfileActions({
           type="button"
           onClick={onShareDetails}
           style={{
-            background: "rgba(0, 102, 255, 0.25)",
-            borderColor: "#00E5FF",
-            color: "#ffffff",
+            background: "var(--profile-secondary-bg, rgba(255, 255, 255, 0.1))",
+            borderColor: "var(--profile-secondary-border, var(--profile-primary))",
+            color: "var(--profile-secondary-text, #ffffff)",
           }}
         >
-          <Users className="w-4 h-4 flex-shrink-0 mr-1.5 text-[#00E5FF]" />
+          <Users className="w-4 h-4 flex-shrink-0 mr-1.5" style={{ color: "var(--profile-primary, var(--profile-accent))" }} />
           <span>Share Your Contacts</span>
         </button>
       )}
@@ -118,8 +137,13 @@ export function ProfileActions({
           className="pc-action-btn"
           type="button"
           onClick={onOpenBrochure}
+          style={{
+            background: "var(--profile-secondary-bg, rgba(255, 255, 255, 0.1))",
+            borderColor: "var(--profile-secondary-border, var(--profile-primary))",
+            color: "var(--profile-secondary-text, #ffffff)",
+          }}
         >
-          <FileText className="w-4 h-4 flex-shrink-0 mr-1.5" />
+          <FileText className="w-4 h-4 flex-shrink-0 mr-1.5" style={{ color: "var(--profile-primary, var(--profile-accent))" }} />
           <span>Brochure</span>
         </button>
       )}
@@ -129,8 +153,13 @@ export function ProfileActions({
           className="pc-action-btn"
           type="button"
           onClick={onShare}
+          style={{
+            background: "var(--profile-secondary-bg, rgba(255, 255, 255, 0.1))",
+            borderColor: "var(--profile-secondary-border, var(--profile-primary))",
+            color: "var(--profile-secondary-text, #ffffff)",
+          }}
         >
-          <Share2 className="w-4 h-4 flex-shrink-0 mr-1.5" />
+          <Share2 className="w-4 h-4 flex-shrink-0 mr-1.5" style={{ color: "var(--profile-primary, var(--profile-accent))" }} />
           <span>Share</span>
         </button>
       )}

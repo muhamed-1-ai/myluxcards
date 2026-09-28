@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Users,
@@ -69,6 +69,9 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const [scheduleNote, setScheduleNote] = useState("");
   const [scheduling, setScheduling] = useState(false);
 
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const inFlightRef = useRef(false);
+
   // Debounce search query input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -79,9 +82,16 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
   const fetchDashboardData = useCallback(
     async (isRefresh = false, signal?: AbortSignal) => {
+      if (inFlightRef.current && !isRefresh) return;
+      inFlightRef.current = true;
+
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       setError("");
+      setRetryAttempt(0);
+
+      const MAX_RETRIES = 3;
+      const RETRY_DELAYS = [1000, 2000, 5000];
 
       try {
         const queryParams = new URLSearchParams();
@@ -97,15 +107,40 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         const queryString = queryParams.toString();
         const endpoint = `/api/dashboard/lead-summary${queryString ? `?${queryString}` : ""}`;
 
-        const res = await apiFetch<DashboardSummaryPayload>(endpoint, { signal });
-        if (res.ok && res.data) {
-          setData(res.data);
-        } else if (res.error !== "Request aborted") {
-          setError(res.error || "Failed to load lead summary.");
+        let lastError = "";
+        let success = false;
+
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          if (signal?.aborted) break;
+
+          if (attempt > 0) {
+            setRetryAttempt(attempt);
+            const delay = RETRY_DELAYS[attempt - 1] || 2000;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            if (signal?.aborted) break;
+          }
+
+          const res = await apiFetch<DashboardSummaryPayload>(endpoint, { signal });
+          if (res.ok && res.data) {
+            setData(res.data);
+            success = true;
+            break;
+          } else if (res.error === "Request aborted") {
+            break;
+          } else {
+            lastError = res.error || "Failed to load lead summary.";
+          }
         }
-      } catch {
-        setError("Network issue. Failed to load dashboard data.");
+
+        if (!success && !signal?.aborted) {
+          setError(lastError || "Network issue. Failed to load dashboard data.");
+        }
+      } catch (err: any) {
+        if (!signal?.aborted) {
+          setError(err?.message || "Network issue. Failed to load dashboard data.");
+        }
       } finally {
+        inFlightRef.current = false;
         setLoading(false);
         setRefreshing(false);
       }
@@ -194,6 +229,12 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     return (
       <div className="crm-dashboard-skeleton-container" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="crm-skeleton-header" style={{ height: 50, borderRadius: 14, background: "var(--surface)" }} />
+        {retryAttempt > 0 && (
+          <div style={{ textAlign: "center", padding: "12px", color: "#00E5FF", fontSize: 13, background: "rgba(0, 229, 255, 0.08)", borderRadius: 10, border: "1px solid rgba(0, 229, 255, 0.2)" }}>
+            <RefreshCw style={{ width: 14, height: 14, display: "inline-block", marginRight: 8, verticalAlign: "middle", animation: "spin 1s linear infinite" }} />
+            Initializing Lead Command Center... Retrying (Attempt {retryAttempt} of 3)
+          </div>
+        )}
         <div className="crm-skeleton-header" style={{ height: 45, borderRadius: 14, background: "var(--surface)" }} />
         <div className="crm-skeleton-grid" style={{ height: 165, borderRadius: 14, background: "var(--surface)" }} />
       </div>
@@ -206,7 +247,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         <AlertCircle style={{ width: 40, height: 40, color: "#EF4444", margin: "0 auto 12px" }} />
         <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>Couldn't Load Lead Command Center</h3>
         <p style={{ fontSize: 13, color: "#8A909A", marginBottom: 16 }}>{error || "We couldn't load your lead summary data."}</p>
-        <button type="button" onClick={() => fetchDashboardData()} className="crm-btn-add-lead">
+        <button type="button" onClick={() => fetchDashboardData(true)} className="crm-btn-add-lead">
           <RefreshCw style={{ width: 16, height: 16 }} /> Retry Loading
         </button>
       </div>

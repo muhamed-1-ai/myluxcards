@@ -94,6 +94,28 @@ export interface DashboardFilterOptions {
   endDate?: string;
 }
 
+export const DEFAULT_DASHBOARD_SUMMARY: DashboardSummaryPayload = {
+  kpis: {
+    totalLeads: 0,
+    newLeads: 0,
+    contactedLeads: 0,
+    interestedLeads: 0,
+    followUpLeads: 0,
+    wonLeads: 0,
+    lostLeads: 0,
+    conversionRate: 0,
+  },
+  attentionItems: [],
+  pipeline: { NEW: [], CONTACTED: [], INTERESTED: [], FOLLOW_UP: [], WON: [], LOST: [] },
+  pipelineCounts: { NEW: 0, CONTACTED: 0, INTERESTED: 0, FOLLOW_UP: 0, WON: 0, LOST: 0 },
+  todaysFollowUps: [],
+  overdueFollowUps: [],
+  upcomingFollowUps: [],
+  recentActivity: [],
+  sourceStats: [],
+  growthTimeline: [],
+};
+
 /**
  * Aggregates all CRM Command Center summary data for a user in efficient parallel DB queries with dynamic filtering.
  */
@@ -103,187 +125,186 @@ export async function getDashboardSummaryData(
   userRole: string = "CUSTOMER"
 ): Promise<DashboardSummaryPayload> {
   if (!ownerUserId) {
-    throw new Error("Unauthorized user ID");
+    return DEFAULT_DASHBOARD_SUMMARY;
   }
 
-  // Dynamic WHERE conditions for leads l table
-  let baseOwnerCondition = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)";
-  const params: any[] = [];
-  let paramIdx = 1;
+  try {
+    // Dynamic WHERE conditions for leads l table
+    let baseOwnerCondition = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)";
+    const params: any[] = [];
+    let paramIdx = 1;
 
-  if (userRole === "SUPER_ADMIN") {
-    baseOwnerCondition = "1=1";
-  } else if (userRole === "ADMIN") {
-    baseOwnerCondition = "(l.owner_user_id = $1 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR l.assigned_user_id = $1)";
-    params.push(ownerUserId);
-    paramIdx = 2;
-  } else {
-    params.push(ownerUserId);
-    paramIdx = 2;
-  }
-
-  const whereConditions: string[] = [baseOwnerCondition];
-
-  if (filters?.search && filters.search.trim()) {
-    const q = `%${filters.search.trim()}%`;
-    whereConditions.push(
-      `(l.name ILIKE $${paramIdx} OR l.company_name ILIKE $${paramIdx} OR l.email ILIKE $${paramIdx} OR l.contact_number ILIKE $${paramIdx})`
-    );
-    params.push(q);
-    paramIdx++;
-  }
-
-  if (filters?.stage && filters.stage.trim()) {
-    whereConditions.push(`l.status = $${paramIdx}`);
-    params.push(filters.stage.trim());
-    paramIdx++;
-  }
-
-  if (filters?.source && filters.source.trim()) {
-    whereConditions.push(`l.source ILIKE $${paramIdx}`);
-    params.push(`%${filters.source.trim()}%`);
-    paramIdx++;
-  }
-
-  if (filters?.status && filters.status.trim()) {
-    const st = filters.status.trim().toLowerCase();
-    if (st === "active") {
-      whereConditions.push(`l.status NOT IN ('WON', 'LOST')`);
-    } else if (st === "closed") {
-      whereConditions.push(`l.status IN ('WON', 'LOST')`);
+    if (userRole === "SUPER_ADMIN") {
+      baseOwnerCondition = "1=1";
+    } else if (userRole === "ADMIN") {
+      baseOwnerCondition = "(l.owner_user_id = $1 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR l.assigned_user_id = $1)";
+      params.push(ownerUserId);
+      paramIdx = 2;
+    } else {
+      params.push(ownerUserId);
+      paramIdx = 2;
     }
-  }
 
-  if (filters?.startDate && filters.startDate.trim()) {
-    whereConditions.push(`l.created_at >= $${paramIdx}`);
-    params.push(new Date(`${filters.startDate.trim()}T00:00:00.000Z`).toISOString());
-    paramIdx++;
-  }
+    const whereConditions: string[] = [baseOwnerCondition];
 
-  if (filters?.endDate && filters.endDate.trim()) {
-    whereConditions.push(`l.created_at <= $${paramIdx}`);
-    params.push(new Date(`${filters.endDate.trim()}T23:59:59.999Z`).toISOString());
-    paramIdx++;
-  }
+    if (filters?.search && filters.search.trim()) {
+      const q = `%${filters.search.trim()}%`;
+      whereConditions.push(
+        `(l.name ILIKE $${paramIdx} OR l.company_name ILIKE $${paramIdx} OR l.email ILIKE $${paramIdx} OR l.contact_number ILIKE $${paramIdx})`
+      );
+      params.push(q);
+      paramIdx++;
+    }
 
-  if (filters?.office && filters.office.trim()) {
-    whereConditions.push(`(l.company_name ILIKE $${paramIdx} OR l.name ILIKE $${paramIdx})`);
-    params.push(`%${filters.office.trim()}%`);
-    paramIdx++;
-  }
+    if (filters?.stage && filters.stage.trim()) {
+      whereConditions.push(`l.status = $${paramIdx}`);
+      params.push(filters.stage.trim());
+      paramIdx++;
+    }
 
-  const leadsWhereClause = whereConditions.join(" AND ");
+    if (filters?.source && filters.source.trim()) {
+      whereConditions.push(`l.source ILIKE $${paramIdx}`);
+      params.push(`%${filters.source.trim()}%`);
+      paramIdx++;
+    }
 
-  // Query 1: KPI Counts
-  const kpiRes = pool.query<{ status: string; count: string }>(
-    `SELECT l.status, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.status`,
-    params
-  );
+    if (filters?.status && filters.status.trim()) {
+      const st = filters.status.trim().toLowerCase();
+      if (st === "active") {
+        whereConditions.push(`l.status NOT IN ('WON', 'LOST')`);
+      } else if (st === "closed") {
+        whereConditions.push(`l.status IN ('WON', 'LOST')`);
+      }
+    }
 
-  // Query 2: Pipeline Leads (top 5 per stage limited at DB level via CTE)
-  const pipelineRes = pool.query<{
-    id: string;
-    name: string;
-    company_name: string | null;
-    contact_number: string;
-    email: string | null;
-    status: string;
-    source: string;
-    submission_count: number;
-    updated_at: Date;
-    next_follow_up_at: Date | null;
-    next_follow_up_note: string | null;
-  }>(
-    `WITH ranked_leads AS (
-       SELECT l.id, l.name, l.company_name, l.contact_number, l.email, l.status, l.source,
-              l.submission_count, l.updated_at,
-              ROW_NUMBER() OVER (PARTITION BY l.status ORDER BY l.updated_at DESC) as rn
+    if (filters?.startDate && filters.startDate.trim()) {
+      whereConditions.push(`l.created_at >= $${paramIdx}`);
+      params.push(new Date(`${filters.startDate.trim()}T00:00:00.000Z`).toISOString());
+      paramIdx++;
+    }
+
+    if (filters?.endDate && filters.endDate.trim()) {
+      whereConditions.push(`l.created_at <= $${paramIdx}`);
+      params.push(new Date(`${filters.endDate.trim()}T23:59:59.999Z`).toISOString());
+      paramIdx++;
+    }
+
+    if (filters?.office && filters.office.trim()) {
+      whereConditions.push(`(l.company_name ILIKE $${paramIdx} OR l.name ILIKE $${paramIdx})`);
+      params.push(`%${filters.office.trim()}%`);
+      paramIdx++;
+    }
+
+    const leadsWhereClause = whereConditions.join(" AND ");
+
+    // Query 1: KPI Counts
+    const kpiRes = pool.query<{ status: string; count: string }>(
+      `SELECT l.status, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.status`,
+      params
+    );
+
+    // Query 2: Pipeline Leads (top 5 per stage limited at DB level via CTE)
+    const pipelineRes = pool.query<{
+      id: string;
+      name: string;
+      company_name: string | null;
+      contact_number: string;
+      email: string | null;
+      status: string;
+      source: string;
+      submission_count: number;
+      updated_at: Date;
+      next_follow_up_at: Date | null;
+      next_follow_up_note: string | null;
+    }>(
+      `WITH ranked_leads AS (
+         SELECT l.id, l.name, l.company_name, l.contact_number, l.email, l.status, l.source,
+                l.submission_count, l.updated_at,
+                ROW_NUMBER() OVER (PARTITION BY l.status ORDER BY l.updated_at DESC) as rn
+         FROM leads l
+         WHERE ${leadsWhereClause}
+       )
+       SELECT rl.id, rl.name, rl.company_name, rl.contact_number, rl.email, rl.status, rl.source,
+              rl.submission_count, rl.updated_at,
+              f.scheduled_at as next_follow_up_at, f.note as next_follow_up_note
+       FROM ranked_leads rl
+       LEFT JOIN LATERAL (
+         SELECT scheduled_at, note FROM lead_follow_ups
+         WHERE lead_id = rl.id AND status = 'SCHEDULED'
+         ORDER BY scheduled_at ASC LIMIT 1
+       ) f ON true
+       WHERE rl.rn <= 5
+       ORDER BY rl.updated_at DESC`,
+      params
+    );
+
+    // Query 3: Follow-Ups (scoped by matching lead tenant access)
+    const followUpsRes = pool.query<{
+      id: string;
+      lead_id: string;
+      lead_name: string;
+      company_name: string | null;
+      contact_number: string;
+      scheduled_at: Date;
+      note: string | null;
+      status: string;
+    }>(
+      `SELECT f.id, f.lead_id, l.name as lead_name, l.company_name, l.contact_number,
+              f.scheduled_at, f.note, f.status
+       FROM lead_follow_ups f
+       JOIN leads l ON l.id = f.lead_id
+       WHERE ${leadsWhereClause} AND f.status = 'SCHEDULED'
+       ORDER BY f.scheduled_at ASC
+       LIMIT 50`,
+      params
+    );
+
+    // Query 4: Recent Activities (scoped by matching lead tenant access)
+    const activityRes = pool.query<{
+      id: string;
+      lead_id: string;
+      lead_name: string;
+      type: string;
+      from_value: string | null;
+      to_value: string | null;
+      description: string | null;
+      occurred_at: Date;
+    }>(
+      `SELECT a.id, a.lead_id, COALESCE(l.name, 'Lead') as lead_name, a.type,
+              a.from_value, a.to_value, a.description, a.occurred_at
+       FROM lead_activities a
+       JOIN leads l ON l.id = a.lead_id
+       WHERE ${leadsWhereClause}
+       ORDER BY a.occurred_at DESC
+       LIMIT 15`,
+      params
+    );
+
+    // Query 5: Source Stats
+    const sourceRes = pool.query<{ source: string; count: string }>(
+      `SELECT l.source, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.source ORDER BY count DESC`,
+      params
+    );
+
+    // Query 6: Lead Growth Timeline Points
+    const growthRes = pool.query<{ date: string; count: string }>(
+      `SELECT DATE(l.created_at)::text as date, COUNT(*) as count
        FROM leads l
        WHERE ${leadsWhereClause}
-     )
-     SELECT rl.id, rl.name, rl.company_name, rl.contact_number, rl.email, rl.status, rl.source,
-            rl.submission_count, rl.updated_at,
-            f.scheduled_at as next_follow_up_at, f.note as next_follow_up_note
-     FROM ranked_leads rl
-     LEFT JOIN LATERAL (
-       SELECT scheduled_at, note FROM lead_follow_ups
-       WHERE lead_id = rl.id AND status = 'SCHEDULED'
-       ORDER BY scheduled_at ASC LIMIT 1
-     ) f ON true
-     WHERE rl.rn <= 5
-     ORDER BY rl.updated_at DESC`,
-    params
-  );
+       GROUP BY DATE(l.created_at)
+       ORDER BY date ASC`,
+      params
+    );
 
-  // Query 3: Follow-Ups (filtered by matching leads)
-  const followUpsRes = pool.query<{
-    id: string;
-    lead_id: string;
-    lead_name: string;
-    company_name: string | null;
-    contact_number: string;
-    scheduled_at: Date;
-    note: string | null;
-    status: string;
-  }>(
-    `SELECT f.id, f.lead_id, l.name as lead_name, l.company_name, l.contact_number,
-            f.scheduled_at, f.note, f.status
-     FROM lead_follow_ups f
-     JOIN leads l ON l.id = f.lead_id
-     WHERE f.owner_user_id = $1 AND f.status = 'SCHEDULED'
-     ${whereConditions.length > 1 ? "AND " + whereConditions.slice(1).join(" AND ") : ""}
-     ORDER BY f.scheduled_at ASC
-     LIMIT 50`,
-    params
-  );
-
-  // Query 4: Recent Activities (filtered by matching leads)
-  const activityRes = pool.query<{
-    id: string;
-    lead_id: string;
-    lead_name: string;
-    type: string;
-    from_value: string | null;
-    to_value: string | null;
-    description: string | null;
-    occurred_at: Date;
-  }>(
-    `SELECT a.id, a.lead_id, COALESCE(l.name, 'Lead') as lead_name, a.type,
-            a.from_value, a.to_value, a.description, a.occurred_at
-     FROM lead_activities a
-     LEFT JOIN leads l ON l.id = a.lead_id
-     WHERE a.owner_user_id = $1
-     ${whereConditions.length > 1 ? "AND " + whereConditions.slice(1).join(" AND ") : ""}
-     ORDER BY a.occurred_at DESC
-     LIMIT 15`,
-    params
-  );
-
-  // Query 5: Source Stats
-  const sourceRes = pool.query<{ source: string; count: string }>(
-    `SELECT l.source, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.source ORDER BY count DESC`,
-    params
-  );
-
-  // Query 6: Lead Growth Timeline Points
-  const growthRes = pool.query<{ date: string; count: string }>(
-    `SELECT DATE(l.created_at)::text as date, COUNT(*) as count
-     FROM leads l
-     WHERE ${leadsWhereClause}
-     GROUP BY DATE(l.created_at)
-     ORDER BY date ASC`,
-    params
-  );
-
-  // Await all parallel queries
-  const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData] = await Promise.all([
-    kpiRes,
-    pipelineRes,
-    followUpsRes,
-    activityRes,
-    sourceRes,
-    growthRes,
-  ]);
+    // Await all parallel queries
+    const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData] = await Promise.all([
+      kpiRes,
+      pipelineRes,
+      followUpsRes,
+      activityRes,
+      sourceRes,
+      growthRes,
+    ]);
 
   // Process KPIs
   const countsByStatus: Record<string, number> = {
@@ -449,18 +470,22 @@ export async function getDashboardSummaryData(
     count: parseInt(row.count, 10),
   }));
 
-  return {
-    kpis,
-    attentionItems,
-    pipeline,
-    pipelineCounts,
-    todaysFollowUps,
-    overdueFollowUps,
-    upcomingFollowUps,
-    recentActivity,
-    sourceStats,
-    growthTimeline,
-  };
+    return {
+      kpis,
+      attentionItems,
+      pipeline,
+      pipelineCounts,
+      todaysFollowUps,
+      overdueFollowUps,
+      upcomingFollowUps,
+      recentActivity,
+      sourceStats,
+      growthTimeline,
+    };
+  } catch (error) {
+    console.error("[getDashboardSummaryData] Error fetching summary data:", error);
+    return DEFAULT_DASHBOARD_SUMMARY;
+  }
 }
 
 /**

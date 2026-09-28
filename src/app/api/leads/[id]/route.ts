@@ -62,7 +62,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const customFieldsDetailed: Array<any> = [];
 
     for (const row of customValuesRes.rows) {
-      const val = row.value;
+      let val = row.value;
+      try {
+        if (typeof val === "string" && (val.startsWith("{") || val.startsWith("["))) {
+          val = JSON.parse(val);
+        }
+      } catch {}
+
       const keyId = row.fieldDefinitionId;
       const keyName = row.fieldName || row.fieldKey;
 
@@ -105,10 +111,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     );
     const lastRemark = latestRemarkObj ? latestRemarkObj.description : null;
 
+    const resolvedAddress = customFieldValuesMap["address"] || customFieldValuesMap["Address"] || null;
+
     return Response.json({
       ok: true,
       lead: {
         ...lead,
+        address: resolvedAddress,
         stage: lead.status,
         expectedRevenue: lead.totalAmount || 0,
         nextFollowUp,
@@ -121,6 +130,45 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   } catch (error: any) {
     console.error("[Lead Details API] Error:", error);
     return Response.json({ message: error.message || "Failed to load lead details." }, { status: 500 });
+  }
+}
+
+async function saveCustomFieldValue(
+  leadId: string,
+  actorId: string,
+  ownerId: string,
+  defName: string,
+  fieldKey: string,
+  val: any
+) {
+  try {
+    let defRes = await pool.query<{ id: string }>(
+      `SELECT id FROM lead_field_definitions WHERE (owner_user_id = $1 OR owner_user_id = $2) AND (name = $3 OR name = $4) LIMIT 1`,
+      [actorId, ownerId, defName, fieldKey]
+    );
+
+    let defId = defRes.rows[0]?.id;
+    if (!defId) {
+      const newDef = await pool.query<{ id: string }>(
+        `INSERT INTO lead_field_definitions (owner_user_id, name, input_type, is_required, status, sort_order, options, config, created_at, updated_at)
+         VALUES ($1, $2, 'TEXT', false, 'ACTIVE', 1, '[]', '{}', NOW(), NOW())
+         RETURNING id`,
+        [ownerId, defName]
+      );
+      defId = newDef.rows[0]?.id;
+    }
+
+    if (defId) {
+      await pool.query(
+        `INSERT INTO lead_field_values (lead_id, field_definition_id, owner_user_id, field_key, value, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (lead_id, field_definition_id) DO UPDATE
+         SET value = EXCLUDED.value, updated_at = NOW()`,
+        [leadId, defId, actorId, fieldKey, JSON.stringify(val)]
+      );
+    }
+  } catch (err) {
+    console.error("[saveCustomFieldValue] Error:", err);
   }
 }
 
@@ -143,19 +191,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   try {
     const body = await request.json().catch(() => ({}));
+
+    // STEP 4: Backend logging
+    console.log("UPDATE REQUEST BODY", body);
+    console.log("LEAD ID", id);
+
     const name = String(body.name || "").trim();
-    const companyName = body.companyName !== undefined ? String(body.companyName || "").trim() : null;
-    const contactNumber = String(body.contactNumber || "").trim();
-    const email = body.email ? String(body.email || "").trim() : null;
+    const companyName = body.companyName !== undefined ? (body.companyName ? String(body.companyName).trim() : null) : null;
+    const contactNumber = String(body.contactNumber || body.phone || "").trim();
+    const email = body.email ? String(body.email).trim() : null;
     const profileImage = body.profileImage || null;
     const assignedUserId = typeof body.assignedUserId === "string" && /^[0-9a-f-]{36}$/i.test(body.assignedUserId) ? body.assignedUserId : null;
-    const status = body.status || null;
+    const status = body.status || body.stage || null;
+    const source = body.source || null;
 
     if (!name || !contactNumber) {
       return Response.json({ message: "Lead name and contact number are required." }, { status: 400 });
     }
 
-    const note = body.note ? String(body.note).trim() : null;
+    const { normalizePhoneNumber } = await import("@/lib/phone");
+    const normPhone = normalizePhoneNumber(contactNumber).normalized;
+    const note = body.note ? String(body.note).trim() : (body.remark ? String(body.remark).trim() : null);
 
     let accessClause = "(owner_user_id = $2 OR assigned_user_id = $2)";
     if (identity.role === "SUPER_ADMIN") {
@@ -175,16 +231,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
     }
 
+    // STEP 6: ID Verification Check
+    console.log({
+      frontendId: id,
+      databaseId: existingLead.id,
+    });
+
     const previousStatus = existingLead.status;
 
+    // STEP 5: Database Update
     const result = await pool.query(
       `UPDATE leads
-       SET name = $1, company_name = $2, contact_number = $3, email = $4, profile_image = COALESCE($5, profile_image), assigned_user_id = COALESCE($6, assigned_user_id), status = COALESCE($7, status), updated_at = NOW()
-       WHERE id = $8 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$9")}
-       RETURNING id, name, company_name, contact_number, email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", updated_at`,
+       SET name = $1,
+           company_name = $2,
+           contact_number = $3,
+           contact_number_normalized = $4,
+           email = $5,
+           profile_image = COALESCE($6, profile_image),
+           assigned_user_id = COALESCE($7, assigned_user_id),
+           status = COALESCE($8, status),
+           source = COALESCE($9, source),
+           updated_at = NOW()
+       WHERE id = $10 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$11")}
+       RETURNING id, name, company_name as "companyName", contact_number as "contactNumber", email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", updated_at as "updatedAt"`,
       identity.role === "SUPER_ADMIN"
-        ? [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id]
-        : [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id, identity.id]
+        ? [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, id]
+        : [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, id, identity.id]
     );
 
     const lead = result.rows[0];
@@ -192,44 +264,34 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
     }
 
+    // Save address, totalAmount, advanceAmount, remark into custom fields
+    if (body.address !== undefined && body.address !== null) {
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Address", "address", body.address);
+    }
+    if (body.totalAmount !== undefined || body.expectedRevenue !== undefined) {
+      const amt = body.totalAmount !== undefined ? body.totalAmount : body.expectedRevenue;
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Total Amount", "totalAmount", amt);
+    }
+    if (body.advanceAmount !== undefined) {
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Advance Amount", "advanceAmount", body.advanceAmount);
+    }
+
     // Save/update custom fields if passed
     const rawCustomInput = body.customFields || body.customFieldValues;
     if (rawCustomInput && typeof rawCustomInput === "object") {
-      const defsRes = await pool.query(
-        `SELECT id, name, input_type as "inputType", is_required as "isRequired"
-         FROM lead_field_definitions
-         WHERE (owner_user_id = $1 OR owner_user_id = $2) AND status = 'ACTIVE'`,
-        [identity.id, existingLead.owner_user_id]
-      );
-      const activeDefs = defsRes.rows;
-
-      for (const def of activeDefs) {
-        const defId = def.id;
-        const keyName = def.name;
-        let val = rawCustomInput[defId] !== undefined ? rawCustomInput[defId] : rawCustomInput[keyName];
-
-        if (def.isRequired) {
-          const isEmpty =
-            val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
-          if (isEmpty) {
-            return Response.json({ message: `Field "${def.name}" is required.` }, { status: 400 });
-          }
-        }
-
-        if (val !== undefined && val !== null) {
-          if (def.inputType === "NUMBER" && val !== "") {
-            const num = Number(val);
-            if (!isNaN(num)) val = num;
-          }
-          await pool.query(
-            `INSERT INTO lead_field_values (lead_id, field_definition_id, owner_user_id, field_key, value, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-             ON CONFLICT (lead_id, field_definition_id) DO UPDATE
-             SET value = EXCLUDED.value, updated_at = NOW()`,
-            [id, defId, identity.id, keyName, JSON.stringify(val)]
-          );
-        }
+      for (const [key, val] of Object.entries(rawCustomInput)) {
+        await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, key, key, val);
       }
+    }
+
+    // Schedule follow-up if followUpDate was provided during edit
+    if (body.followUpDate) {
+      const fuNote = body.followUpNote ? `[${body.followUpType || "Call"}] ${body.followUpNote}` : `[${body.followUpType || "Call"}] Scheduled follow-up`;
+      void pool.query(
+        `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'SCHEDULED', NOW(), NOW())`,
+        [identity.id, id, body.followUpDate, fuNote]
+      );
     }
 
     // Log update activity
@@ -256,18 +318,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
+    // STEP 8: Return Updated Data
     return Response.json({
+      success: true,
       ok: true,
       message: "Lead details updated successfully.",
-      lead,
+      lead: {
+        ...lead,
+        address: body.address !== undefined ? body.address : null,
+        stage: lead.status,
+      },
     });
   } catch (error: any) {
+    // STEP 9: Error Handling
     console.error("[Lead Update API] Error:", error);
     return Response.json(
-      { message: error.message || "Failed to update lead details." },
-      { status: 400 }
+      { success: false, ok: false, message: error.message || "Failed to update lead details." },
+      { status: 500 }
     );
   }
+}
+
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  return PATCH(request, context);
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardProfileProduct } from "@/lib/cards";
 import { ProfileActions } from "./ProfileActions";
+import { resolveThemeTokens, isLightColor, getLuminance } from "@/lib/themeTokens";
 import {
   Phone,
   Mail,
@@ -24,6 +25,7 @@ import {
   Pencil,
 } from "lucide-react";
 
+export { getLuminance, isLightColor };
 
 export interface ModernProfileConfig {
   cardBackground?: string;
@@ -150,94 +152,19 @@ function SocialBrandLogo({ brand }: { brand: string }) {
   );
 }
 
-export function getLuminance(hex?: string): number {
-  if (!hex || typeof hex !== "string") return 0;
-  const clean = hex.replace("#", "").trim();
-  if (clean.length < 6) return 0;
-  const r = parseInt(clean.substring(0, 2), 16) / 255;
-  const g = parseInt(clean.substring(2, 4), 16) / 255;
-  const b = parseInt(clean.substring(4, 6), 16) / 255;
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return 0;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-export function isLightColor(hex?: string): boolean {
-  return getLuminance(hex) > 0.45;
-}
-
 export function resolveModernThemeTokens(card: ModernProfileLayoutProps["card"]) {
-  const bg = card.profileBackground || "#050B14";
-  const accent = card.profileAccent || "#00E5FF";
-  const text = card.profileText || "#FFFFFF";
-  const mc = card.modernConfig || {};
-
-  const bgIsLight = isLightColor(bg);
-
-  // Derived surfaces
-  const cardBg = mc.cardBackground || (bgIsLight ? "rgba(255, 255, 255, 0.88)" : "#0a1628");
-  const cardBorder = mc.cardBorder || (bgIsLight ? "rgba(0, 0, 0, 0.12)" : "rgba(30, 58, 115, 0.45)");
-  const mutedText = mc.mutedText || (bgIsLight ? "rgba(0, 0, 0, 0.62)" : "#94a3b8");
-  const rowBg = bgIsLight ? "rgba(0, 0, 0, 0.04)" : "rgba(15, 27, 48, 0.7)";
-  const rowBorder = bgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(30, 58, 115, 0.5)";
-
-  // Derived button styles
-  const accentIsLight = isLightColor(accent);
-  const primaryBtnBg = mc.primaryBtnBg || (
-    bgIsLight
-      ? `linear-gradient(135deg, ${accent}, ${accent}dd)`
-      : `linear-gradient(135deg, ${accent}, #0066FF)`
-  );
-  const primaryBtnText = mc.primaryBtnText || (accentIsLight ? "#000000" : "#ffffff");
-
-  const secondaryBtnBg = mc.secondaryBtnBg || (bgIsLight ? "rgba(0, 0, 0, 0.06)" : "rgba(15, 23, 42, 0.65)");
-  const secondaryBtnBorder = mc.secondaryBtnBorder || (bgIsLight ? "rgba(0, 0, 0, 0.15)" : `rgba(${accent === "#00E5FF" ? "0, 229, 255" : "255, 255, 255"}, 0.3)`);
-  const secondaryBtnText = mc.secondaryBtnText || text;
-
-  // Header style
-  const headerStyle = mc.headerStyle || "gradient";
-  const headerHeight = mc.headerHeight || 200;
-  const coverOverlay = mc.coverOverlay !== undefined ? mc.coverOverlay / 100 : 0.2;
-  const headerGradStart = mc.headerGradientStart || (bgIsLight ? accent : "#061830");
-  const headerGradEnd = mc.headerGradientEnd || (bgIsLight ? bg : "#004b99");
-  const headerBg = headerStyle === "solid" ? bg : `linear-gradient(135deg, ${headerGradStart}, ${headerGradEnd})`;
-
-  // Typography & shape
-  const fontFamily = mc.fontFamily || "'Inter', system-ui, -apple-system, sans-serif";
-  const nameSize = mc.nameSize || 22;
-  const bodySize = mc.bodySize || 14;
-  const cardRadius = mc.cardRadius !== undefined ? mc.cardRadius : 14;
-  const buttonRadius = mc.buttonRadius !== undefined ? mc.buttonRadius : 21;
-  const gap = mc.spacingDensity === "compact" ? 10 : mc.spacingDensity === "spacious" ? 18 : 14;
+  const { styleObj } = resolveThemeTokens(card);
+  const fontFamily = card.modernConfig?.fontFamily || "'Inter', system-ui, -apple-system, sans-serif";
 
   return {
-    bgIsLight,
+    bgIsLight: isLightColor(card.profileBackground || "#050B14"),
     styleVars: {
       width: "100%",
       maxWidth: 480,
       margin: "0 auto",
       boxSizing: "border-box",
       fontFamily,
-      ["--mod-bg" as string]: bg,
-      ["--mod-accent" as string]: accent,
-      ["--mod-text" as string]: text,
-      ["--mod-card-bg" as string]: cardBg,
-      ["--mod-card-border" as string]: cardBorder,
-      ["--mod-muted-text" as string]: mutedText,
-      ["--mod-row-bg" as string]: rowBg,
-      ["--mod-row-border" as string]: rowBorder,
-      ["--mod-btn-primary-bg" as string]: primaryBtnBg,
-      ["--mod-btn-primary-text" as string]: primaryBtnText,
-      ["--mod-btn-glass-bg" as string]: secondaryBtnBg,
-      ["--mod-btn-glass-border" as string]: secondaryBtnBorder,
-      ["--mod-btn-glass-text" as string]: secondaryBtnText,
-      ["--mod-header-bg" as string]: headerBg,
-      ["--mod-header-height" as string]: `${headerHeight}px`,
-      ["--mod-header-overlay" as string]: coverOverlay,
-      ["--mod-name-size" as string]: `${nameSize}px`,
-      ["--mod-body-size" as string]: `${bodySize}px`,
-      ["--mod-card-radius" as string]: `${cardRadius}px`,
-      ["--mod-btn-radius" as string]: `${buttonRadius}px`,
-      ["--mod-gap" as string]: `${gap}px`,
+      ...styleObj,
     } as React.CSSProperties,
   };
 }
@@ -311,6 +238,11 @@ export function ModernProfileLayout({
 
   const { styleVars } = resolveModernThemeTokens(card);
 
+  const logoScaleNum = card.logoScale !== undefined ? card.logoScale : 100;
+  const avatarSize = (logoScaleNum >= 70 && logoScaleNum <= 150 && card.logoScale !== undefined)
+    ? logoScaleNum
+    : Math.max(70, Math.min(150, Math.round((logoScaleNum / 100) * 108)));
+
   return (
     <div className="zappit-modern-wrapper" style={styleVars}>
       <div className="zappit-modern-container">
@@ -330,11 +262,11 @@ export function ModernProfileLayout({
           </div>
         )}
 
-        {/* ── 1. COVER & TOP BAR ── */}
+        {/* ── 1. COVER AREA (Fixed height, overflow hidden, safe zone gradient) ── */}
         <div className="zappit-modern-cover">
           {card.cover ? (
             <img
-              src={card.cover}
+              src={resolveMediaUrl(card.cover)}
               alt="Cover"
               className="zappit-modern-cover-img"
               style={{
@@ -345,30 +277,42 @@ export function ModernProfileLayout({
           ) : (
             <div className="zappit-modern-cover-gradient" />
           )}
+          <div className="zappit-modern-cover-overlay" />
+        </div>
 
-          {/* Centered Overlapping Avatar */}
-          <div className="zappit-modern-avatar-wrap">
-            <div className="zappit-modern-avatar-ring">
-              {card.logo ? (
-                <img
-                  src={resolveMediaUrl(card.logo)}
-                  alt={name}
-                  className="zappit-modern-avatar-img"
-                  style={{
-                    transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
-                    objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
-                  }}
-                />
-              ) : (
-                <div className="zappit-modern-avatar-fallback">
-                  {initials}
-                </div>
-              )}
-            </div>
+        {/* ── 2. FLOATING AVATAR AREA (Dynamic negative top margin, precise space reservation) ── */}
+        <div
+          className="zappit-modern-avatar-wrap"
+          style={{
+            marginTop: `-${Math.round(avatarSize / 2)}px`,
+          }}
+        >
+          <div
+            className="zappit-modern-avatar-ring"
+            style={{
+              width: `${avatarSize}px`,
+              height: `${avatarSize}px`,
+            }}
+          >
+            {card.logo ? (
+              <img
+                src={resolveMediaUrl(card.logo)}
+                alt={name}
+                className="zappit-modern-avatar-img"
+                style={{
+                  transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
+                  objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
+                }}
+              />
+            ) : (
+              <div className="zappit-modern-avatar-fallback">
+                {initials}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── 2. CENTERED PROFILE HEADER ── */}
+        {/* ── 3. CENTERED PROFILE HEADER (Always stays below avatar) ── */}
         <div className="zappit-modern-header">
           <h1 className="zappit-modern-name">{name}</h1>
           <p className="zappit-modern-subtitle">{subtitle}</p>
@@ -389,7 +333,7 @@ export function ModernProfileLayout({
         {(fullPhone || card.email || fullWhatsapp) && (
           <div className="zappit-modern-card">
             <div className="zappit-modern-card-header">
-              <User className="w-4 h-4 text-[#00E5FF]" />
+              <User className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
               <span>Contact Details</span>
             </div>
 
@@ -397,8 +341,14 @@ export function ModernProfileLayout({
               {/* Phone Row */}
               {fullPhone && (
                 <div className="zappit-modern-contact-row">
-                  <div className="zappit-modern-icon-circle blue">
-                    <Phone className="w-4 h-4 text-white" />
+                  <div
+                    className="zappit-modern-icon-circle"
+                    style={{
+                      background: "var(--profile-primary-gradient, var(--profile-primary))",
+                      color: "var(--profile-primary-text, #ffffff)",
+                    }}
+                  >
+                    <Phone className="w-4 h-4" style={{ color: "var(--profile-primary-text, #ffffff)" }} />
                   </div>
                   <div className="zappit-modern-contact-body">
                     <span className="zappit-modern-label">Mobile</span>
@@ -420,8 +370,14 @@ export function ModernProfileLayout({
               {/* Email Row */}
               {card.email && (
                 <div className="zappit-modern-contact-row">
-                  <div className="zappit-modern-icon-circle blue">
-                    <Mail className="w-4 h-4 text-white" />
+                  <div
+                    className="zappit-modern-icon-circle"
+                    style={{
+                      background: "var(--profile-primary-gradient, var(--profile-primary))",
+                      color: "var(--profile-primary-text, #ffffff)",
+                    }}
+                  >
+                    <Mail className="w-4 h-4" style={{ color: "var(--profile-primary-text, #ffffff)" }} />
                   </div>
                   <div className="zappit-modern-contact-body">
                     <span className="zappit-modern-label">Email</span>
@@ -471,7 +427,7 @@ export function ModernProfileLayout({
           <div className="zappit-modern-card">
             <div className="zappit-modern-card-header justify-between">
               <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-[#00E5FF]" />
+                <Briefcase className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
                 <div className="flex flex-col">
                   <span className="text-[10px] tracking-wider uppercase text-slate-400 font-semibold leading-none">BUSINESS INFORMATION</span>
                   <span className="text-sm font-bold leading-tight mt-0.5">Services / Products</span>
@@ -503,7 +459,7 @@ export function ModernProfileLayout({
             <div className="zappit-modern-card">
               <div className="zappit-modern-card-header justify-between">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-[#00E5FF]" />
+                  <ShoppingBag className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
                   <div className="flex flex-col">
                     <span className="text-[10px] tracking-wider uppercase text-slate-400 font-semibold leading-none">SHOWCASE</span>
                     <span className="text-sm font-bold leading-tight mt-0.5">My Products</span>
@@ -584,7 +540,7 @@ export function ModernProfileLayout({
           <div className="zappit-modern-card">
             <div className="zappit-modern-card-header justify-between">
               <div className="flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-[#00E5FF]" />
+                <LinkIcon className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
                 <span>Apps &amp; Links</span>
               </div>
               <span className="text-[11px] text-slate-400 font-medium">Follow &amp; Explore →</span>
@@ -614,14 +570,14 @@ export function ModernProfileLayout({
         {card.about && (
           <div className="zappit-modern-card">
             <div className="zappit-modern-card-header">
-              <Users className="w-4 h-4 text-[#00E5FF]" />
+              <Users className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
               <span>About Me</span>
             </div>
             <div className="zappit-modern-about-body">
               <p className="zappit-modern-about-text">{card.about}</p>
               <div className="zappit-modern-about-graphic">
                 <div className="zappit-graphic-badge">
-                  <span className="text-[#00E5FF] font-black text-lg">Z</span>
+                  <span className="font-black text-lg" style={{ color: "var(--profile-primary, var(--mod-accent))" }}>Z</span>
                   <span className="text-xs font-bold text-slate-300">Ideas to Impact</span>
                 </div>
               </div>
@@ -632,12 +588,12 @@ export function ModernProfileLayout({
         {/* ── 7. BRAND FOOTER ── */}
         <div className="zappit-modern-footer">
           <div className="zappit-footer-left">
-            <span className="font-bold text-[#00E5FF] tracking-wider text-xs">ZAPPIT</span>
+            <span className="font-bold tracking-wider text-xs" style={{ color: "var(--profile-primary, var(--mod-accent))" }}>ZAPPIT</span>
             <span className="text-slate-500 text-xs mx-1">|</span>
             <span className="text-slate-400 text-xs">Your Digital Identity</span>
           </div>
           <div className="zappit-footer-right">
-            <Sparkles className="w-3.5 h-3.5 text-[#00E5FF]" />
+            <Sparkles className="w-3.5 h-3.5" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
             <span className="text-slate-400 text-[11px] font-medium">Tap to Connect</span>
           </div>
         </div>

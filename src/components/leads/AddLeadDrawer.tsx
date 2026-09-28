@@ -563,6 +563,10 @@ export default function AddLeadDrawer({
       customFields: customFieldValues,
     };
 
+    // STEP 1 & STEP 3: Debug logging
+    console.log("EDIT SAVE CLICKED", { mode, leadId: leadData?.id });
+    console.log("UPDATE LEAD PAYLOAD", payload);
+
     try {
       if (mode === "edit" && leadData?.id) {
         const res = await fetch(`/api/leads/${leadData.id}`, {
@@ -572,7 +576,7 @@ export default function AddLeadDrawer({
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to update lead.");
+        if (!res.ok) throw new Error(data.message || data.error || "Failed to update lead.");
       } else {
         const res = await fetch("/api/leads", {
           method: "POST",

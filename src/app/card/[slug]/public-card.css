@@ -218,16 +218,15 @@
 }
 
 .pc-action-btn-primary {
-  background: linear-gradient(135deg, #0066FF 0%, #b8962e 100%);
-  color: #0b0c10;
-  border-color: #0066FF;
+  background: var(--profile-primary-gradient, var(--pc-accent, #b8962e));
+  color: var(--profile-primary-text, #ffffff);
+  border-color: var(--profile-primary, var(--pc-accent, #b8962e));
   font-weight: 700;
-  box-shadow: 0 4px 16px rgba(0, 229, 255, 0.25);
+  box-shadow: 0 4px 16px var(--profile-secondary-bg, rgba(0, 0, 0, 0.25));
 }
 .pc-action-btn-primary:hover {
-  background: #e5c158;
-  color: #000;
-  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px var(--profile-secondary-bg, rgba(0, 0, 0, 0.4));
 }
 
 /* ── Lead Capture CTA & Modal ── */
@@ -237,8 +236,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(135deg, #0066FF 0%, #b8962e 100%);
-  color: #000;
+  background: var(--profile-primary-gradient, var(--pc-accent, #b8962e));
+  color: var(--profile-primary-text, #ffffff);
   border: none;
   border-radius: 14px;
   padding: 14px 20px;
@@ -246,12 +245,12 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 229, 255, 0.3);
+  box-shadow: 0 4px 20px var(--profile-secondary-bg, rgba(0, 0, 0, 0.3));
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .pc-lead-cta-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(0, 229, 255, 0.45);
+  filter: brightness(1.1);
 }
 .pc-lead-cta-btn:active {
   transform: translateY(0);
@@ -272,12 +271,12 @@
 
 .pc-lead-modal-dialog {
   width: min(440px, 100%);
-  background: #0f0f10;
-  border: 1px solid rgba(0, 229, 255, 0.35);
+  background: var(--profile-surface, #0f0f10);
+  border: 1px solid var(--profile-border, rgba(255, 255, 255, 0.2));
   border-radius: 20px;
   padding: 24px;
-  color: #fff;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 229, 255, 0.15);
+  color: var(--profile-text, #fff);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
@@ -293,13 +292,13 @@
 .pc-lead-modal-title {
   font-size: 20px;
   font-weight: 700;
-  color: #0066FF;
+  color: var(--profile-primary, #0066FF);
   letter-spacing: 0.02em;
 }
 
 .pc-lead-modal-subtitle {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--profile-muted, rgba(255, 255, 255, 0.7));
   margin-top: 3px;
 }
 
@@ -336,25 +335,25 @@
 .pc-lead-label {
   font-size: 12.5px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--profile-text, rgba(255, 255, 255, 0.85));
   letter-spacing: 0.02em;
 }
 
 .pc-lead-input {
   width: 100%;
   min-height: 48px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--profile-surface-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--profile-border, rgba(255, 255, 255, 0.15));
   border-radius: 12px;
   padding: 12px 16px;
-  color: #fff;
+  color: var(--profile-text, #fff);
   font-size: 14px;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .pc-lead-input:focus {
-  border-color: #0066FF;
-  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.25);
+  border-color: var(--profile-primary, #0066FF);
+  box-shadow: 0 0 0 3px var(--profile-secondary-bg, rgba(0, 229, 255, 0.25));
 }
 .pc-lead-input.has-error {
   border-color: #e74c3c;
@@ -366,11 +365,11 @@
 }
 
 .pc-lead-country-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--profile-surface-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--profile-border, rgba(255, 255, 255, 0.15));
   border-radius: 10px;
   padding: 11px 10px;
-  color: #0066FF;
+  color: var(--profile-primary, #0066FF);
   font-size: 14px;
   font-weight: 600;
   outline: none;
@@ -379,15 +378,15 @@
 
 .pc-lead-privacy-note {
   font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--profile-muted, rgba(255, 255, 255, 0.55));
   line-height: 1.45;
   margin-top: 4px;
 }
 
 .pc-lead-submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #0066FF 0%, #b8962e 100%);
-  color: #000;
+  background: var(--profile-primary-gradient, linear-gradient(135deg, #0066FF 0%, #b8962e 100%));
+  color: var(--profile-primary-text, #000);
   border: none;
   border-radius: 12px;
   padding: 13px;

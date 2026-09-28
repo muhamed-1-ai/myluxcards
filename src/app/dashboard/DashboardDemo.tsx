@@ -13,6 +13,7 @@ import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDa
 import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { resolveThemeTokens, PROFILE_THEME_PRESETS, ProfileThemePreset } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
@@ -207,32 +208,7 @@ type LocationApi = {
   getCitiesOfState: (countryIso: string, stateCode: string) => LocationCity[];
 };
 const blankSocial = Object.fromEntries(socialFields.map((x) => [x, ""]));
-export interface ProfileThemePreset {
-  id: string;
-  name: string;
-  descriptor: string;
-  background: string;
-  accent: string;
-  text: string;
-}
-
-const profileThemes: ProfileThemePreset[] = [
-  { id: "obsidian-luxe", name: "Obsidian Luxe", descriptor: "Deep black · champagne", background: "#0B0D12", accent: "#D4AF62", text: "#F7F3EA" },
-  { id: "midnight-sapphire", name: "Midnight Sapphire", descriptor: "Midnight blue · electric sapphire", background: "#071525", accent: "#4DA3FF", text: "#F4F8FF" },
-  { id: "royal-noir", name: "Royal Noir", descriptor: "Deep violet · royal accent", background: "#100B1C", accent: "#9B6CFF", text: "#F8F4FF" },
-  { id: "emerald-sovereign", name: "Emerald Sovereign", descriptor: "Forest black · emerald", background: "#071712", accent: "#39C98A", text: "#F2FFF8" },
-  { id: "ocean-meridian", name: "Ocean Meridian", descriptor: "Deep ocean · aqua", background: "#07171C", accent: "#35C4D8", text: "#F2FCFF" },
-  { id: "champagne-noir", name: "Champagne Noir", descriptor: "Warm black · champagne", background: "#15110C", accent: "#E2C58B", text: "#FFF9EC" },
-  { id: "rose-prestige", name: "Rose Prestige", descriptor: "Black cherry · rose", background: "#180E14", accent: "#D88B9A", text: "#FFF4F7" },
-  { id: "copper-atelier", name: "Copper Atelier", descriptor: "Dark espresso · copper", background: "#17100C", accent: "#C9824A", text: "#FFF5ED" },
-  { id: "arctic-pearl", name: "Arctic Pearl", descriptor: "Pearl white · slate blue", background: "#EEF3F7", accent: "#315D7A", text: "#101820" },
-  { id: "ivory-estate", name: "Ivory Estate", descriptor: "Warm ivory · antique gold", background: "#F5F0E7", accent: "#8A6A3E", text: "#17130E" },
-  { id: "carbon-platinum", name: "Carbon Platinum", descriptor: "Carbon black · platinum", background: "#101214", accent: "#B9C2CC", text: "#F5F7FA" },
-  { id: "deep-garnet", name: "Deep Garnet", descriptor: "Black cherry · garnet", background: "#190B10", accent: "#C94B68", text: "#FFF2F5" },
-  { id: "forest-reserve", name: "Forest Reserve", descriptor: "Forest green · soft lime", background: "#0B1711", accent: "#8BBF72", text: "#F4FFF0" },
-  { id: "cobalt-signature", name: "Cobalt Signature", descriptor: "Deep navy · cobalt", background: "#08132A", accent: "#367BFF", text: "#F4F7FF" },
-  { id: "sandstone-elite", name: "Sandstone Elite", descriptor: "Warm stone · bronze", background: "#19150F", accent: "#C7A66A", text: "#FFF8E9" },
-];
+const profileThemes: ProfileThemePreset[] = PROFILE_THEME_PRESETS;
 const storageKey = (accountId: string) => `${STORE_PREFIX}${accountId}`;
 const cacheCards = (accountId: string, cards: Card[]) => {
   try {
@@ -4620,6 +4596,7 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
                   update("profileBackground", theme.background);
                   update("profileAccent", theme.accent);
                   update("profileText", theme.text);
+                  update("theme", theme.id);
                 }}
               >
                 {/* Visual Swatch representing theme relationship */}
@@ -4695,12 +4672,187 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
         </button>
       </div>
     </div>
-    <div className="upload-section"><div><span className="step">01</span><h3>Logo or photo</h3><p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "logo"} onChange={(e) => handleFile(e, "logo")} />{uploadingKind === "logo" ? "Uploading…" : "Select image"}</label></div><div className="logo-upload-preview">{draft.logo ? <img src={resolveMediaUrl(draft.logo)} alt="Image preview" style={{ transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`, objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%` }} onLoad={(e) => { const img = e.currentTarget; console.debug("[ProfileImageTrace][IMG]", { kind: "logo", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftLogo: String(draft.logo || ""), resolvedLogo: String(resolveMediaUrl(draft.logo) || ""), timestamp: Date.now() }); console.log("[ProfileImageDebug] IMAGE_LOAD_SUCCESS", { kind: "logo", src: String(img.currentSrc || img.src), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight) }); }} onError={(e) => { const img = e.currentTarget; console.error("[ProfileImageTrace][IMAGE_LOAD_FAILED]", { kind: "logo", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftLogo: String(draft.logo || ""), resolvedLogo: String(resolveMediaUrl(draft.logo) || ""), timestamp: Date.now() }); console.error("[ProfileImageTrace][IMAGE_SRC_FAILURE]", String(img.src || "")); console.error("[ProfileImageDebug] IMAGE_LOAD_FAILED", { kind: "logo", src: String(img.src || "") }); }} /> : <span>YOUR<br />IMAGE</span>}</div></div>
-    {draft.logo && <div className="image-controls"><label>Size <input type="range" min="40" max="180" value={draft.logoScale || 100} onChange={event => update("logoScale", Number(event.target.value))} /><output>{draft.logoScale || 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.logoRotation || 0} onChange={event => update("logoRotation", Number(event.target.value))} /><output>{draft.logoRotation || 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.logoX || 50} onChange={event => update("logoX", Number(event.target.value))} /></label><label>Vertical position <input type="range" min="0" max="100" value={draft.logoY || 50} onChange={event => update("logoY", Number(event.target.value))} /></label><button type="button" onClick={() => { update("logoScale", 100); update("logoRotation", 0); update("logoX", 50); update("logoY", 50); }}>Reset image</button></div>}
+    <div className="upload-section">
+      <div>
+        <span className="step">01</span>
+        <h3>Logo or photo</h3>
+        <p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p>
+        <label className="upload-btn">
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            disabled={uploadingKind === "logo"}
+            onChange={(e) => handleFile(e, "logo")}
+          />
+          {uploadingKind === "logo" ? "Uploading…" : "Select image"}
+        </label>
+      </div>
+      <div className="logo-upload-preview">
+        {draft.logo ? (
+          <img
+            src={resolveMediaUrl(draft.logo)}
+            alt="Image preview"
+            style={{
+              transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`,
+              objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%`,
+            }}
+          />
+        ) : (
+          <span>YOUR<br />IMAGE</span>
+        )}
+      </div>
+    </div>
+    {draft.logo && (
+      <div className="image-controls">
+        <label>
+          Size (70px – 150px)
+          <input
+            type="range"
+            min="65"
+            max="140"
+            value={draft.logoScale || 100}
+            onChange={(event) => update("logoScale", Number(event.target.value))}
+          />
+          <output>
+            {Math.max(70, Math.min(150, Math.round(((draft.logoScale || 100) / 100) * 108)))}px
+          </output>
+        </label>
+        <label>
+          Rotation
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            value={draft.logoRotation || 0}
+            onChange={(event) => update("logoRotation", Number(event.target.value))}
+          />
+          <output>{draft.logoRotation || 0}°</output>
+        </label>
+        <label>
+          Horizontal position
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={draft.logoX || 50}
+            onChange={(event) => update("logoX", Number(event.target.value))}
+          />
+          <output>{draft.logoX || 50}%</output>
+        </label>
+        <label>
+          Vertical position
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={draft.logoY || 50}
+            onChange={(event) => update("logoY", Number(event.target.value))}
+          />
+          <output>{draft.logoY || 50}%</output>
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            update("logoScale", 100);
+            update("logoRotation", 0);
+            update("logoX", 50);
+            update("logoY", 50);
+          }}
+        >
+          Reset image
+        </button>
+      </div>
+    )}
 
-
-    <div className="upload-section"><div><span className="step">02</span><h3>Background / cover</h3><p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p><label className="upload-btn"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={uploadingKind === "cover"} onChange={(e) => handleFile(e, "cover")} />{uploadingKind === "cover" ? "Uploading…" : "Select background image"}</label></div><div className="cover-upload-preview">{draft.cover ? <img src={resolveMediaUrl(draft.cover)} alt="Cover preview" style={{ transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`, objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%` }} onLoad={(e) => { const img = e.currentTarget; console.debug("[ProfileImageTrace][IMG]", { kind: "cover", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftCover: String(draft.cover || ""), resolvedCover: String(resolveMediaUrl(draft.cover) || ""), timestamp: Date.now() }); console.log("[ProfileImageDebug] IMAGE_LOAD_SUCCESS", { kind: "cover", src: String(img.currentSrc || img.src), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight) }); }} onError={(e) => { const img = e.currentTarget; console.error("[ProfileImageTrace][IMAGE_LOAD_FAILED]", { kind: "cover", src: String(img.src || ""), currentSrc: String(img.currentSrc || ""), complete: Boolean(img.complete), naturalWidth: Number(img.naturalWidth), naturalHeight: Number(img.naturalHeight), draftCover: String(draft.cover || ""), resolvedCover: String(resolveMediaUrl(draft.cover) || ""), timestamp: Date.now() }); console.error("[ProfileImageTrace][IMAGE_SRC_FAILURE]", String(img.src || "")); console.error("[ProfileImageDebug] IMAGE_LOAD_FAILED", { kind: "cover", src: String(img.src || "") }); }} /> : <span>Cover image preview</span>}</div></div>
-    {draft.cover && <div className="image-controls cover-image-controls"><label>Size <input type="range" min="100" max="220" value={draft.coverScale ?? 100} onChange={event => update("coverScale", Number(event.target.value))} /><output>{draft.coverScale ?? 100}%</output></label><label>Rotation <input type="range" min="-180" max="180" value={draft.coverRotation ?? 0} onChange={event => update("coverRotation", Number(event.target.value))} /><output>{draft.coverRotation ?? 0}°</output></label><label>Horizontal position <input type="range" min="0" max="100" value={draft.coverX ?? 50} onChange={event => update("coverX", Number(event.target.value))} /><output>{draft.coverX ?? 50}%</output></label><label>Vertical position <input type="range" min="0" max="100" value={draft.coverY ?? 50} onChange={event => update("coverY", Number(event.target.value))} /><output>{draft.coverY ?? 50}%</output></label><button type="button" onClick={() => { update("coverScale", 100); update("coverRotation", 0); update("coverX", 50); update("coverY", 50); }}>Reset cover</button></div>}
+    <div className="upload-section">
+      <div>
+        <span className="step">02</span>
+        <h3>Background / cover</h3>
+        <p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p>
+        <label className="upload-btn">
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            disabled={uploadingKind === "cover"}
+            onChange={(e) => handleFile(e, "cover")}
+          />
+          {uploadingKind === "cover" ? "Uploading…" : "Select background image"}
+        </label>
+      </div>
+      <div className="cover-upload-preview">
+        {draft.cover ? (
+          <img
+            src={resolveMediaUrl(draft.cover)}
+            alt="Cover preview"
+            style={{
+              transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`,
+              objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%`,
+            }}
+          />
+        ) : (
+          <span>Cover image preview</span>
+        )}
+      </div>
+    </div>
+    {draft.cover && (
+      <div className="image-controls cover-image-controls">
+        <label>
+          Zoom / Scale
+          <input
+            type="range"
+            min="100"
+            max="200"
+            value={draft.coverScale ?? 100}
+            onChange={(event) => update("coverScale", Number(event.target.value))}
+          />
+          <output>{draft.coverScale ?? 100}%</output>
+        </label>
+        <label>
+          Rotation
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            value={draft.coverRotation ?? 0}
+            onChange={(event) => update("coverRotation", Number(event.target.value))}
+          />
+          <output>{draft.coverRotation ?? 0}°</output>
+        </label>
+        <label>
+          Horizontal position
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={draft.coverX ?? 50}
+            onChange={(event) => update("coverX", Number(event.target.value))}
+          />
+          <output>{draft.coverX ?? 50}%</output>
+        </label>
+        <label>
+          Vertical position
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={draft.coverY ?? 50}
+            onChange={(event) => update("coverY", Number(event.target.value))}
+          />
+          <output>{draft.coverY ?? 50}%</output>
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            update("coverScale", 100);
+            update("coverRotation", 0);
+            update("coverX", 50);
+            update("coverY", 50);
+          }}
+        >
+          Reset cover
+        </button>
+      </div>
+    )}
   </>;
 }
 
@@ -4947,16 +5099,16 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
           />
         </div>
       ) : (
-        <div className="phone-preview" style={{ "--profile-bg": card.profileBackground || "#020202", "--profile-accent": card.profileAccent || "#0066FF", "--profile-text": card.profileText || "#ffffff" } as React.CSSProperties}>
-          <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button>Share</button></div>
+        <div className="phone-preview" style={resolveThemeTokens(card).styleObj}>
+          <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button style={{ background: "var(--profile-primary)", color: "var(--profile-primary-text)" }}>Share</button></div>
           <div className="cover">{card.cover ? <img src={resolveMediaUrl(card.cover)} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>ZAPPIT</span>}</div>
           <div className="profile-logo">{card.logo ? <img src={resolveMediaUrl(card.logo)} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
           <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
           <div className="profile-actions">
-            <button type="button" onClick={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}>＋ Save Contact</button>
-            <button type="button" onClick={() => setShareDetailsModalOpen(true)} style={{ background: "rgba(0, 102, 255, 0.25)", borderColor: "#00E5FF", color: "#ffffff" }}>Share Your Details</button>
-            {card.brochure && <button type="button">▤ Brochure</button>}
-            <button type="button" onClick={() => alert("Share demo: in live public profile this opens share options.")}>↗ Share</button>
+            <button type="button" style={{ background: "var(--profile-primary-gradient)", color: "var(--profile-primary-text)", borderColor: "var(--profile-primary)" }} onClick={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}>＋ Save Contact</button>
+            <button type="button" onClick={() => setShareDetailsModalOpen(true)} style={{ background: "var(--profile-secondary-bg)", borderColor: "var(--profile-secondary-border)", color: "var(--profile-secondary-text)" }}>Share Your Details</button>
+            {card.brochure && <button type="button" style={{ background: "var(--profile-secondary-bg)", borderColor: "var(--profile-secondary-border)", color: "var(--profile-secondary-text)" }}>▤ Brochure</button>}
+            <button type="button" style={{ background: "var(--profile-secondary-bg)", borderColor: "var(--profile-secondary-border)", color: "var(--profile-secondary-text)" }} onClick={() => alert("Share demo: in live public profile this opens share options.")}>↗ Share</button>
           </div>
           <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>
           {(card.about || card.services.length > 0) && <div className="company-preview">
