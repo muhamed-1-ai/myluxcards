@@ -2,16 +2,14 @@ import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ message: "Unauthorized." }, { status: 401 });
   }
-
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
     return Response.json({ message: "Invalid lead ID." }, { status: 400 });
   }
-
   try {
     // STRICT ACCOUNT ISOLATION: A lead can only be retrieved by its owner
     const leadRes = await pool.query(
@@ -57,7 +55,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const keyId = row.fieldDefinitionId;
       const keyName = row.fieldName || row.fieldKey;
 
-      // Store in map under both fieldId and fieldKey for flexibility
       customFieldValuesMap[keyId] = val;
       if (keyName) {
         customFieldValuesMap[keyName] = val;
@@ -92,7 +89,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     );
     const activities = actRes.rows;
 
-    // Find latest remark if any
     const latestRemarkObj = activities.find(
       (a: any) => a.type === "REMARK" || a.type === "NOTE_ADDED" || (a.description && a.description.toLowerCase().includes("remark"))
     );
@@ -122,7 +118,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ message: "Unauthorized." }, { status: 401 });
   }
@@ -139,7 +135,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const contactNumber = String(body.contactNumber || "").trim();
     const email = body.email ? String(body.email || "").trim() : null;
     const profileImage = body.profileImage || null;
-    const assignedUserId = body.assignedUserId || null;
+    const assignedUserId = typeof body.assignedUserId === "string" && /^[0-9a-f-]{36}$/i.test(body.assignedUserId) ? body.assignedUserId : null;
     const status = body.status || null;
 
     if (!name || !contactNumber) {
@@ -257,7 +253,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ message: "Unauthorized." }, { status: 401 });
   }

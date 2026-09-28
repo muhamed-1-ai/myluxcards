@@ -10,12 +10,8 @@ interface AddLeadModalProps {
 }
 
 export function AddLeadModal({ isOpen, onClose, onLeadAdded, identity }: AddLeadModalProps) {
-  const activeIdentity = identity || {
-    id: "admin",
-    name: "Admin User",
-    email: "admin@zappit.ai",
-    role: "ADMIN",
-  };
+  const isValidUuid = (val?: string) => Boolean(val && typeof val === "string" && /^[0-9a-f-]{36}$/i.test(val));
+  const activeIdentity = (identity && isValidUuid(identity.id)) ? identity : undefined;
 
   return (
     <AddLeadDrawer

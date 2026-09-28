@@ -4,13 +4,12 @@ import { createAdminManagedUser } from "@/lib/authService";
 import { findManagedUsersByAdmin } from "@/lib/repositories/users";
 import { normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const identity = await currentIdentity();
+    const identity = await requireAdmin(request);
     if (!identity) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
+      const auth = await currentIdentity(request);
+      if (!auth) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -33,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Invalid origin" }, { status: 403 });
     }
 
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request);
     if (!admin) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

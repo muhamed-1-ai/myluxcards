@@ -29,7 +29,7 @@ test("3. POST /api/leads auto-provisions digital card for new users", () => {
 // 4. Verify /api/admin/managed-users enforces requireAdmin security check
 test("4. /api/admin/managed-users enforces requireAdmin security check", () => {
   const code = fs.readFileSync("src/app/api/admin/managed-users/route.ts", "utf8");
-  assert.equal(code.includes("requireAdmin()"), true, "managed-users route MUST enforce requireAdmin check");
+  assert.equal(code.includes("requireAdmin"), true, "managed-users route MUST enforce requireAdmin check");
 });
 
 // 5. Verify /api/notifications/stream contains ping frames for SSE connection stability

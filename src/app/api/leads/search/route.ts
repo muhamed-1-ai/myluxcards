@@ -3,7 +3,7 @@ import { pool } from "@/lib/db";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) return Response.json({ message: "Unauthorized" }, { status: 401 });
   if (!identity.featurePermissions?.leads && identity.role !== "SUPER_ADMIN" && identity.role !== "ADMIN") {
     return Response.json({ message: "Forbidden" }, { status: 403 });
@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   const q = searchParams.get("q") || "";
   const stage = searchParams.get("stage") || "";
   const source = searchParams.get("source") || "";
-  const assignedUserId = searchParams.get("assignedUserId") || "";
+  const rawAssigned = searchParams.get("assignedUserId") || "";
+  const assignedUserId = /^[0-9a-f-]{36}$/i.test(rawAssigned) ? rawAssigned : "";
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));

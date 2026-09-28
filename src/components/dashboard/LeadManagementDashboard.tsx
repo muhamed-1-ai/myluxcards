@@ -39,10 +39,11 @@ const AddLeadModal = dynamic(
 
 interface LeadManagementDashboardProps {
   userName: string;
+  identity?: { id: string; name: string | null; email: string; role: string };
   onNavigateTab?: (tab: string) => void;
 }
 
-export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagementDashboardProps) {
+export function LeadManagementDashboard({ userName, identity, onNavigateTab }: LeadManagementDashboardProps) {
   const [data, setData] = useState<DashboardSummaryPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -576,6 +577,7 @@ export function LeadManagementDashboard({ userName, onNavigateTab }: LeadManagem
         isOpen={addLeadOpen}
         onClose={() => setAddLeadOpen(false)}
         onLeadAdded={() => fetchDashboardData(true)}
+        identity={identity}
       />
 
       {/* Schedule Follow-Up Modal */}

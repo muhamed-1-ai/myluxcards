@@ -51,12 +51,25 @@ export async function currentIdentity(req?: Request): Promise<AdminIdentity | nu
   };
 }
 
-export async function requireAuthenticatedUser(): Promise<AdminIdentity | null> {
-  return currentIdentity();
+export async function requireAuthenticatedUser(req?: Request): Promise<AdminIdentity | null> {
+  return currentIdentity(req);
 }
 
-export async function requireAdmin(options?: boolean | { allowSuper?: boolean }) {
-  const identity = await currentIdentity();
+export async function requireAdmin(
+  optionsOrReq?: Request | boolean | { allowSuper?: boolean },
+  reqIfOptions?: Request
+) {
+  let req: Request | undefined = undefined;
+  let options: boolean | { allowSuper?: boolean } | undefined = undefined;
+
+  if (optionsOrReq && typeof (optionsOrReq as Request).url === "string") {
+    req = optionsOrReq as Request;
+  } else {
+    options = optionsOrReq as boolean | { allowSuper?: boolean };
+    req = reqIfOptions;
+  }
+
+  const identity = await currentIdentity(req);
   if (!identity) return null;
   const allowSuper = typeof options === "boolean" ? options : options?.allowSuper ?? true;
   if (identity.role === "ADMIN" || (allowSuper && identity.role === "SUPER_ADMIN")) {
@@ -65,16 +78,16 @@ export async function requireAdmin(options?: boolean | { allowSuper?: boolean })
   return null;
 }
 
-export async function requireSuperAdmin() {
-  const identity = await currentIdentity();
+export async function requireSuperAdmin(req?: Request) {
+  const identity = await currentIdentity(req);
   if (!identity || identity.role !== "SUPER_ADMIN") {
     return null;
   }
   return identity;
 }
 
-export async function requirePermission(permission: FeatureKey): Promise<AdminIdentity | null> {
-  const identity = await currentIdentity();
+export async function requirePermission(permission: FeatureKey, req?: Request): Promise<AdminIdentity | null> {
+  const identity = await currentIdentity(req);
   if (!identity) return null;
   if (identity.role === "SUPER_ADMIN" || identity.role === "ADMIN") {
     return identity;

@@ -2,35 +2,95 @@ import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/a
 import { pool } from "@/lib/db";
 import { createManualLead } from "@/lib/crm";
 
+export async function GET(request: Request) {
+  const identity = await currentIdentity(request);
+  if (!identity) {
+    return Response.json({ message: "Not authenticated." }, { status: 401 });
+  }
+  if (!identity.featurePermissions?.leads && identity.role !== "SUPER_ADMIN" && identity.role !== "ADMIN") {
+    return Response.json({ message: "Permission denied." }, { status: 403 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "25")));
+    const offset = (page - 1) * limit;
+
+    const countRes = await pool.query<{ total: number }>(
+      `SELECT COUNT(*)::int as total FROM leads WHERE owner_user_id = $1`,
+      [identity.id]
+    );
+
+    const dataRes = await pool.query(
+      `SELECT l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
+              l.email, l.status as "stage", l.source, l.created_at as "createdAt",
+              l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
+              u.name as "assignedUserName", u.email as "assignedUserEmail"
+       FROM leads l
+       LEFT JOIN users u ON u.id = l.assigned_user_id
+       WHERE l.owner_user_id = $1
+       ORDER BY l.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [identity.id, limit, offset]
+    );
+
+    return Response.json({
+      leads: dataRes.rows,
+      total: countRes.rows[0]?.total || 0,
+      page,
+      limit,
+    });
+  } catch (error: any) {
+    console.error("[Leads GET API] Error:", error);
+    return Response.json({ message: "Failed to load leads." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await requirePermission("all_leads");
+  let identity = await requirePermission("all_leads", request);
   if (!identity) {
-    const user = await currentIdentity();
-    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
-    return Response.json({ message: "Leads feature is disabled for your account." }, { status: 403 });
+    const user = await currentIdentity(request);
+    if (!user) return Response.json({ message: "Not authenticated." }, { status: 401 });
+    return Response.json({ message: "Permission denied. Leads feature is disabled for your account." }, { status: 403 });
+  }
+
+  const isValidUuid = (val: unknown): val is string => typeof val === "string" && /^[0-9a-f-]{36}$/i.test(val);
+
+  if (!isValidUuid(identity.id)) {
+    return Response.json({ message: "Invalid user session identity." }, { status: 401 });
   }
 
   try {
     const body = await request.json().catch(() => ({}));
 
+    // ALWAYS inject ownerId from authenticated session identity. Never trust body.ownerId from frontend.
+    const ownerUserId = identity.id;
+
+    // Validate assignedUserId if provided
+    let safeAssignedUserId: string | undefined = undefined;
+    if (body.assignedUserId && isValidUuid(body.assignedUserId)) {
+      safeAssignedUserId = body.assignedUserId;
+    }
+
     // Query primary or first card belonging to the user
     const cardRes = await pool.query<{ id: string }>(
       `SELECT id FROM digital_cards WHERE owner_id = $1 ORDER BY created_at ASC LIMIT 1`,
-      [identity.id]
+      [ownerUserId]
     );
 
     let cardId = cardRes.rows[0]?.id;
     if (!cardId) {
-      const slug = `card-${identity.id.slice(0, 8)}-${Date.now()}`;
+      const slug = `card-${ownerUserId.slice(0, 8)}-${Date.now()}`;
       const newCardRes = await pool.query<{ id: string }>(
         `INSERT INTO digital_cards (owner_id, slug, created_at, updated_at) 
          VALUES ($1, $2, NOW(), NOW()) 
          RETURNING id`,
-        [identity.id, slug]
+        [ownerUserId, slug]
       );
       cardId = newCardRes.rows[0]?.id;
     }
@@ -44,7 +104,7 @@ export async function POST(request: Request) {
       `SELECT id, name, input_type as "inputType", is_required as "isRequired", options
        FROM lead_field_definitions
        WHERE owner_user_id = $1 AND status = 'ACTIVE'`,
-      [identity.id]
+      [ownerUserId]
     );
     const activeDefs = defsRes.rows;
 
@@ -55,7 +115,6 @@ export async function POST(request: Request) {
     for (const def of activeDefs) {
       const defId = def.id;
       const keyName = def.name;
-      // Value can be keyed by ID or by name
       let submittedVal = rawCustomInput[defId] !== undefined ? rawCustomInput[defId] : rawCustomInput[keyName];
 
       if (def.isRequired) {
@@ -73,7 +132,6 @@ export async function POST(request: Request) {
       }
 
       if (submittedVal !== undefined && submittedVal !== null && submittedVal !== "") {
-        // Validate type constraints
         if (def.inputType === "NUMBER") {
           const num = Number(submittedVal);
           if (isNaN(num)) {
@@ -90,13 +148,13 @@ export async function POST(request: Request) {
       }
     }
 
-    const result = await createManualLead(identity.id, cardId, {
+    const result = await createManualLead(ownerUserId, cardId, {
       name: body.name,
       companyName: body.companyName,
       contactNumber: body.contactNumber,
       email: body.email,
       profileImage: body.profileImage,
-      assignedUserId: body.assignedUserId,
+      assignedUserId: safeAssignedUserId,
       status: body.status,
       source: body.source || "MANUAL",
     });
@@ -110,7 +168,7 @@ export async function POST(request: Request) {
          VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
          ON CONFLICT (lead_id, field_definition_id) DO UPDATE
          SET value = EXCLUDED.value, updated_at = NOW()`,
-        [leadId, item.defId, identity.id, item.key, JSON.stringify(item.val)]
+        [leadId, item.defId, ownerUserId, item.key, JSON.stringify(item.val)]
       );
     }
 
@@ -119,7 +177,7 @@ export async function POST(request: Request) {
       await pool.query(
         `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, occurred_at, created_at)
          VALUES ($1, $2, 'REMARK', $3, NOW(), NOW())`,
-        [identity.id, leadId, body.remark.trim().slice(0, 1000)]
+        [ownerUserId, leadId, body.remark.trim().slice(0, 1000)]
       );
     }
 
@@ -131,7 +189,7 @@ export async function POST(request: Request) {
         await pool.query(
           `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, status, created_at, updated_at)
            VALUES ($1, $2, $3, $4, 'SCHEDULED', NOW(), NOW())`,
-          [identity.id, leadId, scheduledAt, note]
+          [ownerUserId, leadId, scheduledAt, note]
         );
       }
     }
@@ -146,9 +204,10 @@ export async function POST(request: Request) {
     );
   } catch (error: any) {
     console.error("[Manual Lead API] Error:", error);
-    return Response.json(
-      { message: error.message || "Failed to add lead." },
-      { status: 400 }
-    );
+    const msg = error.message || "Failed to add lead.";
+    if (msg.includes("Invalid input syntax for type uuid") || msg.includes("UUID")) {
+      return Response.json({ message: "Invalid user or lead identifier." }, { status: 400 });
+    }
+    return Response.json({ message: msg }, { status: 400 });
   }
 }

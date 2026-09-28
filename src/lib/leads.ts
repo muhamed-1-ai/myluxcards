@@ -88,6 +88,12 @@ export function validateLeadInput(input: Partial<CreateLeadInput>): {
     }
   }
 
+  const uuidRegex = /^[0-9a-f-]{36}$/i;
+  let safeAssignedUserId: string | null = null;
+  if (input.assignedUserId && typeof input.assignedUserId === "string" && uuidRegex.test(input.assignedUserId)) {
+    safeAssignedUserId = input.assignedUserId;
+  }
+
   if (Object.keys(errors).length > 0) {
     return { valid: false, errors };
   }
@@ -102,7 +108,7 @@ export function validateLeadInput(input: Partial<CreateLeadInput>): {
       contactNumberNormalized: phoneRes.normalized,
       email,
       profileImage: input.profileImage || null,
-      assignedUserId: input.assignedUserId || null,
+      assignedUserId: safeAssignedUserId,
       status: input.status || null,
     },
   };
@@ -113,6 +119,11 @@ export function validateLeadInput(input: Partial<CreateLeadInput>): {
  * Multi-tenant safe. Overwrite-protected for empty optional fields.
  */
 export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResult> {
+  const uuidRegex = /^[0-9a-f-]{36}$/i;
+  if (!input.ownerUserId || typeof input.ownerUserId !== "string" || !uuidRegex.test(input.ownerUserId)) {
+    throw new Error("Invalid owner user ID. Must be a valid UUID.");
+  }
+
   const validation = validateLeadInput(input);
   if (!validation.valid || !validation.sanitized) {
     throw new Error(Object.values(validation.errors)[0] || "Invalid lead data.");
@@ -134,6 +145,8 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   const sourceType = (input.sourceType || "NFC").trim();
   const createdFrom = (input.createdFrom || "PROFILE_SHARE").trim();
   const finalStatus = status || 'NEW';
+
+  const validAssignedUserId = (assignedUserId && uuidRegex.test(assignedUserId)) ? assignedUserId : input.ownerUserId;
 
   const res = await pool.query<LeadRecord>(
     `INSERT INTO leads (
@@ -194,7 +207,7 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
     [
       input.ownerUserId,
       input.cardId,
-      assignedUserId || input.ownerUserId,
+      validAssignedUserId,
       name,
       profileImage,
       companyName,

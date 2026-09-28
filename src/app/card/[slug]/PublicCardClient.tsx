@@ -186,6 +186,7 @@ type CardProfileCertification = {
 
 type Card = {
   id?: string;
+  ownerId?: string;
   name: string; slug: string; title: string; business: string; countryCode: string; mobile: string;
   whatsapp: string; email: string; website: string; state: string; city: string; address: string;
   brochure: string; brochureData?: string; social: Record<string, string>; about: string;
@@ -237,6 +238,16 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [qrError, setQrError] = useState("");
   const [mounted, setMounted] = useState(false);
   const [isPreviewParam, setIsPreviewParam] = useState(false);
+  const handleEditProfileClick = () => {
+    if (!card) return;
+    const cardId = card.id || "";
+    const cardSlug = card.slug || slug;
+    const targetPath = `/dashboard?tab=contact&editCard=${encodeURIComponent(cardId)}&editSlug=${encodeURIComponent(cardSlug)}`;
+
+    // MANDATORY REQUIREMENT: Edit ALWAYS opens the login flow.
+    // Never auto-authenticate, auto-redirect, or bypass login for active sessions.
+    window.location.href = `/?login=1&next=${encodeURIComponent(targetPath)}`;
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -783,6 +794,19 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {/* ── HERO CARD (Standard Format Only) ── */}
       {(!card.profileFormat || card.profileFormat === "standard" || activeView !== "profile") && (
         <div className="pc-hero">
+          {activeView === "profile" && (
+            <div className="pc-profile-edit-bar">
+              <button
+                type="button"
+                onClick={handleEditProfileClick}
+                aria-label="Edit profile"
+                className="pc-profile-edit-btn"
+              >
+                <PencilIcon />
+                <span>Edit</span>
+              </button>
+            </div>
+          )}
           <div className="pc-hero-cover">
             {card.cover && <img
               src={resolveMediaUrl(card.cover)}
@@ -1251,6 +1275,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             onSaveContact={saveContact}
             onShareDetails={() => setLeadModalOpen(true)}
             onShare={() => { track("SHARE"); void share(); }}
+            onEditProfile={handleEditProfileClick}
             onOpenBrochure={card.brochure ? () => {
               if (card.brochureData) {
                 const a = document.createElement("a");
@@ -1877,6 +1902,14 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 }
 
 /* ─── SVG Icon Components ─── */
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  );
+}
 
 function PhoneIcon() {
   return (

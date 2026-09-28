@@ -380,6 +380,7 @@ export function safePublicCard(row: any) {
   return {
     id: row.id,
     slug: row.slug,
+    ownerId: row.owner_id,
     ...completeCardProfile(row.profile),
     emergencyContact: sanitizedEmergencyContact,
     hasEmergencyPhone: Boolean(emergencyPhone),

@@ -831,6 +831,9 @@ export async function createManualLead(
     source?: string;
   }
 ) {
+  if (!ownerUserId || typeof ownerUserId !== "string" || !/^[0-9a-f-]{36}$/i.test(ownerUserId)) {
+    throw new Error("Invalid owner user ID. Must be a valid UUID.");
+  }
   const result = await upsertLead({
     ownerUserId,
     cardId,

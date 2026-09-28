@@ -28,7 +28,7 @@ export interface AddLeadDrawerProps {
   leadData?: any;
   onClose: () => void;
   onSuccess: () => void;
-  identity: { id: string; name: string | null; email: string; role: string };
+  identity?: { id: string; name: string | null; email: string; role: string };
 }
 
 interface CountryCode {
@@ -139,13 +139,15 @@ export default function AddLeadDrawer({
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
 
+  const isValidUuid = (val?: string) => Boolean(val && typeof val === "string" && /^[0-9a-f-]{36}$/i.test(val));
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     companyName: "",
     address: "",
     source: "",
-    assignedUserId: identity?.id || "",
+    assignedUserId: (identity?.id && isValidUuid(identity.id)) ? identity.id : "",
     lifeCycle: "",
     status: "",
     remark: "",
@@ -280,7 +282,7 @@ export default function AddLeadDrawer({
         }
 
         // 4. Managed Users
-        if (identity.role === "ADMIN" || identity.role === "SUPER_ADMIN") {
+        if (identity && (identity.role === "ADMIN" || identity.role === "SUPER_ADMIN")) {
           try {
             const res = await fetch("/api/admin/managed-users");
             const data = await res.json();
@@ -315,7 +317,7 @@ export default function AddLeadDrawer({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, identity.role]);
+  }, [isOpen, identity?.role]);
 
   // Populate data when editing or creating
   useEffect(() => {
@@ -357,7 +359,7 @@ export default function AddLeadDrawer({
         companyName: leadData.companyName || leadData.company || "",
         address: leadData.address || "",
         source: leadData.source || "MANUAL",
-        assignedUserId: leadData.assignedUserId || identity.id,
+        assignedUserId: (leadData.assignedUserId && isValidUuid(leadData.assignedUserId)) ? leadData.assignedUserId : (identity?.id && isValidUuid(identity.id) ? identity.id : ""),
         lifeCycle: leadData.lifeCycle || "",
         status: leadData.status || leadData.stage || "NEW",
         remark: leadData.remark || leadData.notes || "",
@@ -405,7 +407,7 @@ export default function AddLeadDrawer({
         companyName: "",
         address: "",
         source: sources.length > 0 ? sources[0].code : "MANUAL",
-        assignedUserId: identity.id,
+        assignedUserId: (identity?.id && isValidUuid(identity.id)) ? identity.id : "",
         lifeCycle: "",
         status: stages.length > 0 ? stages[0].key : "NEW",
         remark: "",
@@ -417,7 +419,7 @@ export default function AddLeadDrawer({
       });
       setCustomFieldValues({});
     }
-  }, [isOpen, mode, leadData, identity.id, sources, stages]);
+  }, [isOpen, mode, leadData, identity?.id, sources, stages]);
 
   // Product Selection Handlers
   const handleAddProduct = () => {
@@ -547,7 +549,7 @@ export default function AddLeadDrawer({
       companyName: formData.companyName.trim() || undefined,
       address: formData.address.trim() || undefined,
       source: formData.source || "MANUAL",
-      assignedUserId: formData.assignedUserId,
+      assignedUserId: (formData.assignedUserId && isValidUuid(formData.assignedUserId)) ? formData.assignedUserId : undefined,
       status: formData.status || "NEW",
       lifeCycle: formData.lifeCycle || undefined,
       totalAmount,
@@ -755,9 +757,11 @@ export default function AddLeadDrawer({
                       onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
                       className="add-lead-select pr-9"
                     >
-                      <option value={identity.id}>
-                        {identity.name || identity.email}
-                      </option>
+                      {identity?.id && (
+                        <option value={identity.id}>
+                          {identity.name || identity.email}
+                        </option>
+                      )}
                       {managedUsers.map(u => (
                         <option key={u.id} value={u.id}>
                           {u.name || u.email}

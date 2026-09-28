@@ -21,6 +21,7 @@ import {
   Sparkles,
   Briefcase,
   ShoppingBag,
+  Pencil,
 } from "lucide-react";
 
 
@@ -83,6 +84,7 @@ export interface ModernProfileLayoutProps {
   onShareDetails?: () => void;
   onShare?: () => void;
   onOpenBrochure?: () => void;
+  onEditProfile?: () => void;
   isDashboardPreview?: boolean;
 }
 
@@ -247,6 +249,7 @@ export function ModernProfileLayout({
   onShareDetails,
   onShare,
   onOpenBrochure,
+  onEditProfile,
   isDashboardPreview = false,
 }: ModernProfileLayoutProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -312,6 +315,21 @@ export function ModernProfileLayout({
     <div className="zappit-modern-wrapper" style={styleVars}>
       <div className="zappit-modern-container">
         
+        {/* ── TOP-RIGHT EDIT BUTTON ── */}
+        {onEditProfile && (
+          <div className="zappit-profile-edit-bar">
+            <button
+              type="button"
+              onClick={onEditProfile}
+              aria-label="Edit profile"
+              className="zappit-profile-edit-btn"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </button>
+          </div>
+        )}
+
         {/* ── 1. COVER & TOP BAR ── */}
         <div className="zappit-modern-cover">
           {card.cover ? (

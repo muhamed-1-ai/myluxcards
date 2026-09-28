@@ -361,9 +361,14 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const qTab = new URLSearchParams(window.location.search).get("tab");
+      const sp = new URLSearchParams(window.location.search);
+      const qTab = sp.get("tab");
+      const editCard = sp.get("editCard");
+      const editSlug = sp.get("editSlug");
       if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
         setTab(qTab as Tab);
+      } else if (editCard || editSlug) {
+        setTab("contact");
       }
     }
   }, []);
@@ -660,15 +665,41 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
             cover: cloudCards[0].cover ? cloudCards[0].cover.slice(0, 60) : null,
           });
           setCards(cloudCards);
-          setSelectedId(cloudCards[0].id);
+
+          let targetCard = cloudCards[0];
+          let foundRequested = false;
+          if (typeof window !== "undefined") {
+            const sp = new URLSearchParams(window.location.search);
+            const reqCardId = sp.get("editCard");
+            const reqSlug = sp.get("editSlug");
+            if (reqCardId) {
+              const match = cloudCards.find((c: Card) => c.id === reqCardId);
+              if (match) {
+                targetCard = match;
+                foundRequested = true;
+              }
+            } else if (reqSlug) {
+              const match = cloudCards.find((c: Card) => c.slug === reqSlug || c.id === reqSlug);
+              if (match) {
+                targetCard = match;
+                foundRequested = true;
+              }
+            }
+          }
+
+          setSelectedId(targetCard.id);
           setDraft((currentDraft) => {
             if (currentDraft.logo && currentDraft.logo.startsWith("blob:")) {
-              return { ...cloudCards[0], logo: currentDraft.logo, cover: currentDraft.cover || cloudCards[0].cover };
+              return { ...targetCard, logo: currentDraft.logo, cover: currentDraft.cover || targetCard.cover };
             }
-            return cloudCards[0];
+            return targetCard;
           });
-          lastSavedRef.current = JSON.stringify(cloudCards[0]);
+          lastSavedRef.current = JSON.stringify(targetCard);
           cacheCards(accountId, cloudCards);
+
+          if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("editCard") && !foundRequested) {
+            notify("Please sign in with the account that owns this profile.");
+          }
         } else {
           const blank = createBlankCard(user);
           setCards([blank]);
@@ -1421,6 +1452,12 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
           <section>
             <LeadManagementDashboard
               userName={currentUser.name}
+              identity={{
+                id: currentUser.id || identity?.id || "",
+                name: currentUser.name || null,
+                email: currentUser.email || "",
+                role: currentUser.role || "CUSTOMER",
+              }}
               onNavigateTab={(t) => selectTab(t as Tab)}
             />
           </section>
