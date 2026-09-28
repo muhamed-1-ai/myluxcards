@@ -12,13 +12,6 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Forbidden", message: "Permission denied." }, { status: 403 });
   }
 
-  // STEP 2: Log session identity details for debugging
-  console.log("[LEADS_SEARCH_AUTH]", {
-    userId: identity.id,
-    accountId: identity.id,
-    role: identity.role
-  });
-
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
   const stage = searchParams.get("stage") || "";
@@ -48,7 +41,7 @@ export async function GET(request: NextRequest) {
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
 
   try {
-    // STEP 3 & STEP 6: Shared multi-tenant lead access filter
+    // STEP 3 & STEP 5: Shared multi-tenant account access filter
     const accessFilter = getLeadAccessFilter(identity, "l");
     let whereClause = accessFilter.whereClause;
     const params: any[] = [...accessFilter.params];
@@ -96,9 +89,11 @@ export async function GET(request: NextRequest) {
       paramIndex++;
     }
 
+    const followUpOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "f.owner_user_id = $1";
+    const activityOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "a.owner_user_id = $1";
+
     // Execute queries
     const countQuery = `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`;
-    const followUpOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "f.owner_user_id = $1";
     const kpiQuery = `
       SELECT 
         SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN 1 ELSE 0 END)::int as open_pipeline,
@@ -119,9 +114,9 @@ export async function GET(request: NextRequest) {
         l.email, l.status as "stage", l.source, l.created_at as "createdAt",
         l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
-        (SELECT note FROM lead_follow_ups WHERE lead_id = l.id AND (${followUpOwnerFilter}) AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
-        (SELECT scheduled_at FROM lead_follow_ups WHERE lead_id = l.id AND (${followUpOwnerFilter}) AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
-        (SELECT description FROM lead_activities WHERE lead_id = l.id AND (${followUpOwnerFilter}) AND type = 'REMARK' ORDER BY occurred_at DESC LIMIT 1) as "lastRemark"
+        (SELECT f.note FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
+        (SELECT f.scheduled_at FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
+        (SELECT a.description FROM lead_activities a WHERE a.lead_id = l.id AND ${activityOwnerFilter} AND a.type = 'REMARK' ORDER BY a.occurred_at DESC LIMIT 1) as "lastRemark"
       FROM leads l
       LEFT JOIN users u ON u.id = l.assigned_user_id
       WHERE ${whereClause}
@@ -146,6 +141,14 @@ export async function GET(request: NextRequest) {
 
     const leads = dataRes.rows;
 
+    // STEP 6: Debug logging before returning response
+    console.log("[LEADS_SEARCH]", {
+      userId: identity.id,
+      accountId: identity.id,
+      search: q,
+      filters: { stage, source, assignedUserId, dateFrom, dateTo }
+    });
+
     return Response.json({
       success: true,
       count: total,
@@ -162,12 +165,11 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    // STEP 1: Detailed error logging & response
-    console.error("[LEADS_SEARCH_ERROR]", error);
+    // STEP 6: Log error & return structured JSON response
+    console.error("LEADS SEARCH FAILED", error);
     return Response.json(
       {
-        error: "Failed to fetch leads",
-        details: error.message || String(error)
+        error: error.message || "Failed to search leads"
       },
       { status: 500 }
     );
