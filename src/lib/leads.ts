@@ -130,7 +130,7 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   }
 
   const { name, companyName, contactNumber, contactNumberNormalized, email, profileImage, assignedUserId, status } = validation.sanitized;
-  const source = (input.source || "NPC TAP").trim();
+  const source = (input.source || "NFC_TAP").trim();
   const sourceType = (input.sourceType || "NFC").trim();
   const createdFrom = (input.createdFrom || "PROFILE_SHARE").trim();
   const finalStatus = status || 'NEW';
@@ -138,38 +138,15 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   const validAssignedUserId = (assignedUserId && uuidRegex.test(assignedUserId)) ? assignedUserId : input.ownerUserId;
 
   let normKey = contactNumberNormalized || "+91";
+  normKey = `${normKey}#nfc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-  const upperSource = source.toUpperCase();
-  const isPublicNpcTap =
-    upperSource.includes("NPC") ||
-    upperSource.includes("NFC") ||
-    upperSource.includes("TAP") ||
-    upperSource.includes("SHARE") ||
-    createdFrom === "PROFILE_SHARE";
-
-  // For manual creation or NPC Tap / Share submissions, append a unique discriminator to normKey so every submission inserts a distinct lead row
-  if (source === "MANUAL" || createdFrom === "DASHBOARD" || isPublicNpcTap) {
-    normKey = `${normKey}#npc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  }
-
-  if (isPublicNpcTap) {
-    console.log("NPC TAP CREATE", {
-      userId: input.ownerUserId,
-      workspaceId: input.ownerUserId,
-      leadData: {
-        ownerUserId: input.ownerUserId,
-        cardId: input.cardId,
-        name,
-        companyName,
-        contactNumber,
-        email,
-        source,
-      },
-    });
-  }
+  console.log("SHARE DETAILS CREATE START");
+  console.log("profileId:", input.cardId);
+  console.log("visitor name:", name);
 
   const res = await pool.query<LeadRecord>(
     `INSERT INTO leads (
+       id,
        owner_user_id,
        card_id,
        assigned_user_id,
@@ -189,21 +166,8 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
        created_at,
        updated_at
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW(), 1, NOW(), NOW()
+       gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW(), 1, NOW(), NOW()
      )
-     ON CONFLICT (owner_user_id, contact_number_normalized) DO UPDATE SET
-       submission_count = leads.submission_count + 1,
-       last_submitted_at = NOW(),
-       updated_at = NOW(),
-       name = EXCLUDED.name,
-       profile_image = COALESCE(NULLIF(EXCLUDED.profile_image, ''), leads.profile_image),
-       company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), leads.company_name),
-       email = COALESCE(NULLIF(EXCLUDED.email, ''), leads.email),
-       source = EXCLUDED.source,
-       source_type = EXCLUDED.source_type,
-       created_from = EXCLUDED.created_from,
-       status = COALESCE(NULLIF(EXCLUDED.status, ''), leads.status),
-       assigned_user_id = COALESCE(EXCLUDED.assigned_user_id, leads.assigned_user_id)
      RETURNING
        id,
        owner_user_id,
@@ -242,11 +206,9 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   );
 
   const lead = res.rows[0];
-  const isNew = lead.submission_count === 1;
+  const isNew = true;
 
-  if (isPublicNpcTap) {
-    console.log("CREATED LEAD ID", lead.id);
-  }
+  console.log("CREATED LEAD ID:", lead.id);
 
   return {
     lead,

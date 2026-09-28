@@ -150,6 +150,7 @@ export async function GET(request: NextRequest) {
     const leads = dataRes.rows;
 
     console.log("FETCH LEADS:", { workspaceId: identity.id, count: total });
+    console.log("TOTAL NFC LEADS:", total);
 
     return Response.json({
       success: true,
