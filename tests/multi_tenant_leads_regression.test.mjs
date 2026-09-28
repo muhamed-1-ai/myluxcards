@@ -15,7 +15,7 @@ test("1. /api/leads/search/route.ts SQL query schema verification", () => {
 test("2. /api/leads/search/route.ts enforces account isolation and permission checks", () => {
   const code = fs.readFileSync("src/app/api/leads/search/route.ts", "utf8");
   assert.equal(code.includes('requirePermission("all_leads", request)'), true, "search route MUST use requirePermission for all_leads");
-  assert.equal(code.includes('whereClause = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)"'), true, "whereClause MUST mandate owner_user_id / assigned_user_id scoping");
+  assert.equal(code.includes('getLeadAccessFilter'), true, "search route MUST use getLeadAccessFilter for multi-tenant scoping");
   assert.equal(code.includes('followUpOwnerFilter'), true, "Subqueries MUST scope lead_follow_ups with followUpOwnerFilter");
 });
 

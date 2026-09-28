@@ -98,6 +98,37 @@ export async function requirePermission(permission: FeatureKey, req?: Request): 
   return identity;
 }
 
+export interface LeadAccessFilter {
+  whereClause: string;
+  params: any[];
+  paramCount: number;
+}
+
+export function getLeadAccessFilter(identity: AdminIdentity, tableAlias = "l"): LeadAccessFilter {
+  if (identity.role === "SUPER_ADMIN") {
+    return {
+      whereClause: "1=1",
+      params: [],
+      paramCount: 0,
+    };
+  }
+
+  if (identity.role === "ADMIN") {
+    return {
+      whereClause: `(${tableAlias}.owner_user_id = $1 OR ${tableAlias}.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR ${tableAlias}.assigned_user_id = $1)`,
+      params: [identity.id],
+      paramCount: 1,
+    };
+  }
+
+  // Normal Account User
+  return {
+    whereClause: `(${tableAlias}.owner_user_id = $1 OR ${tableAlias}.assigned_user_id = $1)`,
+    params: [identity.id],
+    paramCount: 1,
+  };
+}
+
 export async function requireManagedUserOwnership(targetUserId: string) {
   const identity = await currentIdentity();
   if (!identity) return null;

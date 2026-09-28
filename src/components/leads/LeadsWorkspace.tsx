@@ -21,7 +21,8 @@ import {
   Search,
   RotateCcw,
   CheckSquare,
-  Columns
+  Columns,
+  AlertCircle
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
@@ -36,6 +37,7 @@ interface LeadsWorkspaceProps {
 export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [kpis, setKpis] = useState({ openPipeline: 0, wonLeads: 0, dueToday: 0 });
 
@@ -71,6 +73,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -88,7 +91,10 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
       if (endDate) params.append("endDate", endDate);
 
       const res = await fetch(`/api/leads/search?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch leads");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.message || errorData.error || "Unable to load leads");
+      }
       const data = await res.json();
       setLeads(data.leads || []);
       setTotal(data.pagination?.total || (data.leads ? data.leads.length : 0));
@@ -99,8 +105,9 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           dueToday: data.kpis.dueToday || 0,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching leads:", error);
+      setFetchError(error.message || "Unable to load leads");
       setLeads([]);
       setTotal(0);
     } finally {
@@ -473,6 +480,20 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                     </div>
                   </td>
                 </tr>
+              ) : fetchError ? (
+                <tr>
+                  <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center p-8">
+                    <div className="flex flex-col items-center justify-center">
+                      <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
+                      <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
+                      <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
+                      <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ) : displayedLeads.length === 0 ? (
                 <tr>
                   <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
@@ -607,6 +628,18 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               <div className="flex justify-center items-center space-x-2">
                 <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                 <span>Loading leads...</span>
+              </div>
+            </div>
+          ) : fetchError ? (
+            <div className="crm-table-empty-cell text-center p-8">
+              <div className="flex flex-col items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
+                <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
+                <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
+                <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Retry</span>
+                </button>
               </div>
             </div>
           ) : displayedLeads.length === 0 ? (

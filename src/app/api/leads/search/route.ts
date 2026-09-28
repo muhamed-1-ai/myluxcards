@@ -1,4 +1,4 @@
-import { currentIdentity, requirePermission } from "@/lib/adminAuth";
+import { currentIdentity, getLeadAccessFilter, requirePermission } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 import { NextRequest } from "next/server";
 
@@ -8,9 +8,16 @@ export async function GET(request: NextRequest) {
   const identity = await requirePermission("all_leads", request);
   if (!identity) {
     const user = await currentIdentity(request);
-    if (!user) return Response.json({ message: "Unauthorized" }, { status: 401 });
-    return Response.json({ message: "Forbidden" }, { status: 403 });
+    if (!user) return Response.json({ error: "Unauthorized", message: "Not authenticated." }, { status: 401 });
+    return Response.json({ error: "Forbidden", message: "Permission denied." }, { status: 403 });
   }
+
+  // STEP 2: Log session identity details for debugging
+  console.log("[LEADS_SEARCH_AUTH]", {
+    userId: identity.id,
+    accountId: identity.id,
+    role: identity.role
+  });
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
@@ -41,21 +48,11 @@ export async function GET(request: NextRequest) {
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
 
   try {
-    // MULTI-TENANT ACCOUNT ISOLATION
-    let whereClause = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)";
-    const params: any[] = [];
-    let paramIndex = 1;
-
-    if (identity.role === "SUPER_ADMIN") {
-      whereClause = "1=1";
-    } else if (identity.role === "ADMIN") {
-      whereClause = "(l.owner_user_id = $1 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR l.assigned_user_id = $1)";
-      params.push(identity.id);
-      paramIndex = 2;
-    } else {
-      params.push(identity.id);
-      paramIndex = 2;
-    }
+    // STEP 3 & STEP 6: Shared multi-tenant lead access filter
+    const accessFilter = getLeadAccessFilter(identity, "l");
+    let whereClause = accessFilter.whereClause;
+    const params: any[] = [...accessFilter.params];
+    let paramIndex = accessFilter.paramCount + 1;
 
     // Optional Filters
     if (q) {
@@ -112,7 +109,10 @@ export async function GET(request: NextRequest) {
       WHERE ${whereClause}
     `;
 
-    const ownerSelectSubquery = identity.role === "SUPER_ADMIN" ? "l.owner_user_id" : "$1";
+    const limitParamIdx = paramIndex;
+    const offsetParamIdx = paramIndex + 1;
+    const queryParams = [...params, limit, offset];
+
     const dataQuery = `
       SELECT 
         l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
@@ -126,15 +126,13 @@ export async function GET(request: NextRequest) {
       LEFT JOIN users u ON u.id = l.assigned_user_id
       WHERE ${whereClause}
       ORDER BY ${sortColumn} ${sortOrder}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}
     `;
 
-    params.push(limit, offset);
-
     const [countRes, kpiRes, dataRes] = await Promise.all([
-      pool.query(countQuery, params.slice(0, paramIndex - 1)),
-      pool.query(kpiQuery, params.slice(0, paramIndex - 1)),
-      pool.query(dataQuery, params)
+      pool.query(countQuery, params),
+      pool.query(kpiQuery, params),
+      pool.query(dataQuery, queryParams)
     ]);
 
     const total = countRes.rows[0]?.total || 0;
@@ -164,8 +162,15 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("[Leads Search API] Error:", error);
-    return Response.json({ message: "Failed to search leads" }, { status: 500 });
+    // STEP 1: Detailed error logging & response
+    console.error("[LEADS_SEARCH_ERROR]", error);
+    return Response.json(
+      {
+        error: "Failed to fetch leads",
+        details: error.message || String(error)
+      },
+      { status: 500 }
+    );
   }
 }
 
