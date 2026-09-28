@@ -198,6 +198,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     if (!confirm("Are you sure you want to delete this lead?")) return;
     try {
       await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
+      setPage(1);
       fetchLeads();
     } catch (err) {
       console.error("Failed to delete lead", err);
@@ -740,7 +741,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         isOpen={isAddOpen}
         mode="create"
         onClose={() => setIsAddOpen(false)}
-        onSuccess={() => { setIsAddOpen(false); fetchLeads(); }}
+        onSuccess={() => { setIsAddOpen(false); setPage(1); fetchLeads(); }}
         identity={identity}
       />
 

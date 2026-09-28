@@ -16,13 +16,14 @@ const VALID_INPUT_TYPES = [
 ];
 
 export async function GET(request: Request) {
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ success: false, ok: false, error: "Unauthorized.", message: "Unauthorized." }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
   const includeAll = searchParams.get("all") === "true";
+  const statusParam = searchParams.get("status");
 
   try {
     let query = `
@@ -30,10 +31,10 @@ export async function GET(request: Request) {
              status, sort_order as "sortOrder", options, config,
              created_at as "createdAt", updated_at as "updatedAt"
       FROM lead_field_definitions
-      WHERE owner_user_id = $1 AND status != 'ARCHIVED'
+      WHERE (owner_user_id = $1 OR owner_user_id IN (SELECT created_by_admin_id FROM users WHERE id = $1)) AND status != 'ARCHIVED'
     `;
 
-    if (!includeAll) {
+    if (statusParam === "ACTIVE" || (!includeAll && !statusParam)) {
       query += ` AND status = 'ACTIVE'`;
     }
 
@@ -41,42 +42,25 @@ export async function GET(request: Request) {
 
     const result = await pool.query(query, [identity.id]);
 
-    // If account has zero custom field definitions configured yet, auto-seed reference defaults ('number' & 'call')
-    if (result.rows.length === 0) {
-      const checkAny = await pool.query(
-        `SELECT COUNT(*)::int as count FROM lead_field_definitions WHERE owner_user_id = $1`,
-        [identity.id]
-      );
-
-      if (checkAny.rows[0].count === 0) {
-        await pool.query(
-          `INSERT INTO lead_field_definitions (owner_user_id, name, input_type, is_required, status, sort_order, options)
-           VALUES 
-             ($1, 'number', 'TEXT', false, 'ACTIVE', 1, '[]'::jsonb),
-             ($1, 'call', 'TEXT', false, 'ACTIVE', 2, '[]'::jsonb)`,
-          [identity.id]
-        );
-
-        const seededRes = await pool.query(query, [identity.id]);
-        return Response.json({ ok: true, fields: seededRes.rows });
-      }
-    }
-
-    return Response.json({ ok: true, fields: result.rows });
+    return Response.json({ success: true, ok: true, fields: result.rows, data: result.rows });
   } catch (error: any) {
     console.error("[Custom Fields GET Error]", error);
-    return Response.json({ message: error.message || "Failed to load custom fields." }, { status: 500 });
+    return Response.json({ success: false, ok: false, error: error.message || "Failed to load custom fields." }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) {
-    return Response.json({ message: "Invalid request origin." }, { status: 403 });
+    return Response.json({ success: false, ok: false, error: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ success: false, ok: false, error: "Unauthorized." }, { status: 401 });
+  }
+
+  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
+    return Response.json({ success: false, ok: false, error: "Forbidden. Only administrators can configure dynamic lead fields." }, { status: 403 });
   }
 
   try {
@@ -89,17 +73,17 @@ export async function POST(request: Request) {
     const config = typeof body.config === "object" && body.config !== null ? body.config : {};
 
     if (!name) {
-      return Response.json({ message: "Field name is required." }, { status: 400 });
+      return Response.json({ success: false, ok: false, error: "Field name is required." }, { status: 400 });
     }
 
     if (!VALID_INPUT_TYPES.includes(inputType)) {
-      return Response.json({ message: `Invalid input type. Supported types: ${VALID_INPUT_TYPES.join(", ")}` }, { status: 400 });
+      return Response.json({ success: false, ok: false, error: `Invalid input type. Supported types: ${VALID_INPUT_TYPES.join(", ")}` }, { status: 400 });
     }
 
     // Validate options for select, radio, checkbox
     if (["SELECT", "RADIO", "CHECKBOX"].includes(inputType)) {
       if (!Array.isArray(options) || options.length === 0) {
-        return Response.json({ message: `At least one option is required for ${inputType} fields.` }, { status: 400 });
+        return Response.json({ success: false, ok: false, error: `At least one option is required for ${inputType} fields.` }, { status: 400 });
       }
       
       const cleanedOptions: { id: string; label: string; value: string }[] = [];
@@ -109,10 +93,10 @@ export async function POST(request: Request) {
         const item = options[i];
         const label = typeof item === "string" ? item.trim() : String(item?.label || item?.value || "").trim();
         if (!label) {
-          return Response.json({ message: "Options cannot be empty." }, { status: 400 });
+          return Response.json({ success: false, ok: false, error: "Options cannot be empty." }, { status: 400 });
         }
         if (seenLabels.has(label.toLowerCase())) {
-          return Response.json({ message: `Duplicate option label "${label}" is not allowed.` }, { status: 400 });
+          return Response.json({ success: false, ok: false, error: `Duplicate option label "${label}" is not allowed.` }, { status: 400 });
         }
         seenLabels.add(label.toLowerCase());
 
@@ -143,9 +127,10 @@ export async function POST(request: Request) {
       [identity.id, name, inputType, isRequired, status, sortOrder, JSON.stringify(options), JSON.stringify(config)]
     );
 
-    return Response.json({ ok: true, message: "Field created successfully.", field: insertRes.rows[0] }, { status: 201 });
+    return Response.json({ success: true, ok: true, message: "Field created successfully.", field: insertRes.rows[0] }, { status: 201 });
   } catch (error: any) {
     console.error("[Custom Fields POST Error]", error);
-    return Response.json({ message: error.message || "Failed to create field." }, { status: 500 });
+    return Response.json({ success: false, ok: false, error: error.message || "Failed to create field." }, { status: 500 });
   }
 }
+

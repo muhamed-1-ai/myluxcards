@@ -129,17 +129,6 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
     throw new Error(Object.values(validation.errors)[0] || "Invalid lead data.");
   }
 
-  // Schema migration: Add source_type and created_from columns if missing
-  try {
-    await pool.query(`
-      ALTER TABLE leads 
-      ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'NFC',
-      ADD COLUMN IF NOT EXISTS created_from TEXT DEFAULT 'PROFILE_SHARE';
-    `);
-  } catch (err) {
-    // Migration ignore if already exists or fails quietly
-  }
-
   const { name, companyName, contactNumber, contactNumberNormalized, email, profileImage, assignedUserId, status } = validation.sanitized;
   const source = (input.source || "NFC Tap").trim();
   const sourceType = (input.sourceType || "NFC").trim();
@@ -147,6 +136,20 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   const finalStatus = status || 'NEW';
 
   const validAssignedUserId = (assignedUserId && uuidRegex.test(assignedUserId)) ? assignedUserId : input.ownerUserId;
+
+  let normKey = contactNumberNormalized || "+91";
+
+  // For manual creation from dashboard/CRM, if a lead with same normalized number already exists for this owner, append unique discriminator
+  if (source === "MANUAL" || createdFrom === "DASHBOARD") {
+    const existingCheck = await pool.query<{ id: string }>(
+      `SELECT id FROM leads WHERE owner_user_id = $1 AND contact_number_normalized = $2 LIMIT 1`,
+      [input.ownerUserId, normKey]
+    );
+
+    if (existingCheck.rows.length > 0) {
+      normKey = `${normKey}#m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    }
+  }
 
   const res = await pool.query<LeadRecord>(
     `INSERT INTO leads (
@@ -212,7 +215,7 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
       profileImage,
       companyName,
       contactNumber,
-      contactNumberNormalized,
+      normKey,
       email,
       finalStatus,
       source,

@@ -364,12 +364,12 @@ export default function AddLeadDrawer({
         assignedUserId: (leadData.assignedUserId && isValidUuid(leadData.assignedUserId)) ? leadData.assignedUserId : (identity?.id && isValidUuid(identity.id) ? identity.id : ""),
         lifeCycle: leadData.lifeCycle || "",
         status: leadData.status || leadData.stage || "NEW",
-        remark: leadData.remark || leadData.notes || "",
+        remark: leadData.remark || leadData.notes || leadData.lastRemark || "",
         followUpDate: fDate,
         followUpTime: fTime,
         followUpType: leadData.followUpType || "Call",
         followUpNote: leadData.followUpNote || "",
-        customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : "",
+        customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : (leadData.expectedRevenue ? String(leadData.expectedRevenue) : ""),
       });
 
       if (leadData.advanceAmount && Number(leadData.advanceAmount) > 0) {
@@ -384,18 +384,84 @@ export default function AddLeadDrawer({
       } else {
         setAdvanceRecords([]);
       }
+
       if (leadData?.id) {
         fetch(`/api/leads/${leadData.id}`)
           .then((r) => r.json())
           .then((d) => {
-            if (d.lead && d.lead.customFieldValues) {
-              setCustomFieldValues((prev) => ({
+            if (d.lead) {
+              const fullLead = d.lead;
+              const map = fullLead.customFieldValues || {};
+
+              const resolvedAddress = fullLead.address !== undefined && fullLead.address !== null
+                ? fullLead.address
+                : (map["address"] || map["Address"] || "");
+
+              const resolvedTotal = fullLead.totalAmount || fullLead.expectedRevenue || Number(map["totalAmount"] || map["Total Amount"]) || 0;
+              const resolvedAdvance = fullLead.advanceAmount || Number(map["advanceAmount"] || map["Advance Amount"]) || 0;
+              const resolvedRemark = fullLead.lastRemark || fullLead.remark || fullLead.notes || map["remark"] || map["Remark"] || "";
+
+              let fetchRawPhone = fullLead.contactNumber || fullLead.phone || rawPhone;
+              let fetchMatchedCode = "+91";
+              let fetchMainPhone = fetchRawPhone;
+              for (const c of COUNTRY_CODES) {
+                if (fetchRawPhone.startsWith(c.code)) {
+                  fetchMatchedCode = c.code;
+                  fetchMainPhone = fetchRawPhone.slice(c.code.length).trim();
+                  break;
+                }
+              }
+              setCountryCode(fetchMatchedCode);
+              setPhoneNumber(fetchMainPhone);
+
+              let fetchedFDate = "";
+              let fetchedFTime = "10:00";
+              if (fullLead.nextFollowUp?.scheduledAt) {
+                const fd = new Date(fullLead.nextFollowUp.scheduledAt);
+                if (!isNaN(fd.getTime())) {
+                  fetchedFDate = fd.toISOString().split("T")[0];
+                  fetchedFTime = fd.toTimeString().slice(0, 5);
+                }
+              }
+
+              setFormData((prev) => ({
                 ...prev,
-                ...d.lead.customFieldValues,
+                name: fullLead.name || prev.name,
+                email: fullLead.email !== undefined && fullLead.email !== null ? fullLead.email : prev.email,
+                companyName: fullLead.companyName !== undefined && fullLead.companyName !== null ? fullLead.companyName : prev.companyName,
+                address: resolvedAddress,
+                source: fullLead.source || prev.source,
+                assignedUserId: (fullLead.assignedUserId && isValidUuid(fullLead.assignedUserId)) ? fullLead.assignedUserId : prev.assignedUserId,
+                status: fullLead.status || fullLead.stage || prev.status,
+                remark: resolvedRemark,
+                customTotalAmount: resolvedTotal ? String(resolvedTotal) : prev.customTotalAmount,
+                followUpDate: fetchedFDate || prev.followUpDate,
+                followUpTime: fetchedFTime || prev.followUpTime,
+                followUpNote: fullLead.nextFollowUp?.note || prev.followUpNote,
               }));
+
+              if (resolvedAdvance > 0) {
+                setAdvanceRecords([
+                  {
+                    id: "adv-init",
+                    amount: Number(resolvedAdvance),
+                    note: "Recorded advance",
+                    createdAt: new Date().toLocaleDateString("en-IN"),
+                  }
+                ]);
+              }
+
+              if (map) {
+                setCustomFieldValues((prev) => ({
+                  ...prev,
+                  ...map,
+                }));
+              }
             }
           })
-          .catch(() => {});
+          .catch((err) => {
+            console.error("Error loading full lead details in drawer:", err);
+          });
       }
     } else {
       // Reset form for Create Mode
@@ -543,29 +609,37 @@ export default function AddLeadDrawer({
       }
     }
 
-    // Build payload
+    // Build payload with all fields explicitly included
     const payload: any = {
       name: formData.name.trim(),
       contactNumber: fullContactNumber,
-      email: formData.email.trim() || undefined,
-      companyName: formData.companyName.trim() || undefined,
-      address: formData.address.trim() || undefined,
+      phone: fullContactNumber,
+      email: formData.email.trim(),
+      companyName: formData.companyName.trim(),
+      address: formData.address.trim(),
       source: formData.source || "MANUAL",
       assignedUserId: (formData.assignedUserId && isValidUuid(formData.assignedUserId)) ? formData.assignedUserId : undefined,
       status: formData.status || "NEW",
+      stage: formData.status || "NEW",
       lifeCycle: formData.lifeCycle || undefined,
       totalAmount,
+      expectedRevenue: totalAmount,
       advanceAmount: totalAdvanceFromRecords,
-      remark: formData.remark.trim() || undefined,
+      paymentInformation: {
+        totalAmount,
+        advanceAmount: totalAdvanceFromRecords,
+        balanceAmount,
+      },
+      products: selectedProducts,
+      remark: formData.remark.trim(),
+      note: formData.remark.trim(),
       followUpDate: combinedFollowUpIso,
       followUpType: formData.followUpType || "Call",
       followUpNote: formData.followUpNote.trim() || undefined,
       customFields: customFieldValues,
     };
 
-    // STEP 1 & STEP 3: Debug logging
-    console.log("EDIT SAVE CLICKED", { mode, leadId: leadData?.id });
-    console.log("UPDATE LEAD PAYLOAD", payload);
+    console.log("UPDATE PAYLOAD", payload);
 
     try {
       if (mode === "edit" && leadData?.id) {
@@ -576,7 +650,9 @@ export default function AddLeadDrawer({
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || data.error || "Failed to update lead.");
+        if (!res.ok || data.success === false || data.ok === false) {
+          throw new Error(data.error || data.message || "Failed to update lead.");
+        }
       } else {
         const res = await fetch("/api/leads", {
           method: "POST",
@@ -585,7 +661,9 @@ export default function AddLeadDrawer({
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to create lead.");
+        if (!res.ok || data.success === false || data.ok === false) {
+          throw new Error(data.error || data.message || "Failed to create lead.");
+        }
       }
 
       try {

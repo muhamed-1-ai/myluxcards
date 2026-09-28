@@ -104,9 +104,22 @@ export async function GET(request: NextRequest) {
       WHERE ${whereClause}
     `;
 
+    const [countRes, kpiRes] = await Promise.all([
+      pool.query(countQuery, params),
+      pool.query(kpiQuery, params)
+    ]);
+
+    const total = countRes.rows[0]?.total || 0;
+    
+    // Auto-correct pagination offset if offset is past available total after record deletion
+    let effectiveOffset = offset;
+    if (effectiveOffset >= total && total > 0) {
+      effectiveOffset = 0;
+    }
+
     const limitParamIdx = paramIndex;
     const offsetParamIdx = paramIndex + 1;
-    const queryParams = [...params, limit, offset];
+    const queryParams = [...params, limit, effectiveOffset];
 
     const dataQuery = `
       SELECT 
@@ -124,13 +137,8 @@ export async function GET(request: NextRequest) {
       LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}
     `;
 
-    const [countRes, kpiRes, dataRes] = await Promise.all([
-      pool.query(countQuery, params),
-      pool.query(kpiQuery, params),
-      pool.query(dataQuery, queryParams)
-    ]);
+    const dataRes = await pool.query(dataQuery, queryParams);
 
-    const total = countRes.rows[0]?.total || 0;
     const kpis = {
       total,
       openPipeline: kpiRes.rows[0]?.open_pipeline || 0,
@@ -141,13 +149,7 @@ export async function GET(request: NextRequest) {
 
     const leads = dataRes.rows;
 
-    // STEP 6: Debug logging before returning response
-    console.log("[LEADS_SEARCH]", {
-      userId: identity.id,
-      accountId: identity.id,
-      search: q,
-      filters: { stage, source, assignedUserId, dateFrom, dateTo }
-    });
+    console.log("FETCH LEADS:", { workspaceId: identity.id, count: total });
 
     return Response.json({
       success: true,

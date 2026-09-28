@@ -7,12 +7,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const identity = await requirePermission("all_leads", request);
   if (!identity) {
     const user = await currentIdentity(request);
-    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
-    return Response.json({ message: "Forbidden." }, { status: 403 });
+    if (!user) return Response.json({ success: false, ok: false, error: "Unauthorized." }, { status: 401 });
+    return Response.json({ success: false, ok: false, error: "Forbidden." }, { status: 403 });
   }
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
-    return Response.json({ message: "Invalid lead ID." }, { status: 400 });
+    return Response.json({ success: false, ok: false, error: "Invalid lead ID." }, { status: 400 });
   }
   try {
     let accessClause = "(l.owner_user_id = $2 OR l.assigned_user_id = $2)";
@@ -45,7 +45,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const lead = leadRes.rows[0];
     if (!lead) {
-      return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+      return Response.json({ success: false, ok: false, error: "Lead not found or access denied." }, { status: 404 });
     }
 
     // Fetch saved custom field values for this lead
@@ -64,7 +64,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     for (const row of customValuesRes.rows) {
       let val = row.value;
       try {
-        if (typeof val === "string" && (val.startsWith("{") || val.startsWith("["))) {
+        if (typeof val === "string" && (val.startsWith("{") || val.startsWith("[") || val.startsWith('"'))) {
           val = JSON.parse(val);
         }
       } catch {}
@@ -75,6 +75,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       customFieldValuesMap[keyId] = val;
       if (keyName) {
         customFieldValuesMap[keyName] = val;
+      }
+      if (row.fieldKey) {
+        customFieldValuesMap[row.fieldKey] = val;
       }
 
       customFieldsDetailed.push({
@@ -109,17 +112,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const latestRemarkObj = activities.find(
       (a: any) => a.type === "REMARK" || a.type === "NOTE_ADDED" || (a.description && a.description.toLowerCase().includes("remark"))
     );
-    const lastRemark = latestRemarkObj ? latestRemarkObj.description : null;
+    const lastRemark = latestRemarkObj ? latestRemarkObj.description : (customFieldValuesMap["remark"] || customFieldValuesMap["Remark"] || null);
 
     const resolvedAddress = customFieldValuesMap["address"] || customFieldValuesMap["Address"] || null;
+    const resolvedTotalAmount = Number(customFieldValuesMap["totalAmount"] || customFieldValuesMap["Total Amount"]) || 0;
+    const resolvedAdvanceAmount = Number(customFieldValuesMap["advanceAmount"] || customFieldValuesMap["Advance Amount"]) || 0;
+    const resolvedPaymentInfo = customFieldValuesMap["paymentInformation"] || customFieldValuesMap["Payment Information"] || null;
 
     return Response.json({
+      success: true,
       ok: true,
       lead: {
         ...lead,
         address: resolvedAddress,
+        totalAmount: resolvedTotalAmount,
+        advanceAmount: resolvedAdvanceAmount,
+        paymentInformation: resolvedPaymentInfo,
         stage: lead.status,
-        expectedRevenue: lead.totalAmount || 0,
+        expectedRevenue: resolvedTotalAmount,
         nextFollowUp,
         activities,
         lastRemark,
@@ -129,7 +139,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
   } catch (error: any) {
     console.error("[Lead Details API] Error:", error);
-    return Response.json({ message: error.message || "Failed to load lead details." }, { status: 500 });
+    return Response.json({ success: false, ok: false, error: error.message || "Failed to load lead details." }, { status: 500 });
   }
 }
 
@@ -143,7 +153,7 @@ async function saveCustomFieldValue(
 ) {
   try {
     let defRes = await pool.query<{ id: string }>(
-      `SELECT id FROM lead_field_definitions WHERE (owner_user_id = $1 OR owner_user_id = $2) AND (name = $3 OR name = $4) LIMIT 1`,
+      `SELECT id FROM lead_field_definitions WHERE (owner_user_id = $1 OR owner_user_id = $2) AND (name ILIKE $3 OR name ILIKE $4) LIMIT 1`,
       [actorId, ownerId, defName, fieldKey]
     );
 
@@ -163,7 +173,7 @@ async function saveCustomFieldValue(
         `INSERT INTO lead_field_values (lead_id, field_definition_id, owner_user_id, field_key, value, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
          ON CONFLICT (lead_id, field_definition_id) DO UPDATE
-         SET value = EXCLUDED.value, updated_at = NOW()`,
+         SET value = EXCLUDED.value, field_key = EXCLUDED.field_key, updated_at = NOW()`,
         [leadId, defId, actorId, fieldKey, JSON.stringify(val)]
       );
     }
@@ -174,39 +184,39 @@ async function saveCustomFieldValue(
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
-    return Response.json({ message: "Invalid request origin." }, { status: 403 });
+    return Response.json({ success: false, ok: false, error: "Invalid request origin." }, { status: 403 });
   }
 
   const identity = await requirePermission("all_leads", request);
   if (!identity) {
     const user = await currentIdentity(request);
-    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
-    return Response.json({ message: "Forbidden." }, { status: 403 });
+    if (!user) return Response.json({ success: false, ok: false, error: "Unauthorized." }, { status: 401 });
+    return Response.json({ success: false, ok: false, error: "Forbidden." }, { status: 403 });
   }
 
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
-    return Response.json({ message: "Invalid lead ID." }, { status: 400 });
+    return Response.json({ success: false, ok: false, error: "Invalid lead ID." }, { status: 400 });
   }
 
   try {
     const body = await request.json().catch(() => ({}));
 
-    // STEP 4: Backend logging
+    // Logging payload for debugging
     console.log("UPDATE REQUEST BODY", body);
     console.log("LEAD ID", id);
 
     const name = String(body.name || "").trim();
     const companyName = body.companyName !== undefined ? (body.companyName ? String(body.companyName).trim() : null) : null;
     const contactNumber = String(body.contactNumber || body.phone || "").trim();
-    const email = body.email ? String(body.email).trim() : null;
-    const profileImage = body.profileImage || null;
+    const email = body.email !== undefined ? (body.email ? String(body.email).trim() : null) : null;
+    const profileImage = body.profileImage !== undefined ? body.profileImage : null;
     const assignedUserId = typeof body.assignedUserId === "string" && /^[0-9a-f-]{36}$/i.test(body.assignedUserId) ? body.assignedUserId : null;
     const status = body.status || body.stage || null;
     const source = body.source || null;
 
     if (!name || !contactNumber) {
-      return Response.json({ message: "Lead name and contact number are required." }, { status: 400 });
+      return Response.json({ success: false, ok: false, error: "Lead name and contact number are required." }, { status: 400 });
     }
 
     const { normalizePhoneNumber } = await import("@/lib/phone");
@@ -228,10 +238,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const existingLead = permCheck.rows[0];
     if (!existingLead) {
-      return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+      return Response.json({ success: false, ok: false, error: "Lead not found or access denied." }, { status: 404 });
     }
 
-    // STEP 6: ID Verification Check
     console.log({
       frontendId: id,
       databaseId: existingLead.id,
@@ -239,7 +248,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const previousStatus = existingLead.status;
 
-    // STEP 5: Database Update
+    // Database Update for core lead record
     const result = await pool.query(
       `UPDATE leads
        SET name = $1,
@@ -248,7 +257,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
            contact_number_normalized = $4,
            email = $5,
            profile_image = COALESCE($6, profile_image),
-           assigned_user_id = COALESCE($7, assigned_user_id),
+           assigned_user_id = $7,
            status = COALESCE($8, status),
            source = COALESCE($9, source),
            updated_at = NOW()
@@ -261,19 +270,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const lead = result.rows[0];
     if (!lead) {
-      return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+      return Response.json({ success: false, ok: false, error: "Lead not found or access denied." }, { status: 404 });
     }
 
-    // Save address, totalAmount, advanceAmount, remark into custom fields
+    // Save address, totalAmount, advanceAmount, paymentInformation, remark into custom fields
     if (body.address !== undefined && body.address !== null) {
       await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Address", "address", body.address);
     }
     if (body.totalAmount !== undefined || body.expectedRevenue !== undefined) {
       const amt = body.totalAmount !== undefined ? body.totalAmount : body.expectedRevenue;
-      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Total Amount", "totalAmount", amt);
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Total Amount", "totalAmount", Number(amt) || 0);
     }
     if (body.advanceAmount !== undefined) {
-      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Advance Amount", "advanceAmount", body.advanceAmount);
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Advance Amount", "advanceAmount", Number(body.advanceAmount) || 0);
+    }
+    if (body.paymentInformation !== undefined) {
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Payment Information", "paymentInformation", body.paymentInformation);
+    }
+    if (note !== null && note !== undefined) {
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Remark", "remark", note);
     }
 
     // Save/update custom fields if passed
@@ -318,22 +333,55 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    // STEP 8: Return Updated Data
+    // Re-query custom values to assemble complete lead object for frontend
+    const customValuesRes = await pool.query(
+      `SELECT v.field_definition_id as "fieldDefinitionId", v.field_key as "fieldKey", v.value,
+              d.name as "fieldName", d.input_type as "inputType"
+       FROM lead_field_values v
+       LEFT JOIN lead_field_definitions d ON d.id = v.field_definition_id
+       WHERE v.lead_id = $1`,
+      [id]
+    );
+
+    const customFieldValuesMap: Record<string, any> = {};
+    for (const row of customValuesRes.rows) {
+      let val = row.value;
+      try {
+        if (typeof val === "string" && (val.startsWith("{") || val.startsWith("[") || val.startsWith('"'))) {
+          val = JSON.parse(val);
+        }
+      } catch {}
+
+      const keyId = row.fieldDefinitionId;
+      const keyName = row.fieldName || row.fieldKey;
+
+      customFieldValuesMap[keyId] = val;
+      if (keyName) customFieldValuesMap[keyName] = val;
+      if (row.fieldKey) customFieldValuesMap[row.fieldKey] = val;
+    }
+
+    const resolvedAddress = body.address !== undefined ? body.address : (customFieldValuesMap["address"] || customFieldValuesMap["Address"] || null);
+    const resolvedTotal = body.totalAmount !== undefined ? Number(body.totalAmount) : (Number(customFieldValuesMap["totalAmount"] || customFieldValuesMap["Total Amount"]) || 0);
+    const resolvedAdvance = body.advanceAmount !== undefined ? Number(body.advanceAmount) : (Number(customFieldValuesMap["advanceAmount"] || customFieldValuesMap["Advance Amount"]) || 0);
+
     return Response.json({
       success: true,
       ok: true,
       message: "Lead details updated successfully.",
       lead: {
         ...lead,
-        address: body.address !== undefined ? body.address : null,
+        address: resolvedAddress,
+        totalAmount: resolvedTotal,
+        advanceAmount: resolvedAdvance,
         stage: lead.status,
+        expectedRevenue: resolvedTotal,
+        customFieldValues: customFieldValuesMap,
       },
     });
   } catch (error: any) {
-    // STEP 9: Error Handling
     console.error("[Lead Update API] Error:", error);
     return Response.json(
-      { success: false, ok: false, message: error.message || "Failed to update lead details." },
+      { success: false, ok: false, error: error.message || "Failed to update lead details." },
       { status: 500 }
     );
   }
@@ -345,19 +393,19 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
-    return Response.json({ message: "Invalid request origin." }, { status: 403 });
+    return Response.json({ success: false, ok: false, error: "Invalid request origin." }, { status: 403 });
   }
 
   const identity = await requirePermission("all_leads", request);
   if (!identity) {
     const user = await currentIdentity(request);
-    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
-    return Response.json({ message: "Forbidden." }, { status: 403 });
+    if (!user) return Response.json({ success: false, ok: false, error: "Unauthorized." }, { status: 401 });
+    return Response.json({ success: false, ok: false, error: "Forbidden." }, { status: 403 });
   }
 
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
-    return Response.json({ message: "Invalid lead ID." }, { status: 400 });
+    return Response.json({ success: false, ok: false, error: "Invalid lead ID." }, { status: 400 });
   }
 
   try {
@@ -375,18 +423,22 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const deleted = result.rows[0];
     if (!deleted) {
-      return Response.json({ message: "Lead not found or access denied." }, { status: 404 });
+      return Response.json({ success: false, ok: false, error: "Lead not found or access denied." }, { status: 404 });
     }
 
+    console.log("DELETE LEAD:", { deletedLeadId: id });
+
     return Response.json({
+      success: true,
       ok: true,
       message: `Lead ${deleted.name} deleted successfully.`,
     });
   } catch (error: any) {
     console.error("[Lead Delete API] Error:", error);
     return Response.json(
-      { message: error.message || "Failed to delete lead." },
+      { success: false, ok: false, error: error.message || "Failed to delete lead." },
       { status: 400 }
     );
   }
 }
+

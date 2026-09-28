@@ -178,10 +178,10 @@ export async function POST(request: Request) {
 
     const leadId = result.lead.id;
 
-    console.log("[POST /api/leads]", {
+    console.log("CREATE LEAD:", {
       userId: identity.id,
-      accountId: ownerUserId,
-      createdLeadId: leadId
+      workspaceId: ownerUserId,
+      leadData: { name: body.name, email: body.email, contactNumber: body.contactNumber, status: body.status, source: body.source }
     });
 
     // Save custom field values
