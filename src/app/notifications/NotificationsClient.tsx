@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import type { NotificationItem } from "@/components/NotificationBell";
 import {
@@ -324,17 +325,7 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
       <header className="dash-top">
         <button className="hamb" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">☰</button>
         <a className="dash-brand" href="/">
-          <Image
-            src="/assets/logo.svg"
-            alt="Zappit logo"
-            width={240}
-            height={120}
-            priority
-            style={{
-              width: "auto",
-              height: "auto",
-            }}
-          />
+          <BrandLogo size="md" />
         </a>
         <span className="crumb">/ &nbsp;Notification Center</span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>

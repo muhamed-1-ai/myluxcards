@@ -1,8 +1,10 @@
+
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -473,7 +475,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
       });
 
       transition.finished
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => {
           document.documentElement.classList.remove(
             "theme-transition-to-dark",
@@ -587,7 +589,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
       }
       try {
         localStorage.setItem("myluxcards_current_user", JSON.stringify(user));
-      } catch {}
+      } catch { }
       setCurrentUser(user);
       const accountId = user.id || user.email || "user";
       const key = storageKey(accountId);
@@ -602,7 +604,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               .map((card) => normalizeCard(card, user));
           }
         }
-      } catch {}
+      } catch { }
       const firstCard = accountCards[0] || createBlankCard(user);
       console.log("[ProfileImageDebug] HYDRATION_IMAGE_VALUE", {
         source: "localStorage",
@@ -1084,23 +1086,12 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
   return (
     <div className="dash-shell">
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
-      
+
       {/* 1. RECREATED INSET VERTICAL SIDEBAR MATCHING REFERENCE */}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <div className="side-logo-wrap">
           <a className="side-brand" href="/" title="Zappit">
-            <Image
-              src="/assets/logo.svg"
-              alt="Zappit logo"
-              width={150}
-              height={50}
-              priority
-              style={{
-                width: "auto",
-                height: "32px",
-                objectFit: "contain",
-              }}
-            />
+            <BrandLogo variant="compact" size="compact" />
           </a>
           <button
             type="button"
@@ -1117,46 +1108,46 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
           {(isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) ||
             isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) ||
             isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role)) && (
-            <div className="side-nav-group">
-              <span className="side-group-title">Dashboards</span>
-              {isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) && (
-                <button
-                  type="button"
-                  className={`side-nav-item ${tab === "dashboard" ? "active" : ""}`}
-                  onClick={() => { selectTab("dashboard"); setSidebar(false); }}
-                >
-                  <span className="side-nav-item-left">
-                    <LayoutDashboard className="side-nav-icon" />
-                    <span>Overview</span>
-                  </span>
-                </button>
-              )}
-              {isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) && (
-                <button
-                  type="button"
-                  className={`side-nav-item ${tab === "leads" ? "active" : ""}`}
-                  onClick={() => { selectTab("leads"); setSidebar(false); }}
-                >
-                  <span className="side-nav-item-left">
-                    <Users className="side-nav-icon" />
-                    <span>All Leads</span>
-                  </span>
-                </button>
-              )}
-              {isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role) && (
-                <button
-                  type="button"
-                  className={`side-nav-item ${tab === "analytics" ? "active" : ""}`}
-                  onClick={() => { selectTab("analytics"); setSidebar(false); }}
-                >
-                  <span className="side-nav-item-left">
-                    <BarChart2 className="side-nav-icon" />
-                    <span>QR Activity</span>
-                  </span>
-                </button>
-              )}
-            </div>
-          )}
+              <div className="side-nav-group">
+                <span className="side-group-title">Dashboards</span>
+                {isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) && (
+                  <button
+                    type="button"
+                    className={`side-nav-item ${tab === "dashboard" ? "active" : ""}`}
+                    onClick={() => { selectTab("dashboard"); setSidebar(false); }}
+                  >
+                    <span className="side-nav-item-left">
+                      <LayoutDashboard className="side-nav-icon" />
+                      <span>Overview</span>
+                    </span>
+                  </button>
+                )}
+                {isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) && (
+                  <button
+                    type="button"
+                    className={`side-nav-item ${tab === "leads" ? "active" : ""}`}
+                    onClick={() => { selectTab("leads"); setSidebar(false); }}
+                  >
+                    <span className="side-nav-item-left">
+                      <Users className="side-nav-icon" />
+                      <span>All Leads</span>
+                    </span>
+                  </button>
+                )}
+                {isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role) && (
+                  <button
+                    type="button"
+                    className={`side-nav-item ${tab === "analytics" ? "active" : ""}`}
+                    onClick={() => { selectTab("analytics"); setSidebar(false); }}
+                  >
+                    <span className="side-nav-item-left">
+                      <BarChart2 className="side-nav-icon" />
+                      <span>QR Activity</span>
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
 
           {/* Section: Management (Master Configuration) */}
           {isGroupAllowed("Master Config", currentUser?.featurePermissions) && (
@@ -1362,14 +1353,14 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
                 {tab === "cards"
                   ? "My Cards"
                   : tab === "dashboard"
-                  ? "Dashboard"
-                  : tab === "leads"
-                  ? "All Leads"
-                  : tab === "analytics"
-                  ? "QR Activity"
-                  : tab.startsWith("config-")
-                  ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
-                  : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
+                    ? "Dashboard"
+                    : tab === "leads"
+                      ? "All Leads"
+                      : tab === "analytics"
+                        ? "QR Activity"
+                        : tab.startsWith("config-")
+                          ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
+                          : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
               </span>
               <span className={`save-state ${saveStatus}`}>
                 {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
@@ -1600,7 +1591,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
 
 
 
-  function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
+function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
   const [period, setPeriod] = useState<"today" | "7d" | "30d">("30d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1927,7 +1918,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
       setLoadingCounts(true);
       try {
         const counts: Record<string, number> = {};
-        
+
         // Products count
         const prodRes = await fetch(`/api/cards/profile-products?cardId=${encodeURIComponent(draft.id)}`);
         if (prodRes.ok) {

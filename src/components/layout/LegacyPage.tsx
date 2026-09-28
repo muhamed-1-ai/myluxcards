@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { createIcons, icons } from 'lucide';
+import BrandLogo from '@/components/BrandLogo';
 
 type LegacyPageProps = { markup: string; inlineScript?: string };
 type LucideWindow = Window & { lucide?: { createIcons: () => void } };
@@ -33,20 +34,7 @@ function NavbarLogoPortal() {
   if (!target) return null;
 
   return createPortal(
-    <Image
-      src="/assets/logo-transparent.png"
-      alt="3G Zappit logo"
-      width={280}
-      height={140}
-      priority
-      style={{
-        width: 'auto',
-        height: '70px',
-        maxHeight: '100%',
-        objectFit: 'contain',
-      }}
-      className="brand-logo"
-    />,
+    <BrandLogo size="lg" priority />,
     target
   );
 }
@@ -55,7 +43,7 @@ export default function LegacyPage({ markup, inlineScript }: LegacyPageProps) {
   useEffect(() => {
     let cancelled = false;
     document.querySelectorAll<HTMLImageElement>('.loader-logo-img, .footer-logo-img').forEach((image) => {
-      image.src = '/assets/logo-premium.png';
+      image.src = '/brand/zappit-logo.png';
       image.removeAttribute('onerror');
     });
     const renderIcons = () => createIcons({ icons });

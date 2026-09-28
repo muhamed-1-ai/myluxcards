@@ -1,4 +1,5 @@
 "use client";
+import BrandLogo from "@/components/BrandLogo";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
@@ -68,7 +69,7 @@ export default function AdminApp({ identity }:{identity:AdminIdentity}) {
   }
 
   return <div className="admin-shell">
-    <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo">3G ZAPPIT <span>ADMIN</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
+    <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo" style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}><BrandLogo size="sm" /><span>ADMIN</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
     {mobile&&<button className="admin-scrim" onClick={()=>setMobile(false)} aria-label="Close menu"/>}
     <aside className={mobile?"open":""}>
       <p>ADMINISTRATION</p>

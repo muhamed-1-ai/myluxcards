@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import BrandLogo from "@/components/BrandLogo";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
@@ -318,8 +319,9 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
     <div className="admin-shell" style={{ background: "var(--admin-bg)", minHeight: "100vh", color: "var(--admin-text)", fontFamily: "system-ui, sans-serif" }}>
       {/* Top Bar */}
       <header className="admin-top" style={{ background: "var(--admin-panel)", borderBottom: "1px solid var(--admin-border)", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <a href="/" className="admin-logo" style={{ color: "var(--admin-text)", textDecoration: "none", fontWeight: 800, fontSize: "18px", letterSpacing: "1px" }}>
-          3G ZAPPIT <span style={{ color: "#0066FF", fontSize: "12px", background: "rgba(0, 102, 255, 0.12)", padding: "2px 8px", borderRadius: "4px" }}>SUPER ADMIN</span>
+        <a href="/" className="admin-logo" style={{ display: "inline-flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+          <BrandLogo size="sm" />
+          <span style={{ color: "#0066FF", fontSize: "12px", background: "rgba(0, 102, 255, 0.12)", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>SUPER ADMIN</span>
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <strong style={{ fontSize: "14px" }}>{identity.name}</strong>
