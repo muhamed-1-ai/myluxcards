@@ -65,7 +65,7 @@ export function ProfileActions({
         {hasBrochure && onOpenBrochure && (
           <button
             type="button"
-            className="zappit-modern-btn-glass"
+            className="zappit-modern-btn-glass zappit-btn-brochure"
             onClick={onOpenBrochure}
             style={{
               borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
@@ -81,7 +81,7 @@ export function ProfileActions({
         {onShare && (
           <button
             type="button"
-            className="zappit-modern-btn-glass"
+            className="zappit-modern-btn-glass zappit-btn-share"
             onClick={onShare}
             style={{
               borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
