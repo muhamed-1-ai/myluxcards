@@ -127,8 +127,7 @@ export async function POST(request: Request) {
       ]
     );
 
-    // Upsert into leads table with source: "NPC TAP"
-    const leadResult = await upsertLead({
+    const leadPayload = {
       ownerUserId: card.owner_id,
       cardId: card.id,
       name,
@@ -140,7 +139,12 @@ export async function POST(request: Request) {
       createdFrom: "PROFILE_SHARE",
       assignedUserId: card.owner_id,
       status: "NEW",
-    });
+    };
+
+    console.log("CREATING NFC LEAD", leadPayload);
+
+    // Upsert into leads table with source: "NPC TAP"
+    const leadResult = await upsertLead(leadPayload);
 
     // Notify Card Owner
     void createNotification({

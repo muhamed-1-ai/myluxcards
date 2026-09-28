@@ -97,21 +97,25 @@ export function ShareDetailsModal({ isOpen, onClose, slug, recipientName }: Shar
     setSubmitting(true);
     setErrors({});
 
+    const payload = {
+      name: name.trim(),
+      mobileNumber: mobileNumber.trim(),
+      businessName: businessName.trim(),
+      email: email.trim(),
+      whatsappNumber: whatsappNumber.trim(),
+      additionalNumbers: additionalNumbers.map((a) => ({
+        label: a.label,
+        number: a.number.trim(),
+      })),
+    };
+
+    console.log("SHARE DETAILS SUBMISSION", payload);
+
     try {
       const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}/share-details`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          mobileNumber: mobileNumber.trim(),
-          businessName: businessName.trim(),
-          email: email.trim(),
-          whatsappNumber: whatsappNumber.trim(),
-          additionalNumbers: additionalNumbers.map((a) => ({
-            label: a.label,
-            number: a.number.trim(),
-          })),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
