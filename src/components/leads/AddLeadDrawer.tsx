@@ -637,9 +637,15 @@ export default function AddLeadDrawer({
       followUpType: formData.followUpType || "Call",
       followUpNote: formData.followUpNote.trim() || undefined,
       customFields: customFieldValues,
+      customFieldValues: customFieldValues,
+      dynamicFields: customFieldValues,
     };
 
-    console.log("UPDATE PAYLOAD", payload);
+    if (mode === "edit") {
+      console.log("UPDATE PAYLOAD", payload);
+    } else {
+      console.log("CREATE LEAD PAYLOAD", payload);
+    }
 
     try {
       if (mode === "edit" && leadData?.id) {
