@@ -1,6 +1,8 @@
 import { currentIdentity } from "@/lib/adminAuth";
 import { getDashboardSummaryData, DashboardFilterOptions } from "@/lib/crm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const identity = await currentIdentity(request);
   if (!identity) {
@@ -20,8 +22,13 @@ export async function GET(request: Request) {
   };
 
   try {
-    const data = await getDashboardSummaryData(identity.id, filters);
-    return Response.json(data);
+    const data = await getDashboardSummaryData(identity.id, filters, identity.role);
+    return Response.json({
+      success: true,
+      accountId: identity.id,
+      userId: identity.id,
+      ...data,
+    });
   } catch (error) {
     console.error("[Dashboard Summary API] Error:", error);
     return Response.json(
@@ -30,3 +37,4 @@ export async function GET(request: Request) {
     );
   }
 }
+

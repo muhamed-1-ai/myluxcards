@@ -1,17 +1,28 @@
-import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
+import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const identity = await currentIdentity(request);
+  const identity = await requirePermission("all_leads", request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    const user = await currentIdentity(request);
+    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ message: "Forbidden." }, { status: 403 });
   }
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
     return Response.json({ message: "Invalid lead ID." }, { status: 400 });
   }
   try {
-    // STRICT ACCOUNT ISOLATION: A lead can only be retrieved by its owner
+    let accessClause = "(l.owner_user_id = $2 OR l.assigned_user_id = $2)";
+    if (identity.role === "SUPER_ADMIN") {
+      accessClause = "1=1";
+    } else if (identity.role === "ADMIN") {
+      accessClause = "(l.owner_user_id = $2 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR l.assigned_user_id = $2)";
+    }
+
+    // MULTI-TENANT ACCESS ISOLATION: Retrieve lead by owner, assigned user, or managed admin
     const leadRes = await pool.query(
       `SELECT 
          l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
@@ -28,8 +39,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
        FROM leads l
        LEFT JOIN users u_assigned ON u_assigned.id = l.assigned_user_id
        LEFT JOIN users u_owner ON u_owner.id = l.owner_user_id
-       WHERE l.id = $1 AND l.owner_user_id = $2`,
-      [id, identity.id]
+       WHERE l.id = $1 AND ${accessClause}`,
+      identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
     const lead = leadRes.rows[0];
@@ -43,8 +54,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
               d.name as "fieldName", d.input_type as "inputType", d.is_required as "isRequired", d.options
        FROM lead_field_values v
        LEFT JOIN lead_field_definitions d ON d.id = v.field_definition_id
-       WHERE v.lead_id = $1 AND v.owner_user_id = $2`,
-      [id, identity.id]
+       WHERE v.lead_id = $1`,
+      [id]
     );
 
     const customFieldValuesMap: Record<string, any> = {};
@@ -118,9 +129,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity(request);
+  const identity = await requirePermission("all_leads", request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    const user = await currentIdentity(request);
+    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ message: "Forbidden." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -144,10 +157,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const note = body.note ? String(body.note).trim() : null;
 
-    // STRICT ACCOUNT ISOLATION: Ensure lead ownership
+    let accessClause = "(owner_user_id = $2 OR assigned_user_id = $2)";
+    if (identity.role === "SUPER_ADMIN") {
+      accessClause = "1=1";
+    } else if (identity.role === "ADMIN") {
+      accessClause = "(owner_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR assigned_user_id = $2)";
+    }
+
+    // MULTI-TENANT ISOLATION: Ensure lead ownership
     const permCheck = await pool.query<{ id: string; owner_user_id: string; status: string }>(
-      `SELECT id, owner_user_id, status FROM leads WHERE id = $1 AND owner_user_id = $2`,
-      [id, identity.id]
+      `SELECT id, owner_user_id, status FROM leads WHERE id = $1 AND ${accessClause}`,
+      identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
     const existingLead = permCheck.rows[0];
@@ -160,9 +180,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const result = await pool.query(
       `UPDATE leads
        SET name = $1, company_name = $2, contact_number = $3, email = $4, profile_image = COALESCE($5, profile_image), assigned_user_id = COALESCE($6, assigned_user_id), status = COALESCE($7, status), updated_at = NOW()
-       WHERE id = $8 AND owner_user_id = $9
+       WHERE id = $8 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$9")}
        RETURNING id, name, company_name, contact_number, email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", updated_at`,
-      [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id, identity.id]
+      identity.role === "SUPER_ADMIN"
+        ? [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id]
+        : [name, companyName || null, contactNumber, email || null, profileImage, assignedUserId, status, id, identity.id]
     );
 
     const lead = result.rows[0];
@@ -176,8 +198,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const defsRes = await pool.query(
         `SELECT id, name, input_type as "inputType", is_required as "isRequired"
          FROM lead_field_definitions
-         WHERE owner_user_id = $1 AND status = 'ACTIVE'`,
-        [identity.id]
+         WHERE (owner_user_id = $1 OR owner_user_id = $2) AND status = 'ACTIVE'`,
+        [identity.id, existingLead.owner_user_id]
       );
       const activeDefs = defsRes.rows;
 
@@ -253,9 +275,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity(request);
+  const identity = await requirePermission("all_leads", request);
   if (!identity) {
-    return Response.json({ message: "Unauthorized." }, { status: 401 });
+    const user = await currentIdentity(request);
+    if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
+    return Response.json({ message: "Forbidden." }, { status: 403 });
   }
 
   const { id } = await params;
@@ -264,9 +288,16 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   try {
+    let accessClause = "(owner_user_id = $2 OR assigned_user_id = $2)";
+    if (identity.role === "SUPER_ADMIN") {
+      accessClause = "1=1";
+    } else if (identity.role === "ADMIN") {
+      accessClause = "(owner_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR assigned_user_id = $2)";
+    }
+
     const result = await pool.query(
-      `DELETE FROM leads WHERE id = $1 AND owner_user_id = $2 RETURNING id, name`,
-      [id, identity.id]
+      `DELETE FROM leads WHERE id = $1 AND ${accessClause} RETURNING id, name`,
+      identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
     const deleted = result.rows[0];

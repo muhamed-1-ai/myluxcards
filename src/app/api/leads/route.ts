@@ -2,13 +2,14 @@ import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/a
 import { pool } from "@/lib/db";
 import { createManualLead } from "@/lib/crm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
-  const identity = await currentIdentity(request);
+  const identity = await requirePermission("all_leads", request);
   if (!identity) {
-    return Response.json({ message: "Not authenticated." }, { status: 401 });
-  }
-  if (!identity.featurePermissions?.leads && identity.role !== "SUPER_ADMIN" && identity.role !== "ADMIN") {
-    return Response.json({ message: "Permission denied." }, { status: 403 });
+    const user = await currentIdentity(request);
+    if (!user) return Response.json({ message: "Not authenticated." }, { status: 401 });
+    return Response.json({ message: "Permission denied. Leads feature is disabled for your account." }, { status: 403 });
   }
 
   try {
@@ -17,10 +18,20 @@ export async function GET(request: Request) {
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "25")));
     const offset = (page - 1) * limit;
 
+    let whereClause = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)";
+    if (identity.role === "SUPER_ADMIN") {
+      whereClause = "1=1";
+    } else if (identity.role === "ADMIN") {
+      whereClause = "(l.owner_user_id = $1 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR l.assigned_user_id = $1)";
+    }
+
     const countRes = await pool.query<{ total: number }>(
-      `SELECT COUNT(*)::int as total FROM leads WHERE owner_user_id = $1`,
-      [identity.id]
+      `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`,
+      identity.role === "SUPER_ADMIN" ? [] : [identity.id]
     );
+
+    const queryParams: any[] = identity.role === "SUPER_ADMIN" ? [limit, offset] : [identity.id, limit, offset];
+    const limitOffsetParams = identity.role === "SUPER_ADMIN" ? "$1 OFFSET $2" : "$2 OFFSET $3";
 
     const dataRes = await pool.query(
       `SELECT l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
@@ -29,15 +40,21 @@ export async function GET(request: Request) {
               u.name as "assignedUserName", u.email as "assignedUserEmail"
        FROM leads l
        LEFT JOIN users u ON u.id = l.assigned_user_id
-       WHERE l.owner_user_id = $1
+       WHERE ${whereClause}
        ORDER BY l.created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [identity.id, limit, offset]
+       LIMIT ${limitOffsetParams}`,
+      queryParams
     );
 
+    const totalCount = countRes.rows[0]?.total || 0;
+
     return Response.json({
+      success: true,
+      count: totalCount,
+      total: totalCount,
+      accountId: identity.id,
+      userId: identity.id,
       leads: dataRes.rows,
-      total: countRes.rows[0]?.total || 0,
       page,
       limit,
     });
@@ -161,6 +178,12 @@ export async function POST(request: Request) {
 
     const leadId = result.lead.id;
 
+    console.log("[POST /api/leads]", {
+      userId: identity.id,
+      accountId: ownerUserId,
+      createdLeadId: leadId
+    });
+
     // Save custom field values
     for (const item of processedValues) {
       await pool.query(
@@ -196,9 +219,12 @@ export async function POST(request: Request) {
 
     return Response.json(
       {
+        success: true,
         ok: true,
         message: "Lead added successfully.",
         lead: result.lead,
+        accountId: ownerUserId,
+        userId: identity.id,
       },
       { status: 201 }
     );
@@ -211,3 +237,4 @@ export async function POST(request: Request) {
     return Response.json({ message: msg }, { status: 400 });
   }
 }
+

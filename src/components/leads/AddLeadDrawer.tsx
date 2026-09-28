@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { 
@@ -90,6 +91,7 @@ export default function AddLeadDrawer({
   onSuccess, 
   identity 
 }: AddLeadDrawerProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [fetchingConfig, setFetchingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -582,6 +584,9 @@ export default function AddLeadDrawer({
         if (!res.ok) throw new Error(data.message || "Failed to create lead.");
       }
 
+      try {
+        router.refresh();
+      } catch {}
       onSuccess();
     } catch (err: any) {
       setFormError(err.message || "Operation failed. Please try again.");

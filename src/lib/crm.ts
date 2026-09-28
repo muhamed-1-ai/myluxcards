@@ -99,16 +99,30 @@ export interface DashboardFilterOptions {
  */
 export async function getDashboardSummaryData(
   ownerUserId: string,
-  filters?: DashboardFilterOptions
+  filters?: DashboardFilterOptions,
+  userRole: string = "CUSTOMER"
 ): Promise<DashboardSummaryPayload> {
   if (!ownerUserId) {
     throw new Error("Unauthorized user ID");
   }
 
   // Dynamic WHERE conditions for leads l table
-  const whereConditions: string[] = ["l.owner_user_id = $1"];
-  const params: any[] = [ownerUserId];
-  let paramIdx = 2;
+  let baseOwnerCondition = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)";
+  const params: any[] = [];
+  let paramIdx = 1;
+
+  if (userRole === "SUPER_ADMIN") {
+    baseOwnerCondition = "1=1";
+  } else if (userRole === "ADMIN") {
+    baseOwnerCondition = "(l.owner_user_id = $1 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR l.assigned_user_id = $1)";
+    params.push(ownerUserId);
+    paramIdx = 2;
+  } else {
+    params.push(ownerUserId);
+    paramIdx = 2;
+  }
+
+  const whereConditions: string[] = [baseOwnerCondition];
 
   if (filters?.search && filters.search.trim()) {
     const q = `%${filters.search.trim()}%`;
