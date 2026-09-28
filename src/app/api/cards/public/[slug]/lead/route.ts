@@ -72,8 +72,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     // Determine source
     const rawSource = String(body.source || body.channel || "").toUpperCase();
-    const allowedSources = ["PROFILE_SHARE_DETAILS", "NFC", "QR", "SHARE", "DIRECT", "UNKNOWN"];
-    const source = allowedSources.includes(rawSource) ? rawSource : "PROFILE_SHARE_DETAILS";
+    const source = rawSource ? rawSource : "NPC TAP";
 
     // Upsert Lead securely (using resolved card.owner_id and card.id)
     const result = await upsertLead({

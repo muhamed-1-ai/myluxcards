@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       ]
     );
 
-    // Upsert into leads table with source: "NFC Tap"
+    // Upsert into leads table with source: "NPC TAP"
     const leadResult = await upsertLead({
       ownerUserId: card.owner_id,
       cardId: card.id,
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       companyName: businessName,
       contactNumber: phoneRes.normalized,
       email,
-      source: "NFC Tap",
+      source: "NPC TAP",
       sourceType: "NFC",
       createdFrom: "PROFILE_SHARE",
       assignedUserId: card.owner_id,
