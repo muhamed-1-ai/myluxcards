@@ -238,6 +238,7 @@ const improvedMarkup = markup
     '<p>Explore card materials and build a design that fits your work.</p>',
   )
   .replace(/<li><a href="\/(?:find|corporate)">[\s\S]*?<\/a><\/li>/g, "")
+  .replaceAll('/brand/zappit-logo.png', '/brand/zappit-logo-transparent.png')
   .replace(
     /<!-- Login Modal -->[\s\S]*?<!-- Toast Alerts Container -->/,
     `<!-- Login Modal -->

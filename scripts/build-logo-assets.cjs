@@ -53,7 +53,7 @@ async function generateAssets() {
   fs.writeFileSync(path.join(publicAssetsDir, 'logo-3d.png'), transparentBuffer);
   fs.writeFileSync(path.join(rootAssetsDir, 'logo.png'), transparentBuffer);
   fs.writeFileSync(path.join(rootAssetsDir, 'logo-3d.png'), transparentBuffer);
-  fs.writeFileSync(path.join(publicAssetsDir, 'zappit-logo.png'), rawBuffer);
+  fs.writeFileSync(path.join(publicAssetsDir, 'zappit-logo.png'), transparentBuffer);
 
   // 3. logo-navbar.png (high DPI navbar image, e.g., 440x220)
   await sharp(transparentBuffer)

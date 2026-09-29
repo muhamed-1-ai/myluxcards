@@ -43,7 +43,7 @@ export default function LegacyPage({ markup, inlineScript }: LegacyPageProps) {
   useEffect(() => {
     let cancelled = false;
     document.querySelectorAll<HTMLImageElement>('.loader-logo-img, .footer-logo-img').forEach((image) => {
-      image.src = '/brand/zappit-logo.png';
+      image.src = '/brand/zappit-logo-transparent.png';
       image.removeAttribute('onerror');
     });
     const renderIcons = () => createIcons({ icons });

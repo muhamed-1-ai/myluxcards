@@ -18,6 +18,7 @@ export default function Page() {
     .replace(/<div class="footer-column footer-newsletter footer-callout">[\s\S]*?<\/form>[\s\S]*?<\/label>\s*<\/div>/, "")
     .replace(/<!-- Wishlist Drawer -->[\s\S]*?<!-- Cart Drawer -->/, "<!-- Cart Drawer -->")
     .replace(/<!-- Cart Drawer -->[\s\S]*?<!-- Login Modal -->/, "<!-- Login Modal -->")
-    .replace(/<!-- Login Modal -->[\s\S]*?<!-- Toast Alerts Container -->/, "<!-- Toast Alerts Container -->");
+    .replace(/<!-- Login Modal -->[\s\S]*?<!-- Toast Alerts Container -->/, "<!-- Toast Alerts Container -->")
+    .replaceAll('/brand/zappit-logo.png', '/brand/zappit-logo-transparent.png');
   return <LegacyPage markup={cleanMarkup} />;
 }

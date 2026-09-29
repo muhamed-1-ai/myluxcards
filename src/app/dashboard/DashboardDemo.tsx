@@ -1047,7 +1047,8 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               onClick={toggleThemeWithTransition}
               className="dash-theme-btn text-xs px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
             >
-              {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+              <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+              <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
             </button>
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <span className="font-medium text-white">{currentUser?.name || currentUser?.email}</span>
@@ -1340,7 +1341,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
       </aside>
 
       {/* 2. REWORKED DASHBOARD SHELL & INTEGRATED HEADER */}
-      <main className="dash-main">
+      <main className="dash-main main-content">
         <header className="dash-main-header">
           <div className="dash-header-left">
             <button className="hamb-toggle" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">
@@ -1376,7 +1377,8 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
               aria-label="Toggle Theme"
               className="dash-theme-btn"
             >
-              {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+              <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+              <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
             </button>
             <NotificationBell onSelectEntity={(entityType, entityId, actionUrl) => {
               if (actionUrl) {

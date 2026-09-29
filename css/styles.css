@@ -466,6 +466,8 @@ a {
   max-height: 104px;
   max-width: 300px;
   width: auto;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .nav-menu {
@@ -2290,6 +2292,7 @@ body.dark-mode .feature-icon {
   justify-content: flex-start;
   width: 100%;
   max-width: 180px;
+  background: transparent !important;
 }
 
 .footer-logo-img {
@@ -2301,6 +2304,17 @@ body.dark-mode .feature-icon {
   object-position: left center;
   mix-blend-mode: normal;
   display: block;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 2px 10px rgba(0, 102, 255, 0.2));
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.footer-logo-img:hover {
+  filter: drop-shadow(0 4px 16px rgba(0, 217, 255, 0.35));
+  transform: translateY(-1px);
 }
 
 .footer-top p {
