@@ -13,53 +13,127 @@ const VALID_INPUT_TYPES = [
   "DATE",
   "FILE",
   "DATETIME",
+  "EMAIL",
+  "PHONE",
+  "URL",
 ];
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
-    return Response.json({ success: false, ok: false, error: "Invalid request origin." }, { status: 403 });
+    return Response.json(
+      { success: false, ok: false, error: "Invalid request origin.", message: "Invalid request origin." },
+      { status: 403 }
+    );
   }
 
   const identity = await currentIdentity(request);
-  if (!identity) {
-    return Response.json({ success: false, ok: false, error: "Unauthorized." }, { status: 401 });
-  }
-
-  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
-    return Response.json({ success: false, ok: false, error: "Forbidden. Only administrators can update dynamic lead field configurations." }, { status: 403 });
+  if (!identity || !identity.id) {
+    return Response.json(
+      { success: false, ok: false, error: "Unauthorized.", message: "Unauthorized." },
+      { status: 401 }
+    );
   }
 
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
-    return Response.json({ success: false, ok: false, error: "Invalid field ID." }, { status: 400 });
+    return Response.json(
+      { success: false, ok: false, error: "Invalid field ID.", message: "Invalid field ID." },
+      { status: 400 }
+    );
   }
 
   try {
     const existingRes = await pool.query(
-      `SELECT id, owner_user_id, input_type as "inputType" FROM lead_field_definitions WHERE id = $1 AND owner_user_id = $2`,
+      `SELECT id, owner_user_id, name, input_type as "inputType" FROM lead_field_definitions WHERE id = $1 AND owner_user_id = $2`,
       [id, identity.id]
     );
 
     const existing = existingRes.rows[0];
     if (!existing) {
-      return Response.json({ success: false, ok: false, error: "Field not found or access denied." }, { status: 404 });
+      return Response.json(
+        { success: false, ok: false, error: "Field not found or access denied.", message: "Field not found or access denied." },
+        { status: 404 }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
-    const name = body.name !== undefined ? String(body.name).trim() : undefined;
-    const inputType = body.inputType !== undefined ? String(body.inputType).toUpperCase() : undefined;
-    const isRequired = body.isRequired !== undefined ? Boolean(body.isRequired) : undefined;
-    const status = body.status !== undefined ? (body.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") : undefined;
-    const sortOrder = body.sortOrder !== undefined ? Number(body.sortOrder) : undefined;
+    console.log("UPDATE CUSTOM FIELD REQUEST", { id, ...body });
+
+    // Handle aliases: fieldName / name
+    const rawName = body.fieldName ?? body.name ?? body.field_name ?? body.label;
+    const name = rawName !== undefined ? String(rawName).trim() : undefined;
+
+    // Handle aliases: inputType / type
+    const rawType = body.inputType ?? body.type ?? body.input_type;
+    const inputType = rawType !== undefined ? String(rawType).toUpperCase().trim() : undefined;
+
+    // Handle aliases: isRequired / required
+    let isRequired: boolean | undefined = undefined;
+    if (body.isRequired !== undefined) {
+      isRequired = Boolean(body.isRequired);
+    } else if (body.required !== undefined) {
+      if (typeof body.required === "string") {
+        const lower = body.required.trim().toLowerCase();
+        isRequired = lower === "mandatory" || lower === "true" || lower === "required";
+      } else {
+        isRequired = Boolean(body.required);
+      }
+    } else if (body.is_required !== undefined) {
+      isRequired = Boolean(body.is_required);
+    }
+
+    // Handle aliases: status / isActive
+    let status: string | undefined = undefined;
+    if (body.status !== undefined) {
+      const s = String(body.status).toUpperCase().trim();
+      status = s === "INACTIVE" || s === "ARCHIVED" ? s : "ACTIVE";
+    } else if (body.isActive !== undefined) {
+      status = body.isActive ? "ACTIVE" : "INACTIVE";
+    }
+
+    // Handle aliases: sortOrder / order
+    const rawSortOrder = body.sortOrder ?? body.order ?? body.sort_order;
+    const sortOrder = rawSortOrder !== undefined ? Number(rawSortOrder) : undefined;
+
     let options = body.options !== undefined ? (Array.isArray(body.options) ? body.options : []) : undefined;
 
     if (name !== undefined && !name) {
-      return Response.json({ success: false, ok: false, error: "Field name cannot be empty." }, { status: 400 });
+      return Response.json(
+        { success: false, ok: false, error: "fieldName is required", message: "Field name cannot be empty." },
+        { status: 400 }
+      );
+    }
+
+    // Duplicate name check if changing name
+    if (name !== undefined && name.toLowerCase() !== existing.name.toLowerCase()) {
+      const dupRes = await pool.query<{ id: string }>(
+        `SELECT id FROM lead_field_definitions WHERE owner_user_id = $1 AND LOWER(name) = LOWER($2) AND id != $3 AND status != 'ARCHIVED' LIMIT 1`,
+        [identity.id, name, id]
+      );
+      if (dupRes.rows[0]) {
+        return Response.json(
+          {
+            success: false,
+            ok: false,
+            error: `A field with name "${name}" already exists.`,
+            message: `A field with name "${name}" already exists.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     if (inputType !== undefined) {
       if (!VALID_INPUT_TYPES.includes(inputType)) {
-        return Response.json({ success: false, ok: false, error: `Invalid input type.` }, { status: 400 });
+        return Response.json(
+          {
+            success: false,
+            ok: false,
+            error: `Invalid input type. Supported types: ${VALID_INPUT_TYPES.join(", ")}`,
+            message: `Invalid input type. Supported types: ${VALID_INPUT_TYPES.join(", ")}`,
+          },
+          { status: 400 }
+        );
       }
 
       // Check if type is being changed incompatibly while field has saved lead values
@@ -70,7 +144,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         );
         if ((valueCheck.rows[0]?.count || 0) > 0) {
           return Response.json(
-            { success: false, ok: false, error: `Cannot change input type on a field that already has saved lead values. Create a new field instead.` },
+            {
+              success: false,
+              ok: false,
+              error: `Cannot change input type on a field that already has saved lead values. Create a new field instead.`,
+              message: `Cannot change input type on a field that already has saved lead values. Create a new field instead.`,
+            },
             { status: 400 }
           );
         }
@@ -81,7 +160,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (["SELECT", "RADIO", "CHECKBOX"].includes(targetType) && options !== undefined) {
       if (!Array.isArray(options) || options.length === 0) {
-        return Response.json({ success: false, ok: false, error: `At least one option is required for ${targetType} fields.` }, { status: 400 });
+        return Response.json(
+          {
+            success: false,
+            ok: false,
+            error: `At least one option is required for ${targetType} fields.`,
+            message: `At least one option is required for ${targetType} fields.`,
+          },
+          { status: 400 }
+        );
       }
 
       const cleanedOptions: { id: string; label: string; value: string }[] = [];
@@ -91,10 +178,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const item = options[i];
         const label = typeof item === "string" ? item.trim() : String(item?.label || item?.value || "").trim();
         if (!label) {
-          return Response.json({ success: false, ok: false, error: "Options cannot be empty." }, { status: 400 });
+          return Response.json(
+            {
+              success: false,
+              ok: false,
+              error: "Option labels cannot be empty.",
+              message: "Option labels cannot be empty.",
+            },
+            { status: 400 }
+          );
         }
         if (seenLabels.has(label.toLowerCase())) {
-          return Response.json({ success: false, ok: false, error: `Duplicate option label "${label}" is not allowed.` }, { status: 400 });
+          return Response.json(
+            {
+              success: false,
+              ok: false,
+              error: `Duplicate option label "${label}" is not allowed.`,
+              message: `Duplicate option label "${label}" is not allowed.`,
+            },
+            { status: 400 }
+          );
         }
         seenLabels.add(label.toLowerCase());
 
@@ -130,30 +233,61 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ]
     );
 
-    return Response.json({ success: true, ok: true, message: "Field updated successfully.", field: updateRes.rows[0] });
+    const row = updateRes.rows[0];
+    const formattedField = {
+      ...row,
+      fieldName: row.name,
+      type: row.inputType,
+      required: Boolean(row.isRequired),
+      order: Number(row.sortOrder),
+      isActive: row.status === "ACTIVE",
+      options: typeof row.options === "string" ? JSON.parse(row.options) : (row.options || []),
+      config: typeof row.config === "string" ? JSON.parse(row.config) : (row.config || {}),
+    };
+
+    return Response.json({
+      success: true,
+      ok: true,
+      message: "Field updated successfully.",
+      field: formattedField,
+      data: formattedField,
+    });
   } catch (error: any) {
     console.error("[Custom Fields PATCH Error]", error);
-    return Response.json({ success: false, ok: false, error: error.message || "Failed to update field." }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        ok: false,
+        error: error.message || "Failed to update field.",
+        message: error.message || "Failed to update field.",
+      },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
-    return Response.json({ success: false, ok: false, error: "Invalid request origin." }, { status: 403 });
+    return Response.json(
+      { success: false, ok: false, error: "Invalid request origin.", message: "Invalid request origin." },
+      { status: 403 }
+    );
   }
 
   const identity = await currentIdentity(request);
-  if (!identity) {
-    return Response.json({ success: false, ok: false, error: "Unauthorized." }, { status: 401 });
-  }
-
-  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
-    return Response.json({ success: false, ok: false, error: "Forbidden. Only administrators can delete dynamic lead field configurations." }, { status: 403 });
+  if (!identity || !identity.id) {
+    return Response.json(
+      { success: false, ok: false, error: "Unauthorized.", message: "Unauthorized." },
+      { status: 401 }
+    );
   }
 
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) {
-    return Response.json({ success: false, ok: false, error: "Invalid field ID." }, { status: 400 });
+    return Response.json(
+      { success: false, ok: false, error: "Invalid field ID.", message: "Invalid field ID." },
+      { status: 400 }
+    );
   }
 
   try {
@@ -163,7 +297,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     );
 
     if (!existingRes.rows[0]) {
-      return Response.json({ success: false, ok: false, error: "Field not found or access denied." }, { status: 404 });
+      return Response.json(
+        { success: false, ok: false, error: "Field not found or access denied.", message: "Field not found or access denied." },
+        { status: 404 }
+      );
     }
 
     // Check if lead values exist for this field definition
@@ -180,17 +317,34 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         `UPDATE lead_field_definitions SET status = 'ARCHIVED', updated_at = NOW() WHERE id = $1 AND owner_user_id = $2`,
         [id, identity.id]
       );
-      return Response.json({ success: true, ok: true, message: "Field archived successfully to preserve historical lead values." });
+      return Response.json({
+        success: true,
+        ok: true,
+        message: "Field archived successfully to preserve historical lead values.",
+      });
     } else {
       // Hard delete if no leads have filled values for this field
       await pool.query(
         `DELETE FROM lead_field_definitions WHERE id = $1 AND owner_user_id = $2`,
         [id, identity.id]
       );
-      return Response.json({ success: true, ok: true, message: "Field deleted successfully." });
+      return Response.json({
+        success: true,
+        ok: true,
+        message: "Field deleted successfully.",
+      });
     }
   } catch (error: any) {
     console.error("[Custom Fields DELETE Error]", error);
-    return Response.json({ success: false, ok: false, error: error.message || "Failed to delete field." }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        ok: false,
+        error: error.message || "Failed to delete field.",
+        message: error.message || "Failed to delete field.",
+      },
+      { status: 500 }
+    );
   }
 }
+
