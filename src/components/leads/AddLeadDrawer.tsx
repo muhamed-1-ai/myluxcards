@@ -451,10 +451,28 @@ export default function AddLeadDrawer({
                 ]);
               }
 
+              if (fullLead.products && Array.isArray(fullLead.products) && fullLead.products.length > 0) {
+                setSelectedProducts(fullLead.products);
+              }
+
               if (map) {
+                const cleanMap = { ...map };
+                delete cleanMap["address"];
+                delete cleanMap["Address"];
+                delete cleanMap["totalAmount"];
+                delete cleanMap["Total Amount"];
+                delete cleanMap["advanceAmount"];
+                delete cleanMap["Advance Amount"];
+                delete cleanMap["remark"];
+                delete cleanMap["Remark"];
+                delete cleanMap["remarks"];
+                delete cleanMap["Remarks"];
+                delete cleanMap["paymentInformation"];
+                delete cleanMap["Payment Information"];
+
                 setCustomFieldValues((prev) => ({
                   ...prev,
-                  ...map,
+                  ...cleanMap,
                 }));
               }
             }
@@ -609,7 +627,22 @@ export default function AddLeadDrawer({
       }
     }
 
-    // Build payload with all fields explicitly included
+    // Clean custom fields to avoid passing stale standard fields
+    const safeCustomFields = { ...customFieldValues };
+    delete safeCustomFields["address"];
+    delete safeCustomFields["Address"];
+    delete safeCustomFields["totalAmount"];
+    delete safeCustomFields["Total Amount"];
+    delete safeCustomFields["advanceAmount"];
+    delete safeCustomFields["Advance Amount"];
+    delete safeCustomFields["remark"];
+    delete safeCustomFields["Remark"];
+    delete safeCustomFields["remarks"];
+    delete safeCustomFields["Remarks"];
+    delete safeCustomFields["paymentInformation"];
+    delete safeCustomFields["Payment Information"];
+
+    // STEP 1: Build payload with all fields explicitly included
     const payload: any = {
       name: formData.name.trim(),
       contactNumber: fullContactNumber,
@@ -625,27 +658,36 @@ export default function AddLeadDrawer({
       totalAmount,
       expectedRevenue: totalAmount,
       advanceAmount: totalAdvanceFromRecords,
+      balanceAmount,
+      remarks: formData.remark.trim(),
+      remark: formData.remark.trim(),
+      note: formData.remark.trim(),
+      followUp: formData.followUpDate ? {
+        date: formData.followUpDate,
+        time: formData.followUpTime,
+        type: formData.followUpType,
+        note: formData.followUpNote.trim(),
+      } : undefined,
+      followUpDate: combinedFollowUpIso,
+      followUpType: formData.followUpType || "Call",
+      followUpNote: formData.followUpNote.trim() || undefined,
+      products: selectedProducts,
       paymentInformation: {
         totalAmount,
         advanceAmount: totalAdvanceFromRecords,
         balanceAmount,
       },
-      products: selectedProducts,
-      remark: formData.remark.trim(),
-      note: formData.remark.trim(),
-      followUpDate: combinedFollowUpIso,
-      followUpType: formData.followUpType || "Call",
-      followUpNote: formData.followUpNote.trim() || undefined,
-      customFields: customFieldValues,
-      customFieldValues: customFieldValues,
-      dynamicFields: customFieldValues,
+      customFields: safeCustomFields,
+      customFieldValues: safeCustomFields,
+      dynamicFields: safeCustomFields,
     };
 
     if (mode === "edit") {
-      console.log("UPDATE PAYLOAD", payload);
-    } else {
-      console.log("CREATE LEAD PAYLOAD", payload);
+      console.log("EDIT SAVE CLICKED", { id: leadData?.id, mode });
     }
+
+    console.log("UPDATE PAYLOAD", payload);
+    console.log("UPDATE LEAD PAYLOAD", payload);
 
     try {
       if (mode === "edit" && leadData?.id) {

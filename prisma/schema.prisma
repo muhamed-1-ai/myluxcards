@@ -131,6 +131,12 @@ model Lead {
   firstSubmittedAt        DateTime @default(now()) @map("first_submitted_at") @db.Timestamptz
   lastSubmittedAt         DateTime @default(now()) @map("last_submitted_at") @db.Timestamptz
   submissionCount         Int      @default(1) @map("submission_count")
+  address                 String?  @map("address")
+  totalAmount             Decimal? @default(0) @map("total_amount") @db.Decimal(12, 2)
+  advanceAmount           Decimal? @default(0) @map("advance_amount") @db.Decimal(12, 2)
+  remarks                 String?  @map("remarks")
+  paymentInformation      Json?    @default("{}") @map("payment_information")
+  products                Json?    @default("[]") @map("products")
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
 

@@ -127,6 +127,9 @@ export async function GET(request: NextRequest) {
         l.email, l.status as "stage", l.source, l.created_at as "createdAt",
         l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
+        (SELECT address FROM leads WHERE id = l.id) as "address",
+        (SELECT COALESCE(total_amount, 0)::float FROM leads WHERE id = l.id) as "totalAmount",
+        (SELECT COALESCE(advance_amount, 0)::float FROM leads WHERE id = l.id) as "advanceAmount",
         (SELECT f.note FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
         (SELECT f.scheduled_at FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
         (SELECT a.description FROM lead_activities a WHERE a.lead_id = l.id AND ${activityOwnerFilter} AND a.type = 'REMARK' ORDER BY a.occurred_at DESC LIMIT 1) as "lastRemark"
@@ -149,8 +152,12 @@ export async function GET(request: NextRequest) {
 
     const leads = dataRes.rows;
 
-    console.log("FETCH LEADS:", { workspaceId: identity.id, count: total });
-    console.log("TOTAL NFC LEADS:", total);
+    console.log("FETCH LEADS:", {
+      userId: identity.id,
+      role: identity.role,
+      createdByAdminId: identity.createdByAdminId || null,
+      returnedLeadCount: total
+    });
 
     return Response.json({
       success: true,

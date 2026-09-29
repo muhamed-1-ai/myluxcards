@@ -1,4 +1,4 @@
-import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
+import { currentIdentity, getLeadAccessFilter, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 import { createManualLead } from "@/lib/crm";
 
@@ -18,20 +18,20 @@ export async function GET(request: Request) {
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "25")));
     const offset = (page - 1) * limit;
 
-    let whereClause = "(l.owner_user_id = $1 OR l.assigned_user_id = $1)";
-    if (identity.role === "SUPER_ADMIN") {
-      whereClause = "1=1";
-    } else if (identity.role === "ADMIN") {
-      whereClause = "(l.owner_user_id = $1 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR l.assigned_user_id = $1)";
-    }
+    const accessFilter = getLeadAccessFilter(identity, "l");
+    const whereClause = accessFilter.whereClause;
+    const countParams = accessFilter.params;
 
     const countRes = await pool.query<{ total: number }>(
       `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`,
-      identity.role === "SUPER_ADMIN" ? [] : [identity.id]
+      countParams
     );
 
-    const queryParams: any[] = identity.role === "SUPER_ADMIN" ? [limit, offset] : [identity.id, limit, offset];
-    const limitOffsetParams = identity.role === "SUPER_ADMIN" ? "$1 OFFSET $2" : "$2 OFFSET $3";
+    const totalCount = countRes.rows[0]?.total || 0;
+
+    const limitParamIdx = accessFilter.paramCount + 1;
+    const offsetParamIdx = accessFilter.paramCount + 2;
+    const queryParams = [...countParams, limit, offset];
 
     const dataRes = await pool.query(
       `SELECT l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
@@ -42,11 +42,16 @@ export async function GET(request: Request) {
        LEFT JOIN users u ON u.id = l.assigned_user_id
        WHERE ${whereClause}
        ORDER BY l.created_at DESC
-       LIMIT ${limitOffsetParams}`,
+       LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`,
       queryParams
     );
 
-    const totalCount = countRes.rows[0]?.total || 0;
+    console.log("[FETCH LEADS]", {
+      userId: identity.id,
+      role: identity.role,
+      createdByAdminId: identity.createdByAdminId || null,
+      returnedLeadCount: totalCount
+    });
 
     return Response.json({
       success: true,
@@ -183,8 +188,9 @@ export async function POST(request: Request) {
     const leadId = result.lead.id;
 
     console.log("CREATE LEAD:", {
+      createdLeadId: leadId,
+      ownerId: ownerUserId,
       userId: identity.id,
-      workspaceId: ownerUserId,
       leadData: { name: body.name, email: body.email, contactNumber: body.contactNumber, status: body.status, source: body.source }
     });
 

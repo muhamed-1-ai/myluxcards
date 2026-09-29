@@ -395,7 +395,7 @@ export default function LeadDetailsDrawer({
                       {lead.email ? (
                         <a href={`mailto:${lead.email}`}>{lead.email}</a>
                       ) : (
-                        <a href="mailto:adhilmohammedo.v0@gmail.com">adhilmohammedo.v0@gmail.com</a>
+                        <span style={{ color: "var(--ld-text-muted)" }}>No email provided</span>
                       )}
                     </div>
 
@@ -404,12 +404,12 @@ export default function LeadDetailsDrawer({
                       <Phone className="lead-drawer-contact-icon" />
                       <span className="lead-drawer-phone-prefix">IN</span>
                       <span className="lead-drawer-phone-number">
-                        {lead.contactNumber || "+91 9744850272"}
+                        {lead.contactNumber || "No contact number"}
                       </span>
 
                       {/* WhatsApp Green Icon Circle */}
                       <a
-                        href={`https://wa.me/${(lead.contactNumber || "919744850272").replace(/[^0-9]/g, "")}`}
+                        href={`https://wa.me/${(lead.contactNumber || "").replace(/[^0-9]/g, "")}`}
                         target="_blank"
                         rel="noreferrer"
                         title="WhatsApp"
@@ -419,7 +419,7 @@ export default function LeadDetailsDrawer({
                       </a>
                       {/* Call Button */}
                       <a
-                        href={`tel:${lead.contactNumber || "+919744850272"}`}
+                        href={`tel:${lead.contactNumber || ""}`}
                         title="Call"
                         className="lead-drawer-call-btn"
                       >
@@ -432,7 +432,7 @@ export default function LeadDetailsDrawer({
                     <div className="lead-drawer-contact-row">
                       <Building className="lead-drawer-contact-icon" />
                       <span className="font-semibold">
-                        {companyName || "Zappit"}
+                        {companyName || "Personal Lead"}
                       </span>
                     </div>
 
@@ -440,7 +440,7 @@ export default function LeadDetailsDrawer({
                     <div className="lead-drawer-contact-row" style={{ alignItems: "flex-start" }}>
                       <MapPin className="lead-drawer-contact-icon" style={{ marginTop: 2 }} />
                       <span className="font-medium">
-                        {lead.address || "cherumukku kakkad"}
+                        {lead.address || "No address provided"}
                       </span>
                     </div>
                   </section>
@@ -655,16 +655,30 @@ export default function LeadDetailsDrawer({
                     </div>
                   </section>
 
-                  {/* CARD 6: REVENUE */}
+                  {/* CARD 6: PAYMENT & REVENUE */}
                   <section className="lead-drawer-card">
-                    <h3 className="lead-drawer-card-title">REVENUE</h3>
-                    <div className="lead-drawer-revenue-wrap">
-                      <div className="lead-drawer-revenue-icon">₹</div>
-                      <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span className="lead-drawer-pipeline-label" style={{ fontSize: 12 }}>Expected</span>
-                        <span className="lead-drawer-revenue-val">
-                          {formatCurrency(lead.totalAmount || lead.expectedRevenue)}
-                        </span>
+                    <h3 className="lead-drawer-card-title">PAYMENT & REVENUE</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div className="lead-drawer-revenue-wrap">
+                        <div className="lead-drawer-revenue-icon">₹</div>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span className="lead-drawer-pipeline-label" style={{ fontSize: 12 }}>Total Amount</span>
+                          <span className="lead-drawer-revenue-val">
+                            {formatCurrency(lead.totalAmount || lead.expectedRevenue)}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div style={{ padding: "8px 12px", borderRadius: 10, background: "var(--ld-inset-bg)", border: "1px solid var(--ld-card-border)" }}>
+                          <div style={{ fontSize: 11, color: "var(--ld-text-subtle)", fontWeight: 600 }}>ADVANCE PAID</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#10B981", marginTop: 2 }}>{formatCurrency(lead.advanceAmount || 0)}</div>
+                        </div>
+                        <div style={{ padding: "8px 12px", borderRadius: 10, background: "var(--ld-inset-bg)", border: "1px solid var(--ld-card-border)" }}>
+                          <div style={{ fontSize: 11, color: "var(--ld-text-subtle)", fontWeight: 600 }}>BALANCE DUE</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#F59E0B", marginTop: 2 }}>
+                            {formatCurrency(Math.max(0, (lead.totalAmount || lead.expectedRevenue || 0) - (lead.advanceAmount || 0)))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </section>

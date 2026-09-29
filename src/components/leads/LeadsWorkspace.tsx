@@ -302,7 +302,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 className="crm-btn-primary"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span>+ New Lead</span>
+                <span>New Lead</span>
               </button>
             </div>
           </div>
@@ -751,7 +751,15 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           mode="edit"
           leadData={editingLead}
           onClose={() => setEditingLead(null)}
-          onSuccess={() => { setEditingLead(null); fetchLeads(); }}
+          onSuccess={() => {
+            setEditingLead(null);
+            fetchLeads();
+            if (selectedLeadId) {
+              const currentId = selectedLeadId;
+              setSelectedLeadId(null);
+              setTimeout(() => setSelectedLeadId(currentId), 50);
+            }
+          }}
           identity={identity}
         />
       )}

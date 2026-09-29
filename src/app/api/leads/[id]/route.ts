@@ -26,13 +26,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const leadRes = await pool.query(
       `SELECT 
          l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
-         l.email, NULL as "address", l.status, l.source, l.profile_image as "profileImage",
+         l.email, l.address, COALESCE(l.total_amount, 0)::float as "totalAmount", 
+         COALESCE(l.advance_amount, 0)::float as "advanceAmount", l.remarks,
+         COALESCE(l.payment_information, '{}'::jsonb) as "paymentInformation",
+         COALESCE(l.products, '[]'::jsonb) as "products",
+         l.status, l.source, l.profile_image as "profileImage",
          COALESCE(l.submission_count, 1) as "submissionCount", 
          l.first_submitted_at as "firstSubmittedAt",
          l.last_submitted_at as "lastSubmittedAt", 
          l.created_at as "createdAt", l.updated_at as "updatedAt",
-         0 as "totalAmount", 
-         0 as "advanceAmount",
          l.assigned_user_id as "assignedUserId",
          u_assigned.name as "assignedUserName", u_assigned.email as "assignedUserEmail",
          u_owner.name as "createdByName", u_owner.email as "createdByEmail"
@@ -112,12 +114,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const latestRemarkObj = activities.find(
       (a: any) => a.type === "REMARK" || a.type === "NOTE_ADDED" || (a.description && a.description.toLowerCase().includes("remark"))
     );
-    const lastRemark = latestRemarkObj ? latestRemarkObj.description : (customFieldValuesMap["remark"] || customFieldValuesMap["Remark"] || null);
+    const lastRemark = lead.remarks || (latestRemarkObj ? latestRemarkObj.description : (customFieldValuesMap["remark"] || customFieldValuesMap["Remark"] || null));
 
-    const resolvedAddress = customFieldValuesMap["address"] || customFieldValuesMap["Address"] || null;
-    const resolvedTotalAmount = Number(customFieldValuesMap["totalAmount"] || customFieldValuesMap["Total Amount"]) || 0;
-    const resolvedAdvanceAmount = Number(customFieldValuesMap["advanceAmount"] || customFieldValuesMap["Advance Amount"]) || 0;
-    const resolvedPaymentInfo = customFieldValuesMap["paymentInformation"] || customFieldValuesMap["Payment Information"] || null;
+    const resolvedAddress = lead.address || customFieldValuesMap["address"] || customFieldValuesMap["Address"] || null;
+    const resolvedTotalAmount = lead.totalAmount !== null && lead.totalAmount !== undefined
+      ? Number(lead.totalAmount)
+      : (Number(customFieldValuesMap["totalAmount"] || customFieldValuesMap["Total Amount"]) || 0);
+    const resolvedAdvanceAmount = lead.advanceAmount !== null && lead.advanceAmount !== undefined
+      ? Number(lead.advanceAmount)
+      : (Number(customFieldValuesMap["advanceAmount"] || customFieldValuesMap["Advance Amount"]) || 0);
+    const resolvedPaymentInfo = lead.paymentInformation && Object.keys(lead.paymentInformation).length > 0
+      ? lead.paymentInformation
+      : (customFieldValuesMap["paymentInformation"] || customFieldValuesMap["Payment Information"] || { totalAmount: resolvedTotalAmount, advanceAmount: resolvedAdvanceAmount, balanceAmount: Math.max(0, resolvedTotalAmount - resolvedAdvanceAmount) });
 
     return Response.json({
       success: true,
@@ -128,6 +136,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         totalAmount: resolvedTotalAmount,
         advanceAmount: resolvedAdvanceAmount,
         paymentInformation: resolvedPaymentInfo,
+        products: lead.products || [],
+        remarks: lastRemark,
         stage: lead.status,
         expectedRevenue: resolvedTotalAmount,
         nextFollowUp,
@@ -147,23 +157,30 @@ async function saveCustomFieldValue(
   leadId: string,
   actorId: string,
   ownerId: string,
-  defName: string,
+  defNameOrId: string,
   fieldKey: string,
   val: any
 ) {
   try {
     let defRes = await pool.query<{ id: string }>(
-      `SELECT id FROM lead_field_definitions WHERE (owner_user_id = $1 OR owner_user_id = $2) AND (name ILIKE $3 OR name ILIKE $4) LIMIT 1`,
-      [actorId, ownerId, defName, fieldKey]
+      `SELECT id FROM lead_field_definitions 
+       WHERE (owner_user_id = $1 OR owner_user_id = $2) 
+         AND (id::text = $3 OR name ILIKE $3 OR name ILIKE $4) 
+       LIMIT 1`,
+      [actorId, ownerId, defNameOrId, fieldKey]
     );
 
     let defId = defRes.rows[0]?.id;
     if (!defId) {
+      const isUuid = /^[0-9a-f-]{36}$/i.test(defNameOrId);
+      if (isUuid) {
+        return;
+      }
       const newDef = await pool.query<{ id: string }>(
         `INSERT INTO lead_field_definitions (owner_user_id, name, input_type, is_required, status, sort_order, options, config, created_at, updated_at)
          VALUES ($1, $2, 'TEXT', false, 'ACTIVE', 1, '[]', '{}', NOW(), NOW())
          RETURNING id`,
-        [ownerId, defName]
+        [ownerId, defNameOrId]
       );
       defId = newDef.rows[0]?.id;
     }
@@ -202,7 +219,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const body = await request.json().catch(() => ({}));
 
-    // Logging payload for debugging
+    // STEP 2: Logging payload for debugging
     console.log("UPDATE REQUEST BODY", body);
     console.log("LEAD ID", id);
 
@@ -221,7 +238,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { normalizePhoneNumber } = await import("@/lib/phone");
     const normPhone = normalizePhoneNumber(contactNumber).normalized;
-    const note = body.note ? String(body.note).trim() : (body.remark ? String(body.remark).trim() : null);
+    const note = body.remarks !== undefined
+      ? String(body.remarks).trim()
+      : (body.remark !== undefined
+        ? String(body.remark).trim()
+        : (body.note ? String(body.note).trim() : null));
 
     let accessClause = "(owner_user_id = $2 OR assigned_user_id = $2)";
     if (identity.role === "SUPER_ADMIN") {
@@ -231,8 +252,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // MULTI-TENANT ISOLATION: Ensure lead ownership
-    const permCheck = await pool.query<{ id: string; owner_user_id: string; status: string }>(
-      `SELECT id, owner_user_id, status FROM leads WHERE id = $1 AND ${accessClause}`,
+    const permCheck = await pool.query<{ id: string; owner_user_id: string; status: string; total_amount: any; advance_amount: any; address: string | null }>(
+      `SELECT id, owner_user_id, status, total_amount, advance_amount, address FROM leads WHERE id = $1 AND ${accessClause}`,
       identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
@@ -248,7 +269,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const previousStatus = existingLead.status;
 
-    // Database Update for core lead record
+    // Resolve update values for address, totalAmount, advanceAmount, paymentInformation, products
+    const safeAddress = body.address !== undefined ? (body.address ? String(body.address).trim() : "") : (existingLead.address || null);
+    const safeTotalAmount = body.totalAmount !== undefined
+      ? Number(body.totalAmount)
+      : (body.expectedRevenue !== undefined ? Number(body.expectedRevenue) : Number(existingLead.total_amount || 0));
+    const safeAdvanceAmount = body.advanceAmount !== undefined
+      ? Number(body.advanceAmount)
+      : Number(existingLead.advance_amount || 0);
+
+    const paymentInfo = body.paymentInformation && typeof body.paymentInformation === "object"
+      ? body.paymentInformation
+      : {
+          totalAmount: safeTotalAmount,
+          advanceAmount: safeAdvanceAmount,
+          balanceAmount: Math.max(0, safeTotalAmount - safeAdvanceAmount),
+        };
+
+    const products = Array.isArray(body.products) ? body.products : [];
+
+    // Database Update for core lead record including address, total_amount, advance_amount, remarks, payment_information, products
     const result = await pool.query(
       `UPDATE leads
        SET name = $1,
@@ -260,12 +300,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
            assigned_user_id = $7,
            status = COALESCE($8, status),
            source = COALESCE($9, source),
+           address = $10,
+           total_amount = $11,
+           advance_amount = $12,
+           remarks = $13,
+           notes = COALESCE($13, notes),
+           payment_information = $14,
+           products = $15,
            updated_at = NOW()
-       WHERE id = $10 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$11")}
-       RETURNING id, name, company_name as "companyName", contact_number as "contactNumber", email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", updated_at as "updatedAt"`,
+       WHERE id = $16 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$17")}
+       RETURNING id, name, company_name as "companyName", contact_number as "contactNumber", email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", address, total_amount as "totalAmount", advance_amount as "advanceAmount", remarks, payment_information as "paymentInformation", products, updated_at as "updatedAt"`,
       identity.role === "SUPER_ADMIN"
-        ? [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, id]
-        : [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, id, identity.id]
+        ? [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id]
+        : [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id, identity.id]
     );
 
     const lead = result.rows[0];
@@ -273,29 +320,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ success: false, ok: false, error: "Lead not found or access denied." }, { status: 404 });
     }
 
-    // Save address, totalAmount, advanceAmount, paymentInformation, remark into custom fields
-    if (body.address !== undefined && body.address !== null) {
-      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Address", "address", body.address);
+    // Save/sync custom fields for Address, Total Amount, Advance Amount, Payment Information, Remark
+    if (safeAddress !== null && safeAddress !== undefined) {
+      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Address", "address", safeAddress);
     }
-    if (body.totalAmount !== undefined || body.expectedRevenue !== undefined) {
-      const amt = body.totalAmount !== undefined ? body.totalAmount : body.expectedRevenue;
-      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Total Amount", "totalAmount", Number(amt) || 0);
-    }
-    if (body.advanceAmount !== undefined) {
-      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Advance Amount", "advanceAmount", Number(body.advanceAmount) || 0);
-    }
-    if (body.paymentInformation !== undefined) {
-      await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Payment Information", "paymentInformation", body.paymentInformation);
-    }
+    await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Total Amount", "totalAmount", safeTotalAmount);
+    await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Advance Amount", "advanceAmount", safeAdvanceAmount);
+    await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Payment Information", "paymentInformation", paymentInfo);
     if (note !== null && note !== undefined) {
       await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, "Remark", "remark", note);
     }
 
-    // Save/update custom fields if passed
+    // Save/update any other custom dynamic fields (protect standard fields from stale overwrites)
+    const reservedKeys = new Set([
+      "address", "Address",
+      "totalAmount", "Total Amount", "expectedRevenue", "Expected Revenue",
+      "advanceAmount", "Advance Amount",
+      "paymentInformation", "Payment Information",
+      "remark", "Remark", "remarks", "Remarks", "note", "notes",
+      "products", "Products"
+    ]);
+
     const rawCustomInput = body.customFields || body.customFieldValues;
     if (rawCustomInput && typeof rawCustomInput === "object") {
       for (const [key, val] of Object.entries(rawCustomInput)) {
-        await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, key, key, val);
+        if (!reservedKeys.has(key)) {
+          await saveCustomFieldValue(id, identity.id, existingLead.owner_user_id, key, key, val);
+        }
       }
     }
 
@@ -360,21 +411,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (row.fieldKey) customFieldValuesMap[row.fieldKey] = val;
     }
 
-    const resolvedAddress = body.address !== undefined ? body.address : (customFieldValuesMap["address"] || customFieldValuesMap["Address"] || null);
-    const resolvedTotal = body.totalAmount !== undefined ? Number(body.totalAmount) : (Number(customFieldValuesMap["totalAmount"] || customFieldValuesMap["Total Amount"]) || 0);
-    const resolvedAdvance = body.advanceAmount !== undefined ? Number(body.advanceAmount) : (Number(customFieldValuesMap["advanceAmount"] || customFieldValuesMap["Advance Amount"]) || 0);
-
     return Response.json({
       success: true,
       ok: true,
       message: "Lead details updated successfully.",
       lead: {
         ...lead,
-        address: resolvedAddress,
-        totalAmount: resolvedTotal,
-        advanceAmount: resolvedAdvance,
+        address: safeAddress,
+        totalAmount: safeTotalAmount,
+        advanceAmount: safeAdvanceAmount,
+        remarks: note,
+        paymentInformation: paymentInfo,
+        products,
         stage: lead.status,
-        expectedRevenue: resolvedTotal,
+        expectedRevenue: safeTotalAmount,
         customFieldValues: customFieldValuesMap,
       },
     });
