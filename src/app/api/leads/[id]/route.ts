@@ -1,5 +1,6 @@
 import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
+import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -252,8 +253,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // MULTI-TENANT ISOLATION: Ensure lead ownership
-    const permCheck = await pool.query<{ id: string; owner_user_id: string; status: string; total_amount: any; advance_amount: any; address: string | null }>(
-      `SELECT id, owner_user_id, status, total_amount, advance_amount, address FROM leads WHERE id = $1 AND ${accessClause}`,
+    const permCheck = await pool.query<{
+      id: string;
+      owner_user_id: string;
+      status: string;
+      total_amount: any;
+      advance_amount: any;
+      address: string | null;
+      contact_number: string;
+      contact_number_normalized: string;
+    }>(
+      `SELECT id, owner_user_id, status, total_amount, advance_amount, address, contact_number, contact_number_normalized FROM leads WHERE id = $1 AND ${accessClause}`,
       identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
@@ -268,6 +278,57 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
 
     const previousStatus = existingLead.status;
+
+    // Check if phone number was changed by comparing against existing lead contact number
+    const existingNormPhone = normalizePhoneNumber(existingLead.contact_number || "").normalized;
+    const isPhoneChanged = normPhone !== existingNormPhone && contactNumber !== existingLead.contact_number;
+
+    let finalNormPhone = normPhone;
+
+    if (isPhoneChanged) {
+      // Duplicate lookup MUST exclude the current lead ID
+      const duplicateLead = await prisma.lead.findFirst({
+        where: {
+          ownerUserId: existingLead.owner_user_id,
+          OR: [
+            { contactNumberNormalized: normPhone },
+            { contactNumberNormalized: { startsWith: `${normPhone}#` } },
+          ],
+          NOT: {
+            id: existingLead.id,
+          },
+        },
+        select: { id: true, name: true },
+      });
+
+      if (duplicateLead) {
+        return Response.json(
+          {
+            success: false,
+            ok: false,
+            error: "This contact already exists in your leads.",
+            message: "This contact already exists in your leads.",
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      // When phone is unchanged: keep existing normalized key or safely clean to normPhone if no collision
+      finalNormPhone = existingLead.contact_number_normalized || normPhone;
+      if (finalNormPhone !== normPhone) {
+        const collision = await prisma.lead.findFirst({
+          where: {
+            ownerUserId: existingLead.owner_user_id,
+            contactNumberNormalized: normPhone,
+            NOT: { id: existingLead.id },
+          },
+          select: { id: true },
+        });
+        if (!collision) {
+          finalNormPhone = normPhone;
+        }
+      }
+    }
 
     // Resolve update values for address, totalAmount, advanceAmount, paymentInformation, products
     const safeAddress = body.address !== undefined ? (body.address ? String(body.address).trim() : "") : (existingLead.address || null);
@@ -311,8 +372,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
        WHERE id = $16 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$17")}
        RETURNING id, name, company_name as "companyName", contact_number as "contactNumber", email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", address, total_amount as "totalAmount", advance_amount as "advanceAmount", remarks, payment_information as "paymentInformation", products, updated_at as "updatedAt"`,
       identity.role === "SUPER_ADMIN"
-        ? [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id]
-        : [name, companyName, contactNumber, normPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id, identity.id]
+        ? [name, companyName, contactNumber, finalNormPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id]
+        : [name, companyName, contactNumber, finalNormPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id, identity.id]
     );
 
     const lead = result.rows[0];
@@ -430,6 +491,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
   } catch (error: any) {
     console.error("[Lead Update API] Error:", error);
+    if (
+      error.code === "23505" ||
+      error.message?.includes("leads_owner_user_id_contact_number_normalized_key") ||
+      error.message?.includes("unique constraint")
+    ) {
+      return Response.json(
+        {
+          success: false,
+          ok: false,
+          error: "This contact already exists in your leads.",
+          message: "This contact already exists in your leads.",
+        },
+        { status: 400 }
+      );
+    }
     return Response.json(
       { success: false, ok: false, error: error.message || "Failed to update lead details." },
       { status: 500 }

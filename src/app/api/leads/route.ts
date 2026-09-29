@@ -1,5 +1,6 @@
 import { currentIdentity, getLeadAccessFilter, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
+import { prisma } from "@/lib/db/prisma";
 import { createManualLead } from "@/lib/crm";
 
 export const dynamic = "force-dynamic";
@@ -174,6 +175,41 @@ export async function POST(request: Request) {
       }
     }
 
+    const contactNumber = String(body.contactNumber || body.phone || "").trim();
+    if (!contactNumber) {
+      return Response.json(
+        { success: false, ok: false, error: "Lead name and contact number are required.", message: "Lead name and contact number are required." },
+        { status: 400 }
+      );
+    }
+
+    const { normalizePhoneNumber } = await import("@/lib/phone");
+    const normPhone = normalizePhoneNumber(contactNumber).normalized;
+
+    // Check duplicate contact for this owner
+    const duplicate = await prisma.lead.findFirst({
+      where: {
+        ownerUserId,
+        OR: [
+          { contactNumberNormalized: normPhone },
+          { contactNumberNormalized: { startsWith: `${normPhone}#` } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      return Response.json(
+        {
+          success: false,
+          ok: false,
+          error: "This contact already exists in your leads.",
+          message: "This contact already exists in your leads.",
+        },
+        { status: 400 }
+      );
+    }
+
     const result = await createManualLead(ownerUserId, cardId, {
       name: body.name,
       companyName: body.companyName,
@@ -266,6 +302,21 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.log("LEAD CREATE ERROR", error);
     console.error("[Manual Lead API] Error:", error);
+    if (
+      error.code === "23505" ||
+      error.message?.includes("leads_owner_user_id_contact_number_normalized_key") ||
+      error.message?.includes("unique constraint")
+    ) {
+      return Response.json(
+        {
+          success: false,
+          ok: false,
+          error: "This contact already exists in your leads.",
+          message: "This contact already exists in your leads.",
+        },
+        { status: 400 }
+      );
+    }
     const msg = error.message || "Failed to add lead.";
     return Response.json(
       { success: false, ok: false, error: msg, message: msg },

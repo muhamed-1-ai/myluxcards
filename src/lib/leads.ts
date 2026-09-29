@@ -138,7 +138,9 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   const validAssignedUserId = (assignedUserId && uuidRegex.test(assignedUserId)) ? assignedUserId : input.ownerUserId;
 
   let normKey = contactNumberNormalized || "+91";
-  normKey = `${normKey}#nfc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  if (source !== "MANUAL" && createdFrom !== "DASHBOARD") {
+    normKey = `${normKey}#nfc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
 
   console.log("SHARE DETAILS CREATE START");
   console.log("profileId:", input.cardId);
