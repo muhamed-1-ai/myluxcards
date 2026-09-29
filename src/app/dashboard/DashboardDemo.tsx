@@ -177,7 +177,7 @@ function MyLuxModal({
       aria-modal="true"
       aria-labelledby="mylux-modal-title"
     >
-      <div className="mylux-modal-dialog" style={{ width: `min(${maxWidth}px, calc(100vw - 32px))` }}>
+      <div className="mylux-modal-dialog" style={{ width: `min(${maxWidth}px, calc(100% - 32px))` }}>
         <div className="mylux-modal-header">
           <div>
             <h3 id="mylux-modal-title" className="mylux-modal-title">{title}</h3>
@@ -1033,31 +1033,31 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     return (
       <div className="dash-shell flex flex-col min-h-screen bg-[#070C18] text-slate-100 font-sans">
         {/* Top Header Bar */}
-        <header className="dash-main-header flex items-center justify-between px-6 py-4 bg-[#0B172A] border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <span className="font-extrabold text-xl tracking-tight text-white">Zappit</span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <header className="dash-main-header">
+          <div className="dash-header-left">
+            <span className="font-extrabold text-xl tracking-tight text-white flex-shrink-0">Zappit</span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex-shrink-0">
               Access Pending
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="dash-header-right">
             <button
               type="button"
               onClick={toggleThemeWithTransition}
-              className="dash-theme-btn text-xs px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
+              className="dash-theme-btn"
             >
               <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
               <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
             </button>
-            <div className="flex items-center gap-2 text-sm text-slate-300">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-300 flex-shrink-0">
               <span className="font-medium text-white">{currentUser?.name || currentUser?.email}</span>
               <span className="text-xs text-slate-400">({currentUser?.email})</span>
             </div>
             <button
               type="button"
               onClick={logout}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer flex-shrink-0"
             >
               Sign out
             </button>

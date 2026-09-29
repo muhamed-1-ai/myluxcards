@@ -2565,7 +2565,7 @@ th {
 /* Final mobile dashboard experience */
 .mobile-tabbar { display:none; }
 @media (max-width: 620px) {
-  .dash-shell { overflow-x: hidden; }
+  .dash-shell { overflow-x: visible; }
   .dash-top {
     height: calc(64px + env(safe-area-inset-top));
     padding: env(safe-area-inset-top) 14px 0;
@@ -3106,7 +3106,7 @@ th {
   border: 1px solid rgba(0, 229, 255, 0.3);
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.95), 0 0 40px rgba(0, 229, 255, 0.08);
-  width: min(680px, calc(100vw - 32px));
+  width: min(680px, calc(100% - 32px));
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
@@ -3635,7 +3635,7 @@ th {
 }
 
 .crm-drawer {
-  width: min(760px, 100vw);
+  width: min(760px, 100%);
   height: 100vh;
   background: var(--surface, #FFFFFF);
   color: var(--text-primary, #0F172A);
@@ -5298,8 +5298,7 @@ body.dark-mode .crm-followup-empty-title {
   display: flex !important;
   position: relative !important;
   box-sizing: border-box !important;
-  overflow-x: hidden !important;
-  overflow-x: clip !important;
+  overflow-x: visible !important;
 }
 
 .dash-top {
@@ -5308,14 +5307,17 @@ body.dark-mode .crm-followup-empty-title {
 
 /* 1. Inset Floating Vertical Sidebar */
 .dash-side {
-  position: fixed !important;
-  z-index: 45 !important;
-  top: 16px !important;
-  bottom: 16px !important;
-  left: 16px !important;
   width: 256px !important;
+  min-width: 256px !important;
+  max-width: 256px !important;
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  top: 16px !important;
+  align-self: flex-start !important;
   height: calc(100vh - 32px) !important;
   max-height: calc(100vh - 32px) !important;
+  margin: 16px 0 16px 16px !important;
+  z-index: 45 !important;
   background: linear-gradient(180deg, #13172E 0%, #0B0E1E 100%) !important;
   border: 1px solid rgba(0, 229, 255, 0.16) !important;
   border-radius: 24px !important;
@@ -5324,6 +5326,7 @@ body.dark-mode .crm-followup-empty-title {
   flex-direction: column !important;
   padding: 20px 14px 16px 14px !important;
   overflow: hidden !important;
+  box-sizing: border-box !important;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
@@ -5579,9 +5582,9 @@ body.dark-mode .crm-followup-empty-title {
 
 .dash-main,
 .main-content {
-  margin-left: 288px !important;
-  width: calc(100% - 288px) !important;
-  max-width: calc(100% - 288px) !important;
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
   flex: 1 1 0% !important;
   min-width: 0 !important;
   padding: 16px 24px 48px 24px !important;
@@ -5608,7 +5611,9 @@ body.dark-mode .crm-followup-empty-title {
   border: 1px solid rgba(0, 229, 255, 0.18) !important;
   border-radius: 18px !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
-  position: relative !important;
+  position: sticky !important;
+  top: 16px !important;
+  z-index: 30 !important;
 }
 
 .dash-header-left {
@@ -5667,6 +5672,7 @@ body.dark-mode .crm-followup-empty-title {
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
+  flex: 0 1 auto !important;
 }
 
 .dash-breadcrumbs .save-state {
@@ -5694,7 +5700,8 @@ body.dark-mode .crm-followup-empty-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
+  position: relative !important;
   white-space: nowrap;
 }
 
@@ -5723,6 +5730,12 @@ body.dark-mode .crm-followup-empty-title {
 
 .account-menu .avatar,
 .avatar {
+  flex-shrink: 0 !important;
+  position: relative !important;
+}
+
+.notif-bell-btn {
+  position: relative !important;
   flex-shrink: 0 !important;
 }
 
@@ -5911,7 +5924,7 @@ body.dark-mode .crm-followup-empty-title {
     right: 12px !important;
     left: 12px !important;
     width: auto !important;
-    max-width: calc(100vw - 24px) !important;
+    max-width: calc(100% - 24px) !important;
   }
 
   .notif-dropdown-panel {
@@ -5920,7 +5933,7 @@ body.dark-mode .crm-followup-empty-title {
     right: 12px !important;
     left: 12px !important;
     width: auto !important;
-    max-width: calc(100vw - 24px) !important;
+    max-width: calc(100% - 24px) !important;
   }
 }
 
@@ -6007,7 +6020,7 @@ body.light-mode .side-footer-badge {
   display: block;
   position: fixed;
   inset: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
 }
 
