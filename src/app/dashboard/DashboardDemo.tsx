@@ -328,14 +328,14 @@ const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight:
     image.src = source;
   });
 };
-export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
+export default function DashboardDemo({ identity, initialTab }: { identity: CurrentUser; initialTab?: Tab }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(identity || null);
   const [authReady, setAuthReady] = useState(false);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedId, setSelectedId] = useState(emptyCard.id);
   const [draft, setDraft] = useState<Card>(emptyCard);
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>(initialTab || "dashboard");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -343,7 +343,9 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
       const qTab = sp.get("tab");
       const editCard = sp.get("editCard");
       const editSlug = sp.get("editSlug");
-      if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
+      if (qTab === "qr-activity" || qTab === "analytics") {
+        setTab("analytics");
+      } else if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
         setTab(qTab as Tab);
       } else if (editCard || editSlug) {
         setTab("contact");
@@ -381,6 +383,17 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
     }
   }, [currentUser, tab]);
   const [sidebar, setSidebar] = useState(false);
+
+  useEffect(() => {
+    if (sidebar && typeof window !== "undefined" && window.innerWidth <= 1024) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [sidebar]);
+
   const [toast, setToast] = useState("");
   const [sameAsMobile, setSameAsMobile] = useState(true);
   const [service, setService] = useState("");
@@ -1225,7 +1238,7 @@ export default function DashboardDemo({ identity }: { identity: CurrentUser }) {
                         className={`side-subnav-item ${tab === "config-dynamic" ? "active" : ""}`}
                         onClick={() => { selectTab("config-dynamic" as Tab); setSidebar(false); }}
                       >
-                        <span>Dynamic Leads</span>
+                        <span>Dynamic Fields</span>
                         {tab === "config-dynamic" && <span className="side-subnav-dot" />}
                       </button>
                     )}
@@ -1667,9 +1680,34 @@ function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
       </div>
 
       {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ padding: 30, textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 16, border: "1px dashed rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
-            ⏳ Loading activity analytics…
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(0, 229, 255,0.9)", letterSpacing: "0.05em", margin: "0 0 10px" }}>Profile Entry Sources</h4>
+            <div className="stats">
+              {[1, 2, 3, 4].map((i) => (
+                <article key={i} className="blue" style={{ opacity: 0.6, animation: "pulse 1.5s infinite" }}>
+                  <div>
+                    <strong style={{ background: "rgba(255,255,255,0.15)", borderRadius: 4, display: "inline-block", width: 48, height: 28 }}>&nbsp;</strong>
+                    <span>LOADING METRIC…</span>
+                  </div>
+                  <i>⏳</i>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,0.6)", letterSpacing: "0.05em", margin: "10px 0 10px" }}>Visitor Feature Interactions</h4>
+            <div className="stats">
+              {[1, 2, 3].map((i) => (
+                <article key={i} className="green" style={{ opacity: 0.6, animation: "pulse 1.5s infinite" }}>
+                  <div>
+                    <strong style={{ background: "rgba(255,255,255,0.15)", borderRadius: 4, display: "inline-block", width: 48, height: 28 }}>&nbsp;</strong>
+                    <span>LOADING METRIC…</span>
+                  </div>
+                  <i>⏳</i>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       ) : error ? (

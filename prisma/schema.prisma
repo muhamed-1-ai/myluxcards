@@ -137,6 +137,7 @@ model Lead {
   remarks                 String?  @map("remarks")
   paymentInformation      Json?    @default("{}") @map("payment_information")
   products                Json?    @default("[]") @map("products")
+  followUpType            String?  @default("CALL") @map("follow_up_type")
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
@@ -158,6 +159,7 @@ model LeadFollowUp {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ownerUserId String    @map("owner_user_id") @db.Uuid
   leadId      String    @map("lead_id") @db.Uuid
+  type        String?   @default("CALL")
   scheduledAt DateTime  @map("scheduled_at") @db.Timestamptz
   note        String?
   status      String    @default("SCHEDULED")

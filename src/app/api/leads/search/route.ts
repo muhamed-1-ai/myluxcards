@@ -1,6 +1,7 @@
 import { currentIdentity, getLeadAccessFilter, requirePermission } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 import { NextRequest } from "next/server";
+import { extractFollowUpTypeAndCleanNote } from "@/lib/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -13,35 +14,48 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q") || "";
+  const q = searchParams.get("q") || searchParams.get("search") || "";
   const stage = searchParams.get("stage") || "";
   const source = searchParams.get("source") || "";
   const rawAssigned = searchParams.get("assignedUserId") || searchParams.get("userId") || "";
   const assignedUserId = /^[0-9a-f-]{36}$/i.test(rawAssigned) ? rawAssigned : "";
-  const dateFrom = searchParams.get("dateFrom") || "";
-  const dateTo = searchParams.get("dateTo") || "";
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-  const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "25")));
+  const scopeFilter = searchParams.get("scope") || searchParams.get("scopeFilter") || "";
+  const statusFilter = searchParams.get("status") || "";
+  const dateFrom = searchParams.get("dateFrom") || searchParams.get("startDate") || "";
+  const dateTo = searchParams.get("dateTo") || searchParams.get("endDate") || "";
+
+  // Pagination parameters validation: max 100 limit, min 1
+  const rawPage = parseInt(searchParams.get("page") || "1", 10);
+  const page = isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+
+  const rawLimit = parseInt(searchParams.get("pageSize") || searchParams.get("limit") || "10", 10);
+  const limit = isNaN(rawLimit) || rawLimit < 1 ? 10 : Math.min(100, rawLimit);
+
   const offset = (page - 1) * limit;
 
   const sortBy = searchParams.get("sortBy") || "created_at";
-  const sortOrder = searchParams.get("sortOrder") === "asc" ? "ASC" : "DESC";
+  const sortOrder = searchParams.get("sortOrder")?.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   const allowedSortColumns: Record<string, string> = {
-    "name": "l.name",
-    "company": "l.company_name",
-    "contact": "l.contact_number",
-    "stage": "l.status",
-    "assigned": "u.name",
-    "source": "l.source",
-    "created_at": "l.created_at",
-    "totalAmount": "l.created_at"
+    name: "l.name",
+    company: "l.company_name",
+    companyName: "l.company_name",
+    contact: "l.contact_number",
+    contactNumber: "l.contact_number",
+    stage: "l.status",
+    status: "l.status",
+    assigned: "u.name",
+    assignedUserName: "u.name",
+    source: "l.source",
+    created_at: "l.created_at",
+    createdAt: "l.created_at",
+    totalAmount: "COALESCE(l.total_amount, 0)",
   };
 
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
 
   try {
-    // STEP 3 & STEP 5: Shared multi-tenant account access filter
+    // Multi-tenant account access filter
     const accessFilter = getLeadAccessFilter(identity, "l");
     let whereClause = accessFilter.whereClause;
     const params: any[] = [...accessFilter.params];
@@ -71,9 +85,27 @@ export async function GET(request: NextRequest) {
       paramIndex++;
     }
 
+    if (statusFilter) {
+      if (statusFilter.toLowerCase() === "active") {
+        whereClause += ` AND l.status NOT IN ('WON', 'LOST', 'CLOSED')`;
+      } else if (statusFilter.toLowerCase() === "closed") {
+        whereClause += ` AND l.status IN ('WON', 'LOST', 'CLOSED')`;
+      } else {
+        whereClause += ` AND l.status = $${paramIndex}`;
+        params.push(statusFilter);
+        paramIndex++;
+      }
+    }
+
     if (assignedUserId) {
       whereClause += ` AND l.assigned_user_id = $${paramIndex}`;
       params.push(assignedUserId);
+      paramIndex++;
+    }
+
+    if (scopeFilter === "mine") {
+      whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex})`;
+      params.push(identity.id);
       paramIndex++;
     }
 
@@ -92,13 +124,13 @@ export async function GET(request: NextRequest) {
     const followUpOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "f.owner_user_id = $1";
     const activityOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "a.owner_user_id = $1";
 
-    // Execute queries
+    // Execute queries for total count on filtered dataset
     const countQuery = `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`;
     const kpiQuery = `
       SELECT 
-        SUM(CASE WHEN l.status != 'WON' AND l.status != 'LOST' THEN 1 ELSE 0 END)::int as open_pipeline,
+        SUM(CASE WHEN l.status NOT IN ('WON', 'LOST', 'CLOSED') THEN 1 ELSE 0 END)::int as open_pipeline,
         SUM(CASE WHEN l.status = 'WON' THEN 1 ELSE 0 END)::int as won_leads,
-        0::int as expected_revenue,
+        SUM(COALESCE(l.total_amount, 0))::float as expected_revenue,
         (SELECT COUNT(*)::int FROM lead_follow_ups f WHERE ${followUpOwnerFilter} AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
       FROM leads l
       WHERE ${whereClause}
@@ -110,11 +142,14 @@ export async function GET(request: NextRequest) {
     ]);
 
     const total = countRes.rows[0]?.total || 0;
-    
+    const totalPages = Math.ceil(total / limit) || 0;
+
     // Auto-correct pagination offset if offset is past available total after record deletion
     let effectiveOffset = offset;
+    let effectivePage = page;
     if (effectiveOffset >= total && total > 0) {
-      effectiveOffset = 0;
+      effectivePage = totalPages;
+      effectiveOffset = (effectivePage - 1) * limit;
     }
 
     const limitParamIdx = paramIndex;
@@ -127,11 +162,13 @@ export async function GET(request: NextRequest) {
         l.email, l.status as "stage", l.source, l.created_at as "createdAt",
         l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
-        (SELECT address FROM leads WHERE id = l.id) as "address",
-        (SELECT COALESCE(total_amount, 0)::float FROM leads WHERE id = l.id) as "totalAmount",
-        (SELECT COALESCE(advance_amount, 0)::float FROM leads WHERE id = l.id) as "advanceAmount",
+        l.address as "address",
+        COALESCE(l.total_amount, 0)::float as "totalAmount",
+        COALESCE(l.advance_amount, 0)::float as "advanceAmount",
         (SELECT f.note FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
         (SELECT f.scheduled_at FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
+        (SELECT COALESCE(f.type, l.follow_up_type, 'CALL') FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpType",
+        COALESCE(l.follow_up_type, 'CALL') as "followUpType",
         (SELECT a.description FROM lead_activities a WHERE a.lead_id = l.id AND ${activityOwnerFilter} AND a.type = 'REMARK' ORDER BY a.occurred_at DESC LIMIT 1) as "lastRemark"
       FROM leads l
       LEFT JOIN users u ON u.id = l.assigned_user_id
@@ -150,32 +187,46 @@ export async function GET(request: NextRequest) {
       expectedRevenue: kpiRes.rows[0]?.expected_revenue || 0,
     };
 
-    const leads = dataRes.rows;
-
-    console.log("FETCH LEADS:", {
-      userId: identity.id,
-      role: identity.role,
-      createdByAdminId: identity.createdByAdminId || null,
-      returnedLeadCount: total
+    const leads = dataRes.rows.map((row) => {
+      const { type: parsedType, cleanNote: parsedNote } = extractFollowUpTypeAndCleanNote(
+        row.nextFollowUpNote,
+        row.followUpType || row.nextFollowUpType
+      );
+      return {
+        ...row,
+        nextFollowUpNote: parsedNote || null,
+        nextFollowUpType: parsedType,
+        followUpType: parsedType,
+      };
     });
+
+    const startRecord = total === 0 ? 0 : effectiveOffset + 1;
+    const endRecord = Math.min(effectiveOffset + limit, total);
+    const hasNextPage = effectivePage < totalPages;
+    const hasPreviousPage = effectivePage > 1;
 
     return Response.json({
       success: true,
       count: total,
+      total: total,
       accountId: identity.id,
       userId: identity.id,
       leads,
       kpis,
       pagination: {
+        page: effectivePage,
+        pageSize: limit,
+        limit: limit,
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        totalPages: total === 0 ? 1 : totalPages,
+        hasNextPage,
+        hasPreviousPage,
+        start: startRecord,
+        end: endRecord
       }
     });
 
   } catch (error: any) {
-    // STEP 6: Log error & return structured JSON response
     console.error("LEADS SEARCH FAILED", error);
     return Response.json(
       {
@@ -185,4 +236,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 

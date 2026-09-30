@@ -23,7 +23,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return Response.json({ message: "Invalid scheduled date and time." }, { status: 400 });
     }
 
-    const item = await scheduleFollowUp(identity.id, id, scheduledAt, body.note);
+    const followUpType = body.type || body.followUpType;
+    const item = await scheduleFollowUp(identity.id, id, scheduledAt, body.note, followUpType);
     return Response.json({
       ok: true,
       message: "Follow-up scheduled successfully.",

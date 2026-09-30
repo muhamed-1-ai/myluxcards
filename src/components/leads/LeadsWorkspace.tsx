@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -22,7 +23,9 @@ import {
   RotateCcw,
   CheckSquare,
   Columns,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
@@ -34,35 +37,53 @@ interface LeadsWorkspaceProps {
   identity: { id: string; name: string | null; email: string; role: string };
 }
 
-export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
+function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [kpis, setKpis] = useState({ openPipeline: 0, wonLeads: 0, dueToday: 0 });
+  const [kpis, setKpis] = useState({ openPipeline: 0, wonLeads: 0, dueToday: 0, expectedRevenue: 0 });
 
-  // Sorting & Pagination
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const limit = 50;
+  // Sorting & Pagination States (URL sync initialized)
+  const [page, setPage] = useState<number>(() => {
+    const p = parseInt(searchParams.get("page") || "1", 10);
+    return isNaN(p) || p < 1 ? 1 : p;
+  });
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const ps = parseInt(searchParams.get("pageSize") || searchParams.get("limit") || "10", 10);
+    return isNaN(ps) || ps < 1 ? 10 : Math.min(100, ps);
+  });
+  const [sortBy, setSortBy] = useState<string>(searchParams.get("sortBy") || "created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">((searchParams.get("sortOrder") as "asc" | "desc") || "desc");
 
-  // Filter States (Matching Reference Screenshot)
+  // Filter States
   const [showFilters, setShowFilters] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState("");
-  const [userFilter, setUserFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [officeFilter, setOfficeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [scopeFilter, setScopeFilter] = useState("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get("q") || searchParams.get("search") || "");
+  const [stageFilter, setStageFilter] = useState<string>(searchParams.get("stage") || "");
+  const [userFilter, setUserFilter] = useState<string>(searchParams.get("userId") || searchParams.get("user") || "");
+  const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get("source") || "");
+  const [officeFilter, setOfficeFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") || "");
+  const [scopeFilter, setScopeFilter] = useState<string>(searchParams.get("scope") || "all");
+  const [startDate, setStartDate] = useState<string>(searchParams.get("startDate") || "");
+  const [endDate, setEndDate] = useState<string>(searchParams.get("endDate") || "");
+
+  // Pagination Metadata
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [hasNextPage, setHasNextPage] = useState<boolean>(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
+  const [startRecord, setStartRecord] = useState<number>(0);
+  const [endRecord, setEndRecord] = useState<number>(0);
+
+  const requestIdRef = useRef(0);
 
   // UI Selection State
   const [selectMode, setSelectMode] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Record<string, boolean>>({});
-  const [includeArchived, setIncludeArchived] = useState(false);
 
   // Drawers & Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -71,13 +92,69 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
 
+  // Helper to sync state changes to URL query parameters
+  const updateUrl = useCallback(
+    (updates: Record<string, string | number | null | undefined>) => {
+      const current = new URLSearchParams(Array.from(searchParams.entries()));
+
+      Object.entries(updates).forEach(([key, val]) => {
+        if (
+          val === undefined ||
+          val === null ||
+          val === "" ||
+          (key === "page" && val === 1) ||
+          (key === "pageSize" && val === 10) ||
+          (key === "scope" && val === "all")
+        ) {
+          current.delete(key);
+        } else {
+          current.set(key, String(val));
+        }
+      });
+
+      const search = current.toString();
+      const query = search ? `?${search}` : "";
+      router.push(`${pathname}${query}`, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  // Sync state when searchParams change (e.g. browser Back / Forward navigation)
+  useEffect(() => {
+    const p = parseInt(searchParams.get("page") || "1", 10);
+    const ps = parseInt(searchParams.get("pageSize") || searchParams.get("limit") || "10", 10);
+    const q = searchParams.get("q") || searchParams.get("search") || "";
+    const stage = searchParams.get("stage") || "";
+    const user = searchParams.get("userId") || searchParams.get("user") || "";
+    const source = searchParams.get("source") || "";
+    const status = searchParams.get("status") || "";
+    const scope = searchParams.get("scope") || "all";
+    const sBy = searchParams.get("sortBy") || "created_at";
+    const sOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc";
+
+    setPage(isNaN(p) || p < 1 ? 1 : p);
+    setPageSize(isNaN(ps) || ps < 1 ? 10 : Math.min(100, ps));
+    setSearchQuery(q);
+    setStageFilter(stage);
+    setUserFilter(user);
+    setSourceFilter(source);
+    setStatusFilter(status);
+    setScopeFilter(scope);
+    setSortBy(sBy);
+    setSortOrder(sOrder);
+  }, [searchParams]);
+
+  // Server-side lead fetching with race-condition identity check
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
+    const currentRequestId = ++requestIdRef.current;
+
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString(),
+        pageSize: pageSize.toString(),
+        limit: pageSize.toString(),
         sortBy,
         sortOrder,
       });
@@ -87,6 +164,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
       if (userFilter && userFilter !== "all") params.append("userId", userFilter === "me" ? identity.id : userFilter);
       if (sourceFilter) params.append("source", sourceFilter);
       if (statusFilter) params.append("status", statusFilter);
+      if (scopeFilter && scopeFilter !== "all") params.append("scope", scopeFilter);
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
 
@@ -96,55 +174,129 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         throw new Error(errorData.details || errorData.message || errorData.error || "Unable to load leads");
       }
       const data = await res.json();
-      setLeads(data.leads || []);
-      setTotal(data.pagination?.total || (data.leads ? data.leads.length : 0));
+
+      // Prevent race conditions: ignore response if a newer request was dispatched
+      if (currentRequestId !== requestIdRef.current) return;
+
+      const fetchedLeads = data.leads || [];
+      const totalCount = data.pagination?.total ?? data.total ?? fetchedLeads.length;
+      const fetchedPage = data.pagination?.page ?? page;
+      const fetchedPageSize = data.pagination?.pageSize ?? pageSize;
+      const computedTotalPages = data.pagination?.totalPages ?? (totalCount === 0 ? 1 : Math.ceil(totalCount / fetchedPageSize));
+
+      setLeads(fetchedLeads);
+      setTotal(totalCount);
+      setTotalPages(computedTotalPages);
+      setHasNextPage(data.pagination?.hasNextPage ?? (fetchedPage < computedTotalPages));
+      setHasPreviousPage(data.pagination?.hasPreviousPage ?? (fetchedPage > 1));
+
+      const compStart = totalCount === 0 ? 0 : data.pagination?.start ?? ((fetchedPage - 1) * fetchedPageSize + 1);
+      const compEnd = totalCount === 0 ? 0 : data.pagination?.end ?? Math.min(fetchedPage * fetchedPageSize, totalCount);
+      setStartRecord(compStart);
+      setEndRecord(compEnd);
+
+      if (fetchedPage !== page) {
+        setPage(fetchedPage);
+      }
+
       if (data.kpis) {
         setKpis({
           openPipeline: data.kpis.openPipeline || 0,
           wonLeads: data.kpis.wonLeads || 0,
           dueToday: data.kpis.dueToday || 0,
+          expectedRevenue: data.kpis.expectedRevenue || 0,
         });
       }
     } catch (error: any) {
+      if (currentRequestId !== requestIdRef.current) return;
       console.error("Error fetching leads:", error);
       setFetchError(error.message || "Unable to load leads");
       setLeads([]);
       setTotal(0);
+      setTotalPages(1);
+      setStartRecord(0);
+      setEndRecord(0);
+      setHasNextPage(false);
+      setHasPreviousPage(false);
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [page, sortBy, sortOrder, searchQuery, stageFilter, userFilter, sourceFilter, statusFilter, startDate, endDate, identity.id]);
+  }, [page, pageSize, sortBy, sortOrder, searchQuery, stageFilter, userFilter, sourceFilter, statusFilter, scopeFilter, startDate, endDate, identity.id]);
 
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
-  // Client Filtered Leads
-  const displayedLeads = useMemo(() => {
-    return leads.filter((l) => {
-      if (scopeFilter === "mine" && l.ownerUserId && l.ownerUserId !== identity.id) {
-        return false;
-      }
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const match =
-          (l.name && l.name.toLowerCase().includes(q)) ||
-          (l.email && l.email.toLowerCase().includes(q)) ||
-          (l.contactNumber && l.contactNumber.includes(q)) ||
-          (l.companyName && l.companyName.toLowerCase().includes(q));
-        if (!match) return false;
-      }
-      if (stageFilter && (l.stage || l.status) !== stageFilter) return false;
-      if (sourceFilter && l.source !== sourceFilter) return false;
-      if (statusFilter && l.status !== statusFilter) return false;
-      return true;
-    });
-  }, [leads, scopeFilter, searchQuery, stageFilter, sourceFilter, statusFilter, identity.id]);
+  // Server-side leads dataset
+  const displayedLeads = leads;
 
   // Expected Revenue Calculation
   const expectedRevenue = useMemo(() => {
-    return displayedLeads.reduce((acc, l) => acc + (Number(l.totalAmount) || 0), 0);
-  }, [displayedLeads]);
+    if (kpis.expectedRevenue && kpis.expectedRevenue > 0) return kpis.expectedRevenue;
+    return leads.reduce((acc, l) => acc + (Number(l.totalAmount) || 0), 0);
+  }, [kpis.expectedRevenue, leads]);
+
+  // Action Handlers (with mandatory page reset to 1 on filter/search/sort/pageSize change)
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+    updateUrl({ q: val, page: 1 });
+  };
+
+  const handleStageChange = (val: string) => {
+    setStageFilter(val);
+    setPage(1);
+    updateUrl({ stage: val, page: 1 });
+  };
+
+  const handleUserChange = (val: string) => {
+    setUserFilter(val);
+    setPage(1);
+    updateUrl({ userId: val, page: 1 });
+  };
+
+  const handleSourceChange = (val: string) => {
+    setSourceFilter(val);
+    setPage(1);
+    updateUrl({ source: val, page: 1 });
+  };
+
+  const handleStatusChange = (val: string) => {
+    setStatusFilter(val);
+    setPage(1);
+    updateUrl({ status: val, page: 1 });
+  };
+
+  const handleScopeChange = (val: string) => {
+    setScopeFilter(val);
+    setPage(1);
+    updateUrl({ scope: val, page: 1 });
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+    updateUrl({ pageSize: newSize, page: 1 });
+  };
+
+  const handleSortChange = (col: string) => {
+    let newOrder: "asc" | "desc" = "asc";
+    if (sortBy === col) {
+      newOrder = sortOrder === "asc" ? "desc" : "asc";
+    }
+    setSortBy(col);
+    setSortOrder(newOrder);
+    setPage(1);
+    updateUrl({ sortBy: col, sortOrder: newOrder, page: 1 });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || loading) return;
+    setPage(newPage);
+    updateUrl({ page: newPage });
+  };
 
   const handleResetFilters = () => {
     setSearchQuery("");
@@ -156,6 +308,8 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     setScopeFilter("all");
     setStartDate("");
     setEndDate("");
+    setPage(1);
+    router.push(pathname, { scroll: false });
   };
 
   const toggleStar = (e: React.MouseEvent, id: string) => {
@@ -198,8 +352,13 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     if (!confirm("Are you sure you want to delete this lead?")) return;
     try {
       await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
-      setPage(1);
-      fetchLeads();
+      if (leads.length === 1 && page > 1) {
+        const targetPage = page - 1;
+        setPage(targetPage);
+        updateUrl({ page: targetPage });
+      } else {
+        fetchLeads();
+      }
     } catch (err) {
       console.error("Failed to delete lead", err);
     }
@@ -228,14 +387,6 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
     setActionMenuTarget({ lead, top, left });
   };
 
-  const getAvatarGradient = (name: string) => {
-    const charCode = name.charCodeAt(0) || 65;
-    if (charCode % 4 === 0) return "bg-emerald-500 text-white";
-    if (charCode % 4 === 1) return "bg-purple-600 text-white";
-    if (charCode % 4 === 2) return "bg-blue-600 text-white";
-    return "bg-indigo-600 text-white";
-  };
-
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(val);
   };
@@ -253,7 +404,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
   return (
     <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none gap-6">
 
-      {/* 1. Header: Badge, Title, Count & Control Actions (Matching Reference) */}
+      {/* 1. Header: Badge, Title, Count & Control Actions */}
       <div className="flex flex-col">
         {/* Row 1: PIPELINE CONTROL ROOM Badge */}
         <div className="mb-3.5">
@@ -279,9 +430,10 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
               <button
                 type="button"
                 className="crm-btn-secondary hidden sm:inline-flex"
+                onClick={handleExportCSV}
               >
-                <Columns className="w-3.5 h-3.5" />
-                <span>Columns</span>
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV</span>
               </button>
 
               <button
@@ -309,7 +461,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         </div>
       </div>
 
-      {/* 2. 4 Stat Cards Row (Matching Reference Layout) */}
+      {/* 2. 4 Stat Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Leads */}
         <div className="kpi-card">
@@ -340,7 +492,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         </div>
       </div>
 
-      {/* 3. Filter Leads Panel (Matching Reference Design) */}
+      {/* 3. Filter Leads Panel */}
       {showFilters && (
         <div className="crm-filter-panel">
           <div className="crm-filter-panel-header">
@@ -357,7 +509,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 type="text"
                 placeholder="Search name, email, phone..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="crm-filter-input"
               />
             </div>
@@ -365,7 +517,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             {/* Stage Filter */}
             <select
               value={stageFilter}
-              onChange={(e) => setStageFilter(e.target.value)}
+              onChange={(e) => handleStageChange(e.target.value)}
               className="crm-filter-select"
             >
               <option value="">Stage</option>
@@ -380,7 +532,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             {/* Assigned User Filter */}
             <select
               value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
+              onChange={(e) => handleUserChange(e.target.value)}
               className="crm-filter-select"
             >
               <option value="">Assigned User</option>
@@ -391,19 +543,20 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             {/* Source Filter */}
             <select
               value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
+              onChange={(e) => handleSourceChange(e.target.value)}
               className="crm-filter-select"
             >
               <option value="">Source</option>
               <option value="NFC">NFC Tap</option>
               <option value="QR">QR Scan</option>
               <option value="DIRECT">Direct</option>
+              <option value="MANUAL">Manual</option>
             </select>
 
             {/* Status Filter */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="crm-filter-select"
             >
               <option value="">Status</option>
@@ -414,11 +567,10 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
 
           {/* Second Filter Row: Scope Filter */}
           <div className="crm-filter-row-secondary">
-            {/* Scope Filter */}
             <div className="w-full sm:w-[200px]">
               <select
                 value={scopeFilter}
-                onChange={(e) => setScopeFilter(e.target.value)}
+                onChange={(e) => handleScopeChange(e.target.value)}
                 className="crm-filter-select"
               >
                 <option value="all">All Leads</option>
@@ -443,9 +595,10 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         </div>
       )}
 
-      {/* 4. Desktop Leads Table & Mobile Cards */}
-      <div className="crm-table-card">
-        {/* Desktop / Tablet View (>= 768px): Full Data Table */}
+      {/* 4. Desktop Leads Table & Dedicated Mobile Cards Container */}
+      <div className="crm-table-card relative overflow-hidden">
+
+        {/* DESKTOP / TABLET VIEW (>= 768px): Preserved Standard Full Data Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="crm-table">
             <thead>
@@ -459,7 +612,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 <th>LAST REMARK</th>
                 <th
                   className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
-                  onClick={() => { setSortBy("totalAmount"); setSortOrder(sortOrder === "asc" ? "desc" : "asc"); }}
+                  onClick={() => handleSortChange("totalAmount")}
                 >
                   <div className="flex items-center space-x-1">
                     <span>TOTAL AMOUNT</span>
@@ -472,7 +625,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
             </thead>
 
             <tbody>
-              {loading ? (
+              {loading && leads.length === 0 ? (
                 <tr>
                   <td colSpan={selectMode ? 9 : 8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
                     <div className="flex justify-center items-center space-x-2">
@@ -511,14 +664,12 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 displayedLeads.map((lead) => {
                   const isStarred = !!starredLeads[lead.id];
                   const isSelected = !!selectedLeadIds[lead.id];
-                  const leadName = lead.name || "Unnamed Lead";
-                  const avatarLetter = leadName.charAt(0).toUpperCase();
 
                   return (
                     <tr
                       key={lead.id}
                       onClick={() => setSelectedLeadId(lead.id)}
-                      className={`cursor-pointer group ${isSelected ? "bg-emerald-500/5" : ""}`}
+                      className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
                     >
                       {/* SELECT CHECKBOX */}
                       {selectMode && (
@@ -541,7 +692,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                         />
                       </td>
 
-                      {/* NEXT FOLLOW-UP COLUMN (Matching Reference Pill) */}
+                      {/* NEXT FOLLOW-UP COLUMN */}
                       <td onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}>
                         <div className="crm-followup-pill-box cursor-pointer">
                           <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
@@ -622,35 +773,57 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           </table>
         </div>
 
-        {/* Mobile View (< 768px): Dedicated Responsive Lead Cards */}
-        <div className="block md:hidden divide-y divide-[var(--border-color,#E2E8F0)] dark:divide-white/5">
-          {loading ? (
-            <div className="py-12 text-center text-[var(--text-secondary,#94A3B8)]">
-              <div className="flex justify-center items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                <span>Loading leads...</span>
-              </div>
+        {/* MOBILE VIEW (< 768px): Dedicated Touch-Optimized Mobile Lead Cards */}
+        <div className="block md:hidden space-y-3.5 p-3.5 sm:p-4">
+          {loading && leads.length === 0 ? (
+            /* Mobile Animated Skeleton Loaders */
+            <div className="space-y-3.5">
+              {[1, 2, 3].map((idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-xl bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] animate-pulse flex flex-col gap-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-36 bg-slate-200 dark:bg-slate-700 rounded" />
+                      <div className="h-3 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
+                    </div>
+                  </div>
+                  <div className="h-8 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                  <div className="h-10 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                </div>
+              ))}
             </div>
           ) : fetchError ? (
-            <div className="crm-table-empty-cell text-center p-8">
+            <div className="crm-table-empty-cell text-center p-8 bg-[var(--surface,#FFFFFF)] rounded-xl border border-[var(--border-color,#E2E8F0)]">
               <div className="flex flex-col items-center justify-center">
                 <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
                 <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
                 <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
-                <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
-                  <RotateCcw className="w-3.5 h-3.5" />
+                <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2 min-h-[44px]">
+                  <RotateCcw className="w-4 h-4" />
                   <span>Retry</span>
                 </button>
               </div>
             </div>
           ) : displayedLeads.length === 0 ? (
-            <div className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
+            <div className="crm-mobile-empty-card p-8 text-center bg-[var(--surface,#FFFFFF)] rounded-xl border border-[var(--border-color,#E2E8F0)]">
               <div className="flex flex-col items-center justify-center">
-                <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
-                <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
-                <button onClick={handleResetFilters} className="crm-btn-secondary">
-                  Clear filters
-                </button>
+                <Users className="w-10 h-10 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-3" />
+                <div className="text-base font-bold text-[var(--text-primary,#0F172A)] mb-1">No leads found in this view</div>
+                <div className="text-xs text-[var(--text-secondary,#64748B)] mb-4 max-w-xs">
+                  Try adjusting your search terms or filters to find what you're looking for.
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs">
+                  <button onClick={handleResetFilters} className="crm-btn-secondary min-h-[44px] justify-center w-full">
+                    Clear filters
+                  </button>
+                  <button onClick={() => setIsAddOpen(true)} className="crm-btn-primary min-h-[44px] justify-center w-full">
+                    <Plus className="w-4 h-4" />
+                    <span>New Lead</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -664,76 +837,245 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
                 <div
                   key={lead.id}
                   onClick={() => setSelectedLeadId(lead.id)}
-                  className={`p-4 flex flex-col gap-3 transition-colors cursor-pointer active:bg-[var(--surface-soft,#F8FAFC)] ${
-                    isSelected ? "bg-emerald-500/5" : ""
+                  className={`crm-mobile-lead-card bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] rounded-xl p-4 flex flex-col gap-3.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer ${
+                    isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""
                   }`}
                 >
-                  {/* Top Row: Select checkbox, Lead Identity, Stage Badge */}
-                  <div className="flex items-start justify-between gap-2.5">
-                    {selectMode && (
-                      <div onClick={(e) => toggleSelectLead(e, lead.id)} className="flex-shrink-0 pt-1">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {}}
-                          className="rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                      </div>
-                    )}
+                  {/* Row 1: Header - Avatar, Name, Email, Phone, Star, Actions Menu */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {/* Select Mode Checkbox */}
+                      {selectMode && (
+                        <div onClick={(e) => toggleSelectLead(e, lead.id)} className="pt-1 flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </div>
+                      )}
 
-                    <div className="flex-1 min-w-0">
-                      <LeadIdentityBlock
-                        lead={lead}
-                        isStarred={isStarred}
-                        onToggleStar={toggleStar}
-                      />
-                    </div>
-
-                    <span className={`${getStageBadgeClass(lead.stage || lead.status)} flex-shrink-0 text-[10px]`}>
-                      {lead.stage || lead.status || "NEW"}
-                    </span>
-                  </div>
-
-                  {/* Metadata Row: Next Follow-Up, Assigned To, Total Amount, Action Menu */}
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      {/* Next Follow-Up Pill */}
-                      <div
-                        onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}
-                        className="crm-followup-pill-box !py-1 !px-2.5 !rounded-lg cursor-pointer"
-                      >
-                        <Calendar className="w-3 h-3 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
-                        <span className="font-bold text-[10.5px] uppercase text-[var(--text-primary,#0F172A)]">
-                          {lead.nextFollowUpAt
-                            ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                            : "NO FOLLOW-UP"}
-                        </span>
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-400/20">
+                        {avatarLetter}
                       </div>
 
-                      {/* Total Amount */}
-                      <span className="font-bold text-sm text-[var(--text-primary,#0F172A)]">
-                        {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
-                      </span>
+                      {/* Name, Email, Phone Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-[15px] text-[var(--text-primary,#0F172A)] truncate leading-snug">
+                          {leadName}
+                        </div>
+
+                        {lead.email && (
+                          <div className="text-xs text-[var(--text-secondary,#64748B)] truncate mt-0.5">
+                            {lead.email}
+                          </div>
+                        )}
+
+                        {lead.contactNumber && (
+                          <div className="text-xs font-semibold text-[var(--text-primary,#334155)] dark:text-[#94A3B8] mt-0.5 flex items-center gap-1.5">
+                            <Phone className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                            <span>{lead.contactNumber}</span>
+                          </div>
+                        )}
+
+                        {lead.companyName && (
+                          <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate mt-0.5 font-medium">
+                            {lead.companyName}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Star & Actions Buttons */}
                     <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
+                        onClick={(e) => toggleStar(e, lead.id)}
+                        className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-amber-400 hover:bg-amber-400/10 flex items-center justify-center transition-colors"
+                        title={isStarred ? "Remove from favorites" : "Add to favorites"}
+                        aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
+                      >
+                        <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={(e) => handleOpenActionMenu(e, lead)}
-                        className="p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40"
-                        title="Actions menu"
-                        aria-label="Actions menu"
+                        className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40 flex items-center justify-center transition-colors"
+                        title="More actions"
+                        aria-label="Open lead actions"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
+
+                  {/* Row 2: Badges & Amount Summary */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Stage Badge */}
+                      <span className={`${getStageBadgeClass(lead.stage || lead.status)} px-2.5 py-1 text-[11px] font-bold rounded-md uppercase tracking-wider`}>
+                        {lead.stage || lead.status || "NEW"}
+                      </span>
+
+                      {/* Source Badge */}
+                      <LeadSourceBadge source={lead.source} />
+                    </div>
+
+                    {/* Total Amount Badge */}
+                    <div className="text-right">
+                      <span className="text-[11px] text-[var(--text-secondary,#94A3B8)] block font-semibold uppercase tracking-wider">Total</span>
+                      <span className="font-extrabold text-sm text-[var(--text-primary,#0F172A)]">
+                        {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Follow-Up Pill Box */}
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}
+                    className="crm-followup-pill-box !p-2.5 !rounded-lg bg-[var(--surface-soft,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] flex items-center justify-between gap-3 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)] flex items-center gap-2">
+                          <span>
+                            {lead.nextFollowUpAt
+                              ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                              : "NO FOLLOW-UP"}
+                          </span>
+                          {lead.nextFollowUpType && (
+                            <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold uppercase">
+                              {lead.nextFollowUpType}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary,#64748B)] truncate max-w-[220px] mt-0.5">
+                          {lead.nextFollowUpNote || "Not scheduled"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 flex-shrink-0">
+                      <span>Details</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Row 4: Mobile Touch Quick Action Bar */}
+                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[var(--border-color,#E2E8F0)]/40 dark:border-white/5" onClick={(e) => e.stopPropagation()}>
+                    {lead.contactNumber ? (
+                      <a
+                        href={`tel:${lead.contactNumber}`}
+                        className="min-h-[44px] h-[44px] px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-500/20 transition-colors"
+                        title={`Call ${lead.contactNumber}`}
+                        aria-label={`Call ${lead.name || "lead"}`}
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Call</span>
+                      </a>
+                    ) : (
+                      <button disabled className="min-h-[44px] h-[44px] px-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 font-medium text-xs flex items-center justify-center gap-1 cursor-not-allowed">
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Call</span>
+                      </button>
+                    )}
+
+                    {lead.contactNumber ? (
+                      <a
+                        href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-h-[44px] h-[44px] px-2 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-teal-500/20 transition-colors"
+                        title="WhatsApp chat"
+                        aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Chat</span>
+                      </a>
+                    ) : (
+                      <button disabled className="min-h-[44px] h-[44px] px-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 font-medium text-xs flex items-center justify-center gap-1 cursor-not-allowed">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Chat</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setEditingLead(lead); setIsAddOpen(true); }}
+                      className="min-h-[44px] h-[44px] px-2 rounded-lg bg-[var(--surface-soft,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      title="Edit lead"
+                      aria-label={`Edit ${lead.name || "lead"}`}
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Edit</span>
+                    </button>
                   </div>
                 </div>
               );
             })
           )}
         </div>
+
+        {/* 5. Production Pagination Footer */}
+        <div className="crm-pagination-footer">
+          {/* Display Range */}
+          <div className="crm-pagination-info">
+            Showing <strong>{startRecord}–{endRecord}</strong> of <strong>{total}</strong>
+          </div>
+
+          {/* Controls: Rows per page & Navigation buttons */}
+          <div className="crm-pagination-controls">
+            {/* Rows per page select */}
+            <div className="crm-pagination-rows">
+              <span>Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                disabled={loading}
+                className="crm-pagination-select"
+                aria-label="Rows per page"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            {/* Navigation buttons */}
+            <div className="crm-pagination-nav">
+              <button
+                type="button"
+                onClick={() => handlePageChange(page - 1)}
+                disabled={loading || !hasPreviousPage || page <= 1}
+                className="crm-pagination-btn"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="crm-pagination-btn-text">Previous</span>
+              </button>
+
+              <span className="crm-pagination-page-indicator">
+                Page <strong>{total === 0 ? 1 : page}</strong> of <strong>{total === 0 ? 1 : totalPages}</strong>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={loading || !hasNextPage || page >= totalPages || total === 0}
+                className="crm-pagination-btn"
+                aria-label="Next page"
+              >
+                <span className="crm-pagination-btn-text">Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* Drawers */}
@@ -741,7 +1083,7 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         isOpen={isAddOpen}
         mode="create"
         onClose={() => setIsAddOpen(false)}
-        onSuccess={() => { setIsAddOpen(false); setPage(1); fetchLeads(); }}
+        onSuccess={() => { setIsAddOpen(false); fetchLeads(); }}
         identity={identity}
       />
 
@@ -769,11 +1111,14 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
           leadId={selectedLeadId}
           onClose={() => setSelectedLeadId(null)}
           onUpdated={() => fetchLeads()}
-          onEditLead={(lead) => setEditingLead(lead)}
+          onEditLead={(lead) => {
+            setSelectedLeadId(null);
+            setEditingLead(lead);
+          }}
         />
       )}
 
-      {/* PORTAL ACTIONS MENU (Collision-aware dropdown matching Screenshot 3) */}
+      {/* PORTAL ACTIONS MENU */}
       {actionMenuTarget && createPortal(
         <div
           className="fixed inset-0 z-[100] pointer-events-auto"
@@ -830,5 +1175,20 @@ export default function LeadsWorkspace({ identity }: LeadsWorkspaceProps) {
         document.body
       )}
     </div>
+  );
+}
+
+export default function LeadsWorkspace(props: LeadsWorkspaceProps) {
+  return (
+    <Suspense fallback={
+      <div className="p-8 text-center text-[var(--text-secondary,#94A3B8)]">
+        <div className="flex justify-center items-center space-x-2">
+          <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <span>Loading CRM Workspace...</span>
+        </div>
+      </div>
+    }>
+      <LeadsWorkspaceContent {...props} />
+    </Suspense>
   );
 }

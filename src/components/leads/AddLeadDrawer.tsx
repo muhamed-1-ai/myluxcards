@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
+import { FollowUpType, normalizeFollowUpType, extractFollowUpTypeAndCleanNote } from "@/lib/follow-up-types";
 import { 
   X, 
   AlertCircle, 
@@ -92,10 +94,34 @@ export default function AddLeadDrawer({
   identity 
 }: AddLeadDrawerProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingConfig, setFetchingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const setFormError = (msg: string | null) => {
     setError(msg);
@@ -155,7 +181,7 @@ export default function AddLeadDrawer({
     remark: "",
     followUpDate: "",
     followUpTime: "10:00",
-    followUpType: "Call",
+    followUpType: "CALL" as FollowUpType,
     followUpNote: "",
     customTotalAmount: "",
   });
@@ -347,13 +373,22 @@ export default function AddLeadDrawer({
 
       let fDate = "";
       let fTime = "10:00";
-      if (leadData.followUpDate) {
-        const d = new Date(leadData.followUpDate);
+      const rawLeadFDate = leadData.followUpDate || leadData.nextFollowUpAt || leadData.nextFollowUp?.scheduledAt;
+      if (rawLeadFDate) {
+        const d = new Date(rawLeadFDate);
         if (!isNaN(d.getTime())) {
           fDate = d.toISOString().split("T")[0];
           fTime = d.toTimeString().slice(0, 5);
         }
       }
+
+      const initialFuType = normalizeFollowUpType(
+        leadData.followUpType || leadData.nextFollowUpType || leadData.nextFollowUp?.type
+      );
+      const initialExtractedFu = extractFollowUpTypeAndCleanNote(
+        leadData.followUpNote || leadData.nextFollowUpNote || leadData.nextFollowUp?.note,
+        initialFuType
+      );
 
       setFormData({
         name: leadData.name || "",
@@ -367,8 +402,8 @@ export default function AddLeadDrawer({
         remark: leadData.remark || leadData.notes || leadData.lastRemark || "",
         followUpDate: fDate,
         followUpTime: fTime,
-        followUpType: leadData.followUpType || "Call",
-        followUpNote: leadData.followUpNote || "",
+        followUpType: initialExtractedFu.type,
+        followUpNote: initialExtractedFu.cleanNote,
         customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : (leadData.expectedRevenue ? String(leadData.expectedRevenue) : ""),
       });
 
@@ -416,13 +451,22 @@ export default function AddLeadDrawer({
 
               let fetchedFDate = "";
               let fetchedFTime = "10:00";
-              if (fullLead.nextFollowUp?.scheduledAt) {
-                const fd = new Date(fullLead.nextFollowUp.scheduledAt);
+              const rawApiFDate = fullLead.nextFollowUp?.scheduledAt || fullLead.nextFollowUpAt || fullLead.followUpDate;
+              if (rawApiFDate) {
+                const fd = new Date(rawApiFDate);
                 if (!isNaN(fd.getTime())) {
                   fetchedFDate = fd.toISOString().split("T")[0];
                   fetchedFTime = fd.toTimeString().slice(0, 5);
                 }
               }
+
+              const resolvedApiFuType = normalizeFollowUpType(
+                fullLead.followUpType || fullLead.nextFollowUpType || fullLead.nextFollowUp?.type
+              );
+              const resolvedApiFuCleanNote = extractFollowUpTypeAndCleanNote(
+                fullLead.nextFollowUp?.note !== undefined ? fullLead.nextFollowUp?.note : (fullLead.followUpNote !== undefined ? fullLead.followUpNote : fullLead.nextFollowUpNote),
+                resolvedApiFuType
+              ).cleanNote;
 
               setFormData((prev) => ({
                 ...prev,
@@ -437,7 +481,8 @@ export default function AddLeadDrawer({
                 customTotalAmount: resolvedTotal ? String(resolvedTotal) : prev.customTotalAmount,
                 followUpDate: fetchedFDate || prev.followUpDate,
                 followUpTime: fetchedFTime || prev.followUpTime,
-                followUpNote: fullLead.nextFollowUp?.note || prev.followUpNote,
+                followUpType: resolvedApiFuType,
+                followUpNote: resolvedApiFuCleanNote !== undefined ? resolvedApiFuCleanNote : prev.followUpNote,
               }));
 
               if (resolvedAdvance > 0) {
@@ -499,7 +544,7 @@ export default function AddLeadDrawer({
         remark: "",
         followUpDate: "",
         followUpTime: "10:00",
-        followUpType: "Call",
+        followUpType: "CALL",
         followUpNote: "",
         customTotalAmount: "",
       });
@@ -665,11 +710,11 @@ export default function AddLeadDrawer({
       followUp: formData.followUpDate ? {
         date: formData.followUpDate,
         time: formData.followUpTime,
-        type: formData.followUpType,
+        type: normalizeFollowUpType(formData.followUpType),
         note: formData.followUpNote.trim(),
       } : undefined,
       followUpDate: combinedFollowUpIso,
-      followUpType: formData.followUpType || "Call",
+      followUpType: normalizeFollowUpType(formData.followUpType),
       followUpNote: formData.followUpNote.trim() || undefined,
       products: selectedProducts,
       paymentInformation: {
@@ -725,15 +770,20 @@ export default function AddLeadDrawer({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const isEdit = mode === "edit";
 
-  return (
+  return createPortal(
     <div className="add-lead-overlay">
-      {/* Centered Dialog Window (780px max width, 3-part layout) */}
-      <div role="dialog" aria-modal="true" className="add-lead-window">
-        
+      <div className="add-lead-backdrop" onClick={onClose} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? "Edit pipeline opportunity" : "Add a new pipeline opportunity"}
+        className="add-lead-window"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* 1. FIXED HEADER */}
         <div className="add-lead-header">
           <div className="space-y-1 pr-4">
@@ -1007,76 +1057,89 @@ export default function AddLeadDrawer({
           </div>
 
           {/* SECTION 3: FOLLOW-UP */}
-          <div className="add-lead-card">
-            <div className="add-lead-card-header">
-              <div className="add-lead-icon-wrap add-lead-icon-amber">
-                <Calendar className="w-4 h-4" />
+          <div className="add-lead-card followup-card">
+            {/* Header */}
+            <div className="followup-card-header">
+              <div className="followup-header-icon">
+                <Calendar className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="add-lead-card-title">Follow-up</h3>
-                <p className="add-lead-card-desc">
+              <div className="flex-1 min-w-0">
+                <h3 className="followup-header-title">Follow-up</h3>
+                <p className="followup-header-desc">
                   Keep the next touchpoint visible directly in the leads table.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Left: Next Follow-up & Follow-up Type */}
-              <div className="space-y-4">
-                <div>
-                  <label className="add-lead-label">
-                    Next Follow-up
+            {/* Grid Layout */}
+            <div className="followup-grid">
+              {/* Left Column: Next Follow-up Group */}
+              <div className="flex flex-col gap-4">
+                <div className="followup-group-kicker">NEXT FOLLOW-UP</div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="lead-follow-up-date" className="add-lead-label followup-sublabel">
+                    DATE
                   </label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex-1 min-w-[190px]">
-                      <DatePicker
-                        value={formData.followUpDate}
-                        onChange={(dateStr) => setFormData((prev) => ({ ...prev, followUpDate: dateStr }))}
-                        placeholder="Select Date"
-                      />
-                    </div>
-                    <div className="w-full sm:w-[170px] min-w-[150px]">
-                      <TimePicker
-                        value={formData.followUpTime}
-                        onChange={(timeStr) => setFormData((prev) => ({ ...prev, followUpTime: timeStr }))}
-                        placeholder="Select Time"
-                      />
-                    </div>
+                  <div className="w-full">
+                    <DatePicker
+                      value={formData.followUpDate}
+                      onChange={(dateStr) => setFormData((prev) => ({ ...prev, followUpDate: dateStr }))}
+                      placeholder="Select Date"
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="add-lead-label">
-                    Follow-up Type
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="lead-follow-up-time" className="add-lead-label followup-sublabel">
+                    TIME
                   </label>
-                  <div className="relative flex items-center">
+                  <div className="w-full">
+                    <TimePicker
+                      value={formData.followUpTime}
+                      onChange={(timeStr) => setFormData((prev) => ({ ...prev, followUpTime: timeStr }))}
+                      placeholder="Select Time"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5 mt-1">
+                  <label htmlFor="lead-follow-up-type" className="add-lead-label followup-sublabel">
+                    FOLLOW-UP TYPE
+                  </label>
+                  <div className="relative flex items-center w-full">
                     <select 
-                      value={formData.followUpType}
-                      onChange={e => setFormData({ ...formData, followUpType: e.target.value })}
-                      className="add-lead-select pr-9"
+                      id="lead-follow-up-type"
+                      value={normalizeFollowUpType(formData.followUpType)}
+                      onChange={e => {
+                        const val = normalizeFollowUpType(e.target.value);
+                        setFormData(prev => ({ ...prev, followUpType: val }));
+                      }}
+                      className="add-lead-select followup-input-control pr-10"
                     >
-                      <option value="Call">Call</option>
-                      <option value="Meeting">Meeting</option>
-                      <option value="Email">Email</option>
-                      <option value="WhatsApp">WhatsApp</option>
-                      <option value="Demo">Demo</option>
+                      <option value="CALL">Call</option>
+                      <option value="MEETING">Meeting</option>
+                      <option value="EMAIL">Email</option>
+                      <option value="WHATSAPP">WhatsApp</option>
+                      <option value="DEMO">Demo</option>
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 pointer-events-none" />
                   </div>
                 </div>
               </div>
 
-              {/* Right: Follow-up Note */}
-              <div className="flex flex-col">
-                <label className="add-lead-label">
-                  Follow-up Note
-                </label>
-                <textarea 
-                  value={formData.followUpNote}
-                  onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
-                  placeholder="Describe the next customer action, context, or talking point"
-                  className="add-lead-textarea flex-1 min-h-[110px]"
-                />
+              {/* Right Column: Follow-up Note */}
+              <div className="flex flex-col h-full">
+                <div className="followup-group-kicker">FOLLOW-UP NOTE</div>
+                <div className="flex-1 flex flex-col mt-1.5">
+                  <textarea 
+                    id="lead-follow-up-note"
+                    value={formData.followUpNote}
+                    onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
+                    placeholder="Describe the next customer action, context, or talking point"
+                    className="add-lead-textarea followup-note-textarea flex-1 w-full"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1559,6 +1622,7 @@ export default function AddLeadDrawer({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -3,6 +3,9 @@ import { upsertLead } from "./leads";
 
 export type LeadStage = "NEW" | "CONTACTED" | "INTERESTED" | "FOLLOW_UP" | "WON" | "LOST";
 
+import { FollowUpType, ALLOWED_FOLLOW_UP_TYPES, normalizeFollowUpType, extractFollowUpTypeAndCleanNote } from "./follow-up-types";
+export * from "./follow-up-types";
+
 export interface LeadKpis {
   totalLeads: number;
   newLeads: number;
@@ -35,6 +38,8 @@ export interface PipelineLeadCard {
   updatedAt: string;
   nextFollowUpAt?: string | null;
   nextFollowUpNote?: string | null;
+  nextFollowUpType?: FollowUpType | null;
+  followUpType?: FollowUpType | null;
 }
 
 export interface FollowUpItem {
@@ -45,6 +50,7 @@ export interface FollowUpItem {
   contactNumber: string;
   scheduledAt: string;
   note: string | null;
+  type?: FollowUpType;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   isOverdue: boolean;
 }
@@ -216,20 +222,22 @@ export async function getDashboardSummaryData(
       updated_at: Date;
       next_follow_up_at: Date | null;
       next_follow_up_note: string | null;
+      next_follow_up_type: string | null;
     }>(
       `WITH ranked_leads AS (
          SELECT l.id, l.name, l.company_name, l.contact_number, l.email, l.status, l.source,
-                l.submission_count, l.updated_at,
+                l.submission_count, l.updated_at, l.follow_up_type,
                 ROW_NUMBER() OVER (PARTITION BY l.status ORDER BY l.updated_at DESC) as rn
          FROM leads l
          WHERE ${leadsWhereClause}
        )
        SELECT rl.id, rl.name, rl.company_name, rl.contact_number, rl.email, rl.status, rl.source,
               rl.submission_count, rl.updated_at,
-              f.scheduled_at as next_follow_up_at, f.note as next_follow_up_note
+              f.scheduled_at as next_follow_up_at, f.note as next_follow_up_note,
+              COALESCE(f.type, rl.follow_up_type, 'CALL') as next_follow_up_type
        FROM ranked_leads rl
        LEFT JOIN LATERAL (
-         SELECT scheduled_at, note FROM lead_follow_ups
+         SELECT scheduled_at, note, type FROM lead_follow_ups
          WHERE lead_id = rl.id AND status = 'SCHEDULED'
          ORDER BY scheduled_at ASC LIMIT 1
        ) f ON true
@@ -247,10 +255,11 @@ export async function getDashboardSummaryData(
       contact_number: string;
       scheduled_at: Date;
       note: string | null;
+      type: string | null;
       status: string;
     }>(
       `SELECT f.id, f.lead_id, l.name as lead_name, l.company_name, l.contact_number,
-              f.scheduled_at, f.note, f.status
+              f.scheduled_at, f.note, f.status, COALESCE(f.type, 'CALL') as type
        FROM lead_follow_ups f
        JOIN leads l ON l.id = f.lead_id
        WHERE ${leadsWhereClause} AND f.status = 'SCHEDULED'
@@ -362,6 +371,11 @@ export async function getDashboardSummaryData(
       : "NEW") as LeadStage;
 
     if (pipeline[stage].length < 5) {
+      const { type: parsedType, cleanNote: parsedNote } = extractFollowUpTypeAndCleanNote(
+        row.next_follow_up_note,
+        row.next_follow_up_type
+      );
+
       pipeline[stage].push({
         id: row.id,
         name: row.name,
@@ -373,7 +387,9 @@ export async function getDashboardSummaryData(
         submissionCount: row.submission_count,
         updatedAt: row.updated_at.toISOString(),
         nextFollowUpAt: row.next_follow_up_at ? row.next_follow_up_at.toISOString() : null,
-        nextFollowUpNote: row.next_follow_up_note,
+        nextFollowUpNote: parsedNote || null,
+        nextFollowUpType: parsedType,
+        followUpType: parsedType,
       });
     }
   }
@@ -390,6 +406,11 @@ export async function getDashboardSummaryData(
   for (const row of followUpData.rows) {
     const scheduled = new Date(row.scheduled_at);
     const isOverdue = scheduled < startOfToday;
+    const { type: parsedType, cleanNote: parsedNote } = extractFollowUpTypeAndCleanNote(
+      row.note,
+      row.type
+    );
+
     const item: FollowUpItem = {
       id: row.id,
       leadId: row.lead_id,
@@ -397,7 +418,8 @@ export async function getDashboardSummaryData(
       companyName: row.company_name,
       contactNumber: row.contact_number,
       scheduledAt: scheduled.toISOString(),
-      note: row.note,
+      note: parsedNote || null,
+      type: parsedType,
       status: row.status as any,
       isOverdue,
     };
@@ -658,7 +680,8 @@ export async function scheduleFollowUp(
   ownerUserId: string,
   leadId: string,
   scheduledAt: Date,
-  note?: string
+  note?: string,
+  rawType?: string
 ): Promise<FollowUpItem> {
   const client = await pool.connect();
   try {
@@ -673,33 +696,42 @@ export async function scheduleFollowUp(
     const lead = leadRes.rows[0];
     if (!lead) throw new Error("Lead not found.");
 
-    // Insert follow-up
+    const { type, cleanNote } = extractFollowUpTypeAndCleanNote(note, rawType);
+
+    // Insert follow-up with type
     const fuRes = await client.query<{
       id: string;
       lead_id: string;
       scheduled_at: Date;
       note: string | null;
+      type: string;
       status: string;
     }>(
-      `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'SCHEDULED', NOW(), NOW())
-       RETURNING id, lead_id, scheduled_at, note, status`,
-      [ownerUserId, leadId, scheduledAt, note || null]
+      `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, type, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 'SCHEDULED', NOW(), NOW())
+       RETURNING id, lead_id, scheduled_at, note, type, status`,
+      [ownerUserId, leadId, scheduledAt, cleanNote || null, type]
     );
 
     const fu = fuRes.rows[0];
 
     // Optionally update lead status to FOLLOW_UP if currently NEW or CONTACTED
     await client.query(
-      `UPDATE leads SET status = 'FOLLOW_UP', updated_at = NOW() WHERE id = $1 AND status IN ('NEW', 'CONTACTED')`,
-      [leadId]
+      `UPDATE leads 
+       SET status = CASE WHEN status IN ('NEW', 'CONTACTED') THEN 'FOLLOW_UP' ELSE status END,
+           next_follow_up_at = $2,
+           follow_up_note = $3,
+           follow_up_type = $4,
+           updated_at = NOW() 
+       WHERE id = $1`,
+      [leadId, scheduledAt, cleanNote || null, type]
     );
 
     // Log Activity
     await client.query(
       `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, entity_type, entity_id, occurred_at, created_at)
        VALUES ($1, $2, 'FOLLOW_UP_SCHEDULED', $3, 'lead_follow_up', $4, NOW(), NOW())`,
-      [ownerUserId, leadId, `Follow-up scheduled for ${scheduledAt.toLocaleString()}`, fu.id]
+      [ownerUserId, leadId, `Follow-up [${type}] scheduled for ${scheduledAt.toLocaleString()}`, fu.id]
     );
 
     await client.query("COMMIT");
@@ -712,6 +744,7 @@ export async function scheduleFollowUp(
       contactNumber: lead.contact_number,
       scheduledAt: fu.scheduled_at.toISOString(),
       note: fu.note,
+      type: fu.type as FollowUpType,
       status: fu.status as any,
       isOverdue: fu.scheduled_at < new Date(),
     };

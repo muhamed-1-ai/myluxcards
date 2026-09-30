@@ -1,6 +1,7 @@
 import { currentIdentity, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 import { prisma } from "@/lib/db/prisma";
+import { extractFollowUpTypeAndCleanNote, normalizeFollowUpType, FollowUpType } from "@/lib/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
          l.last_submitted_at as "lastSubmittedAt", 
          l.created_at as "createdAt", l.updated_at as "updatedAt",
          l.assigned_user_id as "assignedUserId",
+         COALESCE(l.follow_up_type, 'CALL') as "followUpType",
+         l.follow_up_note as "followUpNote",
+         l.next_follow_up_at as "nextFollowUpAt",
          u_assigned.name as "assignedUserName", u_assigned.email as "assignedUserEmail",
          u_owner.name as "createdByName", u_owner.email as "createdByEmail"
        FROM leads l
@@ -94,13 +98,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // Next follow-up scoped to owner
     const fuRes = await pool.query(
-      `SELECT id, scheduled_at as "scheduledAt", note, status
+      `SELECT id, scheduled_at as "scheduledAt", note, status, COALESCE(type, 'CALL') as type
        FROM lead_follow_ups
        WHERE lead_id = $1 AND owner_user_id = $2 AND status = 'SCHEDULED'
        ORDER BY scheduled_at ASC LIMIT 1`,
       [id, identity.id]
     );
-    const nextFollowUp = fuRes.rows[0] || null;
+    let nextFollowUp = fuRes.rows[0] || null;
+    let followUpType: FollowUpType = normalizeFollowUpType(lead.followUpType);
+
+    if (nextFollowUp) {
+      const extracted = extractFollowUpTypeAndCleanNote(
+        nextFollowUp.note,
+        lead.followUpType ? normalizeFollowUpType(lead.followUpType) : nextFollowUp.type
+      );
+      nextFollowUp.type = extracted.type;
+      nextFollowUp.note = extracted.cleanNote || null;
+      followUpType = extracted.type;
+      lead.followUpNote = extracted.cleanNote || lead.followUpNote;
+    } else if (lead.followUpNote) {
+      const extracted = extractFollowUpTypeAndCleanNote(lead.followUpNote, lead.followUpType);
+      followUpType = extracted.type;
+      lead.followUpNote = extracted.cleanNote || null;
+    }
 
     // Recent activities scoped to owner
     const actRes = await pool.query(
@@ -133,6 +153,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ok: true,
       lead: {
         ...lead,
+        followUpType,
+        nextFollowUpType: followUpType,
         address: resolvedAddress,
         totalAmount: resolvedTotalAmount,
         advanceAmount: resolvedAdvanceAmount,
@@ -262,8 +284,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       address: string | null;
       contact_number: string;
       contact_number_normalized: string;
+      follow_up_type: string | null;
+      follow_up_note: string | null;
+      next_follow_up_at: Date | null;
     }>(
-      `SELECT id, owner_user_id, status, total_amount, advance_amount, address, contact_number, contact_number_normalized FROM leads WHERE id = $1 AND ${accessClause}`,
+      `SELECT id, owner_user_id, status, total_amount, advance_amount, address, contact_number, contact_number_normalized, follow_up_type, follow_up_note, next_follow_up_at FROM leads WHERE id = $1 AND ${accessClause}`,
       identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
@@ -411,14 +436,70 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
-    // Schedule follow-up if followUpDate was provided during edit
-    if (body.followUpDate) {
-      const fuNote = body.followUpNote ? `[${body.followUpType || "Call"}] ${body.followUpNote}` : `[${body.followUpType || "Call"}] Scheduled follow-up`;
-      void pool.query(
-        `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'SCHEDULED', NOW(), NOW())`,
-        [identity.id, id, body.followUpDate, fuNote]
+    // Handle follow-up update / scheduling
+    const rawFollowUpType = body.followUpType ?? body.followUp?.type;
+    const rawFollowUpNote = body.followUpNote !== undefined ? body.followUpNote : body.followUp?.note;
+    const rawFollowUpDate = body.followUpDate ?? body.followUp?.date;
+
+    const existingFuType = existingLead.follow_up_type ? normalizeFollowUpType(existingLead.follow_up_type) : "CALL";
+    const existingFuNote = existingLead.follow_up_note;
+
+    let fuType: FollowUpType = rawFollowUpType ? normalizeFollowUpType(rawFollowUpType) : existingFuType;
+    let fuCleanNote: string | null = existingFuNote || null;
+    let scheduledAt: Date | null = existingLead.next_follow_up_at || null;
+
+    if (rawFollowUpType !== undefined || rawFollowUpNote !== undefined || rawFollowUpDate !== undefined) {
+      const targetTypeInput = rawFollowUpType !== undefined && rawFollowUpType !== null && String(rawFollowUpType).trim() !== ""
+        ? rawFollowUpType
+        : existingFuType;
+
+      const extracted = extractFollowUpTypeAndCleanNote(
+        rawFollowUpNote !== undefined ? rawFollowUpNote : existingFuNote,
+        targetTypeInput
       );
+      fuType = extracted.type;
+      fuCleanNote = extracted.cleanNote || null;
+
+      if (rawFollowUpDate) {
+        const d = new Date(rawFollowUpDate);
+        if (!isNaN(d.getTime())) {
+          scheduledAt = d;
+        }
+      }
+
+      await pool.query(
+        `UPDATE leads 
+         SET follow_up_type = $1,
+             next_follow_up_at = COALESCE($2, next_follow_up_at),
+             follow_up_note = COALESCE($3, follow_up_note),
+             updated_at = NOW()
+         WHERE id = $4`,
+        [fuType, scheduledAt, fuCleanNote, id]
+      );
+
+      // Check for existing SCHEDULED follow-up
+      const existingFu = await pool.query<{ id: string }>(
+        `SELECT id FROM lead_follow_ups WHERE lead_id = $1 AND owner_user_id = $2 AND status = 'SCHEDULED' ORDER BY scheduled_at ASC LIMIT 1`,
+        [id, identity.id]
+      );
+
+      if (existingFu.rows[0]) {
+        await pool.query(
+          `UPDATE lead_follow_ups 
+           SET type = $1,
+               note = COALESCE($2, note),
+               scheduled_at = COALESCE($3, scheduled_at),
+               updated_at = NOW()
+           WHERE id = $4`,
+          [fuType, fuCleanNote, scheduledAt, existingFu.rows[0].id]
+        );
+      } else if (scheduledAt) {
+        await pool.query(
+          `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, type, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'SCHEDULED', NOW(), NOW())`,
+          [identity.id, id, scheduledAt, fuCleanNote, fuType]
+        );
+      }
     }
 
     // Log update activity
@@ -478,6 +559,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       message: "Lead details updated successfully.",
       lead: {
         ...lead,
+        followUpType: fuType,
+        nextFollowUpType: fuType,
+        nextFollowUpNote: fuCleanNote !== null ? fuCleanNote : (existingLead as any).follow_up_note,
+        nextFollowUpAt: scheduledAt ? scheduledAt.toISOString() : (existingLead as any).next_follow_up_at,
         address: safeAddress,
         totalAmount: safeTotalAmount,
         advanceAmount: safeAdvanceAmount,

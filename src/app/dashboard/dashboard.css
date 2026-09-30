@@ -4350,6 +4350,37 @@ th {
 }
 
 @media (max-width: 640px) {
+  .dash-main-header {
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+  .crumb-brand,
+  .crumb-slash {
+    display: none !important;
+  }
+  .dash-theme-btn .theme-btn-label {
+    display: none !important;
+  }
+  .dash-theme-btn {
+    padding: 0 !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+  }
+  .dash-header-right {
+    gap: 8px !important;
+  }
+  .hamb-toggle {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 20px !important;
+  }
   .crm-top-toolbar {
     flex-direction: column;
     align-items: stretch;

@@ -7545,6 +7545,56 @@ body.light-mode .crm-kpi-badge {
   transform: translateY(-1px);
 }
 
+/* ── GLOBAL MOBILE RESPONSIVE UTILITIES ── */
+.break-words-safe {
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+/* Touch target optimizations for mobile viewports */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ensure inputs and buttons on mobile meet minimum 44px tap area */
+  button, 
+  a.btn, 
+  .dash-theme-btn, 
+  .avatar,
+  .side-nav-item,
+  .side-subnav-item {
+    min-height: 44px;
+  }
+
+  /* Prevent text input zooming on iOS Safari by enforcing min 16px font-size */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="date"],
+  input[type="datetime-local"],
+  select,
+  textarea {
+    font-size: 16px !important;
+    max-width: 100%;
+  }
+
+  /* Prevent elements from stretching parent flex bounds */
+  .dash-main,
+  .dash-main-header,
+  .dash-breadcrumbs,
+  .field,
+  .mylux-field {
+    min-width: 0;
+  }
+}
+
+
 
 
 

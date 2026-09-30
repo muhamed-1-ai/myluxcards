@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const isSuperAdmin = admin.role === "SUPER_ADMIN";
 
     let followUpQuery = `
-      SELECT f.id, f.scheduled_at, f.note, f.status, f.completed_at, f.created_at,
+      SELECT f.id, f.scheduled_at, f.note, COALESCE(f.type, 'CALL') as type, f.status, f.completed_at, f.created_at,
              l.id as lead_id, l.name as lead_name, l.company_name, l.contact_number,
              u.id as user_id, u.name as user_name, u.email as user_email
       FROM lead_follow_ups f

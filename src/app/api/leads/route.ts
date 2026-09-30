@@ -1,74 +1,16 @@
 import { currentIdentity, getLeadAccessFilter, requirePermission, validMutationOrigin } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
 import { prisma } from "@/lib/db/prisma";
-import { createManualLead } from "@/lib/crm";
+import { createManualLead, extractFollowUpTypeAndCleanNote, normalizeFollowUpType } from "@/lib/crm";
+
+import { GET as searchGET } from "./search/route";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const identity = await requirePermission("all_leads", request);
-  if (!identity) {
-    const user = await currentIdentity(request);
-    if (!user) return Response.json({ message: "Not authenticated." }, { status: 401 });
-    return Response.json({ message: "Permission denied. Leads feature is disabled for your account." }, { status: 403 });
-  }
-
-  try {
-    const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "25")));
-    const offset = (page - 1) * limit;
-
-    const accessFilter = getLeadAccessFilter(identity, "l");
-    const whereClause = accessFilter.whereClause;
-    const countParams = accessFilter.params;
-
-    const countRes = await pool.query<{ total: number }>(
-      `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`,
-      countParams
-    );
-
-    const totalCount = countRes.rows[0]?.total || 0;
-
-    const limitParamIdx = accessFilter.paramCount + 1;
-    const offsetParamIdx = accessFilter.paramCount + 2;
-    const queryParams = [...countParams, limit, offset];
-
-    const dataRes = await pool.query(
-      `SELECT l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
-              l.email, l.status as "stage", l.source, l.created_at as "createdAt",
-              l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
-              u.name as "assignedUserName", u.email as "assignedUserEmail"
-       FROM leads l
-       LEFT JOIN users u ON u.id = l.assigned_user_id
-       WHERE ${whereClause}
-       ORDER BY l.created_at DESC
-       LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}`,
-      queryParams
-    );
-
-    console.log("[FETCH LEADS]", {
-      userId: identity.id,
-      role: identity.role,
-      createdByAdminId: identity.createdByAdminId || null,
-      returnedLeadCount: totalCount
-    });
-
-    return Response.json({
-      success: true,
-      count: totalCount,
-      total: totalCount,
-      accountId: identity.id,
-      userId: identity.id,
-      leads: dataRes.rows,
-      page,
-      limit,
-    });
-  } catch (error: any) {
-    console.error("[Leads GET API] Error:", error);
-    return Response.json({ message: "Failed to load leads." }, { status: 500 });
-  }
+  return searchGET(request as any);
 }
+
 
 export async function POST(request: Request) {
   if (!validMutationOrigin(request)) {
@@ -276,14 +218,39 @@ export async function POST(request: Request) {
     }
 
     // Schedule initial follow-up if provided
-    if (body.followUpDate) {
-      const scheduledAt = new Date(body.followUpDate);
-      if (!isNaN(scheduledAt.getTime())) {
-        const note = body.followUpNote ? `[${body.followUpType || "Call"}] ${body.followUpNote.trim()}` : `[${body.followUpType || "Call"}] Initial follow-up`;
+    const rawFollowUpType = body.followUpType ?? body.followUp?.type;
+    const rawFollowUpNote = body.followUpNote !== undefined ? body.followUpNote : body.followUp?.note;
+    const rawFollowUpDate = body.followUpDate ?? body.followUp?.date;
+
+    const { type: fuType, cleanNote: fuCleanNote } = extractFollowUpTypeAndCleanNote(
+      rawFollowUpNote,
+      rawFollowUpType
+    );
+
+    let scheduledAt: Date | null = null;
+    if (rawFollowUpDate) {
+      const parsedDate = new Date(rawFollowUpDate);
+      if (!isNaN(parsedDate.getTime())) {
+        scheduledAt = parsedDate;
+      }
+    }
+
+    if (scheduledAt || rawFollowUpType) {
+      await pool.query(
+        `UPDATE leads 
+         SET follow_up_type = $1,
+             next_follow_up_at = $2,
+             follow_up_note = $3,
+             updated_at = NOW()
+         WHERE id = $4`,
+        [fuType, scheduledAt, fuCleanNote || null, leadId]
+      );
+
+      if (scheduledAt) {
         await pool.query(
-          `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, status, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, 'SCHEDULED', NOW(), NOW())`,
-          [ownerUserId, leadId, scheduledAt, note]
+          `INSERT INTO lead_follow_ups (owner_user_id, lead_id, scheduled_at, note, type, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'SCHEDULED', NOW(), NOW())`,
+          [ownerUserId, leadId, scheduledAt, fuCleanNote || null, fuType]
         );
       }
     }
@@ -293,7 +260,13 @@ export async function POST(request: Request) {
         success: true,
         ok: true,
         message: "Lead added successfully.",
-        lead: result.lead,
+        lead: {
+          ...result.lead,
+          followUpType: fuType,
+          nextFollowUpType: fuType,
+          nextFollowUpAt: scheduledAt ? scheduledAt.toISOString() : null,
+          nextFollowUpNote: fuCleanNote || null,
+        },
         accountId: ownerUserId,
         userId: identity.id,
       },

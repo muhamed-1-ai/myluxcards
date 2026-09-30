@@ -51,6 +51,7 @@ export async function GET(request: Request) {
       sinceDate.setHours(0, 0, 0, 0);
     } else {
       sinceDate.setDate(sinceDate.getDate() - days);
+      sinceDate.setHours(0, 0, 0, 0);
     }
 
     // 3. Query all user's vehicles & lost items for complete breakdown list
@@ -168,7 +169,7 @@ export async function GET(request: Request) {
         if (ev.lost_item_id && itemStatsMap[ev.lost_item_id]) {
           itemStatsMap[ev.lost_item_id].totalViews++;
         }
-      } else if (type === "PHONE_NUMBER_TAPPED" || type === "LINK_CLICK") {
+      } else if (type === "PHONE_NUMBER_TAPPED" || type === "CONTACT_SAVE" || type === "LINK_CLICK") {
         contactTaps++;
         if (ev.asset_type === "vehicle" || ev.context?.includes("vehicle")) {
           mode = "vehicle";

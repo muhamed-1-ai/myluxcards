@@ -45,7 +45,7 @@ export const FEATURE_CATALOGUE: FeatureDefinition[] = [
   { key: "lead_stages", label: "Lead Stages", group: "Master Config", description: "Manage sales pipeline stages", dashboardTab: "config-stages" },
   { key: "calendar", label: "Calendar", group: "Master Config", description: "Team calendar and appointments", dashboardTab: "config-calendar" },
   { key: "lob_reasons", label: "LOB Reasons", group: "Master Config", description: "Loss of Business reason tracking", dashboardTab: "config-reasons" },
-  { key: "dynamic_leads", label: "Dynamic Leads", group: "Master Config", description: "Custom fields builder for leads", dashboardTab: "config-dynamic" },
+  { key: "dynamic_leads", label: "Dynamic Fields", group: "Master Config", description: "Custom fields builder for leads", dashboardTab: "config-dynamic" },
 
   // Card & Profile
   { key: "profile_features", label: "Profile Features", group: "Card & Profile", description: "Digital profile mode settings", dashboardTab: "modes" },

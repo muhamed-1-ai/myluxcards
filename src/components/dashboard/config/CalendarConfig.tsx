@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
+import { FollowUpType, normalizeFollowUpType } from "@/lib/follow-up-types";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -149,7 +150,7 @@ export function CalendarConfig() {
   const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
   const [isSearchingLeads, setIsSearchingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadOption | null>(null);
-  const [followUpType, setFollowUpType] = useState<"CALL" | "VISIT" | "MEETING">("CALL");
+  const [followUpType, setFollowUpType] = useState<FollowUpType>("CALL");
   const [scheduledDateStr, setScheduledDateStr] = useState(getLocalDateString(new Date()));
   const [scheduledTimeStr, setScheduledTimeStr] = useState("10:30");
   const [descriptionText, setDescriptionText] = useState("");
@@ -462,14 +463,16 @@ export function CalendarConfig() {
 
     try {
       const isoScheduled = createISOFromLocal(scheduledDateStr, scheduledTimeStr);
-      const fullNote = `[${followUpType}] ${descriptionText.trim()}`;
+      const cleanType = normalizeFollowUpType(followUpType);
 
       const res = await fetch(`/api/leads/${selectedLead.id}/follow-ups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scheduledAt: isoScheduled,
-          note: fullNote,
+          type: cleanType,
+          followUpType: cleanType,
+          note: descriptionText.trim(),
         }),
       });
 
@@ -1518,7 +1521,7 @@ export function CalendarConfig() {
                 </label>
                 <select
                   value={followUpType}
-                  onChange={(e) => setFollowUpType(e.target.value as any)}
+                  onChange={(e) => setFollowUpType(normalizeFollowUpType(e.target.value))}
                   style={{
                     width: "100%",
                     height: 44,
@@ -1531,9 +1534,11 @@ export function CalendarConfig() {
                     outline: "none",
                   }}
                 >
-                  <option value="CALL">Phone Call</option>
-                  <option value="VISIT">Office / Field Visit</option>
-                  <option value="MEETING">Video / In-person Meeting</option>
+                  <option value="CALL">Call</option>
+                  <option value="MEETING">Meeting</option>
+                  <option value="EMAIL">Email</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="DEMO">Demo</option>
                 </select>
               </div>
 

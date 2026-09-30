@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Star,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import LeadSourceBadge from "./LeadSourceBadge";
 import "./lead-drawer.css";
+import { FollowUpType, normalizeFollowUpType } from "@/lib/follow-up-types";
 
 interface NextFollowUpData {
   id: string;
@@ -87,11 +89,25 @@ export default function LeadDetailsDrawer({
   onUpdated,
   onEditLead,
 }: LeadDetailsDrawerProps) {
+  const [mounted, setMounted] = useState(false);
   const [lead, setLead] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "activity">("overview");
   const [isStarred, setIsStarred] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!leadId) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [leadId]);
 
   // Scheduling follow-up state
   const [isScheduling, setIsScheduling] = useState(false);
@@ -180,16 +196,15 @@ export default function LeadDetailsDrawer({
     setSchedulingError(null);
 
     try {
-      const formattedNote = followUpNote.trim()
-        ? `[${followUpType}] ${followUpNote.trim()}`
-        : `[${followUpType}] Follow-up scheduled`;
-
+      const cleanType = normalizeFollowUpType(followUpType);
       const res = await fetch(`/api/leads/${leadId}/follow-ups`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scheduledAt: new Date(scheduledDateTime).toISOString(),
-          note: formattedNote,
+          type: cleanType,
+          followUpType: cleanType,
+          note: followUpNote.trim(),
         }),
       });
 
@@ -210,7 +225,7 @@ export default function LeadDetailsDrawer({
     }
   };
 
-  if (!leadId) return null;
+  if (!leadId || !mounted) return null;
 
   // Helper formatting routines
   const leadName = lead?.name || "Adhil mohammed";
@@ -259,8 +274,8 @@ export default function LeadDetailsDrawer({
 
   const followUpPill = getFollowUpStatusPill(lead?.nextFollowUp);
 
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
+  return createPortal(
+    <div className="lead-drawer-container">
       {/* Dark Blurred Backdrop */}
       <div
         className="lead-drawer-backdrop"
@@ -501,13 +516,26 @@ export default function LeadDetailsDrawer({
                           </button>
                         </div>
                         {schedulingError && <div style={{ color: "#EF4444", fontSize: 12 }}>{schedulingError}</div>}
-                        <input
-                          type="datetime-local"
-                          value={scheduledDateTime}
-                          onChange={(e) => setScheduledDateTime(e.target.value)}
-                          required
-                          style={{ width: "100%", height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid var(--ld-card-border)", backgroundColor: "var(--ld-panel-bg)", color: "var(--ld-text-title)", fontSize: 13 }}
-                        />
+                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 8 }}>
+                          <input
+                            type="datetime-local"
+                            value={scheduledDateTime}
+                            onChange={(e) => setScheduledDateTime(e.target.value)}
+                            required
+                            style={{ width: "100%", height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid var(--ld-card-border)", backgroundColor: "var(--ld-panel-bg)", color: "var(--ld-text-title)", fontSize: 13 }}
+                          />
+                          <select
+                            value={followUpType}
+                            onChange={(e) => setFollowUpType(e.target.value)}
+                            style={{ width: "100%", height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid var(--ld-card-border)", backgroundColor: "var(--ld-panel-bg)", color: "var(--ld-text-title)", fontSize: 13 }}
+                          >
+                            <option value="CALL">Call</option>
+                            <option value="MEETING">Meeting</option>
+                            <option value="EMAIL">Email</option>
+                            <option value="WHATSAPP">WhatsApp</option>
+                            <option value="DEMO">Demo</option>
+                          </select>
+                        </div>
                         <textarea
                           placeholder="Follow-up note..."
                           value={followUpNote}
@@ -726,6 +754,7 @@ export default function LeadDetailsDrawer({
           </>
         )}
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }
