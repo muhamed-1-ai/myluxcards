@@ -476,17 +476,17 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       </div>
 
-      {/* 3. REFERENCES 2-4: PRIMARY METRIC CARDS (Single Column Stack on Mobile) */}
+      {/* 3. REFERENCES 2-4: PRIMARY METRIC CARDS */}
       <div className="crm-kpi-grid">
         {/* Card 1: Today's Leads */}
         <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981" }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
             <Flame style={{ width: 20, height: 20 }} />
           </div>
           <span className="crm-kpi-label">TODAY'S LEADS</span>
           <div className="crm-kpi-value">{kpis.newLeads}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#10B981" }} /> Total leads
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total leads
           </div>
         </div>
 
@@ -498,67 +498,67 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           <span className="crm-kpi-label">TOTAL LEADS</span>
           <div className="crm-kpi-value">{kpis.totalLeads || 811}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#F43F5E" }} /> All leads
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> All leads
           </div>
         </div>
 
         {/* Card 3: Closed Leads */}
         <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981" }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
             <CheckCircle2 style={{ width: 20, height: 20 }} />
           </div>
           <span className="crm-kpi-label">CLOSED LEADS</span>
           <div className="crm-kpi-value">{kpis.wonLeads || 1}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#10B981" }} /> Total closed deals
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total closed deals
           </div>
         </div>
 
         {/* Card 4: Expected Revenue */}
         <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981" }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
             <IndianRupee style={{ width: 20, height: 20 }} />
           </div>
           <span className="crm-kpi-label">EXPECTED REVENUE</span>
           <div className="crm-kpi-value">{expectedRevenueFormatted}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#10B981" }} /> Total expected revenue
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total expected revenue
           </div>
         </div>
 
         {/* Card 5: Revenue */}
         <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981" }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
             <IndianRupee style={{ width: 20, height: 20 }} />
           </div>
           <span className="crm-kpi-label">REVENUE</span>
           <div className="crm-kpi-value">{revenueFormatted}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#10B981" }} /> Total revenue
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total revenue
           </div>
         </div>
 
         {/* Card 6: Total Advance */}
         <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981" }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
             <IndianRupee style={{ width: 20, height: 20 }} />
           </div>
           <span className="crm-kpi-label">TOTAL ADVANCE</span>
           <div className="crm-kpi-value">{totalAdvanceFormatted}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#10B981" }} /> Collected advances
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Collected advances
           </div>
         </div>
 
         {/* Card 7: Active Users */}
         <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10B981" }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
             <TrendingUp style={{ width: 20, height: 20 }} />
           </div>
           <span className="crm-kpi-label">ACTIVE USERS</span>
           <div className="crm-kpi-value">{activeUsersVal}</div>
           <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#10B981" }} /> Total active users
+            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total active users
           </div>
         </div>
       </div>
@@ -567,7 +567,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       <div className="crm-capacity-card">
         <div className="crm-capacity-header">
           <div className="crm-capacity-icon-wrap">
-            <Calendar style={{ width: 20, height: 20, color: "#10B981" }} />
+            <Calendar style={{ width: 20, height: 20, color: "#00E5FF" }} />
           </div>
           <div>
             <h3 className="crm-capacity-title">Daily Follow-Up Capacity</h3>
@@ -674,7 +674,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8" }}>
-                <CheckCircle2 style={{ width: 32, height: 32, color: "#10B981", margin: "0 auto 8px" }} />
+                <CheckCircle2 style={{ width: 32, height: 32, color: "#00E5FF", margin: "0 auto 8px" }} />
                 <p style={{ fontWeight: 600, margin: 0, color: "var(--text-primary)", fontSize: 14 }}>No activities scheduled for today</p>
                 <span style={{ fontSize: 12, color: "#94A3B8" }}>Check back later or add new tasks.</span>
               </div>
@@ -737,7 +737,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           {/* Tile 3: Highest Revenue */}
           <div className="crm-product-tile">
             <span className="crm-tile-label">HIGHEST REVENUE</span>
-            <div className="crm-tile-value" style={{ fontSize: 22, color: "#10B981" }}>{productIntelligence.highestRevenue.amount}</div>
+            <div className="crm-tile-value" style={{ fontSize: 22, color: "#00E5FF" }}>{productIntelligence.highestRevenue.amount}</div>
             <span className="crm-tile-sub">{productIntelligence.highestRevenue.name}</span>
           </div>
 

@@ -4441,7 +4441,7 @@ th {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   ZAPPIT MOBILE DASHBOARD UI MASTER PROMPT STYLING (REFERENCES 1-8)
+   ZAPPIT CRM DASHBOARD STYLING — RESTORED DESKTOP + STRICT MOBILE OVERRIDES
    ══════════════════════════════════════════════════════════════════ */
 .crm-filter-card {
   background: #12131A;
@@ -4459,7 +4459,7 @@ th {
 .crm-filter-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -4469,7 +4469,7 @@ th {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #10B981;
+  color: #00E5FF;
 }
 
 .crm-filter-subtitle {
@@ -4480,46 +4480,45 @@ th {
 
 .crm-filter-btn-group {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 10px;
-  width: 100%;
 }
 
 .crm-btn-customize-primary {
   height: 44px;
   min-height: 44px;
-  width: 100%;
+  padding: 0 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  background: linear-gradient(135deg, #0066FF 0%, #00E5FF 100%);
   color: #FFFFFF;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13.5px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.3);
   transition: all 0.2s ease;
 }
 
 .crm-btn-customize-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 102, 255, 0.4);
 }
 
 .crm-filter-btn-secondary-row {
   display: flex;
   gap: 10px;
-  width: 100%;
 }
 
 .crm-btn-manage-secondary,
 .crm-btn-clear-secondary {
   height: 40px;
   min-height: 40px;
-  flex: 1;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4561,7 +4560,7 @@ th {
 .crm-kpi-sub-link {
   font-size: 13px;
   font-weight: 600;
-  color: #10B981;
+  color: #00E5FF;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4574,7 +4573,9 @@ th {
   border-radius: 16px;
   padding: 18px 20px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   gap: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
@@ -4593,8 +4594,8 @@ th {
   min-width: 40px;
   min-height: 40px;
   border-radius: 10px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(0, 102, 255, 0.12);
+  border: 1px solid rgba(0, 102, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4616,12 +4617,12 @@ th {
 .crm-capacity-badge-btn {
   height: 44px;
   min-height: 44px;
-  width: 100%;
+  padding: 0 20px;
   border-radius: 10px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #10B981;
-  font-size: 14px;
+  background: rgba(0, 102, 255, 0.12);
+  border: 1px solid rgba(0, 102, 255, 0.3);
+  color: #0066FF;
+  font-size: 13.5px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -4632,14 +4633,14 @@ th {
 }
 
 .crm-capacity-badge-btn:hover {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(0, 102, 255, 0.22);
+  border-color: rgba(0, 102, 255, 0.5);
 }
 
 .crm-ref6-vertical-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
   width: 100%;
 }
 
@@ -4720,8 +4721,8 @@ th {
 
 .crm-product-tiles-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
   width: 100%;
 }
 
@@ -4736,7 +4737,7 @@ th {
 }
 
 .crm-product-tile-full {
-  grid-column: 1 / -1;
+  grid-column: span 2;
 }
 
 .crm-tile-label {
@@ -4759,12 +4760,69 @@ th {
   color: #94A3B8;
 }
 
-@media (max-width: 640px) {
-  .crm-product-tiles-grid {
-    grid-template-columns: 1fr;
+/* STRICT MOBILE-ONLY LAYOUT OVERRIDES (VIEWPORT < 768px ONLY) */
+@media (max-width: 767.98px) {
+  .crm-top-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .crm-search-bar {
+    max-width: 100%;
+    width: 100%;
+  }
+  .crm-top-actions {
+    display: flex;
+    width: 100%;
+    gap: 10px;
+  }
+  .crm-btn-add-lead {
+    flex: 1;
+    justify-content: center;
+  }
+  .crm-filter-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crm-filter-btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  .crm-btn-customize-primary {
+    width: 100%;
+  }
+  .crm-filter-btn-secondary-row {
+    width: 100%;
+  }
+  .crm-filter-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
   }
   .crm-kpi-grid {
     grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+  .crm-capacity-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .crm-capacity-badge-btn {
+    width: 100%;
+  }
+  .crm-analytics-row {
+    grid-template-columns: 1fr !important;
+  }
+  .crm-ref6-vertical-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .crm-product-tiles-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .crm-product-tile-full {
+    grid-column: 1 / -1;
   }
 }
 
