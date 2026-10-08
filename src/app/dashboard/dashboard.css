@@ -3858,8 +3858,9 @@ th {
    ================================================== */
 
 .dash-shell {
-  background: #07080B !important;
-  color: #FFFFFF !important;
+  background: var(--background, #07080B);
+  color: var(--text-primary, #FFFFFF);
+  min-height: 100vh;
 }
 
 .dash-main {
@@ -3867,7 +3868,7 @@ th {
   padding: 88px 40px 48px;
   min-height: 100vh;
   max-width: 1700px;
-  background: #07080B !important;
+  background: var(--background, #07080B);
   box-sizing: border-box;
 }
 
@@ -4012,19 +4013,19 @@ th {
   padding: 0 24px;
   border-radius: 12px;
   background: #0066FF;
-  color: #07080B;
+  color: #FFFFFF;
   font-size: 13px;
   font-weight: 800;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 229, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.35);
   transition: all 0.2s ease;
 }
 
 .crm-btn-add-lead:hover {
   transform: translateY(-1px);
-  background: #E6C200;
-  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.4);
+  background: #0052CC;
+  box-shadow: 0 6px 20px rgba(0, 102, 255, 0.45);
 }
 
 /* 2. FILTER CONTROLS TOOLBAR */
@@ -5026,17 +5027,19 @@ th {
 .crm-filter-select,
 .crm-filter-date {
   width: 100%;
-  height: 42px;
+  height: 44px;
   padding: 0 32px 0 12px;
-  background: var(--bg-secondary, #181924) !important;
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important;
+  background-color: #181924 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 10px !important;
-  color: var(--text-primary, #FFFFFF) !important;
-  font-size: 12px !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   outline: none !important;
   appearance: none !important;
   -webkit-appearance: none !important;
+  color-scheme: dark;
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
@@ -5047,8 +5050,8 @@ th {
 }
 
 .crm-filter-select option {
-  background: #181924;
-  color: #FFFFFF;
+  background-color: #181924 !important;
+  color: #FFFFFF !important;
 }
 
 .crm-filter-arrow {
@@ -5727,15 +5730,108 @@ th {
    ============================================================ */
 
 [data-theme="light"] body,
-body.light-mode {
+[data-theme="light"] .dash-shell,
+[data-theme="light"] .dash-main,
+[data-theme="light"] .crm-dashboard-root,
+body.light-mode,
+body.light-mode .dash-shell,
+body.light-mode .dash-main,
+body.light-mode .crm-dashboard-root {
   background: #F8FAFC !important;
   color: #0F172A !important;
 }
 
-[data-theme="light"] .dash-shell,
-body.light-mode .dash-shell {
-  background: #F8FAFC !important;
+[data-theme="light"] .crm-filter-card,
+[data-theme="light"] .crm-kpi-card,
+[data-theme="light"] .crm-capacity-card,
+[data-theme="light"] .crm-chart-card,
+[data-theme="light"] .crm-pipeline-card,
+[data-theme="light"] .crm-lob-card,
+[data-theme="light"] .crm-calendar-widget-card,
+[data-theme="light"] .crm-product-analytics-card,
+body.light-mode .crm-filter-card,
+body.light-mode .crm-kpi-card,
+body.light-mode .crm-capacity-card,
+body.light-mode .crm-chart-card,
+body.light-mode .crm-pipeline-card,
+body.light-mode .crm-lob-card,
+body.light-mode .crm-calendar-widget-card,
+body.light-mode .crm-product-analytics-card {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
   color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-filter-subtitle,
+[data-theme="light"] .crm-capacity-status,
+[data-theme="light"] .crm-kpi-label,
+[data-theme="light"] .crm-tile-label,
+[data-theme="light"] .crm-tile-sub,
+body.light-mode .crm-filter-subtitle,
+body.light-mode .crm-capacity-status,
+body.light-mode .crm-kpi-label,
+body.light-mode .crm-tile-label,
+body.light-mode .crm-tile-sub {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .crm-kpi-value,
+[data-theme="light"] .crm-capacity-title,
+[data-theme="light"] .crm-tile-value,
+body.light-mode .crm-kpi-value,
+body.light-mode .crm-capacity-title,
+body.light-mode .crm-tile-value {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-filter-select,
+[data-theme="light"] .crm-filter-date,
+[data-theme="light"] .crm-filter-control-wrap input,
+[data-theme="light"] .crm-filter-control-wrap select,
+body.light-mode .crm-filter-select,
+body.light-mode .crm-filter-date,
+body.light-mode .crm-filter-control-wrap input,
+body.light-mode .crm-filter-control-wrap select {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+  color-scheme: light;
+}
+
+[data-theme="light"] .crm-filter-select option,
+body.light-mode .crm-filter-select option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-btn-refresh,
+[data-theme="light"] .crm-btn-manage-secondary,
+[data-theme="light"] .crm-btn-clear-secondary,
+body.light-mode .crm-btn-refresh,
+body.light-mode .crm-btn-manage-secondary,
+body.light-mode .crm-btn-clear-secondary {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-btn-add-lead,
+[data-theme="light"] .crm-btn-customize-primary,
+body.light-mode .crm-btn-add-lead,
+body.light-mode .crm-btn-customize-primary {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+
+[data-theme="light"] .crm-btn-add-lead:hover,
+[data-theme="light"] .crm-btn-customize-primary:hover,
+body.light-mode .crm-btn-add-lead:hover,
+body.light-mode .crm-btn-customize-primary:hover {
+  background: #0052CC !important;
+  color: #FFFFFF !important;
 }
 
 [data-theme="light"] .dash-top,
@@ -6730,7 +6826,7 @@ body.dark-mode .crm-followup-empty-title {
     position: fixed !important;
     top: 0 !important;
     bottom: 0 !important;
-    left: 0 !important;
+    left: -320px !important;
     width: 280px !important;
     max-width: 85vw !important;
     height: 100vh !important;
@@ -6738,15 +6834,30 @@ body.dark-mode .crm-followup-empty-title {
     max-height: 100dvh !important;
     border-radius: 0 24px 24px 0 !important;
     transform: translateX(-100%) !important;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s !important;
     z-index: 100 !important;
   }
 
   .dash-side.open {
+    left: 0 !important;
     transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
     box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6) !important;
+    border-right: 1px solid var(--border-color) !important;
   }
 
+  .dash-side:not(.open) + .side-scrim,
+  .dash-side:not(.open) ~ .side-scrim {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+  .dash-side.open ~ .side-scrim,
   .side-scrim {
     display: block !important;
     position: fixed !important;
