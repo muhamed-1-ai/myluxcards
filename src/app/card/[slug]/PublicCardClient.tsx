@@ -789,7 +789,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {actionToast && <div className="pc-toast-notice">{actionToast}</div>}
 
       {/* ── HERO CARD (Standard Format Only) ── */}
-      {(card.profileFormat === "standard" || activeView !== "profile") && (
+      {(!card.profileFormat || card.profileFormat === "standard" || activeView !== "profile") && (
         <div className="pc-hero">
           {activeView === "profile" && (
             <div className="pc-profile-edit-bar">
@@ -1265,7 +1265,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
       {/* ── VIEW 3: DIGITAL PROFILE ── */}
       {activeView === "profile" && (
-        card.profileFormat !== "standard" ? (
+        card.profileFormat === "modern" ? (
           <ModernProfileLayout
             card={card}
             profileProducts={profileProducts}

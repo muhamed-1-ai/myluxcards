@@ -177,10 +177,10 @@ export const DEFAULT_LOST_AND_FOUND: LostAndFoundSettings = {
 const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
   state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
-  logo:"", cover:"", profileBackground:"#050B14", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
+  logo:"", cover:"", profileBackground:"#020202", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
   logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
   profileMode: "DIGITAL_PROFILE",
-  profileFormat: "modern",
+  profileFormat: "standard",
   modernConfig: {},
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
   profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
@@ -210,7 +210,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
     } else if (field === "profileFormat") {
       output.profileFormat = ["standard", "modern"].includes(String(value || "").toLowerCase())
         ? String(value).toLowerCase()
-        : "modern";
+        : "standard";
     } else if (field === "modernConfig" && value && typeof value === "object" && !Array.isArray(value)) {
       const mc = value as Record<string, unknown>;
       output.modernConfig = {
@@ -322,24 +322,9 @@ export function cleanCardProfile(input: Record<string, unknown>) {
 export function completeCardProfile(input: unknown) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const cleaned = cleanCardProfile(source);
-  const rawFormat = String(source.profileFormat || "").toLowerCase();
-  const resolvedFormat = rawFormat === "standard" ? "standard" : "modern";
-
-  const bgRaw = String(source.profileBackground || "").toUpperCase();
-  const accentRaw = String(source.profileAccent || "").toUpperCase();
-  const isLegacyGoldDefault = (!source.profileBackground || bgRaw === "#0B0D12" || bgRaw === "#020202") &&
-                              (!source.profileAccent || accentRaw === "#D4AF62");
-
-  const resolvedBg = isLegacyGoldDefault ? "#050B14" : (cleaned.profileBackground || "#050B14");
-  const resolvedAccent = isLegacyGoldDefault ? "#0066FF" : (cleaned.profileAccent || "#0066FF");
-
   return {
     ...CARD_PROFILE_DEFAULTS,
     ...cleaned,
-    profileFormat: resolvedFormat,
-    profileBackground: resolvedBg,
-    profileAccent: resolvedAccent,
-    profileText: cleaned.profileText || "#ffffff",
     social: cleaned.social && typeof cleaned.social === "object" ? cleaned.social : {},
     services: Array.isArray(cleaned.services) ? cleaned.services : [],
     enabledFeatures: { ...DEFAULT_ENABLED_FEATURES, ...(cleaned.enabledFeatures as object) },

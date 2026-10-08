@@ -1,12 +1,33 @@
 // Main myluxcards Application Controller
 
+function safeStorageGetJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw || raw === 'undefined' || raw === 'null') return fallback;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn(`[Zappit Storage] Invalid stored state for "${key}". Resetting to fallback.`, err);
+    try { localStorage.removeItem(key); } catch {}
+    return fallback;
+  }
+}
+
 class LuxApp {
   constructor() {
+    const wishlist = safeStorageGetJSON('myluxcards_wishlist', []);
+    const rawCart = safeStorageGetJSON('myluxcards_cart', []);
+    const cart = Array.isArray(rawCart)
+      ? rawCart.map(item => ({ ...item, quantity: Number(item?.quantity) || 1 }))
+      : [];
+    const supportTickets = safeStorageGetJSON('myluxcards_support_tickets', []);
+    const submittedReviews = safeStorageGetJSON('myluxcards_reviews', []);
+    const engageShown = Boolean(safeStorageGetJSON('myluxcards_engage_shown', false));
+
     this.state = {
-      wishlist: JSON.parse(localStorage.getItem('myluxcards_wishlist')) || [],
-      cart: (JSON.parse(localStorage.getItem('myluxcards_cart')) || []).map(item => ({ ...item, quantity: Number(item.quantity) || 1 })),
-      supportTickets: JSON.parse(localStorage.getItem('myluxcards_support_tickets')) || [],
-      submittedReviews: JSON.parse(localStorage.getItem('myluxcards_reviews')) || [],
+      wishlist: Array.isArray(wishlist) ? wishlist : [],
+      cart,
+      supportTickets: Array.isArray(supportTickets) ? supportTickets : [],
+      submittedReviews: Array.isArray(submittedReviews) ? submittedReviews : [],
       activeCategory: 'all',
       searchQuery: '',
       priceLimit: 5,
@@ -16,11 +37,27 @@ class LuxApp {
       currentPage: 1,
       cardsPerPage: 6,
       currentTestimonialIndex: 0,
-      engageShown: JSON.parse(localStorage.getItem('myluxcards_engage_shown')) || false
+      engageShown
     };
-    
-    // Bind methods
-    this.init();
+
+    // Bind methods and initialize app safely
+    try {
+      this.init();
+    } catch (err) {
+      console.error('[Zappit App] Application init encountered an error:', err);
+    } finally {
+      this.dismissPageLoader();
+    }
+  }
+
+  dismissPageLoader() {
+    const loader = document.getElementById('page-loader');
+    if (!loader) return;
+    loader.classList.add('is-hidden');
+    loader.style.opacity = '0';
+    setTimeout(() => {
+      if (loader) loader.style.display = 'none';
+    }, 300);
   }
 
   async hashPassword(value) {
