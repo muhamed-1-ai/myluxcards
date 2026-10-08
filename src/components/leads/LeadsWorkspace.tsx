@@ -595,194 +595,192 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         </div>
       )}
 
-      {/* 4. Desktop Leads Table & Dedicated Mobile Cards Container */}
-      <div className="crm-table-card relative overflow-hidden">
-
-        {/* DESKTOP / TABLET VIEW (>= 768px): Preserved Standard Full Data Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="crm-table">
-            <thead>
-              <tr>
-                {selectMode && <th style={{ width: 40 }}><input type="checkbox" /></th>}
-                <th style={{ minWidth: 340, width: 360 }}>LEAD NAME</th>
-                <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
-                <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
-                <th>STAGE</th>
-                <th>SOURCE</th>
-                <th>LAST REMARK</th>
-                <th
-                  className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
-                  onClick={() => handleSortChange("totalAmount")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>TOTAL AMOUNT</span>
-                    <ArrowUpDown className="w-3 h-3 text-[var(--text-secondary,#94A3B8)]" />
-                  </div>
-                </th>
-                <th>ADVANCE AMOUNT</th>
-                <th className="text-right">ACTIONS</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading && leads.length === 0 ? (
+      {/* 4. Desktop Table (>= 768px) AND Dedicated Standalone Mobile Lead Cards (< 768px) */}
+      <div className="w-full">
+        {/* DESKTOP / TABLET VIEW (>= 768px): Preserved Standard Data Table Card */}
+        <div className="hidden md:block crm-table-card relative overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="crm-table">
+              <thead>
                 <tr>
-                  <td colSpan={selectMode ? 9 : 8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
-                    <div className="flex justify-center items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Loading leads...</span>
+                  {selectMode && <th style={{ width: 40 }}><input type="checkbox" /></th>}
+                  <th style={{ minWidth: 340, width: 360 }}>LEAD NAME</th>
+                  <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
+                  <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
+                  <th>STAGE</th>
+                  <th>SOURCE</th>
+                  <th>LAST REMARK</th>
+                  <th
+                    className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
+                    onClick={() => handleSortChange("totalAmount")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>TOTAL AMOUNT</span>
+                      <ArrowUpDown className="w-3 h-3 text-[var(--text-secondary,#94A3B8)]" />
                     </div>
-                  </td>
+                  </th>
+                  <th>ADVANCE AMOUNT</th>
+                  <th className="text-right">ACTIONS</th>
                 </tr>
-              ) : fetchError ? (
-                <tr>
-                  <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center p-8">
-                    <div className="flex flex-col items-center justify-center">
-                      <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
-                      <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
-                      <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
-                      <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Retry</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : displayedLeads.length === 0 ? (
-                <tr>
-                  <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
-                    <div className="flex flex-col items-center justify-center">
-                      <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
-                      <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
-                      <button onClick={handleResetFilters} className="crm-btn-secondary">
-                        Clear filters
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                displayedLeads.map((lead) => {
-                  const isStarred = !!starredLeads[lead.id];
-                  const isSelected = !!selectedLeadIds[lead.id];
+              </thead>
 
-                  return (
-                    <tr
-                      key={lead.id}
-                      onClick={() => setSelectedLeadId(lead.id)}
-                      className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
-                    >
-                      {/* SELECT CHECKBOX */}
-                      {selectMode && (
-                        <td onClick={(e) => toggleSelectLead(e, lead.id)}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="rounded text-emerald-600 focus:ring-emerald-500"
+              <tbody>
+                {loading && leads.length === 0 ? (
+                  <tr>
+                    <td colSpan={selectMode ? 9 : 8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
+                      <div className="flex justify-center items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                        <span>Loading leads...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : fetchError ? (
+                  <tr>
+                    <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center p-8">
+                      <div className="flex flex-col items-center justify-center">
+                        <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
+                        <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
+                        <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
+                        <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Retry</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : displayedLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
+                      <div className="flex flex-col items-center justify-center">
+                        <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
+                        <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
+                        <button onClick={handleResetFilters} className="crm-btn-secondary">
+                          Clear filters
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayedLeads.map((lead) => {
+                    const isStarred = !!starredLeads[lead.id];
+                    const isSelected = !!selectedLeadIds[lead.id];
+
+                    return (
+                      <tr
+                        key={lead.id}
+                        onClick={() => setSelectedLeadId(lead.id)}
+                        className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
+                      >
+                        {/* SELECT CHECKBOX */}
+                        {selectMode && (
+                          <td onClick={(e) => toggleSelectLead(e, lead.id)}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="rounded text-emerald-600 focus:ring-emerald-500"
+                            />
+                          </td>
+                        )}
+
+                        {/* LEAD NAME COLUMN */}
+                        <td>
+                          <LeadIdentityBlock
+                            lead={lead}
+                            isStarred={isStarred}
+                            onToggleStar={toggleStar}
                           />
                         </td>
-                      )}
 
-                      {/* LEAD NAME COLUMN */}
-                      <td>
-                        <LeadIdentityBlock
-                          lead={lead}
-                          isStarred={isStarred}
-                          onToggleStar={toggleStar}
-                        />
-                      </td>
-
-                      {/* NEXT FOLLOW-UP COLUMN */}
-                      <td onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}>
-                        <div className="crm-followup-pill-box cursor-pointer">
-                          <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
-                          <div className="text-left">
-                            <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)]">
-                              {lead.nextFollowUpAt
-                                ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                                : "NO FOLLOW-UP"}
-                            </div>
-                            <div className="text-[10px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[120px]">
-                              {lead.nextFollowUpNote || "Not scheduled"}
+                        {/* NEXT FOLLOW-UP COLUMN */}
+                        <td onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}>
+                          <div className="crm-followup-pill-box cursor-pointer">
+                            <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
+                            <div className="text-left">
+                              <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)]">
+                                {lead.nextFollowUpAt
+                                  ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                                  : "NO FOLLOW-UP"}
+                              </div>
+                              <div className="text-[10px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[120px]">
+                                {lead.nextFollowUpNote || "Not scheduled"}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* ASSIGNED TO COLUMN */}
-                      <td>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-7 h-7 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center flex-shrink-0">
-                            {(lead.assignedUserName || identity.name || "M").charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-bold text-xs text-[var(--text-primary,#0F172A)]">
-                              {lead.assignedUserName || identity.name || "Unassigned"}
+                        {/* ASSIGNED TO COLUMN */}
+                        <td>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-7 h-7 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center flex-shrink-0">
+                              {(lead.assignedUserName || identity.name || "M").charAt(0).toUpperCase()}
                             </div>
-                            <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[130px]">
-                              {lead.assignedUserEmail || identity.email}
+                            <div>
+                              <div className="font-bold text-xs text-[var(--text-primary,#0F172A)]">
+                                {lead.assignedUserName || identity.name || "Unassigned"}
+                              </div>
+                              <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[130px]">
+                                {lead.assignedUserEmail || identity.email}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* STAGE COLUMN */}
-                      <td>
-                        <span className={getStageBadgeClass(lead.stage || lead.status)}>
-                          {lead.stage || lead.status || "NEW"}
-                        </span>
-                      </td>
+                        {/* STAGE COLUMN */}
+                        <td>
+                          <span className={getStageBadgeClass(lead.stage || lead.status)}>
+                            {lead.stage || lead.status || "NEW"}
+                          </span>
+                        </td>
 
-                      {/* SOURCE COLUMN */}
-                      <td>
-                        <LeadSourceBadge source={lead.source} />
-                      </td>
+                        {/* SOURCE COLUMN */}
+                        <td>
+                          <LeadSourceBadge source={lead.source} />
+                        </td>
 
-                      {/* LAST REMARK COLUMN */}
-                      <td className="text-[var(--text-secondary,#64748B)] text-xs font-medium">
-                        {lead.lastRemark || "—"}
-                      </td>
+                        {/* LAST REMARK COLUMN */}
+                        <td className="text-[var(--text-secondary,#64748B)] text-xs font-medium">
+                          {lead.lastRemark || "—"}
+                        </td>
 
-                      {/* TOTAL AMOUNT COLUMN */}
-                      <td className="font-bold text-[var(--text-primary,#0F172A)]">
-                        {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
-                      </td>
+                        {/* TOTAL AMOUNT COLUMN */}
+                        <td className="font-bold text-[var(--text-primary,#0F172A)]">
+                          {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
+                        </td>
 
-                      {/* ADVANCE AMOUNT COLUMN */}
-                      <td className="font-semibold text-[var(--text-secondary,#64748B)]">
-                        {lead.advanceAmount ? formatCurrency(lead.advanceAmount) : "₹0"}
-                      </td>
+                        {/* ADVANCE AMOUNT COLUMN */}
+                        <td className="font-semibold text-[var(--text-secondary,#64748B)]">
+                          {lead.advanceAmount ? formatCurrency(lead.advanceAmount) : "₹0"}
+                        </td>
 
-                      {/* ACTIONS COLUMN */}
-                      <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenActionMenu(e, lead)}
-                          className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors focus:outline-none"
-                          title="Actions menu"
-                          aria-label="Actions menu"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        {/* ACTIONS COLUMN */}
+                        <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenActionMenu(e, lead)}
+                            className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors focus:outline-none"
+                            title="Actions menu"
+                            aria-label="Actions menu"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* MOBILE VIEW (< 768px): Dedicated Touch-Optimized Mobile Lead Cards */}
-        <div className="block md:hidden space-y-3.5 p-3.5 sm:p-4">
+        {/* MOBILE VIEW (< 768px): Dedicated Standalone Lead Cards Collection */}
+        <div className="block md:hidden">
           {loading && leads.length === 0 ? (
-            /* Mobile Animated Skeleton Loaders */
-            <div className="space-y-3.5">
+            /* Mobile Animated Skeletons */
+            <div className="crm-mobile-leads-list">
               {[1, 2, 3].map((idx) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-xl bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] animate-pulse flex flex-col gap-3"
-                >
+                <div key={idx} className="crm-mobile-lead-card animate-pulse flex flex-col gap-3">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
                     <div className="flex-1 space-y-2">
@@ -790,32 +788,32 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                       <div className="h-3 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
                     </div>
                   </div>
-                  <div className="h-8 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
                   <div className="h-10 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                  <div className="h-11 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
                 </div>
               ))}
             </div>
           ) : fetchError ? (
-            <div className="crm-table-empty-cell text-center p-8 bg-[var(--surface,#FFFFFF)] rounded-xl border border-[var(--border-color,#E2E8F0)]">
+            <div className="crm-mobile-lead-card text-center p-6">
               <div className="flex flex-col items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
+                <AlertCircle className="w-8 h-8 text-rose-500 mb-2" />
                 <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
                 <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
-                <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2 min-h-[44px]">
+                <button onClick={() => fetchLeads()} className="crm-btn-primary min-h-[44px] flex items-center gap-2 justify-center w-full">
                   <RotateCcw className="w-4 h-4" />
                   <span>Retry</span>
                 </button>
               </div>
             </div>
           ) : displayedLeads.length === 0 ? (
-            <div className="crm-mobile-empty-card p-8 text-center bg-[var(--surface,#FFFFFF)] rounded-xl border border-[var(--border-color,#E2E8F0)]">
+            <div className="crm-mobile-lead-card text-center p-8">
               <div className="flex flex-col items-center justify-center">
                 <Users className="w-10 h-10 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-3" />
                 <div className="text-base font-bold text-[var(--text-primary,#0F172A)] mb-1">No leads found in this view</div>
                 <div className="text-xs text-[var(--text-secondary,#64748B)] mb-4 max-w-xs">
                   Try adjusting your search terms or filters to find what you're looking for.
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs">
+                <div className="flex flex-col gap-2.5 w-full max-w-xs">
                   <button onClick={handleResetFilters} className="crm-btn-secondary min-h-[44px] justify-center w-full">
                     Clear filters
                   </button>
@@ -827,200 +825,196 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
               </div>
             </div>
           ) : (
-            displayedLeads.map((lead) => {
-              const isStarred = !!starredLeads[lead.id];
-              const isSelected = !!selectedLeadIds[lead.id];
-              const leadName = lead.name || "Unnamed Lead";
-              const avatarLetter = leadName.charAt(0).toUpperCase();
+            <div className="crm-mobile-leads-list">
+              {displayedLeads.map((lead) => {
+                const isStarred = !!starredLeads[lead.id];
+                const isSelected = !!selectedLeadIds[lead.id];
+                const leadName = lead.name || "Unnamed Lead";
+                const avatarLetter = leadName.charAt(0).toUpperCase();
 
-              return (
-                <div
-                  key={lead.id}
-                  onClick={() => setSelectedLeadId(lead.id)}
-                  className={`crm-mobile-lead-card bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] rounded-xl p-4 flex flex-col gap-3.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer ${
-                    isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""
-                  }`}
-                >
-                  {/* Row 1: Header - Avatar, Name, Email, Phone, Star, Actions Menu */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      {/* Select Mode Checkbox */}
-                      {selectMode && (
-                        <div onClick={(e) => toggleSelectLead(e, lead.id)} className="pt-1 flex-shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
-                          />
-                        </div>
-                      )}
-
-                      {/* Avatar */}
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-400/20">
-                        {avatarLetter}
-                      </div>
-
-                      {/* Name, Email, Phone Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-[15px] text-[var(--text-primary,#0F172A)] truncate leading-snug">
-                          {leadName}
-                        </div>
-
-                        {lead.email && (
-                          <div className="text-xs text-[var(--text-secondary,#64748B)] truncate mt-0.5">
-                            {lead.email}
-                          </div>
-                        )}
-
-                        {lead.contactNumber && (
-                          <div className="text-xs font-semibold text-[var(--text-primary,#334155)] dark:text-[#94A3B8] mt-0.5 flex items-center gap-1.5">
-                            <Phone className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-                            <span>{lead.contactNumber}</span>
-                          </div>
-                        )}
-
-                        {lead.companyName && (
-                          <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate mt-0.5 font-medium">
-                            {lead.companyName}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Star & Actions Buttons */}
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={(e) => toggleStar(e, lead.id)}
-                        className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-amber-400 hover:bg-amber-400/10 flex items-center justify-center transition-colors"
-                        title={isStarred ? "Remove from favorites" : "Add to favorites"}
-                        aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
-                      >
-                        <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => handleOpenActionMenu(e, lead)}
-                        className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40 flex items-center justify-center transition-colors"
-                        title="More actions"
-                        aria-label="Open lead actions"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Row 2: Badges & Amount Summary */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Stage Badge */}
-                      <span className={`${getStageBadgeClass(lead.stage || lead.status)} px-2.5 py-1 text-[11px] font-bold rounded-md uppercase tracking-wider`}>
-                        {lead.stage || lead.status || "NEW"}
-                      </span>
-
-                      {/* Source Badge */}
-                      <LeadSourceBadge source={lead.source} />
-                    </div>
-
-                    {/* Total Amount Badge */}
-                    <div className="text-right">
-                      <span className="text-[11px] text-[var(--text-secondary,#94A3B8)] block font-semibold uppercase tracking-wider">Total</span>
-                      <span className="font-extrabold text-sm text-[var(--text-primary,#0F172A)]">
-                        {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 3: Follow-Up Pill Box */}
+                return (
                   <div
-                    onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}
-                    className="crm-followup-pill-box !p-2.5 !rounded-lg bg-[var(--surface-soft,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] flex items-center justify-between gap-3 cursor-pointer"
+                    key={lead.id}
+                    onClick={() => setSelectedLeadId(lead.id)}
+                    className={`crm-mobile-lead-card ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""}`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)] flex items-center gap-2">
-                          <span>
-                            {lead.nextFollowUpAt
-                              ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                              : "NO FOLLOW-UP"}
-                          </span>
-                          {lead.nextFollowUpType && (
-                            <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold uppercase">
-                              {lead.nextFollowUpType}
-                            </span>
+                    {/* Header: Avatar, Name, Phone, Email, Company, Star, Actions Menu */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        {selectMode && (
+                          <div onClick={(e) => toggleSelectLead(e, lead.id)} className="pt-1 flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                            />
+                          </div>
+                        )}
+
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-400/20">
+                          {avatarLetter}
+                        </div>
+
+                        {/* Lead Identity Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-[15.5px] text-[var(--text-primary,#0F172A)] truncate leading-snug">
+                            {leadName}
+                          </div>
+
+                          {lead.contactNumber && (
+                            <div className="text-xs font-semibold text-[var(--text-secondary,#64748B)] dark:text-[#94A3B8] mt-0.5 flex items-center gap-1.5 truncate">
+                              <Phone className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                              <span>{lead.contactNumber}</span>
+                            </div>
+                          )}
+
+                          {lead.email && (
+                            <div className="text-xs text-[var(--text-secondary,#64748B)] truncate mt-0.5">
+                              {lead.email}
+                            </div>
+                          )}
+
+                          {lead.companyName && (
+                            <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate mt-0.5 font-medium uppercase tracking-wider">
+                              {lead.companyName}
+                            </div>
                           )}
                         </div>
-                        <div className="text-[11px] text-[var(--text-secondary,#64748B)] truncate max-w-[220px] mt-0.5">
-                          {lead.nextFollowUpNote || "Not scheduled"}
-                        </div>
+                      </div>
+
+                      {/* Star & Actions Menu Buttons */}
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => toggleStar(e, lead.id)}
+                          className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-amber-400 hover:bg-amber-400/10 flex items-center justify-center transition-colors"
+                          title={isStarred ? "Remove from favorites" : "Add to favorites"}
+                          aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenActionMenu(e, lead)}
+                          className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40 flex items-center justify-center transition-colors"
+                          title="More actions"
+                          aria-label="Open lead actions"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 flex-shrink-0">
-                      <span>Details</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
+
+                    {/* Badges & Total Amount Summary Row */}
+                    <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`${getStageBadgeClass(lead.stage || lead.status)} px-2.5 py-1 text-[10.5px] font-bold rounded-md uppercase tracking-wider`}>
+                          {lead.stage || lead.status || "NEW"}
+                        </span>
+
+                        <LeadSourceBadge source={lead.source} />
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] text-[var(--text-secondary,#94A3B8)] block font-bold uppercase tracking-wider">Total</span>
+                        <span className="font-extrabold text-sm text-[var(--text-primary,#0F172A)]">
+                          {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Follow-Up Section Box */}
+                    <div
+                      onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}
+                      className="mt-3 p-2.5 rounded-xl bg-[var(--bg-secondary,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)] flex items-center gap-2 flex-wrap">
+                            <span>
+                              {lead.nextFollowUpAt
+                                ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                                : "NO FOLLOW-UP"}
+                            </span>
+                            {lead.nextFollowUpType && (
+                              <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold uppercase">
+                                {lead.nextFollowUpType}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-[var(--text-secondary,#64748B)] truncate max-w-[200px] mt-0.5">
+                            {lead.nextFollowUpNote || "Not scheduled"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 flex-shrink-0">
+                        <span>Details</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+
+                    {/* Mobile Touch Quick Action Bar */}
+                    <div className="grid grid-cols-3 gap-2.5 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5" onClick={(e) => e.stopPropagation()}>
+                      {lead.contactNumber ? (
+                        <a
+                          href={`tel:${lead.contactNumber}`}
+                          className="crm-mobile-btn-call"
+                          title={`Call ${lead.contactNumber}`}
+                          aria-label={`Call ${lead.name || "lead"}`}
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Call</span>
+                        </a>
+                      ) : (
+                        <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed">
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Call</span>
+                        </button>
+                      )}
+
+                      {lead.contactNumber ? (
+                        <a
+                          href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="crm-mobile-btn-chat"
+                          title="WhatsApp chat"
+                          aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Chat</span>
+                        </a>
+                      ) : (
+                        <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Chat</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => { setEditingLead(lead); setIsAddOpen(true); }}
+                        className="crm-mobile-btn-edit"
+                        title="Edit lead"
+                        aria-label={`Edit ${lead.name || "lead"}`}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
                     </div>
                   </div>
-
-                  {/* Row 4: Mobile Touch Quick Action Bar */}
-                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[var(--border-color,#E2E8F0)]/40 dark:border-white/5" onClick={(e) => e.stopPropagation()}>
-                    {lead.contactNumber ? (
-                      <a
-                        href={`tel:${lead.contactNumber}`}
-                        className="min-h-[44px] h-[44px] px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-500/20 transition-colors"
-                        title={`Call ${lead.contactNumber}`}
-                        aria-label={`Call ${lead.name || "lead"}`}
-                      >
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>Call</span>
-                      </a>
-                    ) : (
-                      <button disabled className="min-h-[44px] h-[44px] px-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 font-medium text-xs flex items-center justify-center gap-1 cursor-not-allowed">
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>Call</span>
-                      </button>
-                    )}
-
-                    {lead.contactNumber ? (
-                      <a
-                        href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="min-h-[44px] h-[44px] px-2 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-teal-500/20 transition-colors"
-                        title="WhatsApp chat"
-                        aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Chat</span>
-                      </a>
-                    ) : (
-                      <button disabled className="min-h-[44px] h-[44px] px-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 font-medium text-xs flex items-center justify-center gap-1 cursor-not-allowed">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Chat</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => { setEditingLead(lead); setIsAddOpen(true); }}
-                      className="min-h-[44px] h-[44px] px-2 rounded-lg bg-[var(--surface-soft,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                      title="Edit lead"
-                      aria-label={`Edit ${lead.name || "lead"}`}
-                    >
-                      <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                      <span>Edit</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
 
         {/* 5. Production Pagination Footer */}
-        <div className="crm-pagination-footer">
+        <div className="crm-pagination-footer mt-4 md:mt-0">
           {/* Display Range */}
           <div className="crm-pagination-info">
             Showing <strong>{startRecord}–{endRecord}</strong> of <strong>{total}</strong>

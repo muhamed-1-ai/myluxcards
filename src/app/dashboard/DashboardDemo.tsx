@@ -247,12 +247,13 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     id: `card-${suffix}`, ownerId: safeEmail.toLowerCase(), name: safeName, slug: `${slugify(safeName)}-${suffix}`,
     title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: safeEmail, website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
-    logo: "", cover: "", profileBackground: "#0B0D12", profileAccent: "#D4AF62", profileText: "#F7F3EA",
+    logo: "", cover: "", profileBackground: "#050B14", profileAccent: "#0066FF", profileText: "#ffffff",
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
     views: 0, active: false,
     profileMode: "DIGITAL_PROFILE",
+    profileFormat: "modern",
     enabledFeatures: { digitalProfile: true, vehicleConnect: true, lostAndFound: true },
     vehicleConnect: { vehicleMake: "", vehicleModel: "", vehicleColor: "", licensePlate: "", parkingNote: "If my vehicle is blocking traffic or parked improperly, please tap below to notify me immediately.", allowDirectCall: true, allowDirectMessage: true, showEmergencyContact: true },
     emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
@@ -268,6 +269,10 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     name: card.name || fallback.name,
     email: card.email || fallback.email,
     slug: card.slug || fallback.slug,
+    profileFormat: card.profileFormat || "modern",
+    profileBackground: card.profileBackground || "#050B14",
+    profileAccent: card.profileAccent || "#0066FF",
+    profileText: card.profileText || "#ffffff",
     social: { ...blankSocial, ...(card.social && typeof card.social === "object" ? card.social : {}) },
     services: Array.isArray(card.services) ? card.services.filter((item): item is string => typeof item === "string") : [],
     active: Boolean(card.active),
@@ -1002,6 +1007,16 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     void loadOverviewAnalytics();
     return () => { active = false; };
   }, [cards, analyticsPeriod]);
+
+  // Handle Escape key to close mobile drawer navigation
+  useEffect(() => {
+    if (!sidebar) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebar(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sidebar]);
 
   const selected = cards.find((card) => card.id === selectedId) || draft;
   const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
@@ -5118,7 +5133,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
     </div>
     <div className="preview-card">
       <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
-      {card.profileFormat === "modern" ? (
+      {card.profileFormat !== "standard" ? (
         <div style={{ padding: "8px 0" }}>
           <ModernProfileLayout
             card={card}

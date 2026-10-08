@@ -46,19 +46,19 @@ export function ProfileActions({
           </button>
         )}
 
-        {onShareDetails && (
+        {onShare && (
           <button
             type="button"
-            className="zappit-modern-btn-glass zappit-btn-share-details"
-            onClick={onShareDetails}
+            className="zappit-modern-btn-glass zappit-btn-share"
+            onClick={onShare}
             style={{
               borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
               background: "var(--profile-secondary-bg, var(--mod-btn-glass-bg))",
               color: "var(--profile-secondary-text, var(--mod-btn-glass-text))",
             }}
           >
-            <Users className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
-            <span>Share Your Contacts</span>
+            <Share2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
+            <span>Share</span>
           </button>
         )}
 
@@ -78,19 +78,19 @@ export function ProfileActions({
           </button>
         )}
 
-        {onShare && (
+        {onShareDetails && (
           <button
             type="button"
-            className="zappit-modern-btn-glass zappit-btn-share"
-            onClick={onShare}
+            className="zappit-modern-btn-glass zappit-btn-share-details"
+            onClick={onShareDetails}
             style={{
               borderColor: "var(--profile-secondary-border, var(--mod-btn-glass-border))",
               background: "var(--profile-secondary-bg, var(--mod-btn-glass-bg))",
               color: "var(--profile-secondary-text, var(--mod-btn-glass-text))",
             }}
           >
-            <Share2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
-            <span>Share</span>
+            <Users className="w-4 h-4 flex-shrink-0" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
+            <span>Share Your Contacts</span>
           </button>
         )}
       </div>
