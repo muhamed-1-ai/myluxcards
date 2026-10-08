@@ -38,9 +38,8 @@ export const DEFAULT_DASHBOARD_CARDS: ItemPreference[] = [
 export const DEFAULT_DASHBOARD_SECTIONS: ItemPreference[] = [
   { id: "daily_capacity", defaultTitle: "Daily Follow-Up Capacity", visible: true, order: 0 },
   { id: "growth_pipeline", defaultTitle: "Growth Velocity & Pipeline Stages", visible: true, order: 1 },
-  { id: "product_performance", defaultTitle: "Product Performance", visible: true, order: 2 },
-  { id: "lob_analysis", defaultTitle: "LOB Analysis", visible: true, order: 3 },
-  { id: "calendar_companion", defaultTitle: "Calendar & Reminders", visible: true, order: 4 },
+  { id: "lob_analysis", defaultTitle: "LOB Analysis", visible: true, order: 2 },
+  { id: "calendar_companion", defaultTitle: "Calendar & Reminders", visible: true, order: 3 },
 ];
 
 interface CustomizeDashboardDrawerProps {

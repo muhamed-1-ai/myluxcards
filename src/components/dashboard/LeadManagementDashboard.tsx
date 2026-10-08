@@ -20,7 +20,6 @@ import {
   Calendar,
   RotateCcw,
   AlertTriangle,
-  Package,
   DollarSign,
   BarChart2,
   IndianRupee,
@@ -320,16 +319,6 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     return max;
   }, [lobAnalysisData]);
 
-  // Product Intelligence metrics calculation
-  const productIntelligence = useMemo(() => {
-    return {
-      productsCount: 12,
-      bestSeller: { name: "NFC Executive Card", leads: 142 },
-      highestRevenue: { name: "Custom NFC Metal Badge", amount: "₹1,85,400" },
-      lowestPerformer: { name: "Smart NFC Sticker", value: "3 Leads" },
-      avgRevenue: "₹32,400",
-    };
-  }, []);
 
   // Ordered & Visible KPI Cards
   const visibleCards = useMemo(() => {
@@ -473,74 +462,6 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           </div>
         );
 
-      case "product_performance":
-        return (
-          <div key="product_performance" className="crm-product-analytics-card">
-            <div className="crm-card-header-row" style={{ flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <Package style={{ width: 16, height: 16, color: "#00E5FF" }} />
-                  <span className="crm-eyebrow-label">PRODUCT INTELLIGENCE</span>
-                </div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-                  {title}
-                </h3>
-                <p style={{ fontSize: 13, color: "#94A3B8", margin: "4px 0 0" }}>
-                  Top performing products, catalog revenue, and sales channels
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => fetchDashboardData(true)}
-                className="crm-btn-refresh-metrics"
-              >
-                <RefreshCw style={{ width: 14, height: 14 }} />
-                Refresh Metrics
-              </button>
-            </div>
-            <div className="crm-divider" />
-
-            <div className="crm-product-tiles-grid">
-              <div className="crm-product-tile">
-                <span className="crm-tile-label">PRODUCTS COUNT</span>
-                <div className="crm-tile-value">{productIntelligence.productsCount}</div>
-                <span className="crm-tile-sub">Active catalog products</span>
-              </div>
-
-              <div className="crm-product-tile">
-                <span className="crm-tile-label">BEST SELLER</span>
-                <div className="crm-tile-value" style={{ fontSize: 20, color: "#00E5FF" }}>
-                  {productIntelligence.bestSeller.name}
-                </div>
-                <span className="crm-tile-sub">{productIntelligence.bestSeller.leads} Leads converted</span>
-              </div>
-
-              <div className="crm-product-tile">
-                <span className="crm-tile-label">HIGHEST REVENUE</span>
-                <div className="crm-tile-value" style={{ fontSize: 22, color: "#00E5FF" }}>
-                  {productIntelligence.highestRevenue.amount}
-                </div>
-                <span className="crm-tile-sub">{productIntelligence.highestRevenue.name}</span>
-              </div>
-
-              <div className="crm-product-tile">
-                <span className="crm-tile-label">LOWEST PERFORMER</span>
-                <div className="crm-tile-value" style={{ fontSize: 20, color: "#F43F5E" }}>
-                  {productIntelligence.lowestPerformer.name}
-                </div>
-                <span className="crm-tile-sub">{productIntelligence.lowestPerformer.value}</span>
-              </div>
-
-              <div className="crm-product-tile crm-product-tile-full">
-                <span className="crm-tile-label">AVERAGE PRODUCT REVENUE</span>
-                <div className="crm-tile-value" style={{ fontSize: 26, color: "#A78BFA" }}>
-                  {productIntelligence.avgRevenue} <span style={{ fontSize: 13, fontWeight: 500, color: "#94A3B8" }}>/ product</span>
-                </div>
-                <span className="crm-tile-sub">Average across all catalog offerings</span>
-              </div>
-            </div>
-          </div>
-        );
 
       case "lob_analysis":
       case "calendar_companion":
