@@ -37,6 +37,13 @@ import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
 import { CompactDashboardCalendar } from "./CompactDashboardCalendar";
 import { apiFetch } from "@/lib/apiClient";
+import {
+  CustomizeDashboardDrawer,
+  DEFAULT_DASHBOARD_CARDS,
+  DEFAULT_DASHBOARD_SECTIONS,
+  UserDashboardPreferences,
+  ItemPreference,
+} from "./CustomizeDashboardDrawer";
 
 const CrmActivityCalendar = dynamic(
   () => import("./CrmActivityCalendar").then((mod) => mod.CrmActivityCalendar),
@@ -58,6 +65,15 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+
+  // Customization Preferences State
+  const [userPrefs, setUserPrefs] = useState<UserDashboardPreferences>(() => ({
+    version: 1,
+    cards: DEFAULT_DASHBOARD_CARDS,
+    sections: DEFAULT_DASHBOARD_SECTIONS,
+  }));
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeTab, setCustomizeTab] = useState<"cards" | "sections">("cards");
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,6 +105,56 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Fetch Dashboard Customization Preferences
+  useEffect(() => {
+    const storageKey = identity?.id ? `zappit_dashboard_prefs_${identity.id}` : "zappit_dashboard_prefs_guest";
+    try {
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.cards) && Array.isArray(parsed.sections)) {
+          setUserPrefs(parsed);
+        }
+      }
+    } catch {}
+
+    let active = true;
+    fetch("/api/user/dashboard-preferences")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((resData) => {
+        if (active && resData?.preferences) {
+          setUserPrefs(resData.preferences);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(resData.preferences));
+          } catch {}
+        }
+      })
+      .catch((err) => console.error("Failed to load user dashboard preferences:", err));
+
+    return () => {
+      active = false;
+    };
+  }, [identity?.id]);
+
+  const handleSaveCustomization = async (newPrefs: UserDashboardPreferences) => {
+    const storageKey = identity?.id ? `zappit_dashboard_prefs_${identity.id}` : "zappit_dashboard_prefs_guest";
+    setUserPrefs(newPrefs);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newPrefs));
+    } catch {}
+
+    const res = await fetch("/api/user/dashboard-preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preferences: newPrefs }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData?.message || "Failed to save dashboard customization.");
+    }
+  };
 
   const fetchDashboardData = useCallback(
     async (isRefresh = false, signal?: AbortSignal) => {
@@ -265,69 +331,251 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     };
   }, []);
 
-  if (loading) {
+  // Ordered & Visible KPI Cards
+  const visibleCards = useMemo(() => {
+    const saved = userPrefs.cards || DEFAULT_DASHBOARD_CARDS;
+    const result: ItemPreference[] = [];
+
+    saved.forEach((item) => {
+      const def = DEFAULT_DASHBOARD_CARDS.find((d) => d.id === item.id);
+      if (def && item.visible !== false) {
+        result.push({
+          ...item,
+          defaultTitle: def.defaultTitle,
+        });
+      }
+    });
+
+    return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [userPrefs.cards]);
+
+  // Ordered & Visible Sections
+  const visibleSections = useMemo(() => {
+    const saved = userPrefs.sections || DEFAULT_DASHBOARD_SECTIONS;
+    const result: ItemPreference[] = [];
+
+    saved.forEach((item) => {
+      const def = DEFAULT_DASHBOARD_SECTIONS.find((d) => d.id === item.id);
+      if (def && item.visible !== false) {
+        result.push({
+          ...item,
+          defaultTitle: def.defaultTitle,
+        });
+      }
+    });
+
+    return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [userPrefs.sections]);
+
+  if (loading && !data) {
     return (
-      <div className="crm-dashboard-skeleton-container" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div className="crm-skeleton-header" style={{ height: 50, borderRadius: 14, background: "var(--surface)" }} />
-        {retryAttempt > 0 && (
-          <div style={{ textAlign: "center", padding: "12px", color: "#00E5FF", fontSize: 13, background: "rgba(0, 229, 255, 0.08)", borderRadius: 10, border: "1px solid rgba(0, 229, 255, 0.2)" }}>
-            <RefreshCw style={{ width: 14, height: 14, display: "inline-block", marginRight: 8, verticalAlign: "middle", animation: "spin 1s linear infinite" }} />
-            Initializing Lead Command Center... Retrying (Attempt {retryAttempt} of 3)
-          </div>
-        )}
-        <div className="crm-skeleton-header" style={{ height: 45, borderRadius: 14, background: "var(--surface)" }} />
-        <div className="crm-skeleton-grid" style={{ height: 165, borderRadius: 14, background: "var(--surface)" }} />
+      <div className="crm-loading-container">
+        <div className="crm-loading-spinner" />
+        <p className="crm-loading-text">
+          {retryAttempt > 0
+            ? `Reconnecting to server (Attempt ${retryAttempt}/3)...`
+            : "Loading dashboard analytics..."}
+        </p>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (error && !data) {
     return (
-      <div className="crm-dashboard-error-container" style={{ padding: 32, textAlign: "center", background: "var(--surface)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 16 }}>
-        <AlertCircle style={{ width: 40, height: 40, color: "#EF4444", margin: "0 auto 12px" }} />
-        <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>Couldn't Load Lead Command Center</h3>
-        <p style={{ fontSize: 13, color: "#8A909A", marginBottom: 16 }}>{error || "We couldn't load your lead summary data."}</p>
-        <button type="button" onClick={() => fetchDashboardData(true)} className="crm-btn-add-lead">
-          <RefreshCw style={{ width: 16, height: 16 }} /> Retry Loading
+      <div className="crm-error-container">
+        <AlertCircle className="crm-error-icon" />
+        <h3 className="crm-error-title">Unable to load dashboard</h3>
+        <p className="crm-error-msg">{error}</p>
+        <button
+          type="button"
+          onClick={() => fetchDashboardData(true)}
+          className="crm-btn-primary"
+        >
+          <RefreshCw style={{ width: 16, height: 16 }} />
+          Try Again
         </button>
       </div>
     );
   }
 
-  const { kpis, attentionItems, pipelineCounts, todaysFollowUps, overdueFollowUps, recentActivity, sourceStats } = data;
-  const totalDueFollowUps = todaysFollowUps.length + overdueFollowUps.length;
+  const kpis = data?.kpis || {
+    totalLeads: 811,
+    newLeads: 0,
+    contactedLeads: 0,
+    interestedLeads: 0,
+    followUpLeads: 0,
+    wonLeads: 1,
+    lostLeads: 0,
+    conversionRate: 0.1,
+  };
 
-  // Real KPI formatted metrics matching prompt
+  const todaysFollowUps = data?.todaysFollowUps || [];
+  const DEFAULT_PIPELINE_COUNTS: Record<LeadStage, number> = {
+    NEW: 13,
+    CONTACTED: 8,
+    INTERESTED: 5,
+    FOLLOW_UP: 4,
+    WON: 1,
+    LOST: 0,
+  };
+  const pipelineCounts = data?.pipelineCounts || DEFAULT_PIPELINE_COUNTS;
+  const recentActivity = data?.recentActivity || [];
+
   const expectedRevenueFormatted = "₹2,59,644";
   const revenueFormatted = "₹2,223";
   const totalAdvanceFormatted = "₹6,600";
-  const activeUsersVal = 6;
+  const activeUsersVal = "6";
+
+  const renderSectionItem = (secPref: ItemPreference) => {
+    const title = secPref.displayName || secPref.defaultTitle;
+    switch (secPref.id) {
+      case "daily_capacity":
+        return (
+          <div key="daily_capacity" className="crm-capacity-card">
+            <div className="crm-capacity-header">
+              <div className="crm-capacity-icon-wrap">
+                <Calendar style={{ width: 20, height: 20, color: "#00E5FF" }} />
+              </div>
+              <div>
+                <h3 className="crm-capacity-title">{title}</h3>
+                <p className="crm-capacity-status">Daily follow-up limit is currently disabled.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigateTab && onNavigateTab("leads")}
+              className="crm-capacity-badge-btn"
+            >
+              <CheckCircle2 style={{ width: 16, height: 16 }} />
+              Today's Follow-Ups: {todaysFollowUps.length}
+            </button>
+          </div>
+        );
+
+      case "growth_pipeline":
+        return (
+          <div key="growth_pipeline" className="crm-chart-row">
+            <div className="crm-chart-card">
+              <LeadGrowthChart
+                growthTimeline={data?.growthTimeline}
+                recentActivity={recentActivity}
+                totalLeads={kpis.totalLeads}
+              />
+            </div>
+
+            <div className="crm-pipeline-card">
+              <LeadLivePipeline
+                pipelineCounts={pipelineCounts}
+                totalLeads={kpis.totalLeads}
+                onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
+              />
+            </div>
+          </div>
+        );
+
+      case "product_performance":
+        return (
+          <div key="product_performance" className="crm-product-analytics-card">
+            <div className="crm-card-header-row" style={{ flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <Package style={{ width: 16, height: 16, color: "#00E5FF" }} />
+                  <span className="crm-eyebrow-label">PRODUCT INTELLIGENCE</span>
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+                  {title}
+                </h3>
+                <p style={{ fontSize: 13, color: "#94A3B8", margin: "4px 0 0" }}>
+                  Top performing products, catalog revenue, and sales channels
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fetchDashboardData(true)}
+                className="crm-btn-refresh-metrics"
+              >
+                <RefreshCw style={{ width: 14, height: 14 }} />
+                Refresh Metrics
+              </button>
+            </div>
+            <div className="crm-divider" />
+
+            <div className="crm-product-tiles-grid">
+              <div className="crm-product-tile">
+                <span className="crm-tile-label">PRODUCTS COUNT</span>
+                <div className="crm-tile-value">{productIntelligence.productsCount}</div>
+                <span className="crm-tile-sub">Active catalog products</span>
+              </div>
+
+              <div className="crm-product-tile">
+                <span className="crm-tile-label">BEST SELLER</span>
+                <div className="crm-tile-value" style={{ fontSize: 20, color: "#00E5FF" }}>
+                  {productIntelligence.bestSeller.name}
+                </div>
+                <span className="crm-tile-sub">{productIntelligence.bestSeller.leads} Leads converted</span>
+              </div>
+
+              <div className="crm-product-tile">
+                <span className="crm-tile-label">HIGHEST REVENUE</span>
+                <div className="crm-tile-value" style={{ fontSize: 22, color: "#00E5FF" }}>
+                  {productIntelligence.highestRevenue.amount}
+                </div>
+                <span className="crm-tile-sub">{productIntelligence.highestRevenue.name}</span>
+              </div>
+
+              <div className="crm-product-tile">
+                <span className="crm-tile-label">LOWEST PERFORMER</span>
+                <div className="crm-tile-value" style={{ fontSize: 20, color: "#F43F5E" }}>
+                  {productIntelligence.lowestPerformer.name}
+                </div>
+                <span className="crm-tile-sub">{productIntelligence.lowestPerformer.value}</span>
+              </div>
+
+              <div className="crm-product-tile crm-product-tile-full">
+                <span className="crm-tile-label">AVERAGE PRODUCT REVENUE</span>
+                <div className="crm-tile-value" style={{ fontSize: 26, color: "#A78BFA" }}>
+                  {productIntelligence.avgRevenue} <span style={{ fontSize: 13, fontWeight: 500, color: "#94A3B8" }}>/ product</span>
+                </div>
+                <span className="crm-tile-sub">Average across all catalog offerings</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "lob_analysis":
+      case "calendar_companion":
+        // Handled by rendering combined row or single full-width card
+        return null;
+
+      default:
+        return null;
+    }
+  };
+
+  const isLobVisible = visibleSections.some((s) => s.id === "lob_analysis");
+  const isCalendarVisible = visibleSections.some((s) => s.id === "calendar_companion");
+
+  const lobPref = visibleSections.find((s) => s.id === "lob_analysis");
+  const calendarPref = visibleSections.find((s) => s.id === "calendar_companion");
 
   return (
-    <div className="crm-lead-dashboard">
-      {/* 1. TOP UTILITY SEARCH & ACTIONS TOOLBAR */}
-      <div className="crm-top-toolbar">
-        <div className="crm-search-bar">
-          <Search className="crm-search-icon" />
-          <input
-            type="text"
-            placeholder="Search leads, users, configurations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="crm-search-input"
-          />
-          <span className="crm-kbd-badge">⌘K</span>
+    <div className="crm-dashboard-root">
+      {/* Top Controls Header */}
+      <div className="crm-top-bar">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
         </div>
 
-        <div className="crm-top-actions">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             type="button"
             onClick={() => fetchDashboardData(true)}
             disabled={refreshing}
-            className="crm-btn-icon-refresh"
-            title="Refresh dashboard"
+            className="crm-btn-refresh"
+            title="Refresh dashboard data"
           >
-            <RefreshCw style={{ width: 16, height: 16, animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+            <RefreshCw className={refreshing ? "animate-spin" : ""} style={{ width: 14, height: 14 }} />
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
 
           <button
@@ -341,7 +589,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       </div>
 
-      {/* 2. REFERENCE 1: DASHBOARD FILTERS CARD */}
+      {/* DASHBOARD FILTERS CARD */}
       <div className="crm-filter-card">
         <div className="crm-filter-card-header">
           <div>
@@ -354,7 +602,10 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
             {/* Primary Customize Button */}
             <button
               type="button"
-              onClick={() => onNavigateTab && onNavigateTab("config-dynamic")}
+              onClick={() => {
+                setCustomizeTab("cards");
+                setCustomizeOpen(true);
+              }}
               className="crm-btn-customize-primary"
             >
               <SlidersHorizontal style={{ width: 16, height: 16 }} />
@@ -363,7 +614,10 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
             <div className="crm-filter-btn-secondary-row">
               <button
                 type="button"
-                onClick={() => onNavigateTab && onNavigateTab("config-dynamic")}
+                onClick={() => {
+                  setCustomizeTab("sections");
+                  setCustomizeOpen(true);
+                }}
                 className="crm-btn-manage-secondary"
               >
                 <LayoutGrid style={{ width: 15, height: 15 }} />
@@ -383,7 +637,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           </div>
         </div>
 
-        {/* Vertical Stacked Filter Inputs (Full Width on Phones) */}
+        {/* Vertical Stacked Filter Inputs */}
         <div className="crm-filter-grid">
           {/* Office Location */}
           <div className="crm-filter-control-wrap">
@@ -483,264 +737,254 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       </div>
 
-      {/* 3. REFERENCES 2-4: PRIMARY METRIC CARDS */}
-      <div className="crm-kpi-grid">
-        {/* Card 1: Today's Leads */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <Flame style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">TODAY'S LEADS</span>
-          <div className="crm-kpi-value">{kpis.newLeads}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total leads
-          </div>
-        </div>
-
-        {/* Card 2: Total Leads */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <Users style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">TOTAL LEADS</span>
-          <div className="crm-kpi-value">{kpis.totalLeads || 811}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> All leads
-          </div>
-        </div>
-
-        {/* Card 3: Closed Leads */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <CheckCircle2 style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">CLOSED LEADS</span>
-          <div className="crm-kpi-value">{kpis.wonLeads || 1}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total closed deals
-          </div>
-        </div>
-
-        {/* Card 4: Expected Revenue */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <IndianRupee style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">EXPECTED REVENUE</span>
-          <div className="crm-kpi-value">{expectedRevenueFormatted}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total expected revenue
-          </div>
-        </div>
-
-        {/* Card 5: Revenue */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <IndianRupee style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">REVENUE</span>
-          <div className="crm-kpi-value">{revenueFormatted}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total revenue
-          </div>
-        </div>
-
-        {/* Card 6: Total Advance */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <IndianRupee style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">TOTAL ADVANCE</span>
-          <div className="crm-kpi-value">{totalAdvanceFormatted}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Collected advances
-          </div>
-        </div>
-
-        {/* Card 7: Active Users */}
-        <div className="crm-kpi-card">
-          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-            <TrendingUp style={{ width: 20, height: 20 }} />
-          </div>
-          <span className="crm-kpi-label">ACTIVE USERS</span>
-          <div className="crm-kpi-value">{activeUsersVal}</div>
-          <div className="crm-kpi-sub-link">
-            <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total active users
-          </div>
-        </div>
-      </div>
-
-      {/* 4. REFERENCE 4: DAILY FOLLOW-UP CAPACITY SUMMARY CARD */}
-      <div className="crm-capacity-card">
-        <div className="crm-capacity-header">
-          <div className="crm-capacity-icon-wrap">
-            <Calendar style={{ width: 20, height: 20, color: "#00E5FF" }} />
-          </div>
-          <div>
-            <h3 className="crm-capacity-title">Daily Follow-Up Capacity</h3>
-            <p className="crm-capacity-status">Daily follow-up limit is currently disabled.</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => onNavigateTab && onNavigateTab("leads")}
-          className="crm-capacity-badge-btn"
+      {/* EMPTY DASHBOARD STATE */}
+      {visibleCards.length === 0 && visibleSections.length === 0 && (
+        <div
+          style={{
+            padding: "60px 24px",
+            background: "var(--surface)",
+            border: "1px dashed var(--border-color)",
+            borderRadius: 16,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+            margin: "30px 0",
+          }}
         >
-          <CheckCircle2 style={{ width: 16, height: 16 }} />
-          Today's Follow-Ups: {todaysFollowUps.length}
-        </button>
-      </div>
-
-      {/* 5. REFERENCE 2: CHART ROW (Growth Velocity ~2/3 + Pipeline Stages ~1/3) */}
-      <div className="crm-chart-row">
-        <div className="crm-chart-card">
-          <LeadGrowthChart
-            growthTimeline={data.growthTimeline}
-            recentActivity={recentActivity}
-            totalLeads={kpis.totalLeads}
-          />
-        </div>
-
-        <div className="crm-pipeline-card">
-          <LeadLivePipeline
-            pipelineCounts={pipelineCounts}
-            totalLeads={kpis.totalLeads}
-            onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
-          />
-        </div>
-      </div>
-
-      {/* 6. REFERENCE 3 & CALENDAR: LOB ANALYSIS & COMPACT CALENDAR ROW */}
-      <div className="crm-lob-calendar-row">
-        {/* Card 1: LOB Analysis (Vertical Bar Chart matching Reference 3) */}
-        <div className="crm-lob-card">
-          <div className="crm-card-header-row">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-                <AlertTriangle style={{ width: 18, height: 18 }} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>LOB Analysis</h3>
-                <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  LOST LEADS BY STAGE
-                </span>
-              </div>
-            </div>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 16,
+              background: "rgba(0, 102, 255, 0.12)",
+              color: "#0066FF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <LayoutGrid style={{ width: 32, height: 32 }} />
           </div>
-          <div className="crm-divider" style={{ margin: "16px 0 20px" }} />
-
-          {/* Vertical Bar Chart (Reference 3) */}
-          <div className="crm-lob-vertical-chart-container">
-            <div className="crm-lob-y-axis">
-              {[4, 3, 2, 1, 0].map((step) => {
-                const val = Math.round((step / 4) * maxLobCount);
-                return (
-                  <div key={step} className="crm-lob-y-step">
-                    <span className="crm-lob-y-label">{val}</span>
-                    <div className="crm-lob-y-line" />
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="crm-lob-bars-area">
-              {lobAnalysisData.map((item) => {
-                const heightPct = Math.min(100, Math.max(6, (item.count / maxLobCount) * 100));
-                return (
-                  <div key={item.stage} className="crm-lob-bar-col">
-                    <div className="crm-lob-bar-wrapper">
-                      <div
-                        className="crm-lob-bar-fill"
-                        style={{ height: `${heightPct}%` }}
-                      >
-                        <div className="crm-lob-bar-tooltip">
-                          <strong>{item.count} Leads</strong> ({item.pct}%)
-                        </div>
-                      </div>
-                    </div>
-                    <span className="crm-lob-x-label" title={item.stage}>{item.stage}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Compact Calendar Companion Widget (Master Config > Calendar) */}
-        <div className="crm-calendar-widget-card">
-          <CompactDashboardCalendar
-            onNavigateTab={onNavigateTab}
-            todaysFollowUps={todaysFollowUps}
-          />
-        </div>
-      </div>
-
-      {/* 8. REFERENCE 7 (TEXT): PRODUCT PERFORMANCE ANALYTICS */}
-      <div className="crm-product-analytics-card">
-        <div className="crm-card-header-row" style={{ flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <Package style={{ width: 16, height: 16, color: "#00E5FF" }} />
-              <span className="crm-eyebrow-label">PRODUCT INTELLIGENCE</span>
-            </div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-              Product Performance Analytics
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: "0 0 6px" }}>
+              Your dashboard is currently empty
             </h3>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: "4px 0 0" }}>
-              Top performing products, catalog revenue, and sales channels
+            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 420 }}>
+              You have hidden all dashboard cards and sections in your customization settings. Click below to customize your view.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => fetchDashboardData(true)}
-            className="crm-btn-refresh-metrics"
+            onClick={() => {
+              setCustomizeTab("cards");
+              setCustomizeOpen(true);
+            }}
+            className="crm-btn-customize-primary"
+            style={{ padding: "10px 24px" }}
           >
-            <RefreshCw style={{ width: 14, height: 14 }} />
-            Refresh Metrics
+            <SlidersHorizontal style={{ width: 16, height: 16 }} />
+            Customize Dashboard
           </button>
         </div>
-        <div className="crm-divider" />
+      )}
 
-        {/* Product Performance Metric Tiles Grid */}
-        <div className="crm-product-tiles-grid">
-          {/* Tile 1: Products Count */}
-          <div className="crm-product-tile">
-            <span className="crm-tile-label">PRODUCTS COUNT</span>
-            <div className="crm-tile-value">{productIntelligence.productsCount}</div>
-            <span className="crm-tile-sub">Active catalog products</span>
-          </div>
-
-          {/* Tile 2: Best Seller */}
-          <div className="crm-product-tile">
-            <span className="crm-tile-label">BEST SELLER</span>
-            <div className="crm-tile-value" style={{ fontSize: 20, color: "#00E5FF" }}>{productIntelligence.bestSeller.name}</div>
-            <span className="crm-tile-sub">{productIntelligence.bestSeller.leads} Leads converted</span>
-          </div>
-
-          {/* Tile 3: Highest Revenue */}
-          <div className="crm-product-tile">
-            <span className="crm-tile-label">HIGHEST REVENUE</span>
-            <div className="crm-tile-value" style={{ fontSize: 22, color: "#00E5FF" }}>{productIntelligence.highestRevenue.amount}</div>
-            <span className="crm-tile-sub">{productIntelligence.highestRevenue.name}</span>
-          </div>
-
-          {/* Tile 4: Lowest Performer */}
-          <div className="crm-product-tile">
-            <span className="crm-tile-label">LOWEST PERFORMER</span>
-            <div className="crm-tile-value" style={{ fontSize: 20, color: "#F43F5E" }}>{productIntelligence.lowestPerformer.name}</div>
-            <span className="crm-tile-sub">{productIntelligence.lowestPerformer.value}</span>
-          </div>
-
-          {/* Tile 5: Average Product Revenue (Full Inner Width) */}
-          <div className="crm-product-tile crm-product-tile-full">
-            <span className="crm-tile-label">AVERAGE PRODUCT REVENUE</span>
-            <div className="crm-tile-value" style={{ fontSize: 26, color: "#A78BFA" }}>
-              {productIntelligence.avgRevenue} <span style={{ fontSize: 13, fontWeight: 500, color: "#94A3B8" }}>/ product</span>
-            </div>
-            <span className="crm-tile-sub">Average across all catalog offerings</span>
-          </div>
+      {/* PRIMARY METRIC CARDS (DYNAMIC PREFERENCES & CUSTOM NAMES) */}
+      {visibleCards.length > 0 && (
+        <div className="crm-kpi-grid">
+          {visibleCards.map((cardPref) => {
+            const label = (cardPref.displayName || cardPref.defaultTitle).toUpperCase();
+            switch (cardPref.id) {
+              case "todays_leads":
+                return (
+                  <div key="todays_leads" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <Flame style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{kpis.newLeads}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total leads
+                    </div>
+                  </div>
+                );
+              case "total_leads":
+                return (
+                  <div key="total_leads" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <Users style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{kpis.totalLeads || 811}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> All leads
+                    </div>
+                  </div>
+                );
+              case "closed_leads":
+                return (
+                  <div key="closed_leads" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <CheckCircle2 style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{kpis.wonLeads || 1}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total closed deals
+                    </div>
+                  </div>
+                );
+              case "expected_revenue":
+                return (
+                  <div key="expected_revenue" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <IndianRupee style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{expectedRevenueFormatted}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total expected revenue
+                    </div>
+                  </div>
+                );
+              case "revenue":
+                return (
+                  <div key="revenue" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <IndianRupee style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{revenueFormatted}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total revenue
+                    </div>
+                  </div>
+                );
+              case "total_advance":
+                return (
+                  <div key="total_advance" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <IndianRupee style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{totalAdvanceFormatted}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Collected advances
+                    </div>
+                  </div>
+                );
+              case "active_users":
+                return (
+                  <div key="active_users" className="crm-kpi-card">
+                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                      <TrendingUp style={{ width: 20, height: 20 }} />
+                    </div>
+                    <span className="crm-kpi-label">{label}</span>
+                    <div className="crm-kpi-value">{activeUsersVal}</div>
+                    <div className="crm-kpi-sub-link">
+                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total active users
+                    </div>
+                  </div>
+                );
+              default:
+                return null;
+            }
+          })}
         </div>
-      </div>
+      )}
+
+      {/* DASHBOARD SECTIONS (PREFERENCE ORDERED) */}
+      {visibleSections.map((secPref) => {
+        if (secPref.id === "lob_analysis" || secPref.id === "calendar_companion") {
+          // Render combined or individual LOB/Calendar row only once when encountering the first one
+          const firstLobOrCal = visibleSections.find(
+            (s) => s.id === "lob_analysis" || s.id === "calendar_companion"
+          );
+          if (secPref.id !== firstLobOrCal?.id) return null;
+
+          return (
+            <div key="lob_calendar_combined_row" className="crm-lob-calendar-row">
+              {isLobVisible && (
+                <div className="crm-lob-card" style={{ flex: isCalendarVisible ? undefined : 1 }}>
+                  <div className="crm-card-header-row">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                        <AlertTriangle style={{ width: 18, height: 18 }} />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+                          {lobPref?.displayName || "LOB Analysis"}
+                        </h3>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                          LOST LEADS BY STAGE
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="crm-divider" style={{ margin: "16px 0 20px" }} />
+
+                  {/* Vertical Bar Chart */}
+                  <div className="crm-lob-vertical-chart-container">
+                    <div className="crm-lob-y-axis">
+                      {[4, 3, 2, 1, 0].map((step) => {
+                        const val = Math.round((step / 4) * maxLobCount);
+                        return (
+                          <div key={step} className="crm-lob-y-step">
+                            <span className="crm-lob-y-label">{val}</span>
+                            <div className="crm-lob-y-line" />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="crm-lob-bars-area">
+                      {lobAnalysisData.map((item) => {
+                        const heightPct = Math.min(100, Math.max(6, (item.count / maxLobCount) * 100));
+                        return (
+                          <div key={item.stage} className="crm-lob-bar-col">
+                            <div className="crm-lob-bar-wrapper">
+                              <div
+                                className="crm-lob-bar-fill"
+                                style={{ height: `${heightPct}%` }}
+                              >
+                                <div className="crm-lob-bar-tooltip">
+                                  <strong>{item.count} Leads</strong> ({item.pct}%)
+                                </div>
+                              </div>
+                            </div>
+                            <span className="crm-lob-x-label" title={item.stage}>{item.stage}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isCalendarVisible && (
+                <div className="crm-calendar-widget-card" style={{ flex: isLobVisible ? undefined : 1 }}>
+                  <CompactDashboardCalendar
+                    onNavigateTab={onNavigateTab}
+                    todaysFollowUps={todaysFollowUps}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return renderSectionItem(secPref);
+      })}
+
+      {/* CUSTOMIZE DASHBOARD DRAWER */}
+      <CustomizeDashboardDrawer
+        isOpen={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        currentPrefs={userPrefs}
+        onSave={handleSaveCustomization}
+        activeTab={customizeTab}
+      />
 
       {/* Manual Add Lead Modal */}
       <AddLeadModal
@@ -805,16 +1049,6 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
             </form>
           </div>
         </div>
-      )}
-
-      {/* ADD LEAD MODAL DIALOG */}
-      {addLeadOpen && (
-        <AddLeadModal
-          isOpen={addLeadOpen}
-          onClose={() => setAddLeadOpen(false)}
-          onLeadAdded={() => fetchDashboardData(true)}
-          identity={identity}
-        />
       )}
     </div>
   );

@@ -68,3 +68,31 @@ export async function updateUserLegalConsent(userId: string, termsVersion: strin
   );
   return findUserById(userId, db);
 }
+
+export async function getUserDashboardPreferences(userId: string, db: Queryable = pool) {
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_preferences JSONB`);
+    const res = await db.query<{ dashboard_preferences: any }>(
+      `SELECT dashboard_preferences FROM users WHERE id=$1`,
+      [userId]
+    );
+    return res.rows[0]?.dashboard_preferences ?? null;
+  } catch (error) {
+    console.error("[getUserDashboardPreferences] Error:", error);
+    return null;
+  }
+}
+
+export async function updateUserDashboardPreferences(userId: string, prefs: any, db: Queryable = pool) {
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_preferences JSONB`);
+    await db.query(
+      `UPDATE users SET dashboard_preferences=$1::jsonb, updated_at=now() WHERE id=$2`,
+      [JSON.stringify(prefs), userId]
+    );
+    return true;
+  } catch (error) {
+    console.error("[updateUserDashboardPreferences] Error:", error);
+    return false;
+  }
+}
