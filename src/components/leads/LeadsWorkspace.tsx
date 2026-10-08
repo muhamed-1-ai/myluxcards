@@ -25,13 +25,15 @@ import {
   Columns,
   AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  UserPlus
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
 import LeadIdentityBlock from "./LeadIdentityBlock";
 import LeadSourceBadge from "./LeadSourceBadge";
 import "../../app/dashboard/leads/leads.css";
+import { exportLeadContact } from "@/lib/contactExport";
 
 interface LeadsWorkspaceProps {
   identity: { id: string; name: string | null; email: string; role: string };
@@ -958,7 +960,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                     </div>
 
                     {/* Mobile Touch Quick Action Bar */}
-                    <div className="grid grid-cols-3 gap-2.5 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5" onClick={(e) => e.stopPropagation()}>
+                    <div className="grid grid-cols-4 gap-1.5 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5" onClick={(e) => e.stopPropagation()}>
                       {lead.contactNumber ? (
                         <a
                           href={`tel:${lead.contactNumber}`}
@@ -975,6 +977,20 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                           <span>Call</span>
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          exportLeadContact(lead);
+                        }}
+                        className="crm-mobile-btn-save-contact flex items-center justify-center gap-1 min-h-[36px] px-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-all text-[11px] font-semibold"
+                        title={`Save contact for ${lead.name || "lead"}`}
+                        aria-label={`Save contact for ${lead.name || "lead"}`}
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Save</span>
+                      </button>
 
                       {lead.contactNumber ? (
                         <a
@@ -1150,6 +1166,18 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
             >
               <Edit2 className="w-4 h-4 text-emerald-400" />
               <span>Edit Lead</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const targetLead = actionMenuTarget.lead;
+                setActionMenuTarget(null);
+                exportLeadContact(targetLead);
+              }}
+              className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
+            >
+              <UserPlus className="w-4 h-4 text-cyan-400" />
+              <span>Save Contact</span>
             </button>
             <div className="my-1 border-t border-[#1E293B]" />
             <button

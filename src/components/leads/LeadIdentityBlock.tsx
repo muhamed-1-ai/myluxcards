@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Star, MessageSquare, Phone } from "lucide-react";
+import { Star, MessageSquare, Phone, UserPlus } from "lucide-react";
+import { exportLeadContact } from "@/lib/contactExport";
 
 export interface LeadIdentityBlockProps {
   lead: {
@@ -40,6 +41,17 @@ export default function LeadIdentityBlock({
 
   // Format WhatsApp clean number (digits only)
   const cleanPhone = hasPhone ? lead.contactNumber!.replace(/[^0-9]/g, "") : "";
+
+  const handleSaveContact = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    exportLeadContact({
+      name: leadName,
+      contactNumber: lead.contactNumber,
+      email: lead.email,
+      companyName: lead.companyName,
+    });
+  };
 
   return (
     <div className={`flex items-start gap-3 min-w-0 w-full max-w-[380px] ${className}`}>
@@ -143,6 +155,17 @@ export default function LeadIdentityBlock({
               >
                 <Phone className="w-3.5 h-3.5" />
               </a>
+
+              {/* Save Contact Button */}
+              <button
+                type="button"
+                onClick={handleSaveContact}
+                title="Save Contact"
+                aria-label={`Save contact for ${leadName}`}
+                className="w-7 h-7 sm:w-7 sm:h-7 min-w-[28px] min-h-[28px] rounded-md bg-slate-800/70 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 border border-slate-700/60 hover:border-blue-500/50 transition-all flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         ) : !hasEmail ? (

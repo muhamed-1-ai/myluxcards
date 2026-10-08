@@ -22,11 +22,13 @@ import {
   Send,
   CheckCircle,
   ChevronRight,
-  Info
+  Info,
+  UserPlus
 } from "lucide-react";
 import LeadSourceBadge from "./LeadSourceBadge";
 import "./lead-drawer.css";
 import { FollowUpType, normalizeFollowUpType } from "@/lib/follow-up-types";
+import { exportLeadContact } from "@/lib/contactExport";
 
 interface NextFollowUpData {
   id: string;
@@ -441,6 +443,28 @@ export default function LeadDetailsDrawer({
                         <Phone className="w-3.5 h-3.5 fill-current" />
                         <span>Call</span>
                       </a>
+                      {/* Save Contact Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          exportLeadContact({
+                            name: lead.name,
+                            contactNumber: lead.contactNumber,
+                            email: lead.email,
+                            companyName: lead.companyName,
+                            address: lead.address,
+                          });
+                        }}
+                        title="Save Contact"
+                        aria-label={`Save contact for ${lead.name || "lead"}`}
+                        className="lead-drawer-call-btn"
+                        style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", borderColor: "rgba(0, 102, 255, 0.3)" }}
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Save</span>
+                      </button>
                     </div>
 
                     {/* Business */}
