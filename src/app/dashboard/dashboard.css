@@ -4057,7 +4057,7 @@ th {
 /* 3. KPI CARDS GRID */
 .crm-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px 24px;
   width: 100%;
 }
@@ -4202,13 +4202,450 @@ th {
   border-color: rgba(0, 229, 255, 0.5);
 }
 
-/* 5. MAIN ANALYTICS 2-COLUMN ROW */
-.crm-analytics-row {
+/* 5. MAIN ANALYTICS 2-COLUMN ROW (Reference 2) */
+.crm-chart-row {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   width: 100%;
-  align-items: start;
+  align-items: stretch;
+}
+
+.crm-lob-calendar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(340px, 1fr);
+  gap: 24px;
+  width: 100%;
+  align-items: stretch;
+}
+
+/* Vertical Bar Chart for LOB Analysis (Reference 3) */
+.crm-lob-card {
+  background: #12131A;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.crm-lob-vertical-chart-container {
+  display: flex;
+  gap: 12px;
+  height: 240px;
+  width: 100%;
+  position: relative;
+  padding-top: 10px;
+}
+
+.crm-lob-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 190px;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.crm-lob-y-step {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 0;
+}
+
+.crm-lob-y-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748B;
+  text-align: right;
+  width: 24px;
+}
+
+.crm-lob-y-line {
+  position: absolute;
+  left: 32px;
+  right: -500px;
+  height: 1px;
+  border-bottom: 1px dashed var(--border-color, rgba(255, 255, 255, 0.08));
+  pointer-events: none;
+}
+
+.crm-lob-bars-area {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 190px;
+  gap: 12px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+}
+
+.crm-lob-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.crm-lob-bar-wrapper {
+  width: 100%;
+  max-width: 48px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+}
+
+.crm-lob-bar-fill {
+  width: 100%;
+  max-width: 44px;
+  background: linear-gradient(180deg, #00E5FF 0%, #0066FF 100%);
+  border-radius: 8px 8px 0 0;
+  transition: height 0.4s ease, filter 0.2s ease;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.3);
+}
+
+.crm-lob-bar-fill:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+.crm-lob-bar-tooltip {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #121420;
+  border: 1px solid rgba(0, 102, 255, 0.4);
+  color: #FFFFFF;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.crm-lob-bar-fill:hover .crm-lob-bar-tooltip {
+  opacity: 1;
+}
+
+.crm-lob-x-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #94A3B8);
+  margin-top: 10px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+/* COMPACT DASHBOARD CALENDAR WIDGET */
+.crm-calendar-widget-card {
+  background: var(--surface, #12131A);
+  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  border-radius: 20px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.crm-compact-calendar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+}
+
+.crm-cal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crm-cal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.crm-cal-header-icon {
+  width: 18px;
+  height: 18px;
+  color: #00E5FF;
+}
+
+.crm-cal-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary, #FFFFFF);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.crm-cal-card-month {
+  font-size: 11.5px;
+  color: var(--text-muted, #94A3B8);
+  font-weight: 600;
+}
+
+.crm-cal-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crm-cal-today-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: rgba(0, 102, 255, 0.12);
+  border: 1px solid rgba(0, 102, 255, 0.25);
+  color: #0066FF;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crm-cal-today-btn:hover {
+  background: rgba(0, 102, 255, 0.22);
+}
+
+.crm-cal-arrows {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crm-cal-arrow-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #FFFFFF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crm-cal-arrow-btn:hover {
+  background: rgba(0, 102, 255, 0.15);
+  border-color: rgba(0, 102, 255, 0.3);
+  color: #00E5FF;
+}
+
+.crm-cal-weekdays-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.crm-cal-weekday-cell {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #64748B);
+  padding: 4px 0;
+}
+
+.crm-cal-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.crm-cal-day-blank {
+  height: 32px;
+}
+
+.crm-cal-day-btn {
+  height: 32px;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary, #E2E8F0);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.crm-cal-day-btn:hover {
+  background: rgba(0, 102, 255, 0.12);
+  color: #00E5FF;
+}
+
+.crm-cal-day-btn.is-today {
+  border-color: rgba(0, 229, 255, 0.4);
+  color: #00E5FF;
+  font-weight: 800;
+}
+
+.crm-cal-day-btn.is-selected {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.4);
+}
+
+.crm-cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #00E5FF;
+  position: absolute;
+  bottom: 3px;
+}
+
+.crm-cal-day-btn.is-selected .crm-cal-dot {
+  background: #FFFFFF;
+}
+
+.crm-cal-agenda-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.crm-cal-agenda-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+.crm-cal-agenda-title {
+  font-weight: 700;
+  color: var(--text-muted, #94A3B8);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.crm-cal-agenda-badge {
+  font-weight: 700;
+  color: #00E5FF;
+  background: rgba(0, 229, 255, 0.1);
+  padding: 2px 7px;
+  border-radius: 50px;
+  font-size: 10.5px;
+}
+
+.crm-cal-agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 80px;
+}
+
+.crm-cal-agenda-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crm-cal-agenda-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crm-cal-agenda-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #00E5FF;
+}
+
+.crm-cal-agenda-lead {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary, #FFFFFF);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crm-cal-agenda-note {
+  font-size: 11px;
+  color: var(--text-muted, #94A3B8);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crm-cal-empty-state {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 12px;
+  color: var(--text-muted, #94A3B8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.crm-cal-view-full-btn {
+  margin-top: 12px;
+  height: 38px;
+  width: 100%;
+  border-radius: 10px;
+  background: rgba(0, 102, 255, 0.1);
+  border: 1px solid rgba(0, 102, 255, 0.25);
+  color: #0066FF;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crm-cal-view-full-btn:hover {
+  background: rgba(0, 102, 255, 0.2);
+  border-color: rgba(0, 102, 255, 0.4);
+  color: #00E5FF;
 }
 
 .crm-chart-card {
@@ -4222,58 +4659,6 @@ th {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-}
-
-/* 3-Column Summary Cards (Matching Target Screenshot 2) */
-.crm-chart-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  width: 100%;
-}
-
-.crm-chart-summary-card {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.2s ease;
-}
-
-.crm-chart-summary-card:hover {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(0, 229, 255, 0.25);
-}
-
-.crm-chart-summary-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #94A3B8;
-  letter-spacing: 0.03em;
-}
-
-.crm-chart-summary-value {
-  font-size: 24px;
-  font-weight: 800;
-  color: #FFFFFF;
-  letter-spacing: -0.01em;
-  margin: 2px 0 1px;
-  line-height: 1.2;
-}
-
-.crm-chart-summary-unit {
-  font-size: 13px;
-  font-weight: 600;
-  color: #94A3B8;
-}
-
-.crm-chart-summary-sub {
-  font-size: 11.5px;
-  color: #64748B;
-  font-weight: 400;
 }
 
 .crm-pipeline-card {
@@ -4303,44 +4688,10 @@ th {
   border-color: rgba(0, 102, 255, 0.2);
 }
 
-/* 6. LOWER INSIGHTS ROW */
-.crm-insights-row {
-  display: grid;
-  grid-template-columns: 1.8fr 1.2fr;
-  gap: 24px;
-  width: 100%;
-  align-items: stretch;
-}
-
-.crm-calendar-card,
-.crm-followups-card,
-.crm-activity-card,
-.crm-sources-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
-  border-radius: 20px;
-  padding: 24px 28px;
-  min-height: 380px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-}
-
 /* RESPONSIVE BREAKPOINTS */
-@media (max-width: 1280px) {
-  .crm-filter-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  .crm-kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .crm-analytics-row,
-  .crm-insights-row {
+@media (max-width: 1023px) {
+  .crm-chart-row,
+  .crm-lob-calendar-row {
     grid-template-columns: 1fr;
     gap: 20px;
   }

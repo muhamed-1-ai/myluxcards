@@ -293,30 +293,6 @@ export function LeadGrowthChart({
         </div>
       </div>
 
-      {/* 2. Summary Row: Three Equal-Width Cards (14px bottom gap) */}
-      <div className="crm-chart-summary-grid" style={{ marginBottom: 14 }}>
-        {/* Card 1: Period Total */}
-        <div className="crm-chart-summary-card">
-          <span className="crm-chart-summary-label">Period Total</span>
-          <div className="crm-chart-summary-value">{periodTotal} <span className="crm-chart-summary-unit">Leads</span></div>
-          <span className="crm-chart-summary-sub">Selected timeframe</span>
-        </div>
-
-        {/* Card 2: Avg. Volume */}
-        <div className="crm-chart-summary-card">
-          <span className="crm-chart-summary-label">Avg. Volume</span>
-          <div className="crm-chart-summary-value" style={{ color: "#0066FF" }}>{avgVal} <span className="crm-chart-summary-unit">/ day</span></div>
-          <span className="crm-chart-summary-sub">Daily acquisition average</span>
-        </div>
-
-        {/* Card 3: Peak Volume */}
-        <div className="crm-chart-summary-card">
-          <span className="crm-chart-summary-label">Peak Volume</span>
-          <div className="crm-chart-summary-value" style={{ color: "#38BDF8" }}>{peakVal} <span className="crm-chart-summary-unit">Leads</span></div>
-          <span className="crm-chart-summary-sub">Highest single day</span>
-        </div>
-      </div>
-
       {/* 3. Compact Legend Row: Aligned with the right edge of summary row (10px bottom gap) */}
       <div style={{
         display: "flex",

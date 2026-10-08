@@ -35,6 +35,7 @@ import {
 } from "@/lib/crm";
 import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
+import { CompactDashboardCalendar } from "./CompactDashboardCalendar";
 import { apiFetch } from "@/lib/apiClient";
 
 const CrmActivityCalendar = dynamic(
@@ -246,6 +247,12 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       { stage: "NEGOTIATION", count: Math.round(lostCount * 0.08) || 1, pct: 8 },
     ];
   }, [data]);
+
+  const maxLobCount = useMemo(() => {
+    if (!lobAnalysisData || lobAnalysisData.length === 0) return 1;
+    const max = Math.max(...lobAnalysisData.map((d) => d.count), 1);
+    return max;
+  }, [lobAnalysisData]);
 
   // Product Intelligence metrics calculation
   const productIntelligence = useMemo(() => {
@@ -584,111 +591,87 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </button>
       </div>
 
-      {/* 5. REFERENCES 4-5: GROWTH VELOCITY — LEAD ACQUISITION CHART */}
-      <div className="crm-chart-card">
-        <LeadGrowthChart
-          growthTimeline={data.growthTimeline}
-          recentActivity={recentActivity}
-          totalLeads={kpis.totalLeads}
-        />
+      {/* 5. REFERENCE 2: CHART ROW (Growth Velocity ~2/3 + Pipeline Stages ~1/3) */}
+      <div className="crm-chart-row">
+        <div className="crm-chart-card">
+          <LeadGrowthChart
+            growthTimeline={data.growthTimeline}
+            recentActivity={recentActivity}
+            totalLeads={kpis.totalLeads}
+          />
+        </div>
+
+        <div className="crm-pipeline-card">
+          <LeadLivePipeline
+            pipelineCounts={pipelineCounts}
+            totalLeads={kpis.totalLeads}
+            onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
+          />
+        </div>
       </div>
 
-      {/* 6. REFERENCE 8 (TEXT): PIPELINE STAGES CARD */}
-      <div className="crm-pipeline-card">
-        <LeadLivePipeline
-          pipelineCounts={pipelineCounts}
-          totalLeads={kpis.totalLeads}
-          onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
-        />
-      </div>
-
-      {/* 7. REFERENCE 6 (TEXT): LOB ANALYSIS & SCHEDULE VERTICAL CARDS STACK */}
-      <div className="crm-ref6-vertical-stack">
-        {/* Card 1: LOB Analysis */}
+      {/* 6. REFERENCE 3 & CALENDAR: LOB ANALYSIS & COMPACT CALENDAR ROW */}
+      <div className="crm-lob-calendar-row">
+        {/* Card 1: LOB Analysis (Vertical Bar Chart matching Reference 3) */}
         <div className="crm-lob-card">
           <div className="crm-card-header-row">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <AlertTriangle style={{ width: 20, height: 20, color: "#F59E0B" }} />
-              <div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>LOB Analysis</h3>
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>Lost Leads by Stage</span>
+              <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+                <AlertTriangle style={{ width: 18, height: 18 }} />
               </div>
-            </div>
-          </div>
-          <div className="crm-divider" />
-          
-          {/* Vertical Bar Chart */}
-          <div className="crm-lob-chart-wrap">
-            {lobAnalysisData.map((item) => (
-              <div key={item.stage} className="crm-lob-bar-row">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{item.stage}</span>
-                  <span style={{ fontWeight: 700, color: "#00E5FF" }}>{item.count} Leads ({item.pct}%)</span>
-                </div>
-                <div style={{ width: "100%", height: 8, borderRadius: 999, background: "rgba(255, 255, 255, 0.06)", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      borderRadius: 999,
-                      width: `${item.pct}%`,
-                      background: "linear-gradient(90deg, #0066FF 0%, #00E5FF 100%)",
-                      transition: "width 0.4s ease",
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Card 2: Schedule */}
-        <div className="crm-schedule-card">
-          <div className="crm-card-header-row">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Calendar style={{ width: 20, height: 20, color: "#00E5FF" }} />
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Schedule</h3>
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>
-                  {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>LOB Analysis</h3>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  LOST LEADS BY STAGE
                 </span>
               </div>
             </div>
           </div>
-          <div className="crm-divider" />
+          <div className="crm-divider" style={{ margin: "16px 0 20px" }} />
 
-          {/* Real Schedule Entries or Centered Empty State */}
-          <div style={{ padding: "16px 0" }}>
-            {totalDueFollowUps > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {todaysFollowUps.slice(0, 3).map((fu) => (
-                  <div key={fu.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div>
-                      <h5 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{fu.leadName}</h5>
-                      <p style={{ fontSize: 11, color: "#94A3B8", margin: "2px 0 0" }}>{fu.note || "Scheduled Follow-Up"}</p>
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#00E5FF", background: "rgba(0, 229, 255, 0.1)", padding: "2px 8px", borderRadius: 6 }}>
-                      {new Date(fu.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+          {/* Vertical Bar Chart (Reference 3) */}
+          <div className="crm-lob-vertical-chart-container">
+            <div className="crm-lob-y-axis">
+              {[4, 3, 2, 1, 0].map((step) => {
+                const val = Math.round((step / 4) * maxLobCount);
+                return (
+                  <div key={step} className="crm-lob-y-step">
+                    <span className="crm-lob-y-label">{val}</span>
+                    <div className="crm-lob-y-line" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8" }}>
-                <CheckCircle2 style={{ width: 32, height: 32, color: "#00E5FF", margin: "0 auto 8px" }} />
-                <p style={{ fontWeight: 600, margin: 0, color: "var(--text-primary)", fontSize: 14 }}>No activities scheduled for today</p>
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>Check back later or add new tasks.</span>
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
 
-          <button
-            type="button"
-            onClick={() => onNavigateTab && onNavigateTab("config-calendar")}
-            className="crm-btn-view-calendar"
-          >
-            <Calendar style={{ width: 15, height: 15 }} />
-            View Full Calendar
-          </button>
+            <div className="crm-lob-bars-area">
+              {lobAnalysisData.map((item) => {
+                const heightPct = Math.min(100, Math.max(6, (item.count / maxLobCount) * 100));
+                return (
+                  <div key={item.stage} className="crm-lob-bar-col">
+                    <div className="crm-lob-bar-wrapper">
+                      <div
+                        className="crm-lob-bar-fill"
+                        style={{ height: `${heightPct}%` }}
+                      >
+                        <div className="crm-lob-bar-tooltip">
+                          <strong>{item.count} Leads</strong> ({item.pct}%)
+                        </div>
+                      </div>
+                    </div>
+                    <span className="crm-lob-x-label" title={item.stage}>{item.stage}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Compact Calendar Companion Widget (Master Config > Calendar) */}
+        <div className="crm-calendar-widget-card">
+          <CompactDashboardCalendar
+            onNavigateTab={onNavigateTab}
+            todaysFollowUps={todaysFollowUps}
+          />
         </div>
       </div>
 
