@@ -108,7 +108,12 @@ export default function AddLeadDrawer({
     if (!isOpen) return;
 
     const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalWidth = document.body.style.width;
+
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -119,6 +124,8 @@ export default function AddLeadDrawer({
 
     return () => {
       document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.width = originalWidth;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
@@ -1146,12 +1153,12 @@ export default function AddLeadDrawer({
 
           {/* SECTION 4: PRODUCT SELECTION */}
           <div className="add-lead-card">
-            <div className="flex items-center justify-between">
-              <div className="add-lead-card-header">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="add-lead-card-header min-w-0 flex-1">
                 <div className="add-lead-icon-wrap add-lead-icon-purple">
                   <PlusCircle className="w-4 h-4" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <h3 className="add-lead-card-title">Product Selection</h3>
                   <p className="add-lead-card-desc">
                     Selected products calculate the total amount automatically.
@@ -1162,7 +1169,7 @@ export default function AddLeadDrawer({
               <button
                 type="button"
                 onClick={() => setIsAddingProduct(!isAddingProduct)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm flex-shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Product</span>
@@ -1310,7 +1317,7 @@ export default function AddLeadDrawer({
             <div className="border-t border-slate-200 dark:border-slate-800/80 pt-1" />
 
             {/* Advance Payments Subheading & Action */}
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
               <div className="add-lead-subhead">
                 <History className="w-3.5 h-3.5 text-slate-400" />
                 <span>Advance Payments</span>
@@ -1319,7 +1326,7 @@ export default function AddLeadDrawer({
               <button
                 type="button"
                 onClick={() => setIsRequestingAdvance(!isRequestingAdvance)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm flex-shrink-0"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
                 <span>Request Advance</span>
@@ -1412,37 +1419,38 @@ export default function AddLeadDrawer({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {dynamicFields.map(f => {
+                  const rawType = (f.inputType || (f as any).type || "TEXT").toString().toUpperCase().trim();
                   const val = customFieldValues[f.id] !== undefined ? customFieldValues[f.id] : (customFieldValues[f.name] !== undefined ? customFieldValues[f.name] : "");
-                  const isFullWidth = f.inputType === "TEXTAREA" || f.inputType === "FILE";
+                  const isFullWidth = rawType === "TEXTAREA" || rawType === "FILE" || rawType === "RADIO" || rawType === "CHECKBOX" || rawType === "DATETIME";
 
                   return (
-                    <div key={f.id} className={isFullWidth ? "col-span-1 sm:col-span-2" : ""}>
+                    <div key={f.id} className={isFullWidth ? "col-span-1 sm:col-span-2" : "col-span-1"}>
                       <label className="add-lead-label">
                         {f.name}
                         {f.isRequired && <span className="text-rose-500 ml-1">*</span>}
                       </label>
 
-                      {f.inputType === "TEXT" && (
+                      {(rawType === "TEXT" || rawType === "EMAIL" || rawType === "PHONE" || rawType === "URL") && (
                         <input
-                          type="text"
-                          value={typeof val === "string" ? val : ""}
+                          type={rawType === "EMAIL" ? "email" : rawType === "PHONE" ? "tel" : rawType === "URL" ? "url" : "text"}
+                          value={typeof val === "string" ? val : (val ? String(val) : "")}
                           onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
                           placeholder={`Enter ${f.name}`}
                           className="add-lead-input"
                         />
                       )}
 
-                      {f.inputType === "TEXTAREA" && (
+                      {rawType === "TEXTAREA" && (
                         <textarea
                           rows={3}
-                          value={typeof val === "string" ? val : ""}
+                          value={typeof val === "string" ? val : (val ? String(val) : "")}
                           onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
                           placeholder={`Enter ${f.name}`}
-                          className="add-lead-input !h-auto py-2"
+                          className="add-lead-textarea"
                         />
                       )}
 
-                      {f.inputType === "NUMBER" && (
+                      {rawType === "NUMBER" && (
                         <input
                           type="number"
                           value={val !== undefined && val !== null ? val : ""}
@@ -1455,12 +1463,12 @@ export default function AddLeadDrawer({
                         />
                       )}
 
-                      {f.inputType === "SELECT" && (
-                        <div className="relative">
+                      {rawType === "SELECT" && (
+                        <div className="relative flex items-center">
                           <select
                             value={typeof val === "string" ? val : ""}
                             onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                            className="add-lead-select"
+                            className="add-lead-select pr-9"
                           >
                             <option value="">Select option...</option>
                             {(f.options || []).map(opt => (
@@ -1469,14 +1477,14 @@ export default function AddLeadDrawer({
                               </option>
                             ))}
                           </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
                         </div>
                       )}
 
-                      {f.inputType === "RADIO" && (
+                      {rawType === "RADIO" && (
                         <div className="flex flex-wrap gap-3 pt-1">
                           {(f.options || []).map(opt => (
-                            <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
                               <input
                                 type="radio"
                                 name={`radio_${f.id}`}
@@ -1491,13 +1499,13 @@ export default function AddLeadDrawer({
                         </div>
                       )}
 
-                      {f.inputType === "CHECKBOX" && (
+                      {rawType === "CHECKBOX" && (
                         <div className="flex flex-wrap gap-3 pt-1">
                           {(f.options || []).map(opt => {
                             const arr = Array.isArray(val) ? val : [];
                             const isChecked = arr.includes(opt.value);
                             return (
-                              <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                              <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
@@ -1516,7 +1524,7 @@ export default function AddLeadDrawer({
                         </div>
                       )}
 
-                      {f.inputType === "DATE" && (
+                      {rawType === "DATE" && (
                         <DatePicker
                           value={typeof val === "string" ? val : ""}
                           onChange={(dateStr) => setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr })}
@@ -1524,7 +1532,7 @@ export default function AddLeadDrawer({
                         />
                       )}
 
-                      {f.inputType === "DATETIME" && (
+                      {rawType === "DATETIME" && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <DatePicker
                             value={typeof val === "string" && val.includes("T") ? val.split("T")[0] : (typeof val === "string" ? val : "")}
@@ -1545,7 +1553,7 @@ export default function AddLeadDrawer({
                         </div>
                       )}
 
-                      {f.inputType === "FILE" && (
+                      {rawType === "FILE" && (
                         <div>
                           {val && typeof val === "object" && val.url ? (
                             <div className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-800/60 bg-emerald-950/20 text-xs text-emerald-300">
@@ -1566,8 +1574,8 @@ export default function AddLeadDrawer({
                               </div>
                             </div>
                           ) : (
-                            <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-700 bg-slate-900/40 hover:bg-slate-800/60 cursor-pointer text-xs text-slate-300 transition-colors">
-                              <UploadCloud className="w-4 h-4 text-emerald-400" />
+                            <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer text-xs text-slate-700 dark:text-slate-300 transition-colors">
+                              <UploadCloud className="w-4 h-4 text-emerald-500" />
                               <span>{uploadingFieldId === f.id ? "Uploading file..." : "Click to select & upload file (PDF, PNG, JPG max 5MB)"}</span>
                               <input
                                 type="file"
@@ -1581,6 +1589,17 @@ export default function AddLeadDrawer({
                             </label>
                           )}
                         </div>
+                      )}
+
+                      {/* FALLBACK FOR UNHANDLED OR CUSTOM TYPES */}
+                      {!["TEXT", "TEXTAREA", "NUMBER", "SELECT", "RADIO", "CHECKBOX", "DATE", "DATETIME", "FILE", "EMAIL", "PHONE", "URL"].includes(rawType) && (
+                        <input
+                          type="text"
+                          value={typeof val === "string" ? val : (val ? String(val) : "")}
+                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                          placeholder={`Enter ${f.name}`}
+                          className="add-lead-input"
+                        />
                       )}
                     </div>
                   );
