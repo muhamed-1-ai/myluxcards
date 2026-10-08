@@ -32,10 +32,7 @@ export const DEFAULT_DASHBOARD_CARDS: ItemPreference[] = [
   { id: "todays_leads", defaultTitle: "Today's Leads", visible: true, order: 0 },
   { id: "total_leads", defaultTitle: "Total Leads", visible: true, order: 1 },
   { id: "closed_leads", defaultTitle: "Closed Leads", visible: true, order: 2 },
-  { id: "expected_revenue", defaultTitle: "Expected Revenue", visible: true, order: 3 },
-  { id: "revenue", defaultTitle: "Revenue", visible: true, order: 4 },
-  { id: "total_advance", defaultTitle: "Total Advance", visible: true, order: 5 },
-  { id: "active_users", defaultTitle: "Active Users", visible: true, order: 6 },
+  { id: "active_users", defaultTitle: "Active Users", visible: true, order: 3 },
 ];
 
 export const DEFAULT_DASHBOARD_SECTIONS: ItemPreference[] = [

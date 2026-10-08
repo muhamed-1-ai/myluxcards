@@ -835,45 +835,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     </div>
                   </div>
                 );
-              case "expected_revenue":
-                return (
-                  <div key="expected_revenue" className="crm-kpi-card">
-                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-                      <IndianRupee style={{ width: 20, height: 20 }} />
-                    </div>
-                    <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{expectedRevenueFormatted}</div>
-                    <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total expected revenue
-                    </div>
-                  </div>
-                );
-              case "revenue":
-                return (
-                  <div key="revenue" className="crm-kpi-card">
-                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-                      <IndianRupee style={{ width: 20, height: 20 }} />
-                    </div>
-                    <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{revenueFormatted}</div>
-                    <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total revenue
-                    </div>
-                  </div>
-                );
-              case "total_advance":
-                return (
-                  <div key="total_advance" className="crm-kpi-card">
-                    <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-                      <IndianRupee style={{ width: 20, height: 20 }} />
-                    </div>
-                    <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{totalAdvanceFormatted}</div>
-                    <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Collected advances
-                    </div>
-                  </div>
-                );
+
               case "active_users":
                 return (
                   <div key="active_users" className="crm-kpi-card">
