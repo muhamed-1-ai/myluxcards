@@ -3864,10 +3864,42 @@ th {
 
 .dash-main {
   margin-left: 244px;
-  padding: 88px 32px 40px;
+  padding: 88px 40px 48px;
   min-height: 100vh;
   max-width: 1700px;
   background: #07080B !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1600px) {
+  .dash-main {
+    padding: 88px 48px 48px;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .dash-main {
+    padding: 88px 24px 32px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dash-main {
+    margin-left: 0;
+    padding: 80px 16px 32px;
+    width: 100%;
+  }
+}
+
+.crm-dashboard-root {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  box-sizing: border-box;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .crm-lead-dashboard {
@@ -3876,8 +3908,9 @@ th {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
+
 
 /* 1. TOP UTILITY TOOLBAR */
 .crm-top-toolbar {
@@ -4792,16 +4825,92 @@ th {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   ZAPPIT CRM DASHBOARD STYLING — RESTORED DESKTOP + STRICT MOBILE OVERRIDES
+   ZAPPIT CRM DASHBOARD STYLING — SPACING, ALIGNMENT & THEME FIXES
    ══════════════════════════════════════════════════════════════════ */
+
+/* Reset heading typography to clean sans-serif */
+.crm-dashboard-root h1,
+.crm-dashboard-root h2,
+.crm-dashboard-root h3,
+.crm-dashboard-root h4,
+.crm-pipeline-card h2,
+.crm-pipeline-card h3,
+.crm-chart-card h2,
+.crm-chart-card h3,
+.crm-capacity-title,
+.crm-lob-card h3,
+.crm-product-analytics-card h3 {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* 1. TOP UTILITY TOOLBAR */
+.crm-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.crm-btn-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.crm-btn-refresh:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+.crm-btn-add-lead {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: #0066FF;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);
+  transition: all 0.2s ease;
+}
+
+.crm-btn-add-lead:hover {
+  transform: translateY(-1px);
+  background: #0052CC;
+  box-shadow: 0 6px 18px rgba(0, 102, 255, 0.45);
+}
+
+/* 2. DASHBOARD FILTERS CARD */
 .crm-filter-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: var(--surface, #12131A);
+  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
   border-radius: 16px;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
   width: 100%;
@@ -4825,7 +4934,7 @@ th {
 
 .crm-filter-subtitle {
   font-size: 13px;
-  color: #94A3B8;
+  color: var(--text-muted, #94A3B8);
   margin: 4px 0 0;
 }
 
@@ -4833,12 +4942,12 @@ th {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .crm-btn-customize-primary {
-  height: 44px;
-  min-height: 44px;
+  height: 42px;
+  min-height: 42px;
   padding: 0 20px;
   display: inline-flex;
   align-items: center;
@@ -4867,8 +4976,8 @@ th {
 
 .crm-btn-manage-secondary,
 .crm-btn-clear-secondary {
-  height: 40px;
-  min-height: 40px;
+  height: 42px;
+  min-height: 42px;
   padding: 0 16px;
   display: inline-flex;
   align-items: center;
@@ -4896,6 +5005,92 @@ th {
   border-color: rgba(239, 68, 68, 0.25);
 }
 
+.crm-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 1400px) and (min-width: 768px) {
+  .crm-filter-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+.crm-filter-control-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.crm-filter-select,
+.crm-filter-date {
+  width: 100%;
+  height: 42px;
+  padding: 0 32px 0 12px;
+  background: var(--bg-secondary, #181924) !important;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1)) !important;
+  border-radius: 10px !important;
+  color: var(--text-primary, #FFFFFF) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.crm-filter-select:focus,
+.crm-filter-date:focus {
+  border-color: #0066FF !important;
+}
+
+.crm-filter-select option {
+  background: #181924;
+  color: #FFFFFF;
+}
+
+.crm-filter-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: #64748B;
+  pointer-events: none;
+}
+
+/* 3. KPI CARDS GRID */
+.crm-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.crm-kpi-card {
+  background: var(--surface, #12131A);
+  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  border-radius: 16px;
+  padding: 24px;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.crm-kpi-card:hover {
+  border-color: rgba(0, 229, 255, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
 .crm-kpi-icon-wrap {
   width: 40px;
   height: 40px;
@@ -4918,11 +5113,12 @@ th {
   margin-top: 4px;
 }
 
+/* 4. DAILY FOLLOW-UP CAPACITY STRIP */
 .crm-capacity-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: var(--surface, #12131A);
+  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
   border-radius: 16px;
-  padding: 18px 20px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -4955,19 +5151,19 @@ th {
 .crm-capacity-title {
   font-size: 16px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--text-primary, #FFFFFF);
   margin: 0;
 }
 
 .crm-capacity-status {
   font-size: 13px;
-  color: #94A3B8;
+  color: var(--text-muted, #94A3B8);
   margin: 2px 0 0;
 }
 
 .crm-capacity-badge-btn {
-  height: 44px;
-  min-height: 44px;
+  height: 42px;
+  min-height: 42px;
   padding: 0 20px;
   border-radius: 10px;
   background: rgba(0, 102, 255, 0.12);
@@ -4988,20 +5184,47 @@ th {
   border-color: rgba(0, 102, 255, 0.5);
 }
 
-.crm-ref6-vertical-stack {
+/* 5. MAIN CHARTS ROW (Growth Velocity & Pipeline Stages) */
+.crm-chart-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 24px;
   width: 100%;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.crm-chart-card,
+.crm-pipeline-card {
+  background: var(--surface, #12131A);
+  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* 6. LOWER SECTIONS (LOB Analysis & Calendar Row, Product Analytics) */
+.crm-lob-calendar-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+  width: 100%;
+  align-items: stretch;
+  box-sizing: border-box;
 }
 
 .crm-lob-card,
-.crm-schedule-card,
+.crm-calendar-widget-card,
 .crm-product-analytics-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: var(--surface, #12131A);
+  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
   border-radius: 16px;
-  padding: 20px;
+  padding: 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
@@ -5113,20 +5336,14 @@ th {
 
 /* STRICT MOBILE-ONLY LAYOUT OVERRIDES (VIEWPORT < 768px ONLY) */
 @media (max-width: 767.98px) {
-  .crm-top-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+  .crm-dashboard-root {
+    gap: 20px;
   }
-  .crm-search-bar {
-    max-width: 100%;
+  .crm-top-bar {
+    justify-content: stretch;
     width: 100%;
   }
-  .crm-top-actions {
-    display: flex;
-    width: 100%;
-    gap: 10px;
-  }
+  .crm-btn-refresh,
   .crm-btn-add-lead {
     flex: 1;
     justify-content: center;
@@ -5161,12 +5378,12 @@ th {
   .crm-capacity-badge-btn {
     width: 100%;
   }
-  .crm-analytics-row {
+  .crm-chart-row {
     grid-template-columns: 1fr !important;
+    gap: 16px;
   }
-  .crm-ref6-vertical-stack {
-    display: flex;
-    flex-direction: column;
+  .crm-lob-calendar-row {
+    grid-template-columns: 1fr !important;
     gap: 16px;
   }
   .crm-product-tiles-grid {

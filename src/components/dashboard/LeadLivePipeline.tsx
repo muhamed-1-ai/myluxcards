@@ -47,7 +47,7 @@ export function LeadLivePipeline({
   }, [pipelineCounts]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
       {/* Header matching reference */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
