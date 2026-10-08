@@ -823,6 +823,16 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           </div>
         </div>
       )}
+
+      {/* ADD LEAD MODAL DIALOG */}
+      {addLeadOpen && (
+        <AddLeadModal
+          isOpen={addLeadOpen}
+          onClose={() => setAddLeadOpen(false)}
+          onLeadAdded={() => fetchDashboardData(true)}
+          identity={identity}
+        />
+      )}
     </div>
   );
 }
