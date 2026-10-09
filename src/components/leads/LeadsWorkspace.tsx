@@ -36,6 +36,7 @@ import LeadDetailsDrawer from "./LeadDetailsDrawer";
 import LeadIdentityBlock from "./LeadIdentityBlock";
 import LeadSourceBadge from "./LeadSourceBadge";
 import LeadExportModal from "./LeadExportModal";
+import ImportLeadsModal from "./ImportLeadsModal";
 import "../../app/dashboard/leads/leads.css";
 import { exportLeadContact } from "@/lib/contactExport";
 
@@ -94,6 +95,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   // Drawers & Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [selectedExportFormat, setSelectedExportFormat] = useState<"xlsx" | "csv">("xlsx");
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -433,6 +435,16 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
           <div className="flex items-center gap-4 flex-wrap">
             {/* Action Group 1: View Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3">
+              {/* Import Leads Button */}
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(true)}
+                className="crm-btn-secondary inline-flex items-center gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Import</span>
+              </button>
+
               {/* Export Dropdown Menu (Screenshot 2 behavior) */}
               <div className="relative inline-block text-left" ref={exportDropdownRef}>
                 <button
@@ -1251,6 +1263,15 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
           endDate,
           sortBy,
           sortOrder,
+        }}
+      />
+
+      {/* Bulk Lead Import Modal */}
+      <ImportLeadsModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccessRefresh={() => {
+          fetchLeads();
         }}
       />
     </div>
