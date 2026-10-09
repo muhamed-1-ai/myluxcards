@@ -1448,7 +1448,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 id: currentUser.id || identity?.id || "",
                 name: currentUser.name || null,
                 email: currentUser.email || "",
-                role: currentUser.role || "CUSTOMER",
+                role: userRole || identity?.role || "CUSTOMER",
+                featurePermissions: userPermissions,
               }}
               onNavigateTab={(t) => selectTab(t as Tab)}
             />

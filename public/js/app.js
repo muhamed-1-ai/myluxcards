@@ -70,7 +70,7 @@ class LuxApp {
     const button = document.getElementById('login-trigger');
     if (!button) return;
     if (!user) {
-      button.textContent = 'Login';
+      button.innerHTML = `<i data-lucide="user" style="width:16px;height:16px;"></i><span class="account-label">Login</span>`;
       button.removeAttribute('title');
       button.removeAttribute('data-authenticated');
       button.setAttribute('aria-label', 'Login');
@@ -78,6 +78,7 @@ class LuxApp {
       const dropdown = document.getElementById('account-dropdown');
       if (dropdown) dropdown.hidden = true;
       this.updateMobileAccountMenu(null);
+      if (window.lucide) window.lucide.createIcons();
       return;
     }
     const fullName = String(user.name || '').trim();
@@ -85,12 +86,14 @@ class LuxApp {
     const firstName = normalizedName.startsWith('muhammed')
       ? 'Muhammed'
       : fullName.split(/[\s._-]+/)[0] || 'Account';
-    button.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+    const initial = firstName.charAt(0).toUpperCase();
+    button.innerHTML = `<span class="account-avatar-badge">${initial}</span><span class="account-label">${firstName}</span>`;
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
     button.setAttribute('aria-label', `Open account menu for ${user.name || user.email}`);
     button.setAttribute('aria-expanded', 'false');
     this.updateMobileAccountMenu(user);
+    if (window.lucide) window.lucide.createIcons();
   }
 
   updateMobileAccountMenu(user) {
@@ -101,13 +104,17 @@ class LuxApp {
     item.className = 'mobile-account-actions';
     if (user) {
       const name = String(user.name || '').trim().split(/\s+/)[0] || 'Account';
-      item.innerHTML = `<a href="/dashboard" class="nav-link">${name} dashboard</a><button type="button" class="nav-link mobile-logout">Log out</button>`;
+      item.innerHTML = `<a href="/dashboard" class="nav-link">${name} Dashboard</a><button type="button" class="nav-link mobile-logout">Log out</button>`;
       item.querySelector('.mobile-logout')?.addEventListener('click', () => this.logout());
     } else {
-      item.innerHTML = '<button type="button" class="nav-link mobile-login">Log in</button>';
+      item.innerHTML = '<button type="button" class="nav-link mobile-login">Login</button>';
       item.querySelector('.mobile-login')?.addEventListener('click', () => {
+        nav.classList.remove('is-open');
         nav.style.display = 'none';
         document.getElementById('hamburger')?.setAttribute('aria-expanded', 'false');
+        document.getElementById('hamburger')?.setAttribute('aria-label', 'Open menu');
+        const modal = document.getElementById('login-modal');
+        if (modal) modal.classList.add('open');
       });
     }
     nav.appendChild(item);
@@ -1489,25 +1496,53 @@ class LuxApp {
     const hamburger = document.getElementById('hamburger');
     const closeMobileMenu = () => {
       if (!mobileMenu || !hamburger) return;
+      mobileMenu.classList.remove('is-open');
       mobileMenu.style.display = 'none';
       hamburger.setAttribute('aria-expanded', 'false');
+      hamburger.setAttribute('aria-label', 'Open menu');
     };
+
     hamburger?.setAttribute('aria-expanded', 'false');
     hamburger?.setAttribute('aria-controls', 'nav-menu');
-    hamburger?.addEventListener('click', () => {
+    hamburger?.setAttribute('aria-label', 'Open menu');
+    hamburger?.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (!mobileMenu) return;
-      const isOpen = mobileMenu.style.display === 'flex';
-      mobileMenu.style.display = isOpen ? 'none' : 'flex';
-      mobileMenu.style.flexDirection = 'column';
-      hamburger.setAttribute('aria-expanded', String(!isOpen));
+      const isOpen = mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex';
+      if (isOpen) {
+        closeMobileMenu();
+      } else {
+        mobileMenu.classList.add('is-open');
+        mobileMenu.style.display = 'flex';
+        mobileMenu.style.flexDirection = 'column';
+        hamburger.setAttribute('aria-expanded', 'true');
+        hamburger.setAttribute('aria-label', 'Close menu');
+      }
     });
-    mobileMenu?.querySelectorAll('a').forEach((link) => {
+
+    mobileMenu?.querySelectorAll('a, button').forEach((link) => {
       link.addEventListener('click', closeMobileMenu);
     });
+
+    document.addEventListener('click', (e) => {
+      if (mobileMenu && (mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex')) {
+        if (!mobileMenu.contains(e.target) && !hamburger?.contains(e.target)) {
+          closeMobileMenu();
+        }
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileMenu && (mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex')) {
+        closeMobileMenu();
+        hamburger?.focus();
+      }
+    });
+
     window.addEventListener('resize', () => {
       if (window.innerWidth > 768) {
+        closeMobileMenu();
         mobileMenu?.removeAttribute('style');
-        hamburger?.setAttribute('aria-expanded', 'false');
       }
     }, { passive: true });
 

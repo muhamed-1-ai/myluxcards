@@ -1,4 +1,5 @@
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
+import { isFeatureAllowed } from "@/lib/permissionsRegistry";
 import { getUserDashboardPreferences, updateUserDashboardPreferences } from "@/lib/repositories/users";
 
 export interface DashboardItemPreference {
@@ -14,10 +15,17 @@ export interface UserDashboardPreferences {
   sections: DashboardItemPreference[];
 }
 
-export async function GET() {
-  const identity = await currentIdentity();
+export async function GET(request: Request) {
+  const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isFeatureAllowed(identity.featurePermissions, "all_leads", identity.role)) {
+    return Response.json(
+      { message: "Forbidden: Lead Management permission is required to access dashboard customization." },
+      { status: 403 }
+    );
   }
 
   try {
@@ -34,9 +42,16 @@ export async function PUT(request: Request) {
     return Response.json({ message: "Invalid request origin." }, { status: 403 });
   }
 
-  const identity = await currentIdentity();
+  const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isFeatureAllowed(identity.featurePermissions, "all_leads", identity.role)) {
+    return Response.json(
+      { message: "Forbidden: Lead Management permission is required to customize dashboard." },
+      { status: 403 }
+    );
   }
 
   try {
@@ -49,18 +64,20 @@ export async function PUT(request: Request) {
 
     const sanitizeItems = (items: any[]): DashboardItemPreference[] => {
       if (!Array.isArray(items)) return [];
-      return items.map((item, index) => {
-        const id = String(item.id || "").trim();
-        const visible = Boolean(item.visible);
-        const order = typeof item.order === "number" ? item.order : index;
-        const rawName = item.displayName ? String(item.displayName).trim().slice(0, 60) : undefined;
-        return {
-          id,
-          visible,
-          order,
-          ...(rawName ? { displayName: rawName } : {}),
-        };
-      }).filter((item) => item.id.length > 0);
+      return items
+        .map((item, index) => {
+          const id = String(item.id || "").trim();
+          const visible = Boolean(item.visible);
+          const order = typeof item.order === "number" ? item.order : index;
+          const rawName = item.displayName ? String(item.displayName).trim().slice(0, 60) : undefined;
+          return {
+            id,
+            visible,
+            order,
+            ...(rawName ? { displayName: rawName } : {}),
+          };
+        })
+        .filter((item) => item.id.length > 0);
     };
 
     const sanitizedPreferences: UserDashboardPreferences = {
@@ -84,3 +101,4 @@ export async function PUT(request: Request) {
     return Response.json({ message: "Internal server error" }, { status: 500 });
   }
 }
+

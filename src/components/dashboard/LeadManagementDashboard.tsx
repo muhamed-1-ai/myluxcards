@@ -36,6 +36,7 @@ import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
 import { CompactDashboardCalendar } from "./CompactDashboardCalendar";
 import { apiFetch } from "@/lib/apiClient";
+import { isFeatureAllowed } from "@/lib/permissionsRegistry";
 import {
   CustomizeDashboardDrawer,
   DEFAULT_DASHBOARD_CARDS,
@@ -55,7 +56,13 @@ const AddLeadModal = dynamic(
 
 interface LeadManagementDashboardProps {
   userName: string;
-  identity?: { id: string; name: string | null; email: string; role: string };
+  identity?: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    featurePermissions?: Record<string, boolean>;
+  };
   onNavigateTab?: (tab: string) => void;
 }
 
@@ -73,6 +80,19 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   }));
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [customizeTab, setCustomizeTab] = useState<"cards" | "sections">("cards");
+
+  // Permission evaluation for Customize Dashboard (requires Lead Management "all_leads" permission)
+  const canCustomize = useMemo(() => {
+    if (!identity || !identity.featurePermissions) return false;
+    return isFeatureAllowed(identity.featurePermissions, "all_leads", identity.role);
+  }, [identity]);
+
+  // Immediately close drawer if permission is revoked
+  useEffect(() => {
+    if (!canCustomize && customizeOpen) {
+      setCustomizeOpen(false);
+    }
+  }, [canCustomize, customizeOpen]);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,8 +125,10 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch Dashboard Customization Preferences
+  // Fetch Dashboard Customization Preferences (only when Lead Management is enabled)
   useEffect(() => {
+    if (!canCustomize) return;
+
     const storageKey = identity?.id ? `zappit_dashboard_prefs_${identity.id}` : "zappit_dashboard_prefs_guest";
     try {
       const cached = localStorage.getItem(storageKey);
@@ -134,9 +156,13 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     return () => {
       active = false;
     };
-  }, [identity?.id]);
+  }, [identity?.id, canCustomize]);
 
   const handleSaveCustomization = async (newPrefs: UserDashboardPreferences) => {
+    if (!canCustomize) {
+      throw new Error("Lead Management permission is required to customize the dashboard.");
+    }
+
     const storageKey = identity?.id ? `zappit_dashboard_prefs_${identity.id}` : "zappit_dashboard_prefs_guest";
     setUserPrefs(newPrefs);
     try {
@@ -320,14 +346,42 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   }, [lobAnalysisData]);
 
 
-  // Ordered & Visible KPI Cards
+  // Individual Widget Feature Permission Evaluator
+  const isWidgetFeatureAllowed = useCallback(
+    (widgetId: string): boolean => {
+      if (!identity?.featurePermissions) return true;
+      const role = identity.role;
+      const perms = identity.featurePermissions;
+
+      if (role === "SUPER_ADMIN" || role === "ADMIN") return true;
+
+      switch (widgetId) {
+        case "lob_analysis":
+          return isFeatureAllowed(perms, "lob_reasons", role);
+        case "calendar_companion":
+          return isFeatureAllowed(perms, "calendar", role);
+        case "todays_leads":
+        case "total_leads":
+        case "closed_leads":
+        case "active_users":
+        case "daily_capacity":
+        case "growth_pipeline":
+          return isFeatureAllowed(perms, "all_leads", role);
+        default:
+          return true;
+      }
+    },
+    [identity]
+  );
+
+  // Ordered & Visible KPI Cards (Filtered by user preferences AND feature permissions)
   const visibleCards = useMemo(() => {
     const saved = userPrefs.cards || DEFAULT_DASHBOARD_CARDS;
     const result: ItemPreference[] = [];
 
     saved.forEach((item) => {
       const def = DEFAULT_DASHBOARD_CARDS.find((d) => d.id === item.id);
-      if (def && item.visible !== false) {
+      if (def && item.visible !== false && isWidgetFeatureAllowed(item.id)) {
         result.push({
           ...item,
           defaultTitle: def.defaultTitle,
@@ -336,16 +390,16 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     });
 
     return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [userPrefs.cards]);
+  }, [userPrefs.cards, isWidgetFeatureAllowed]);
 
-  // Ordered & Visible Sections
+  // Ordered & Visible Sections (Filtered by user preferences AND feature permissions)
   const visibleSections = useMemo(() => {
     const saved = userPrefs.sections || DEFAULT_DASHBOARD_SECTIONS;
     const result: ItemPreference[] = [];
 
     saved.forEach((item) => {
       const def = DEFAULT_DASHBOARD_SECTIONS.find((d) => d.id === item.id);
-      if (def && item.visible !== false) {
+      if (def && item.visible !== false && isWidgetFeatureAllowed(item.id)) {
         result.push({
           ...item,
           defaultTitle: def.defaultTitle,
@@ -354,7 +408,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     });
 
     return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [userPrefs.sections]);
+  }, [userPrefs.sections, isWidgetFeatureAllowed]);
 
   if (loading && !data) {
     return (
@@ -519,32 +573,49 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
               Metrics refresh for every selected reporting filter.
             </p>
           </div>
-          <div className="crm-filter-btn-group">
-            {/* Primary Customize Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setCustomizeTab("cards");
-                setCustomizeOpen(true);
-              }}
-              className="crm-btn-customize-primary"
-            >
-              <SlidersHorizontal style={{ width: 16, height: 16 }} />
-              Customize Dashboard
-            </button>
-            <div className="crm-filter-btn-secondary-row">
+          {canCustomize ? (
+            <div className="crm-filter-btn-group">
+              {/* Primary Customize Button */}
               <button
                 type="button"
                 onClick={() => {
-                  setCustomizeTab("sections");
+                  if (!canCustomize) return;
+                  setCustomizeTab("cards");
                   setCustomizeOpen(true);
                 }}
-                className="crm-btn-manage-secondary"
+                className="crm-btn-customize-primary"
               >
-                <LayoutGrid style={{ width: 15, height: 15 }} />
-                Manage Sections
+                <SlidersHorizontal style={{ width: 16, height: 16 }} />
+                Customize Dashboard
               </button>
-              {hasActiveFilters && (
+              <div className="crm-filter-btn-secondary-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!canCustomize) return;
+                    setCustomizeTab("sections");
+                    setCustomizeOpen(true);
+                  }}
+                  className="crm-btn-manage-secondary"
+                >
+                  <LayoutGrid style={{ width: 15, height: 15 }} />
+                  Manage Sections
+                </button>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="crm-btn-clear-secondary"
+                  >
+                    <RotateCcw style={{ width: 14, height: 14 }} />
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            hasActiveFilters && (
+              <div className="crm-filter-btn-group">
                 <button
                   type="button"
                   onClick={clearAllFilters}
@@ -553,9 +624,9 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                   <RotateCcw style={{ width: 14, height: 14 }} />
                   Clear Filters
                 </button>
-              )}
-            </div>
-          </div>
+              </div>
+            )
+          )}
         </div>
 
         {/* Vertical Stacked Filter Inputs */}
@@ -693,21 +764,26 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
               Your dashboard is currently empty
             </h3>
             <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, maxWidth: 420 }}>
-              You have hidden all dashboard cards and sections in your customization settings. Click below to customize your view.
+              {canCustomize
+                ? "You have hidden all dashboard cards and sections in your customization settings. Click below to customize your view."
+                : "No dashboard cards or sections are currently visible."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setCustomizeTab("cards");
-              setCustomizeOpen(true);
-            }}
-            className="crm-btn-customize-primary"
-            style={{ padding: "10px 24px" }}
-          >
-            <SlidersHorizontal style={{ width: 16, height: 16 }} />
-            Customize Dashboard
-          </button>
+          {canCustomize && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!canCustomize) return;
+                setCustomizeTab("cards");
+                setCustomizeOpen(true);
+              }}
+              className="crm-btn-customize-primary"
+              style={{ padding: "10px 24px" }}
+            >
+              <SlidersHorizontal style={{ width: 16, height: 16 }} />
+              Customize Dashboard
+            </button>
+          )}
         </div>
       )}
 
@@ -861,13 +937,15 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       })}
 
       {/* CUSTOMIZE DASHBOARD DRAWER */}
-      <CustomizeDashboardDrawer
-        isOpen={customizeOpen}
-        onClose={() => setCustomizeOpen(false)}
-        currentPrefs={userPrefs}
-        onSave={handleSaveCustomization}
-        activeTab={customizeTab}
-      />
+      {canCustomize && (
+        <CustomizeDashboardDrawer
+          isOpen={customizeOpen}
+          onClose={() => setCustomizeOpen(false)}
+          currentPrefs={userPrefs}
+          onSave={handleSaveCustomization}
+          activeTab={customizeTab}
+        />
+      )}
 
       {/* Manual Add Lead Modal */}
       <AddLeadModal

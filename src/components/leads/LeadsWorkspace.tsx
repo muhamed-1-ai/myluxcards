@@ -32,6 +32,7 @@ import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
 import LeadIdentityBlock from "./LeadIdentityBlock";
 import LeadSourceBadge from "./LeadSourceBadge";
+import LeadExportModal from "./LeadExportModal";
 import "../../app/dashboard/leads/leads.css";
 import { exportLeadContact } from "@/lib/contactExport";
 
@@ -89,6 +90,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
 
   // Drawers & Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
@@ -431,11 +433,11 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
             <div className="flex items-center gap-2.5 sm:gap-3">
               <button
                 type="button"
-                className="crm-btn-secondary hidden sm:inline-flex"
-                onClick={handleExportCSV}
+                className="crm-btn-secondary inline-flex"
+                onClick={() => setIsExportOpen(true)}
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
+                <span>Export</span>
               </button>
 
               <button
@@ -1196,6 +1198,24 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         </div>,
         document.body
       )}
+
+      {/* Lead Export Modal */}
+      <LeadExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        activeFilters={{
+          q: searchQuery,
+          stage: stageFilter,
+          userId: userFilter,
+          source: sourceFilter,
+          status: statusFilter,
+          scope: scopeFilter,
+          startDate,
+          endDate,
+          sortBy,
+          sortOrder,
+        }}
+      />
     </div>
   );
 }
