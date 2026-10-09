@@ -326,31 +326,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     setSelectedLeadIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleExportCSV = () => {
-    if (!displayedLeads.length) return;
-    const headers = ["Lead Name", "Company", "Contact Number", "Email", "Stage", "Source", "Assigned To", "Total Amount", "Advance Amount", "Created At"];
-    const rows = displayedLeads.map((l) => [
-      `"${(l.name || "").replace(/"/g, '""')}"`,
-      `"${(l.companyName || "").replace(/"/g, '""')}"`,
-      `"${(l.contactNumber || "").replace(/"/g, '""')}"`,
-      `"${(l.email || "").replace(/"/g, '""')}"`,
-      `"${(l.stage || l.status || "").replace(/"/g, '""')}"`,
-      `"${(l.source || "").replace(/"/g, '""')}"`,
-      `"${(l.assignedUserName || "").replace(/"/g, '""')}"`,
-      `"${l.totalAmount || 0}"`,
-      `"${l.advanceAmount || 0}"`,
-      `"${new Date(l.createdAt).toLocaleDateString()}"`,
-    ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `all_leads_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleDeleteLead = async (leadId: string) => {
     if (!confirm("Are you sure you want to delete this lead?")) return;
