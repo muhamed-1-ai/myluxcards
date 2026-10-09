@@ -289,7 +289,7 @@ export default function LeadContactCardDrawer({
         </div>
 
         {/* Grouped Information Details Card */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0F172A] p-4 space-y-4">
+        <div className="zappit-drawer-info-card space-y-4">
           {phone && (
             <div className="flex items-center justify-between gap-3">
               <div>

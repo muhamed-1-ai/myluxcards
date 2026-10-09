@@ -1930,6 +1930,9 @@ body.dark-mode .crm-mobile-btn-edit,
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   animation: zappitDrawerSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   box-sizing: border-box;
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #E2E8F0 !important;
 }
 
 @media (min-width: 640px) {
@@ -1938,6 +1941,29 @@ body.dark-mode .crm-mobile-btn-edit,
     max-height: 85vh;
   }
 }
+
+[data-theme="dark"] .zappit-contact-drawer-panel,
+body.dark-mode .zappit-contact-drawer-panel,
+.dark .zappit-contact-drawer-panel {
+  background-color: #0B1528 !important;
+  color: #F8FAFC !important;
+  border-color: #1E293B !important;
+}
+
+.zappit-drawer-info-card {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+[data-theme="dark"] .zappit-drawer-info-card,
+body.dark-mode .zappit-drawer-info-card,
+.dark .zappit-drawer-info-card {
+  background-color: #071426 !important;
+  border-color: #1E293B !important;
+}
+
 
 
 
