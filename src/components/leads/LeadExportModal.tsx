@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { X, Search, FileSpreadsheet, FileText, Check, Loader2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { X, Search, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import "./export-modal.css";
 
 export interface FieldItem {
   id: string;
@@ -53,6 +55,26 @@ const DEFAULT_SELECTED_KEYS = [
   "assignedUserName",
 ];
 
+/**
+ * Cleanly resolves field labels, preventing raw UUID strings from being displayed
+ */
+function resolveFieldLabel(field: any): string {
+  const raw = (field.name || field.fieldName || field.label || field.title || field.displayName || "").trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (!raw || uuidRegex.test(raw)) {
+    if (field.key && !uuidRegex.test(field.key)) return String(field.key);
+    if (field.fieldKey && !uuidRegex.test(field.fieldKey)) return String(field.fieldKey);
+    if (field.label && !uuidRegex.test(field.label)) return String(field.label);
+    if (field.name && !uuidRegex.test(field.name)) return String(field.name);
+    if (raw && uuidRegex.test(raw)) {
+      return `Custom Field (${raw.substring(0, 8)})`;
+    }
+    return "Custom Field";
+  }
+  return raw;
+}
+
 interface LeadExportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -68,6 +90,7 @@ export default function LeadExportModal({
   activeFilters = {},
   totalCount,
 }: LeadExportModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [format, setFormat] = useState<"xlsx" | "csv">(initialFormat);
   const [searchQuery, setSearchQuery] = useState("");
   const [dynamicFields, setDynamicFields] = useState<FieldItem[]>([]);
@@ -85,6 +108,10 @@ export default function LeadExportModal({
 
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Keep format synced with initialFormat when opened
   useEffect(() => {
@@ -118,7 +145,7 @@ export default function LeadExportModal({
           const list = data.fields || data.data || [];
           const formatted: FieldItem[] = list.map((f: any) => ({
             id: `dynamic:${f.id}`,
-            label: f.name || f.fieldName || "Custom Field",
+            label: resolveFieldLabel(f),
             group: "dynamic",
             isDynamic: true,
           }));
@@ -162,7 +189,7 @@ export default function LeadExportModal({
     return { basic, contact, pipeline, followup, revenue, dyn };
   }, [filteredFields]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   // Helper to get selected fields ordered by position
   const getOrderedSelectedFields = (): string[] => {
@@ -185,7 +212,7 @@ export default function LeadExportModal({
 
   // Toggle field selection
   const toggleField = (field: FieldItem) => {
-    if (field.isRequired) return; // Lead Name is required
+    if (field.isRequired) return; // Lead Name is mandatory
     setSelectedFields((prevSelected) => {
       const nextSelected = new Set(prevSelected);
       let nextPos = { ...fieldPositions };
@@ -242,7 +269,7 @@ export default function LeadExportModal({
       if (f.isRequired) {
         nextSelected.add(f.id);
       } else if (searchQuery.trim() !== "" && !filteredFields.some((match) => match.id === f.id)) {
-        // Keep selected fields that are not part of the active search filter
+        // Keep selected fields that are not part of active search filter
         if (selectedFields.has(f.id)) nextSelected.add(f.id);
       }
     });
@@ -297,10 +324,82 @@ export default function LeadExportModal({
     }
   };
 
+  const renderCardGroup = (title: string, fields: FieldItem[], isDynamicGroup = false) => {
+    if (fields.length === 0 && !isDynamicGroup) return null;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[12px] font-semibold leading-[16px] text-[var(--export-text-secondary)] uppercase tracking-wider">
+            {title}
+          </h3>
+          {isDynamicGroup && loadingFields && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />}
+        </div>
+
+        {fields.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {fields.map((f) => {
+              const isChecked = selectedFields.has(f.id);
+              const pos = fieldPositions[f.id];
+              return (
+                <div
+                  key={f.id}
+                  onClick={() => toggleField(f)}
+                  className={`zappit-field-card ${isChecked ? "selected" : ""} ${f.isRequired ? "cursor-not-allowed" : ""}`}
+                >
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1 pr-2">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={f.isRequired}
+                      onChange={() => {}}
+                      className="w-[18px] h-[18px] rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 cursor-pointer disabled:cursor-not-allowed shrink-0 mt-0.5"
+                    />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className={`text-[14px] leading-[20px] font-medium break-words ${f.isDynamic ? "text-blue-600 dark:text-blue-400 font-semibold" : ""}`}>
+                        {f.label}
+                      </span>
+                      {f.isRequired && (
+                        <span className="inline-block mt-1.5 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded tracking-wider uppercase w-max">
+                          REQUIRED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isChecked && (
+                    <div className="shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="number"
+                        min={1}
+                        max={selectedFields.size}
+                        value={pos || ""}
+                        onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                        aria-label={`Column position for ${f.label}`}
+                        className="zappit-position-input"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : isDynamicGroup ? (
+          <div className="p-4 text-center text-xs text-[var(--export-text-secondary)] bg-[var(--export-card-bg)] border border-dashed border-[var(--export-card-border)] rounded-xl">
+            {loadingFields
+              ? "Loading dynamic fields..."
+              : searchQuery
+              ? "No matching dynamic fields found."
+              : "No active dynamic fields configured in Master Configuration."}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const exportBtnLabel = format === "xlsx" ? "Export Excel" : "Export CSV";
   const isSearching = searchQuery.trim().length > 0;
 
-  return (
+  const modalContent = (
     <div
       tabIndex={-1}
       role="dialog"
@@ -309,23 +408,23 @@ export default function LeadExportModal({
       onKeyDown={(e) => {
         if (e.key === "Escape" && !exporting) onClose();
       }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto"
+      className="zappit-export-overlay"
     >
-      <div className="relative w-full max-w-4xl bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] rounded-2xl shadow-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[88vh] overflow-hidden transition-all duration-200">
+      <div className="zappit-export-shell">
         
-        {/* Header (Matching Screenshot 3) */}
-        <div className="flex items-center justify-between px-6 py-4.5 border-b border-[var(--border-color,#E2E8F0)] bg-[var(--surface-subtle,#F8FAFC)] shrink-0">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 id="export-leads-title" className="text-xl font-bold tracking-tight text-[var(--text-primary,#0F172A)]">
+        {/* Header (24px horizontal padding, themed background) */}
+        <div className="zappit-export-header flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 id="export-leads-title" className="text-[20px] font-semibold leading-[28px] tracking-tight">
                 Export Leads
               </h2>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
                 {format === "xlsx" ? <FileSpreadsheet className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                 <span>{format === "xlsx" ? "Excel (.xlsx)" : "CSV (.csv)"}</span>
               </span>
             </div>
-            <p className="text-xs text-[var(--text-secondary,#64748B)] mt-0.5">
+            <p className="text-[14px] leading-[20px] text-[var(--export-text-secondary)] mt-1.5">
               Select the fields you want to include in the exported file.
             </p>
           </div>
@@ -333,393 +432,76 @@ export default function LeadExportModal({
             type="button"
             onClick={onClose}
             disabled={exporting}
-            className="p-2 rounded-xl text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)] transition-colors disabled:opacity-50"
+            className="p-2 rounded-xl text-[var(--export-text-secondary)] hover:text-[var(--export-text-primary)] hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 shrink-0"
             aria-label="Close export dialog"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Toolbar: Search Left, Select All | Clear All Right */}
-        <div className="px-6 py-3.5 border-b border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] flex items-center justify-between gap-4 flex-wrap shrink-0">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary,#94A3B8)]" />
+        {/* Toolbar (24px horizontal padding, 16px vertical) */}
+        <div className="zappit-export-toolbar flex items-center justify-between gap-4 flex-wrap">
+          <div className="zappit-search-wrapper">
+            <Search className="zappit-search-icon" />
             <input
               type="text"
               placeholder="Search fields..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9.5 pr-3.5 py-2 text-sm bg-[var(--background,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] rounded-xl text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+              className="zappit-search-input"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={handleSelectAll}
-              className="px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg transition-colors whitespace-nowrap"
             >
               {isSearching ? "Select matching" : "Select All"}
             </button>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
+            <span className="text-slate-300 dark:text-slate-700 select-none">|</span>
             <button
               type="button"
               onClick={handleClearAll}
-              className="px-2.5 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
             >
               {isSearching ? "Clear matching" : "Clear All"}
             </button>
           </div>
         </div>
 
-        {/* Modal Body - Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
-          {/* Error Banner */}
+        {/* Scrollable Body (24px padding, 32px group spacing) */}
+        <div className="zappit-export-body space-y-8">
           {exportError && (
-            <div className="p-3 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl">
+            <div className="p-3.5 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl">
               {exportError}
             </div>
           )}
 
-          {/* Categorized Field Card Sections (3 Columns on Desktop) */}
-          <div className="space-y-6">
-            
-            {/* 1. BASIC INFORMATION */}
-            {groupedFields.basic.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
-                  BASIC INFORMATION
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupedFields.basic.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    const pos = fieldPositions[f.id];
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
-                          isChecked
-                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        } ${f.isRequired ? "cursor-not-allowed" : ""}`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            disabled={f.isRequired}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer disabled:cursor-not-allowed shrink-0"
-                          />
-                          <span className="text-sm font-medium truncate">{f.label}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          {f.isRequired && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded tracking-wider uppercase">
-                              REQUIRED
-                            </span>
-                          )}
-                          {isChecked && (
-                            <input
-                              type="number"
-                              min={1}
-                              max={selectedFields.size}
-                              value={pos || ""}
-                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
-                              aria-label={`Column position for ${f.label}`}
-                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                            />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 2. CONTACT INFORMATION */}
-            {groupedFields.contact.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
-                  CONTACT INFORMATION
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupedFields.contact.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    const pos = fieldPositions[f.id];
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
-                          isChecked
-                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
-                          />
-                          <span className="text-sm font-medium truncate">{f.label}</span>
-                        </div>
-
-                        {isChecked && (
-                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={selectedFields.size}
-                              value={pos || ""}
-                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
-                              aria-label={`Column position for ${f.label}`}
-                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 3. PIPELINE & ASSIGNMENT */}
-            {groupedFields.pipeline.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
-                  PIPELINE & ASSIGNMENT
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupedFields.pipeline.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    const pos = fieldPositions[f.id];
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
-                          isChecked
-                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
-                          />
-                          <span className="text-sm font-medium truncate">{f.label}</span>
-                        </div>
-
-                        {isChecked && (
-                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={selectedFields.size}
-                              value={pos || ""}
-                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
-                              aria-label={`Column position for ${f.label}`}
-                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 4. FOLLOW-UP */}
-            {groupedFields.followup.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
-                  FOLLOW-UP
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupedFields.followup.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    const pos = fieldPositions[f.id];
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
-                          isChecked
-                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
-                          />
-                          <span className="text-sm font-medium truncate">{f.label}</span>
-                        </div>
-
-                        {isChecked && (
-                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={selectedFields.size}
-                              value={pos || ""}
-                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
-                              aria-label={`Column position for ${f.label}`}
-                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 5. REVENUE & FINANCIAL */}
-            {groupedFields.revenue.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
-                  REVENUE & FINANCIAL
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupedFields.revenue.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    const pos = fieldPositions[f.id];
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
-                          isChecked
-                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
-                          />
-                          <span className="text-sm font-medium truncate">{f.label}</span>
-                        </div>
-
-                        {isChecked && (
-                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={selectedFields.size}
-                              value={pos || ""}
-                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
-                              aria-label={`Column position for ${f.label}`}
-                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 6. DYNAMIC FIELDS (MASTER CONFIGURATION) */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider">
-                  DYNAMIC FIELDS (MASTER CONFIGURATION)
-                </h3>
-                {loadingFields && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />}
-              </div>
-
-              {groupedFields.dyn.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {groupedFields.dyn.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    const pos = fieldPositions[f.id];
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
-                          isChecked
-                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
-                          />
-                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">{f.label}</span>
-                        </div>
-
-                        {isChecked && (
-                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={selectedFields.size}
-                              value={pos || ""}
-                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
-                              aria-label={`Column position for ${f.label}`}
-                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-xs text-[var(--text-secondary,#94A3B8)] bg-[var(--background,#F8FAFC)] border border-dashed border-[var(--border-color,#E2E8F0)] rounded-xl">
-                  {loadingFields
-                    ? "Loading dynamic fields..."
-                    : searchQuery
-                    ? "No matching dynamic fields found."
-                    : "No active dynamic fields configured in Master Configuration."}
-                </div>
-              )}
-            </div>
-          </div>
+          {renderCardGroup("BASIC INFORMATION", groupedFields.basic)}
+          {renderCardGroup("CONTACT INFORMATION", groupedFields.contact)}
+          {renderCardGroup("PIPELINE & ASSIGNMENT", groupedFields.pipeline)}
+          {renderCardGroup("FOLLOW-UP", groupedFields.followup)}
+          {renderCardGroup("REVENUE & FINANCIAL", groupedFields.revenue)}
+          {renderCardGroup("DYNAMIC FIELDS (MASTER CONFIGURATION)", groupedFields.dyn, true)}
         </div>
 
-        {/* Modal Footer (Matching Screenshot 3) */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-color,#E2E8F0)] bg-[var(--surface-subtle,#F8FAFC)] shrink-0 flex-wrap gap-3">
-          <div className="text-xs font-semibold text-[var(--text-secondary,#64748B)]">
+        {/* Footer (24px horizontal padding, 16px vertical, 44px buttons) */}
+        <div className="zappit-export-footer flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs font-semibold text-[var(--export-text-secondary)]">
             Selected: <strong className="text-blue-600 dark:text-blue-400 text-sm font-bold">{selectedFields.size}</strong> {selectedFields.size === 1 ? "field" : "fields"}
             {totalCount != null && totalCount > 0 && (
-              <span className="ml-1 text-slate-400 font-normal">({totalCount} {totalCount === 1 ? "lead" : "leads"})</span>
+              <span className="ml-1.5 text-slate-500 dark:text-slate-400 font-normal">({totalCount} {totalCount === 1 ? "lead" : "leads"})</span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}
               disabled={exporting}
-              className="px-4.5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
+              className="h-[44px] min-h-[44px] px-5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -728,7 +510,7 @@ export default function LeadExportModal({
               type="button"
               onClick={handleExport}
               disabled={selectedFields.size === 0 || exporting}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="h-[44px] min-h-[44px] px-6 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {exporting ? (
                 <>
@@ -745,4 +527,6 @@ export default function LeadExportModal({
       </div>
     </div>
   );
+
+  return typeof window !== "undefined" ? createPortal(modalContent, document.body) : null;
 }
