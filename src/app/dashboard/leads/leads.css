@@ -1879,5 +1879,66 @@ body.dark-mode .crm-mobile-btn-edit,
   color: #F8FAFC !important;
 }
 
+/* ==========================================================================
+   ZAPPIT CONTACT CARD DRAWER FALLBACK STYLES (Screenshot 3 Experience)
+   Explicit positioning, animations, and backdrop overlay (No empty overlays)
+   ========================================================================== */
+
+@keyframes zappitDrawerSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.zappit-contact-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .zappit-contact-drawer-backdrop {
+    align-items: center;
+    padding: 16px;
+  }
+}
+
+.zappit-contact-drawer-panel {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: zappitDrawerSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .zappit-contact-drawer-panel {
+    border-radius: 24px;
+    max-height: 85vh;
+  }
+}
+
+
 
 
