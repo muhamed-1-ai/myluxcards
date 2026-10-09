@@ -462,6 +462,123 @@
 }
 
 /* ==========================================================================
+   EXPLICIT LIGHT MODE OVERRIDES
+   Pristine White SaaS surfaces, dark typography, subtle borders
+   ========================================================================== */
+
+[data-theme="light"] .leads-page-container,
+body.light-mode .leads-page-container {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .kpi-card,
+body.light-mode .kpi-card,
+[data-theme="light"] .crm-table-card,
+body.light-mode .crm-table-card,
+[data-theme="light"] .crm-filter-panel,
+body.light-mode .crm-filter-panel,
+[data-theme="light"] .crm-mobile-lead-card,
+body.light-mode .crm-mobile-lead-card {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .kpi-label,
+body.light-mode .kpi-label {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .kpi-value,
+body.light-mode .kpi-value {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-header-title,
+body.light-mode .crm-header-title {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-header-count-pill,
+body.light-mode .crm-header-count-pill {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #64748B !important;
+}
+
+[data-theme="light"] .crm-btn-secondary,
+body.light-mode .crm-btn-secondary {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-btn-secondary:hover,
+body.light-mode .crm-btn-secondary:hover {
+  background-color: #F1F5F9 !important;
+  border-color: #94A3B8 !important;
+}
+
+[data-theme="light"] .crm-btn-secondary.active,
+body.light-mode .crm-btn-secondary.active {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: #10B981 !important;
+  color: #059669 !important;
+}
+
+[data-theme="light"] .crm-filter-input,
+body.light-mode .crm-filter-input,
+[data-theme="light"] .crm-filter-select,
+body.light-mode .crm-filter-select,
+[data-theme="light"] .crm-filter-date,
+body.light-mode .crm-filter-date {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-filter-input:focus,
+body.light-mode .crm-filter-input:focus,
+[data-theme="light"] .crm-filter-select:focus,
+body.light-mode .crm-filter-select:focus,
+[data-theme="light"] .crm-filter-date:focus,
+body.light-mode .crm-filter-date:focus {
+  border-color: #10B981 !important;
+  background-color: #FFFFFF !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+}
+
+[data-theme="light"] .crm-mobile-btn-call,
+body.light-mode .crm-mobile-btn-call {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+  color: #059669 !important;
+}
+
+[data-theme="light"] .crm-mobile-btn-save-contact,
+body.light-mode .crm-mobile-btn-save-contact {
+  background-color: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+  color: #2563EB !important;
+}
+
+[data-theme="light"] .crm-mobile-btn-chat,
+body.light-mode .crm-mobile-btn-chat {
+  background-color: #F0F9FF !important;
+  border-color: #BAE6FD !important;
+  color: #0284C7 !important;
+}
+
+[data-theme="light"] .crm-mobile-btn-edit,
+body.light-mode .crm-mobile-btn-edit {
+  background-color: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+/* ==========================================================================
    EXPLICIT DARK MODE OVERRIDES
    Matching #020617 Deep Navy background and #0B172A Card Surfaces
    ========================================================================== */

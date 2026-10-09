@@ -6688,10 +6688,11 @@ body.dark-mode .crm-followup-empty-title {
   justify-content: space-between !important;
   gap: 16px !important;
   padding: 14px 20px !important;
-  background: #12131A !important;
-  border: 1px solid rgba(0, 229, 255, 0.18) !important;
+  background: var(--header-background, var(--surface, #0B1528)) !important;
+  border: 1px solid var(--border, var(--border-color, #1E293B)) !important;
+  color: var(--foreground, var(--text-primary, #FFFFFF)) !important;
   border-radius: 18px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: var(--card-shadow, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
   position: sticky !important;
   top: 16px !important;
   z-index: 30 !important;
@@ -6708,9 +6709,9 @@ body.dark-mode .crm-followup-empty-title {
 
 .hamb-toggle {
   display: none;
-  background: #181924;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
+  background: var(--button-background, var(--bg-secondary, #F1F5F9));
+  border: 1px solid var(--border-color, #CBD5E1);
+  color: var(--text-primary, #0F172A);
   width: 38px;
   height: 38px;
   min-width: 38px;
@@ -6741,14 +6742,14 @@ body.dark-mode .crm-followup-empty-title {
 }
 
 .crumb-slash {
-  color: #475569 !important;
+  color: var(--text-secondary, #64748B) !important;
   font-weight: 500 !important;
   flex-shrink: 0 !important;
 }
 
 .crumb-target {
   font-weight: 700 !important;
-  color: #F1F5F9 !important;
+  color: var(--text-primary, #0F172A) !important;
   min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -6769,9 +6770,9 @@ body.dark-mode .crm-followup-empty-title {
 }
 
 .dash-theme-btn {
-  background: #181924;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
+  background: var(--button-background, var(--bg-secondary, #F1F5F9));
+  border: 1px solid var(--border-color, #CBD5E1);
+  color: var(--text-primary, #0F172A);
   padding: 7px 14px;
   border-radius: 12px;
   font-size: 12.5px;
