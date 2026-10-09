@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { X, Search, FileSpreadsheet, FileText, Check, Loader2, Lock } from "lucide-react";
+import { X, Search, FileSpreadsheet, FileText, Check, Loader2 } from "lucide-react";
 
 export interface FieldItem {
   id: string;
@@ -43,32 +43,57 @@ const DEFAULT_STANDARD_FIELDS: FieldItem[] = [
   { id: "products", label: "Products", group: "revenue" },
 ];
 
-const DEFAULT_SELECTED_KEYS = new Set([
+const DEFAULT_SELECTED_KEYS = [
   "name",
+  "companyName",
   "contactNumber",
   "email",
-  "companyName",
   "stage",
   "source",
   "assignedUserName",
-]);
+];
 
 interface LeadExportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialFormat?: "xlsx" | "csv";
   activeFilters?: Record<string, any>;
+  totalCount?: number;
 }
 
-export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }: LeadExportModalProps) {
-  const [format, setFormat] = useState<"xlsx" | "csv">("xlsx");
+export default function LeadExportModal({
+  isOpen,
+  onClose,
+  initialFormat = "xlsx",
+  activeFilters = {},
+  totalCount,
+}: LeadExportModalProps) {
+  const [format, setFormat] = useState<"xlsx" | "csv">(initialFormat);
   const [searchQuery, setSearchQuery] = useState("");
   const [dynamicFields, setDynamicFields] = useState<FieldItem[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
-  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set(DEFAULT_SELECTED_KEYS));
+
+  // Field selection set & position ordering dictionary { fieldId: positionNumber }
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(() => new Set(DEFAULT_SELECTED_KEYS));
+  const [fieldPositions, setFieldPositions] = useState<Record<string, number>>(() => {
+    const initialPos: Record<string, number> = {};
+    DEFAULT_SELECTED_KEYS.forEach((key, idx) => {
+      initialPos[key] = idx + 1;
+    });
+    return initialPos;
+  });
+
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  // Prevent background page scrolling when modal is open
+  // Keep format synced with initialFormat when opened
+  useEffect(() => {
+    if (isOpen) {
+      setFormat(initialFormat || "xlsx");
+    }
+  }, [isOpen, initialFormat]);
+
+  // Lock body scroll when modal is active
   useEffect(() => {
     if (!isOpen) return;
     const originalStyle = document.body.style.overflow;
@@ -78,7 +103,7 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
     };
   }, [isOpen]);
 
-  // Fetch active dynamic fields on modal open
+  // Fetch active dynamic fields from Master Configuration
   useEffect(() => {
     if (!isOpen) return;
     let isMounted = true;
@@ -126,7 +151,7 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
     );
   }, [allFields, searchQuery]);
 
-  // Field Groups for rendering
+  // Group fields for grid layout
   const groupedFields = useMemo(() => {
     const basic = filteredFields.filter((f) => f.group === "basic");
     const contact = filteredFields.filter((f) => f.group === "contact");
@@ -139,43 +164,100 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
 
   if (!isOpen) return null;
 
+  // Helper to get selected fields ordered by position
+  const getOrderedSelectedFields = (): string[] => {
+    const selectedList = Array.from(selectedFields);
+    selectedList.sort((a, b) => (fieldPositions[a] || 999) - (fieldPositions[b] || 999));
+    return selectedList;
+  };
+
+  // Re-index field positions to maintain contiguous 1..N order
+  const reindexPositions = (newSelectedSet: Set<string>, currentPositions: Record<string, number>): Record<string, number> => {
+    const ordered = Array.from(newSelectedSet).sort(
+      (a, b) => (currentPositions[a] || 999) - (currentPositions[b] || 999)
+    );
+    const updated: Record<string, number> = {};
+    ordered.forEach((id, idx) => {
+      updated[id] = idx + 1;
+    });
+    return updated;
+  };
+
+  // Toggle field selection
   const toggleField = (field: FieldItem) => {
-    if (field.isRequired) return; // Lead Name is mandatory
-    setSelectedFields((prev) => {
-      const next = new Set(prev);
-      if (next.has(field.id)) {
-        next.delete(field.id);
+    if (field.isRequired) return; // Lead Name is required
+    setSelectedFields((prevSelected) => {
+      const nextSelected = new Set(prevSelected);
+      let nextPos = { ...fieldPositions };
+
+      if (nextSelected.has(field.id)) {
+        nextSelected.delete(field.id);
+        delete nextPos[field.id];
       } else {
-        next.add(field.id);
+        nextSelected.add(field.id);
+        nextPos[field.id] = nextSelected.size;
       }
-      return next;
+
+      nextPos = reindexPositions(nextSelected, nextPos);
+      setFieldPositions(nextPos);
+      return nextSelected;
     });
   };
 
+  // Update specific column position number
+  const handlePositionChange = (fieldId: string, newPosInput: number) => {
+    const ordered = getOrderedSelectedFields();
+    const currIndex = ordered.indexOf(fieldId);
+    if (currIndex === -1) return;
+
+    const totalSelected = ordered.length;
+    const targetPos = Math.max(1, Math.min(totalSelected, newPosInput));
+    const targetIndex = targetPos - 1;
+    if (currIndex === targetIndex) return;
+
+    const reordered = [...ordered];
+    const [moved] = reordered.splice(currIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const updatedPos: Record<string, number> = {};
+    reordered.forEach((id, idx) => {
+      updatedPos[id] = idx + 1;
+    });
+    setFieldPositions(updatedPos);
+  };
+
+  // Select All / Select Matching
   const handleSelectAll = () => {
-    const next = new Set(selectedFields);
-    filteredFields.forEach((f) => next.add(f.id));
-    setSelectedFields(next);
+    const nextSelected = new Set(selectedFields);
+    filteredFields.forEach((f) => nextSelected.add(f.id));
+    const nextPos = reindexPositions(nextSelected, fieldPositions);
+    setSelectedFields(nextSelected);
+    setFieldPositions(nextPos);
   };
 
+  // Clear All / Clear Matching
   const handleClearAll = () => {
-    // Keep mandatory required fields selected
-    const next = new Set<string>();
+    const nextSelected = new Set<string>();
     allFields.forEach((f) => {
-      if (f.isRequired) next.add(f.id);
+      if (f.isRequired) {
+        nextSelected.add(f.id);
+      } else if (searchQuery.trim() !== "" && !filteredFields.some((match) => match.id === f.id)) {
+        // Keep selected fields that are not part of the active search filter
+        if (selectedFields.has(f.id)) nextSelected.add(f.id);
+      }
     });
-    setSelectedFields(next);
+    const nextPos = reindexPositions(nextSelected, fieldPositions);
+    setSelectedFields(nextSelected);
+    setFieldPositions(nextPos);
   };
 
+  // Trigger file download
   const handleExport = async () => {
     if (selectedFields.size === 0 || exporting) return;
     setExporting(true);
     setExportError(null);
 
-    // Maintain requested column order matching allFields definition
-    const orderedSelectedFields = allFields
-      .filter((f) => selectedFields.has(f.id))
-      .map((f) => f.id);
+    const orderedSelected = getOrderedSelectedFields();
 
     try {
       const response = await fetch("/api/leads/export", {
@@ -183,7 +265,7 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           format,
-          fields: orderedSelectedFields,
+          fields: orderedSelected,
           ...activeFilters,
         }),
       });
@@ -216,6 +298,7 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
   };
 
   const exportBtnLabel = format === "xlsx" ? "Export Excel" : "Export CSV";
+  const isSearching = searchQuery.trim().length > 0;
 
   return (
     <div
@@ -228,14 +311,20 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
       }}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-5 overflow-y-auto"
     >
-      <div className="relative w-full max-w-2xl bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] rounded-2xl shadow-2xl flex flex-col h-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden transition-all duration-200">
+      <div className="relative w-full max-w-4xl bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] rounded-2xl shadow-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[88vh] overflow-hidden transition-all duration-200">
         
-        {/* Modal Header */}
+        {/* Header (Matching Screenshot 3) */}
         <div className="flex items-center justify-between px-6 py-4.5 border-b border-[var(--border-color,#E2E8F0)] bg-[var(--surface-subtle,#F8FAFC)] shrink-0">
           <div>
-            <h2 id="export-leads-title" className="text-xl font-bold tracking-tight text-[var(--text-primary,#0F172A)]">
-              Export Leads
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 id="export-leads-title" className="text-xl font-bold tracking-tight text-[var(--text-primary,#0F172A)]">
+                Export Leads
+              </h2>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                {format === "xlsx" ? <FileSpreadsheet className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                <span>{format === "xlsx" ? "Excel (.xlsx)" : "CSV (.csv)"}</span>
+              </span>
+            </div>
             <p className="text-xs text-[var(--text-secondary,#64748B)] mt-0.5">
               Select the fields you want to include in the exported file.
             </p>
@@ -251,7 +340,39 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
           </button>
         </div>
 
-        {/* Modal Body - Independent Scrollable Area */}
+        {/* Toolbar: Search Left, Select All | Clear All Right */}
+        <div className="px-6 py-3.5 border-b border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] flex items-center justify-between gap-4 flex-wrap shrink-0">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary,#94A3B8)]" />
+            <input
+              type="text"
+              placeholder="Search fields..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9.5 pr-3.5 py-2 text-sm bg-[var(--background,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] rounded-xl text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors"
+            >
+              {isSearching ? "Select matching" : "Select All"}
+            </button>
+            <span className="text-slate-300 dark:text-slate-700">|</span>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="px-2.5 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              {isSearching ? "Clear matching" : "Clear All"}
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body - Scrollable Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
           {/* Error Banner */}
@@ -261,133 +382,107 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
             </div>
           )}
 
-          {/* 1. Format Selector Cards */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary,#64748B)] mb-2.5">
-              Export Format
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Excel Card */}
-              <button
-                type="button"
-                onClick={() => setFormat("xlsx")}
-                className={`relative flex items-center gap-3.5 p-4 rounded-xl border text-left transition-all ${
-                  format === "xlsx"
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/40 font-bold shadow-xs"
-                    : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] hover:border-emerald-400"
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl ${format === "xlsx" ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}>
-                  <FileSpreadsheet className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold flex items-center justify-between">
-                    <span>Excel (.xlsx)</span>
-                    {format === "xlsx" && <Check className="w-4 h-4 text-emerald-500" />}
-                  </div>
-                  <div className="text-xs opacity-75 font-normal">Microsoft Excel Workbook</div>
-                </div>
-              </button>
-
-              {/* CSV Card */}
-              <button
-                type="button"
-                onClick={() => setFormat("csv")}
-                className={`relative flex items-center gap-3.5 p-4 rounded-xl border text-left transition-all ${
-                  format === "csv"
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/40 font-bold shadow-xs"
-                    : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-primary,#0F172A)] hover:border-emerald-400"
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl ${format === "csv" ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}>
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold flex items-center justify-between">
-                    <span>CSV (.csv)</span>
-                    {format === "csv" && <Check className="w-4 h-4 text-emerald-500" />}
-                  </div>
-                  <div className="text-xs opacity-75 font-normal">Comma-Separated Values</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* 2. Controls Header: Search + Select All / Clear All */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary,#64748B)]">
-                Fields Selection
-              </label>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  className="px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-colors"
-                >
-                  Select All
-                </button>
-                <span className="text-slate-300 dark:text-slate-700">|</span>
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  className="px-2.5 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  Clear All
-                </button>
-              </div>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary,#94A3B8)]" />
-              <input
-                type="text"
-                placeholder="Search fields..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9.5 pr-3.5 py-2.5 text-sm bg-[var(--background,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] rounded-xl text-[var(--text-primary,#0F172A)] placeholder-[var(--text-secondary,#94A3B8)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* 3. Categorized Field Card Sections */}
-          <div className="space-y-5 pr-1">
+          {/* Categorized Field Card Sections (3 Columns on Desktop) */}
+          <div className="space-y-6">
             
-            {/* Section 1: Basic Information */}
+            {/* 1. BASIC INFORMATION */}
             {groupedFields.basic.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-2.5">
+                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
                   BASIC INFORMATION
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {groupedFields.basic.map((f) => {
                     const isChecked = selectedFields.has(f.id);
+                    const pos = fieldPositions[f.id];
                     return (
                       <div
                         key={f.id}
                         onClick={() => toggleField(f)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[44px] ${
+                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
                           isChecked
-                            ? "border-emerald-500/50 bg-emerald-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs"
+                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
                             : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        } ${f.isRequired ? "cursor-not-allowed opacity-90" : ""}`}
+                        } ${f.isRequired ? "cursor-not-allowed" : ""}`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             disabled={f.isRequired}
                             onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer disabled:cursor-not-allowed"
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer disabled:cursor-not-allowed shrink-0"
                           />
-                          <span className="text-sm font-medium">{f.label}</span>
+                          <span className="text-sm font-medium truncate">{f.label}</span>
                         </div>
-                        {f.isRequired && (
-                          <span className="px-2 py-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-md tracking-wider uppercase">
-                            REQUIRED
-                          </span>
+
+                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          {f.isRequired && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded tracking-wider uppercase">
+                              REQUIRED
+                            </span>
+                          )}
+                          {isChecked && (
+                            <input
+                              type="number"
+                              min={1}
+                              max={selectedFields.size}
+                              value={pos || ""}
+                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                              aria-label={`Column position for ${f.label}`}
+                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 2. CONTACT INFORMATION */}
+            {groupedFields.contact.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
+                  CONTACT INFORMATION
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {groupedFields.contact.map((f) => {
+                    const isChecked = selectedFields.has(f.id);
+                    const pos = fieldPositions[f.id];
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => toggleField(f)}
+                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
+                          isChecked
+                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
+                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                          />
+                          <span className="text-sm font-medium truncate">{f.label}</span>
+                        </div>
+
+                        {isChecked && (
+                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={selectedFields.size}
+                              value={pos || ""}
+                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                              aria-label={`Column position for ${f.label}`}
+                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                            />
+                          </div>
                         )}
                       </div>
                     );
@@ -396,69 +491,49 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
               </div>
             )}
 
-            {/* Section 2: Contact Information */}
-            {groupedFields.contact.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-2.5">
-                  CONTACT INFORMATION
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {groupedFields.contact.map((f) => {
-                    const isChecked = selectedFields.has(f.id);
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleField(f)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[44px] ${
-                          isChecked
-                            ? "border-emerald-500/50 bg-emerald-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs"
-                            : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
-                          />
-                          <span className="text-sm font-medium">{f.label}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Section 3: Pipeline & Assignment */}
+            {/* 3. PIPELINE & ASSIGNMENT */}
             {groupedFields.pipeline.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-2.5">
+                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
                   PIPELINE & ASSIGNMENT
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {groupedFields.pipeline.map((f) => {
                     const isChecked = selectedFields.has(f.id);
+                    const pos = fieldPositions[f.id];
                     return (
                       <div
                         key={f.id}
                         onClick={() => toggleField(f)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[44px] ${
+                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
                           isChecked
-                            ? "border-emerald-500/50 bg-emerald-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs"
+                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
                             : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
                           />
-                          <span className="text-sm font-medium">{f.label}</span>
+                          <span className="text-sm font-medium truncate">{f.label}</span>
                         </div>
+
+                        {isChecked && (
+                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={selectedFields.size}
+                              value={pos || ""}
+                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                              aria-label={`Column position for ${f.label}`}
+                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -466,34 +541,49 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
               </div>
             )}
 
-            {/* Section 4: Follow-Up */}
+            {/* 4. FOLLOW-UP */}
             {groupedFields.followup.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-2.5">
+                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
                   FOLLOW-UP
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {groupedFields.followup.map((f) => {
                     const isChecked = selectedFields.has(f.id);
+                    const pos = fieldPositions[f.id];
                     return (
                       <div
                         key={f.id}
                         onClick={() => toggleField(f)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[44px] ${
+                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
                           isChecked
-                            ? "border-emerald-500/50 bg-emerald-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs"
+                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
                             : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
                           />
-                          <span className="text-sm font-medium">{f.label}</span>
+                          <span className="text-sm font-medium truncate">{f.label}</span>
                         </div>
+
+                        {isChecked && (
+                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={selectedFields.size}
+                              value={pos || ""}
+                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                              aria-label={`Column position for ${f.label}`}
+                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -501,34 +591,49 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
               </div>
             )}
 
-            {/* Section 5: Revenue & Financial */}
+            {/* 5. REVENUE & FINANCIAL */}
             {groupedFields.revenue.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-2.5">
+                <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider mb-3">
                   REVENUE & FINANCIAL
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {groupedFields.revenue.map((f) => {
                     const isChecked = selectedFields.has(f.id);
+                    const pos = fieldPositions[f.id];
                     return (
                       <div
                         key={f.id}
                         onClick={() => toggleField(f)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[44px] ${
+                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
                           isChecked
-                            ? "border-emerald-500/50 bg-emerald-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs"
+                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
                             : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
                           />
-                          <span className="text-sm font-medium">{f.label}</span>
+                          <span className="text-sm font-medium truncate">{f.label}</span>
                         </div>
+
+                        {isChecked && (
+                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={selectedFields.size}
+                              value={pos || ""}
+                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                              aria-label={`Column position for ${f.label}`}
+                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -536,44 +641,59 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
               </div>
             )}
 
-            {/* Section 6: Dynamic Fields */}
+            {/* 6. DYNAMIC FIELDS (MASTER CONFIGURATION) */}
             <div>
-              <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-[var(--text-secondary,#64748B)] uppercase tracking-wider">
                   DYNAMIC FIELDS (MASTER CONFIGURATION)
                 </h3>
-                {loadingFields && <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />}
+                {loadingFields && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />}
               </div>
 
               {groupedFields.dyn.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {groupedFields.dyn.map((f) => {
                     const isChecked = selectedFields.has(f.id);
+                    const pos = fieldPositions[f.id];
                     return (
                       <div
                         key={f.id}
                         onClick={() => toggleField(f)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[44px] ${
+                        className={`relative flex items-center justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all min-h-[48px] ${
                           isChecked
-                            ? "border-emerald-500/50 bg-emerald-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs"
+                            ? "border-blue-500/50 bg-blue-500/5 text-[var(--text-primary,#0F172A)] font-medium shadow-2xs ring-1 ring-blue-500/20"
                             : "border-[var(--border-color,#E2E8F0)] bg-[var(--surface,#FFFFFF)] text-[var(--text-secondary,#64748B)] hover:border-slate-300 dark:hover:border-slate-700"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
                           />
-                          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{f.label}</span>
+                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">{f.label}</span>
                         </div>
+
+                        {isChecked && (
+                          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={selectedFields.size}
+                              value={pos || ""}
+                              onChange={(e) => handlePositionChange(f.id, parseInt(e.target.value, 10))}
+                              aria-label={`Column position for ${f.label}`}
+                              className="w-9 h-7 px-1 text-center text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="p-3.5 text-center text-xs text-[var(--text-secondary,#94A3B8)] bg-[var(--background,#F8FAFC)] border border-dashed border-[var(--border-color,#E2E8F0)] rounded-xl">
+                <div className="p-4 text-center text-xs text-[var(--text-secondary,#94A3B8)] bg-[var(--background,#F8FAFC)] border border-dashed border-[var(--border-color,#E2E8F0)] rounded-xl">
                   {loadingFields
                     ? "Loading dynamic fields..."
                     : searchQuery
@@ -585,10 +705,13 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
           </div>
         </div>
 
-        {/* Modal Footer - Sticky Bottom Action Bar */}
+        {/* Modal Footer (Matching Screenshot 3) */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-color,#E2E8F0)] bg-[var(--surface-subtle,#F8FAFC)] shrink-0 flex-wrap gap-3">
           <div className="text-xs font-semibold text-[var(--text-secondary,#64748B)]">
-            Selected: <strong className="text-emerald-600 dark:text-emerald-400 text-sm font-bold">{selectedFields.size}</strong> {selectedFields.size === 1 ? "field" : "fields"}
+            Selected: <strong className="text-blue-600 dark:text-blue-400 text-sm font-bold">{selectedFields.size}</strong> {selectedFields.size === 1 ? "field" : "fields"}
+            {totalCount != null && totalCount > 0 && (
+              <span className="ml-1 text-slate-400 font-normal">({totalCount} {totalCount === 1 ? "lead" : "leads"})</span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -605,7 +728,7 @@ export default function LeadExportModal({ isOpen, onClose, activeFilters = {} }:
               type="button"
               onClick={handleExport}
               disabled={selectedFields.size === 0 || exporting}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {exporting ? (
                 <>

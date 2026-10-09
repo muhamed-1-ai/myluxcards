@@ -7,32 +7,38 @@ export const dynamic = "force-dynamic";
 interface StandardFieldMeta {
   key: string;
   label: string;
-  group: "standard" | "followup" | "financial";
+  group: "basic" | "contact" | "pipeline" | "followup" | "revenue";
   getValue: (lead: any) => any;
+  isNumeric?: boolean;
 }
 
 const STANDARD_FIELDS: Record<string, StandardFieldMeta> = {
-  name: { key: "name", label: "Lead Name", group: "standard", getValue: (l) => l.name || "" },
-  contactNumber: { key: "contactNumber", label: "Mobile / Phone", group: "standard", getValue: (l) => l.contactNumber || "" },
-  email: { key: "email", label: "Email Address", group: "standard", getValue: (l) => l.email || "" },
-  companyName: { key: "companyName", label: "Company Name", group: "standard", getValue: (l) => l.companyName || "" },
-  address: { key: "address", label: "Address", group: "standard", getValue: (l) => l.address || "" },
-  stage: { key: "stage", label: "Stage / Status", group: "standard", getValue: (l) => l.stage || l.status || "" },
-  source: { key: "source", label: "Lead Source", group: "standard", getValue: (l) => l.source || "" },
-  assignedUserName: { key: "assignedUserName", label: "Assigned To", group: "standard", getValue: (l) => l.assignedUserName || "" },
-  createdByName: { key: "createdByName", label: "Created By (Owner)", group: "standard", getValue: (l) => l.createdByName || "" },
+  // Basic Information
+  name: { key: "name", label: "Lead Name", group: "basic", getValue: (l) => l.name || "" },
+  companyName: { key: "companyName", label: "Company Name", group: "basic", getValue: (l) => l.companyName || "" },
+  address: { key: "address", label: "Address", group: "basic", getValue: (l) => l.address || "" },
   createdAt: {
     key: "createdAt",
     label: "Created Date",
-    group: "standard",
+    group: "basic",
     getValue: (l) => (l.createdAt ? new Date(l.createdAt).toLocaleDateString() : ""),
   },
   updatedAt: {
     key: "updatedAt",
     label: "Updated Date",
-    group: "standard",
+    group: "basic",
     getValue: (l) => (l.updatedAt ? new Date(l.updatedAt).toLocaleDateString() : ""),
   },
+
+  // Contact Information
+  contactNumber: { key: "contactNumber", label: "Mobile / Phone", group: "contact", getValue: (l) => (l.contactNumber ? String(l.contactNumber) : "") },
+  email: { key: "email", label: "Email Address", group: "contact", getValue: (l) => l.email || "" },
+
+  // Pipeline & Assignment
+  stage: { key: "stage", label: "Current Lead Stage", group: "pipeline", getValue: (l) => l.stage || l.status || "" },
+  source: { key: "source", label: "Lead Source", group: "pipeline", getValue: (l) => l.source || "" },
+  assignedUserName: { key: "assignedUserName", label: "Assigned User", group: "pipeline", getValue: (l) => l.assignedUserName || "" },
+  createdByName: { key: "createdByName", label: "Created By (Owner)", group: "pipeline", getValue: (l) => l.createdByName || "" },
 
   // Follow-up Fields
   nextFollowUpAt: {
@@ -45,13 +51,14 @@ const STANDARD_FIELDS: Record<string, StandardFieldMeta> = {
   nextFollowUpNote: { key: "nextFollowUpNote", label: "Follow-up Note", group: "followup", getValue: (l) => l.nextFollowUpNote || "" },
   lastRemark: { key: "lastRemark", label: "Last Remark", group: "followup", getValue: (l) => l.lastRemark || "" },
 
-  // Financial Fields
-  totalAmount: { key: "totalAmount", label: "Total Amount", group: "financial", getValue: (l) => (l.totalAmount != null ? l.totalAmount : "") },
-  advanceAmount: { key: "advanceAmount", label: "Advance Amount", group: "financial", getValue: (l) => (l.advanceAmount != null ? l.advanceAmount : "") },
+  // Revenue & Financial Fields
+  totalAmount: { key: "totalAmount", label: "Total Amount", group: "revenue", isNumeric: true, getValue: (l) => (l.totalAmount != null ? Number(l.totalAmount) : "") },
+  advanceAmount: { key: "advanceAmount", label: "Advance Amount", group: "revenue", isNumeric: true, getValue: (l) => (l.advanceAmount != null ? Number(l.advanceAmount) : "") },
   balanceAmount: {
     key: "balanceAmount",
     label: "Balance Amount",
-    group: "financial",
+    group: "revenue",
+    isNumeric: true,
     getValue: (l) => {
       const tot = Number(l.totalAmount || 0);
       const adv = Number(l.advanceAmount || 0);
@@ -61,7 +68,7 @@ const STANDARD_FIELDS: Record<string, StandardFieldMeta> = {
   paymentInformation: {
     key: "paymentInformation",
     label: "Payment Information",
-    group: "financial",
+    group: "revenue",
     getValue: (l) => {
       if (!l.paymentInformation) return "";
       if (typeof l.paymentInformation === "string") return l.paymentInformation;
@@ -76,7 +83,7 @@ const STANDARD_FIELDS: Record<string, StandardFieldMeta> = {
   products: {
     key: "products",
     label: "Products",
-    group: "financial",
+    group: "revenue",
     getValue: (l) => {
       if (!l.products) return "";
       if (Array.isArray(l.products)) {
@@ -86,6 +93,19 @@ const STANDARD_FIELDS: Record<string, StandardFieldMeta> = {
     },
   },
 };
+
+/**
+ * Sanitize strings to prevent CSV/Excel Formula Injection attacks
+ */
+function sanitizeFormulaInjection(val: any): any {
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.startsWith("=") || trimmed.startsWith("+") || trimmed.startsWith("-") || trimmed.startsWith("@")) {
+      return `'${val}`;
+    }
+  }
+  return val;
+}
 
 function formatDynamicValue(val: any, inputType: string): string {
   if (val === undefined || val === null || val === "") return "";
@@ -124,7 +144,8 @@ function formatDynamicValue(val: any, inputType: string): string {
 
 function escapeCsvCell(val: any): string {
   if (val === undefined || val === null) return "";
-  const str = String(val);
+  const sanitized = sanitizeFormulaInjection(val);
+  const str = String(sanitized);
   if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -144,9 +165,23 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const format: "xlsx" | "csv" = body.format === "csv" ? "csv" : "xlsx";
-    const requestedFields: string[] = Array.isArray(body.fields) && body.fields.length > 0 ? body.fields : ["name", "contactNumber", "email", "stage", "source", "assignedUserName"];
 
-    // 1. Build access filter & query parameters matching existing search endpoint
+    // Standardize requested fields array (supports string[] or { id: string, order?: number }[])
+    let requestedFields: string[] = [];
+    if (Array.isArray(body.fields) && body.fields.length > 0) {
+      if (typeof body.fields[0] === "string") {
+        requestedFields = body.fields;
+      } else if (typeof body.fields[0] === "object" && body.fields[0].id) {
+        const sortedObjects = [...body.fields].sort((a, b) => (a.order || 0) - (b.order || 0));
+        requestedFields = sortedObjects.map((item) => item.id);
+      }
+    }
+
+    if (requestedFields.length === 0) {
+      requestedFields = ["name", "contactNumber", "email", "companyName", "stage", "source", "assignedUserName"];
+    }
+
+    // 1. Build access filter & query parameters matching search endpoint
     const accessFilter = getLeadAccessFilter(identity, "l");
     let whereClause = accessFilter.whereClause;
     const params: any[] = [...accessFilter.params];
@@ -314,7 +349,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Resolve Header Column Labels and Requested Value Extractors
-    const columns: Array<{ id: string; label: string; extract: (lead: any) => any }> = [];
+    const columns: Array<{ id: string; label: string; isNumeric?: boolean; extract: (lead: any) => any }> = [];
 
     for (const fieldKey of requestedFields) {
       if (STANDARD_FIELDS[fieldKey]) {
@@ -322,6 +357,7 @@ export async function POST(request: Request) {
         columns.push({
           id: fieldKey,
           label: meta.label,
+          isNumeric: meta.isNumeric,
           extract: (lead) => meta.getValue(lead),
         });
       } else if (fieldKey.startsWith("dynamic:")) {
@@ -348,13 +384,21 @@ export async function POST(request: Request) {
     if (columns.length === 0) {
       columns.push(
         { id: "name", label: "Lead Name", extract: (l) => l.name || "" },
-        { id: "contactNumber", label: "Mobile", extract: (l) => l.contactNumber || "" },
-        { id: "email", label: "Email", extract: (l) => l.email || "" }
+        { id: "contactNumber", label: "Mobile / Phone", extract: (l) => l.contactNumber || "" },
+        { id: "email", label: "Email Address", extract: (l) => l.email || "" }
       );
     }
 
     const headers = columns.map((c) => c.label);
-    const rows = leads.map((lead) => columns.map((col) => col.extract(lead)));
+    const rows = leads.map((lead) =>
+      columns.map((col) => {
+        const rawVal = col.extract(lead);
+        if (col.isNumeric && (typeof rawVal === "number" || (!isNaN(Number(rawVal)) && rawVal !== ""))) {
+          return Number(rawVal);
+        }
+        return sanitizeFormulaInjection(rawVal);
+      })
+    );
 
     const dateStr = new Date().toISOString().slice(0, 10);
 
@@ -362,7 +406,7 @@ export async function POST(request: Request) {
     if (format === "csv") {
       const csvLines = [
         headers.map(escapeCsvCell).join(","),
-        ...rows.map((row) => row.map(escapeCsvCell).join(",")),
+        ...rows.map((row) => row.map((cell) => escapeCsvCell(cell)).join(",")),
       ];
       // Include UTF-8 BOM (\uFEFF) for Microsoft Excel compatibility
       const csvContent = "\uFEFF" + csvLines.join("\r\n");
@@ -380,16 +424,19 @@ export async function POST(request: Request) {
       const worksheetData = [headers, ...rows];
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-      // Auto-calculate column widths
+      // Auto-calculate column widths & format types
       const colWidths = headers.map((h, idx) => {
         let maxLen = String(h).length;
         for (const r of rows) {
-          const cellLen = String(r[idx] || "").length;
+          const cellLen = String(r[idx] != null ? r[idx] : "").length;
           if (cellLen > maxLen) maxLen = cellLen;
         }
-        return { wch: Math.min(Math.max(maxLen + 3, 12), 50) };
+        return { wch: Math.min(Math.max(maxLen + 4, 14), 50) };
       });
       worksheet["!cols"] = colWidths;
+
+      // Freeze header row (Row 1)
+      worksheet["!views"] = [{ state: "frozen", ySplit: 1 }];
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Leads");

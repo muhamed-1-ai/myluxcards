@@ -26,7 +26,10 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  ChevronDown,
+  FileSpreadsheet,
+  FileText
 } from "lucide-react";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
@@ -91,10 +94,33 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   // Drawers & Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const [selectedExportFormat, setSelectedExportFormat] = useState<"xlsx" | "csv">("xlsx");
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
+
+  // Outside click & Escape listener for Export Dropdown Menu
+  useEffect(() => {
+    if (!exportDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExportDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [exportDropdownOpen]);
 
   // Helper to sync state changes to URL query parameters
   const updateUrl = useCallback(
@@ -407,14 +433,47 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
           <div className="flex items-center gap-4 flex-wrap">
             {/* Action Group 1: View Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <button
-                type="button"
-                className="crm-btn-secondary inline-flex"
-                onClick={() => setIsExportOpen(true)}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export</span>
-              </button>
+              {/* Export Dropdown Menu (Screenshot 2 behavior) */}
+              <div className="relative inline-block text-left" ref={exportDropdownRef}>
+                <button
+                  type="button"
+                  className={`crm-btn-secondary inline-flex items-center gap-1.5 ${exportDropdownOpen ? "active" : ""}`}
+                  onClick={() => setExportDropdownOpen((prev) => !prev)}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export</span>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />
+                </button>
+
+                {exportDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-56 bg-[var(--surface,#FFFFFF)] border border-[var(--border-color,#E2E8F0)] rounded-xl shadow-xl z-50 p-1.5 text-xs transition-all">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedExportFormat("xlsx");
+                        setExportDropdownOpen(false);
+                        setIsExportOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 text-[var(--text-primary,#0F172A)] hover:text-blue-600 transition-colors"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Excel Workbook (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedExportFormat("csv");
+                        setExportDropdownOpen(false);
+                        setIsExportOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 font-medium hover:bg-blue-50 dark:hover:bg-blue-950/40 text-[var(--text-primary,#0F172A)] hover:text-blue-600 transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span>CSV (.csv)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -1179,6 +1238,8 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
       <LeadExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
+        initialFormat={selectedExportFormat}
+        totalCount={total}
         activeFilters={{
           q: searchQuery,
           stage: stageFilter,
