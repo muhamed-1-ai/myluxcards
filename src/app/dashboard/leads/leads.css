@@ -1754,7 +1754,7 @@ body.dark-mode .crm-mobile-lead-card,
   gap: 6px;
   height: 44px;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
@@ -1764,9 +1764,37 @@ body.dark-mode .crm-mobile-lead-card,
   text-decoration: none;
   transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  box-sizing: border-box;
 }
 .crm-mobile-btn-call:hover {
   background-color: rgba(16, 185, 129, 0.2);
+}
+
+.crm-mobile-btn-save-contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  background-color: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #2563EB;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  box-sizing: border-box;
+}
+.crm-mobile-btn-save-contact:hover {
+  background-color: rgba(59, 130, 246, 0.2);
 }
 
 .crm-mobile-btn-chat {
@@ -1776,7 +1804,7 @@ body.dark-mode .crm-mobile-lead-card,
   gap: 6px;
   height: 44px;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
@@ -1786,6 +1814,9 @@ body.dark-mode .crm-mobile-lead-card,
   text-decoration: none;
   transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  box-sizing: border-box;
 }
 .crm-mobile-btn-chat:hover {
   background-color: rgba(14, 165, 233, 0.2);
@@ -1798,7 +1829,7 @@ body.dark-mode .crm-mobile-lead-card,
   gap: 6px;
   height: 44px;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
@@ -1808,6 +1839,9 @@ body.dark-mode .crm-mobile-lead-card,
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  box-sizing: border-box;
 }
 .crm-mobile-btn-edit:hover {
   background-color: var(--border-color, #E2E8F0);
@@ -1819,6 +1853,14 @@ body.dark-mode .crm-mobile-btn-call,
   background-color: rgba(16, 185, 129, 0.15) !important;
   border-color: rgba(16, 185, 129, 0.3) !important;
   color: #34D399 !important;
+}
+
+[data-theme="dark"] .crm-mobile-btn-save-contact,
+body.dark-mode .crm-mobile-btn-save-contact,
+.dark .crm-mobile-btn-save-contact {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #60A5FA !important;
 }
 
 [data-theme="dark"] .crm-mobile-btn-chat,

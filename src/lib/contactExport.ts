@@ -1,7 +1,7 @@
 /**
  * Contact Export Helper Utility for 3G ZAPPIT
  * Generates RFC 6350 / vCard 3.0 .vcf files from selected lead records.
- * Supports desktop file download and mobile Web Share API handoff with fallback.
+ * Direct inline vCard serving & desktop download without navigator.share system sheet.
  */
 
 import { buildVCardString } from "./vcard";
@@ -38,7 +38,31 @@ export function exportLeadContact(
     return false;
   }
 
-  // 1. Build RFC 6350 / vCard 3.0 string using serialized vcard builder
+  // Safe filename derived from lead's name
+  const cleanNameForFile = name
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\s+/g, "_")
+    .trim();
+  const filename = `${cleanNameForFile || "Lead"}_Contact.vcf`;
+
+  // Check if lead has server id for direct API endpoint opening
+  if (lead.id && typeof window !== "undefined") {
+    const isMobileDevice =
+      window.innerWidth <= 1024 ||
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isMobileDevice) {
+      // Mobile native contact preview/import: direct user navigation to authorized vCard endpoint
+      const vcardUrl = `/api/leads/${lead.id}/vcard`;
+      if (onFeedback) {
+        onFeedback(`Opening contact preview for ${name}...`);
+      }
+      window.location.href = vcardUrl;
+      return true;
+    }
+  }
+
+  // Client-side Blob generation for desktop or fallback
   const vcardObj = buildVCardString({
     profileName: name,
     cardName: name,
@@ -52,56 +76,7 @@ export function exportLeadContact(
     country: lead.country,
   });
 
-  // Safe filename derived from lead's name (preserving Unicode names)
-  const cleanNameForFile = name
-    .replace(/[/\\?%*:|"<>]/g, "_")
-    .replace(/\s+/g, "_")
-    .trim();
-  const filename = `${cleanNameForFile || "Lead"}_Contact.vcf`;
-
   const blob = new Blob([vcardObj.vcard], { type: "text/vcard;charset=utf-8;" });
-
-  // 2. Mobile Web Share API file sharing check
-  if (typeof window !== "undefined" && typeof navigator !== "undefined") {
-    const isMobileDevice =
-      window.innerWidth <= 1024 ||
-      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    if (isMobileDevice && navigator.share && navigator.canShare) {
-      try {
-        const file = new File([blob], filename, { type: "text/vcard" });
-        if (navigator.canShare({ files: [file] })) {
-          navigator
-            .share({
-              title: filename,
-              text: `Contact card for ${name}`,
-              files: [file],
-            })
-            .then(() => {
-              if (onFeedback) {
-                onFeedback("Contact file ready. Open file to save in Contacts.");
-              }
-            })
-            .catch((err) => {
-              // If user cancelled the share sheet explicitly, do not force download fallback
-              if (err?.name === "AbortError") {
-                return;
-              }
-              console.warn("[Save Contact] Share sheet failed, falling back to download:", err);
-              triggerBlobDownload(blob, filename, name, onToastFeedback(onFeedback));
-            });
-          return true;
-        }
-      } catch (err: any) {
-        if (err?.name === "AbortError") {
-          return false;
-        }
-        console.warn("[Save Contact] Web Share error, falling back to download:", err);
-      }
-    }
-  }
-
-  // 3. Desktop / Fallback Blob Download
   triggerBlobDownload(blob, filename, name, onToastFeedback(onFeedback));
   return true;
 }
@@ -130,7 +105,7 @@ function triggerBlobDownload(
     document.body.removeChild(link);
 
     setTimeout(() => URL.revokeObjectURL(url), 3000);
-    onFeedback(`Contact download started for ${leadName}. Open ${filename} to save.`);
+    onFeedback(`Contact download started for ${leadName}.`);
   } catch (err) {
     console.error("[Save Contact] Download error:", err);
     onFeedback("Failed to generate contact file. Please try again.", true);
@@ -151,7 +126,7 @@ export function showToastNotification(message: string, isError: boolean = false)
     right: 24px;
     z-index: 10000;
     background: ${isError ? "#451A1A" : "#0F172A"};
-    border: 1px solid ${isError ? "#F87171" : "#0066FF"};
+    border: 1px solid ${isError ? "#0066FF" : "#0066FF"};
     color: #FFFFFF;
     padding: 12px 20px;
     border-radius: 12px;

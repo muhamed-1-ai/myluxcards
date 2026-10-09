@@ -37,8 +37,9 @@ import LeadIdentityBlock from "./LeadIdentityBlock";
 import LeadSourceBadge from "./LeadSourceBadge";
 import LeadExportModal from "./LeadExportModal";
 import ImportLeadsModal from "./ImportLeadsModal";
+import LeadContactCardDrawer from "./LeadContactCardDrawer";
 import "../../app/dashboard/leads/leads.css";
-import { exportLeadContact } from "@/lib/contactExport";
+import { exportLeadContact, showToastNotification } from "@/lib/contactExport";
 
 interface LeadsWorkspaceProps {
   identity: { id: string; name: string | null; email: string; role: string };
@@ -102,6 +103,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
 
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [contactSheetLead, setContactSheetLead] = useState<any | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
 
@@ -1008,66 +1010,77 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                       </div>
                     </div>
 
-                    {/* Mobile Touch Quick Action Bar */}
-                    <div className="grid grid-cols-4 gap-1.5 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5" onClick={(e) => e.stopPropagation()}>
+                    {/* Mobile Touch Quick Action Bar (Call -> Save -> Chat -> Edit) */}
+                    <div
+                      className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* 1. CALL */}
                       {lead.contactNumber ? (
                         <a
                           href={`tel:${lead.contactNumber}`}
-                          className="crm-mobile-btn-call"
+                          className="crm-mobile-btn-call whitespace-nowrap"
                           title={`Call ${lead.contactNumber}`}
                           aria-label={`Call ${lead.name || "lead"}`}
                         >
-                          <Phone className="w-3.5 h-3.5" />
+                          <Phone className="w-4 h-4 shrink-0" />
                           <span>Call</span>
                         </a>
                       ) : (
-                        <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed">
-                          <Phone className="w-3.5 h-3.5" />
+                        <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed whitespace-nowrap">
+                          <Phone className="w-4 h-4 shrink-0" />
                           <span>Call</span>
                         </button>
                       )}
 
+                      {/* 2. SAVE */}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          exportLeadContact(lead);
+                          setContactSheetLead(lead);
                         }}
-                        className="crm-mobile-btn-save-contact flex items-center justify-center gap-1 min-h-[36px] px-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-all text-[11px] font-semibold"
+                        className="crm-mobile-btn-save-contact whitespace-nowrap"
                         title={`Save contact for ${lead.name || "lead"}`}
                         aria-label={`Save contact for ${lead.name || "lead"}`}
                       >
-                        <UserPlus className="w-3.5 h-3.5" />
+                        <UserPlus className="w-4 h-4 shrink-0" />
                         <span>Save</span>
                       </button>
 
+                      {/* 3. CHAT */}
                       {lead.contactNumber ? (
                         <a
                           href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="crm-mobile-btn-chat"
+                          className="crm-mobile-btn-chat whitespace-nowrap"
                           title="WhatsApp chat"
                           aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
                         >
-                          <MessageSquare className="w-3.5 h-3.5" />
+                          <MessageSquare className="w-4 h-4 shrink-0" />
                           <span>Chat</span>
                         </a>
                       ) : (
-                        <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed">
-                          <MessageSquare className="w-3.5 h-3.5" />
+                        <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed whitespace-nowrap">
+                          <MessageSquare className="w-4 h-4 shrink-0" />
                           <span>Chat</span>
                         </button>
                       )}
 
+                      {/* 4. EDIT */}
                       <button
                         type="button"
-                        onClick={() => { setEditingLead(lead); setIsAddOpen(true); }}
-                        className="crm-mobile-btn-edit"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingLead(lead);
+                          setIsAddOpen(true);
+                        }}
+                        className="crm-mobile-btn-edit whitespace-nowrap"
                         title="Edit lead"
                         aria-label={`Edit ${lead.name || "lead"}`}
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Edit2 className="w-4 h-4 shrink-0" />
                         <span>Edit</span>
                       </button>
                     </div>
@@ -1273,6 +1286,14 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         onSuccessRefresh={() => {
           fetchLeads();
         }}
+      />
+
+      {/* Lead Contact Card Sheet (Screenshot 3 experience) */}
+      <LeadContactCardDrawer
+        isOpen={!!contactSheetLead}
+        onClose={() => setContactSheetLead(null)}
+        lead={contactSheetLead}
+        onToastFeedback={showToastNotification}
       />
     </div>
   );
