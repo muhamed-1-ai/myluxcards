@@ -8286,9 +8286,77 @@ body.dark-mode {
   }
 }
 
+/* ==========================================================================
+   MASTER FIX: UNCONDITIONAL BLACK + BLUE PRODUCT CARDS IN ALL THEMES
+   ========================================================================== */
+.nfc-card,
+.nfc-card-front,
+.nfc-card-back,
+.nfc-card-face,
+.config-card,
+#tap-card,
+#config-card,
+[data-theme="light"] .nfc-card,
+[data-theme="light"] .nfc-card-front,
+[data-theme="light"] .nfc-card-back,
+[data-theme="light"] .nfc-card-face,
+[data-theme="light"] .config-card,
+[data-theme="light"] #tap-card,
+[data-theme="light"] #config-card,
+html.light-mode .nfc-card,
+html.light-mode .nfc-card-front,
+html.light-mode .nfc-card-back,
+html.light-mode .nfc-card-face,
+html.light-mode .config-card,
+body.light-mode .nfc-card,
+body.light-mode .nfc-card-front,
+body.light-mode .nfc-card-back,
+body.light-mode .nfc-card-face,
+body.light-mode .config-card {
+  background: linear-gradient(135deg, #0B1424 0%, #060B14 60%, #0E1A30 100%) !important;
+  background-color: #060B14 !important;
+  border: 1px solid rgba(0, 102, 255, 0.45) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 30px rgba(0, 102, 255, 0.25) !important;
+}
 
+.nfc-card-name,
+.nfc-card-name *,
+.nfc-card-logo,
+[data-theme="light"] .nfc-card-name,
+html.light-mode .nfc-card-name,
+body.light-mode .nfc-card-name {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 20px rgba(0, 229, 255, 0.4) !important;
+}
 
+.nfc-card-subtitle,
+.nfc-card-tagline,
+.qr-label,
+[data-theme="light"] .nfc-card-subtitle,
+[data-theme="light"] .nfc-card-tagline,
+[data-theme="light"] .qr-label {
+  color: #00E5FF !important;
+}
 
+.nfc-card-tagline,
+[data-theme="light"] .nfc-card-tagline {
+  color: #94A3B8 !important;
+}
 
+.qr-box,
+[data-theme="light"] .qr-box {
+  background: rgba(6, 11, 20, 0.95) !important;
+  border: 1px solid rgba(0, 229, 255, 0.45) !important;
+}
 
+.qr-dots span,
+[data-theme="light"] .qr-dots span {
+  background-color: #00E5FF !important;
+}
 
+.qr-logo-center,
+[data-theme="light"] .qr-logo-center {
+  background: #060B14 !important;
+  border: 1px solid #00E5FF !important;
+}
