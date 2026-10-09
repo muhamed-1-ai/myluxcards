@@ -5422,6 +5422,199 @@ body.light-mode .crm-kpi-badge {
   color: #0066FF !important;
 }
 
+/* --- Public Website Card Configurator & Shop Theme System --- */
+
+/* 1. Material Options (Card Builder Step 1) */
+[data-theme="light"] .material-option,
+body.light-mode .material-option {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .material-option strong,
+body.light-mode .material-option strong {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .material-option small,
+body.light-mode .material-option small {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .material-option b,
+body.light-mode .material-option b {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .material-option.active,
+body.light-mode .material-option.active {
+  background: #FFFFFF !important;
+  border: 2px solid #0066FF !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .material-option,
+body.dark-mode .material-option {
+  background: #0B172A !important;
+  border: 1px solid #1E293B !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .material-option strong,
+body.dark-mode .material-option strong {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .material-option small,
+body.dark-mode .material-option small {
+  color: #94A3B8 !important;
+}
+
+/* 2. Featured Shop Product Cards (.luxcard-item) */
+[data-theme="light"] .luxcard-item,
+body.light-mode .luxcard-item {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .luxcard-content h3,
+body.light-mode .luxcard-content h3 {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .luxcard-content p,
+body.light-mode .luxcard-content p {
+  color: #64748B !important;
+}
+
+[data-theme="dark"] .luxcard-item,
+body.dark-mode .luxcard-item {
+  background: #0D1726 !important;
+  border: 1px solid #1E293B !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .luxcard-content h3,
+body.dark-mode .luxcard-content h3 {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .luxcard-content p,
+body.dark-mode .luxcard-content p {
+  color: #94A3B8 !important;
+}
+
+/* 3. Trust Panel & Feature Cards (.home-trust-panel, .feature-card, .extension-grid) */
+[data-theme="dark"] .home-trust-panel article,
+[data-theme="dark"] .feature-card,
+[data-theme="dark"] .extension-grid article,
+[data-theme="dark"] .purchase-facts article,
+[data-theme="dark"] .after-purchase-steps li,
+body.dark-mode .home-trust-panel article,
+body.dark-mode .feature-card,
+body.dark-mode .extension-grid article,
+body.dark-mode .purchase-facts article,
+body.dark-mode .after-purchase-steps li {
+  background: #0D1726 !important;
+  border: 1px solid #1E293B !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .home-trust-panel article strong,
+[data-theme="dark"] .feature-card h3,
+[data-theme="dark"] .extension-grid article h3,
+body.dark-mode .home-trust-panel article strong,
+body.dark-mode .feature-card h3,
+body.dark-mode .extension-grid article h3 {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .home-trust-panel article span,
+[data-theme="dark"] .feature-card p,
+[data-theme="dark"] .extension-grid article p,
+body.dark-mode .home-trust-panel article span,
+body.dark-mode .feature-card p,
+body.dark-mode .extension-grid article p {
+  color: #94A3B8 !important;
+}
+
+/* 4. Configurator Containers, Live Price, and Inputs */
+[data-theme="light"] .guided-configurator,
+[data-theme="light"] .designer-controls,
+[data-theme="light"] .live-price,
+[data-theme="light"] .designer-preview,
+[data-theme="light"] .package-summary,
+body.light-mode .guided-configurator,
+body.light-mode .designer-controls,
+body.light-mode .live-price,
+body.light-mode .designer-preview,
+body.light-mode .package-summary {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .designer-step h3,
+[data-theme="light"] .live-price h4,
+[data-theme="light"] .price-total dt,
+[data-theme="light"] .price-total dd,
+body.light-mode .designer-step h3,
+body.light-mode .live-price h4,
+body.light-mode .price-total dt,
+body.light-mode .price-total dd {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .live-price dl dt,
+[data-theme="light"] .live-price dl dd,
+body.light-mode .live-price dl dt,
+body.light-mode .live-price dl dd {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .preview-quick-info label,
+[data-theme="light"] .config-fields label,
+body.light-mode .preview-quick-info label,
+body.light-mode .config-fields label {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .preview-quick-info input,
+[data-theme="light"] .config-fields input,
+[data-theme="light"] .config-fields select,
+body.light-mode .preview-quick-info input,
+body.light-mode .config-fields input,
+body.light-mode .config-fields select {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+/* 5. Canvas Root Background & Height (Prevents Bottom White Strips) */
+html,
+body,
+main,
+#__next,
+#page-loader {
+  background-color: var(--bg-body, #070D19);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+[data-theme="light"],
+body.light-mode {
+  background-color: #F8FAFC !important;
+}
+
+[data-theme="dark"],
+body.dark-mode {
+  background-color: #070D19 !important;
+}
+
+
 /* Public Website Header Logo Sizing Override (Enlarged, Clean & Crisp) */
 .navbar .logo-img-link {
   display: inline-flex !important;
