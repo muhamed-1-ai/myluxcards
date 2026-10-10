@@ -85,6 +85,17 @@
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   --card-shadow-hover: 0 18px 45px rgba(0, 0, 0, 0.4);
   --scrollbar-thumb: #1E293B;
+
+  --surface-muted: #121E31;
+  --header-background: #0D1726;
+  --header-border: #1E293B;
+  --button-primary: #0066FF;
+  --button-primary-text: #FFFFFF;
+  --button-secondary-bg: #121E31;
+  --button-secondary-text: #F8FAFC;
+  --button-secondary-border: #1E293B;
+  --text-disabled: #64748B;
+  --focus-ring: rgba(0, 102, 255, 0.4);
 }
 
 [data-theme="light"],
@@ -118,6 +129,7 @@ body.light-mode,
   --text-main: #0F172A;
   --text-muted: #64748B;
   --text-soft: #475569;
+  --text-disabled: #94A3B8;
 
   --border-color: #E2E8F0;
   --border-subtle: #F1F5F9;
@@ -146,8 +158,8 @@ body.light-mode,
   --input-bg: #FFFFFF;
   --input-text: #0F172A;
   --input-border: #CBD5E1;
-  --input-placeholder: #94A3B8;
-  --placeholder: #94A3B8;
+  --input-placeholder: #64748B;
+  --placeholder: #64748B;
 
   --menu-bg: #FFFFFF;
   --menu-text: #0F172A;
@@ -161,6 +173,16 @@ body.light-mode,
   --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   --card-shadow-hover: 0 10px 30px rgba(0, 102, 255, 0.12);
   --scrollbar-thumb: #CBD5E1;
+
+  --surface-muted: #F1F5F9;
+  --header-background: #FFFFFF;
+  --header-border: #E2E8F0;
+  --button-primary: #0066FF;
+  --button-primary-text: #FFFFFF;
+  --button-secondary-bg: #F1F5F9;
+  --button-secondary-text: #0F172A;
+  --button-secondary-border: #CBD5E1;
+  --focus-ring: rgba(0, 102, 255, 0.4);
 }
 
 [data-theme="dark"],
@@ -192,6 +214,7 @@ body.dark-mode {
   --text-main: #FFFFFF;
   --text-muted: #94A3B8;
   --text-soft: rgba(167, 182, 204, 0.85);
+  --text-disabled: #64748B;
 
   --border-color: #1E293B;
   --border-subtle: #1E293B;
@@ -229,6 +252,16 @@ body.dark-mode {
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   --card-shadow-hover: 0 18px 45px rgba(0, 0, 0, 0.4);
   --scrollbar-thumb: #1E293B;
+
+  --surface-muted: #121E31;
+  --header-background: #0D1726;
+  --header-border: #1E293B;
+  --button-primary: #0066FF;
+  --button-primary-text: #FFFFFF;
+  --button-secondary-bg: #121E31;
+  --button-secondary-text: #F8FAFC;
+  --button-secondary-border: #1E293B;
+  --focus-ring: rgba(0, 102, 255, 0.4);
 }
 
 /* --- Base & Reset --- */

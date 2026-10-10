@@ -122,6 +122,8 @@ type Card = {
   vehicleConnect?: VehicleConnectSettings;
   emergencyContact?: EmergencyContactSettings;
   lostAndFound?: LostAndFoundSettings;
+  theme?: string;
+  profileTheme?: string;
 };
 type Lead = { id: string; card_id: string; name: string; email?: string; phone?: string; company?: string; message?: string; status: string; created_at: string };
 type CurrentUser = { id: string; name: string; email: string; role?: string; featurePermissions?: Record<string, boolean> };
@@ -247,12 +249,13 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     id: `card-${suffix}`, ownerId: safeEmail.toLowerCase(), name: safeName, slug: `${slugify(safeName)}-${suffix}`,
     title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: safeEmail, website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
-    logo: "", cover: "", profileBackground: "#0B0D12", profileAccent: "#D4AF62", profileText: "#F7F3EA",
+    logo: "", cover: "", profileBackground: "#050B14", profileAccent: "#0066FF", profileText: "#ffffff",
     logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
     views: 0, active: false,
     profileMode: "DIGITAL_PROFILE",
+    profileFormat: "modern",
     enabledFeatures: { digitalProfile: true, vehicleConnect: true, lostAndFound: true },
     vehicleConnect: { vehicleMake: "", vehicleModel: "", vehicleColor: "", licensePlate: "", parkingNote: "If my vehicle is blocking traffic or parked improperly, please tap below to notify me immediately.", allowDirectCall: true, allowDirectMessage: true, showEmergencyContact: true },
     emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
@@ -274,6 +277,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     activatedAt: typeof card.activatedAt === "string" ? card.activatedAt : null,
     analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
     profileMode: card.profileMode || fallback.profileMode,
+    profileFormat: card.profileFormat === "standard" ? "standard" : "modern",
     enabledFeatures: {
       digitalProfile: card.enabledFeatures?.digitalProfile !== false,
       vehicleConnect: card.enabledFeatures?.vehicleConnect !== false,
@@ -1125,9 +1129,11 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       {/* 1. RECREATED INSET VERTICAL SIDEBAR MATCHING REFERENCE */}
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <div className="side-logo-wrap">
-          <a className="side-brand" href="/" title="Zappit">
-            <BrandLogo variant="compact" size="compact" />
-          </a>
+          <div className="side-logo-container">
+            <a className="side-brand" href="/" title="Zappit" aria-label="Zappit Dashboard Home">
+              <BrandLogo variant="sidebar" priority alt="Zappit" />
+            </a>
+          </div>
           <button
             type="button"
             className="side-close-btn"
@@ -4625,7 +4631,135 @@ function CompanyForm({ draft, update, service, setService, notify }: any) {
     <div className="add-service"><input className="company-black-input" value={service} onChange={(e) => setService(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder="Type a service or product name..." /><button onClick={add} aria-label="Add service or product">＋</button></div>
     <div className="service-table"><div className="service-head"><span>Sr. No.</span><span>Name</span><span>Delete</span></div>{draft.services.length ? draft.services.map((name: string, index: number) => <div className="service-row" key={`${name}-${index}`}><span>{index + 1}</span><strong>{name}</strong><button className="delete-btn" onClick={() => update("services", draft.services.filter((_: string, i: number) => i !== index))}>Delete</button></div>) : <p className="empty">No services added yet.</p>}</div></>;
 }
+function CustomColorField({
+  label,
+  colorKey,
+  colorValue,
+  fallback,
+  onColorChange,
+}: {
+  label: string;
+  colorKey: "profileBackground" | "profileAccent" | "profileText";
+  colorValue: string;
+  fallback: string;
+  onColorChange: (key: "profileBackground" | "profileAccent" | "profileText", nextHex: string) => void;
+}) {
+  const effectiveHex = (colorValue || fallback).toUpperCase();
+  const [textInput, setTextInput] = useState<string>(effectiveHex);
+
+  // Sync internal text input when colorValue updates externally (e.g. preset selection or reset)
+  useEffect(() => {
+    setTextInput(effectiveHex);
+  }, [effectiveHex]);
+
+  const pickerValue = useMemo(() => {
+    const clean = (colorValue || fallback).trim().toLowerCase();
+    return /^#[0-9a-f]{6}$/i.test(clean) ? clean : fallback.toLowerCase();
+  }, [colorValue, fallback]);
+
+  const handlePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value.toUpperCase();
+    setTextInput(next);
+    onColorChange(colorKey, next);
+  };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setTextInput(raw);
+
+    let testVal = raw.trim();
+    if (testVal && !testVal.startsWith("#")) {
+      testVal = `#${testVal}`;
+    }
+
+    if (/^#[0-9a-fA-F]{6}$/.test(testVal)) {
+      onColorChange(colorKey, testVal.toUpperCase());
+    }
+  };
+
+  const handleTextBlur = () => {
+    let testVal = textInput.trim();
+    if (testVal && !testVal.startsWith("#")) {
+      testVal = `#${testVal}`;
+    }
+
+    if (/^#[0-9a-fA-F]{6}$/.test(testVal)) {
+      const normalized = testVal.toUpperCase();
+      setTextInput(normalized);
+      onColorChange(colorKey, normalized);
+      return;
+    }
+
+    const match3 = testVal.match(/^#([0-9a-fA-F]{3})$/);
+    if (match3) {
+      const [r, g, b] = match3[1].split("");
+      const normalized = `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+      setTextInput(normalized);
+      onColorChange(colorKey, normalized);
+      return;
+    }
+
+    // Gracefully restore previous valid value if current input is invalid
+    setTextInput(effectiveHex);
+  };
+
+  return (
+    <label key={colorKey}>
+      <span>{label}</span>
+      <div>
+        <input
+          type="color"
+          value={pickerValue}
+          onChange={handlePickerChange}
+          aria-label={`${label} colour picker`}
+          title={`Click to pick ${label.toLowerCase()} colour`}
+        />
+        <input
+          type="text"
+          className="colour-code"
+          value={textInput}
+          onChange={handleTextChange}
+          onBlur={handleTextBlur}
+          maxLength={7}
+          placeholder="#000000"
+          aria-label={`${label} hex colour`}
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </div>
+    </label>
+  );
+}
+
 function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
+  const handleCustomColorChange = (key: "profileBackground" | "profileAccent" | "profileText", nextHex: string) => {
+    update(key, nextHex);
+
+    const nextBg = key === "profileBackground" ? nextHex : draft.profileBackground;
+    const nextAccent = key === "profileAccent" ? nextHex : draft.profileAccent;
+    const nextText = key === "profileText" ? nextHex : draft.profileText;
+
+    const matching = profileThemes.find(
+      (t) =>
+        t.background.toLowerCase() === nextBg?.toLowerCase() &&
+        t.accent.toLowerCase() === nextAccent?.toLowerCase() &&
+        (!t.text || t.text.toLowerCase() === nextText?.toLowerCase())
+    );
+
+    update("theme", matching ? matching.id : "custom");
+  };
+
+  const handleResetToObsidianLuxe = () => {
+    const obsidian = profileThemes.find((t) => t.id === "obsidian-luxe");
+    const bg = obsidian?.background || "#0B0D12";
+    const accent = obsidian?.accent || "#D4AF62";
+    const text = obsidian?.text || "#F7F3EA";
+    update("profileBackground", bg);
+    update("profileAccent", accent);
+    update("profileText", text);
+    update("theme", "obsidian-luxe");
+  };
+
   return <><div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
     <div className="profile-colours">
       <div>
@@ -4688,38 +4822,31 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
       </div>
 
       <div className="colour-pickers">
-        {[
-          ["Background", "profileBackground", "#0B0D12"],
-          ["Accent", "profileAccent", "#D4AF62"],
-          ["Text", "profileText", "#F7F3EA"],
-        ].map(([label, key, fallback]) => (
-          <label key={key}>
-            <span>{label}</span>
-            <div>
-              <input
-                type="color"
-                value={draft[key] || fallback}
-                onChange={(event) => update(key, event.target.value)}
-              />
-              <input
-                className="colour-code"
-                value={draft[key] || fallback}
-                onChange={(event) =>
-                  /^#[0-9a-f]{0,6}$/i.test(event.target.value) && update(key, event.target.value)
-                }
-                aria-label={`${label} hex colour`}
-              />
-            </div>
-          </label>
-        ))}
+        <CustomColorField
+          label="Background"
+          colorKey="profileBackground"
+          colorValue={draft.profileBackground}
+          fallback="#0B0D12"
+          onColorChange={handleCustomColorChange}
+        />
+        <CustomColorField
+          label="Accent"
+          colorKey="profileAccent"
+          colorValue={draft.profileAccent}
+          fallback="#D4AF62"
+          onColorChange={handleCustomColorChange}
+        />
+        <CustomColorField
+          label="Text"
+          colorKey="profileText"
+          colorValue={draft.profileText}
+          fallback="#F7F3EA"
+          onColorChange={handleCustomColorChange}
+        />
         <button
           type="button"
           className="reset-profile-colours"
-          onClick={() => {
-            update("profileBackground", "#0B0D12");
-            update("profileAccent", "#D4AF62");
-            update("profileText", "#F7F3EA");
-          }}
+          onClick={handleResetToObsidianLuxe}
         >
           Reset to Obsidian Luxe
         </button>
@@ -5140,7 +5267,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
     </div>
     <div className="preview-card">
       <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
-      {card.profileFormat === "modern" ? (
+      {(card.profileFormat || "modern") !== "standard" ? (
         <div style={{ padding: "8px 0" }}>
           <ModernProfileLayout
             card={card}

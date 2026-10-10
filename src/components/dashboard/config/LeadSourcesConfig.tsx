@@ -293,7 +293,7 @@ export function LeadSourcesConfig() {
             padding: "0 22px",
             fontSize: 13,
             fontWeight: 800,
-            color: "#07080B",
+            color: "#FFFFFF",
             background: "#0066FF",
             border: "none",
             borderRadius: 10,
@@ -1042,10 +1042,10 @@ export function LeadSourcesConfig() {
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 12 }}>
-                <button type="button" onClick={() => setIsCreateOpen(false)} style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "#CBD5E1", border: "none", cursor: "pointer" }}>
+                <button type="button" onClick={() => setIsCreateOpen(false)} style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ padding: "10px 22px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#07080B", border: "none", cursor: "pointer" }}>
+                <button type="submit" style={{ padding: "10px 22px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#FFFFFF", border: "none", cursor: "pointer" }}>
                   Create Lead Source
                 </button>
               </div>
@@ -1135,10 +1135,10 @@ export function LeadSourcesConfig() {
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 12 }}>
-                <button type="button" onClick={() => setEditingSource(null)} style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "#CBD5E1", border: "none", cursor: "pointer" }}>
+                <button type="button" onClick={() => setEditingSource(null)} style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ padding: "10px 22px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#07080B", border: "none", cursor: "pointer" }}>
+                <button type="submit" style={{ padding: "10px 22px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#FFFFFF", border: "none", cursor: "pointer" }}>
                   Save Changes
                 </button>
               </div>
@@ -1192,7 +1192,7 @@ export function LeadSourcesConfig() {
                 <button
                   type="button"
                   onClick={handleConfirmDelete}
-                  style={{ padding: "10px 20px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#07080B", border: "none", cursor: "pointer" }}
+                  style={{ padding: "10px 20px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#FFFFFF", border: "none", cursor: "pointer" }}
                 >
                   Deactivate Source Instead
                 </button>

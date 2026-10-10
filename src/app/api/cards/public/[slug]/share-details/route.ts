@@ -153,7 +153,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       companyName: businessName,
       contactNumber: phoneRes.normalized,
       email,
-      source: "NPC TAP",
+      source: "NFC TAP",
       sourceType: "NFC",
       createdFrom: "PROFILE_SHARE",
       assignedUserId: card.owner_id,
@@ -162,7 +162,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     console.log("CREATING NFC LEAD", leadPayload);
 
-    // Upsert into leads table for CRM visibility with NPC TAP source attribution
+    // Upsert into leads table for CRM visibility with NFC TAP source attribution
     const leadResult = await upsertLead(leadPayload);
 
     // Notify Card Owner

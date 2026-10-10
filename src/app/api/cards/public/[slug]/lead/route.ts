@@ -72,7 +72,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     // Determine source
     const rawSource = String(body.source || body.channel || "").toUpperCase();
-    const source = rawSource ? rawSource : "NPC TAP";
+    const source = rawSource ? rawSource : "NFC TAP";
 
     // Upsert Lead securely (using resolved card.owner_id and card.id)
     const result = await upsertLead({

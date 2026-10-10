@@ -95,7 +95,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     border: "#3d331e",
     primary: "#D4AF62",
     secondary: "#b38f46",
-    accent: "#f3e5ab",
+    accent: "#D4AF62",
     text: "#F7F3EA",
     mutedText: "#a39e93",
   },
@@ -331,16 +331,30 @@ export function resolveThemeTokens(card: {
 }) {
   const themeId = (card.theme || card.profileTheme || "").toLowerCase();
   const bg = card.profileBackground || "#050B14";
-  const accent = card.profileAccent || "#00E5FF";
+  const accent = card.profileAccent || "#0066FF";
   const text = card.profileText || "#FFFFFF";
   const mc = card.modernConfig || {};
 
-  // Check matching preset first:
-  const preset = PROFILE_THEME_PRESETS.find(
+  // Check matching preset:
+  // A preset ONLY dictates curated surface/secondary/primary tokens if the card's
+  // background and accent (and text if defined) actually match that preset.
+  // Whenever the user customizes any color, custom values are 100% authoritative!
+  const matchingPreset = PROFILE_THEME_PRESETS.find(
     (p) =>
-      p.id === themeId ||
-      (p.background.toLowerCase() === bg.toLowerCase() &&
-        p.accent.toLowerCase() === accent.toLowerCase())
+      p.background.toLowerCase() === bg.toLowerCase() &&
+      p.accent.toLowerCase() === accent.toLowerCase() &&
+      (!p.text || !text || p.text.toLowerCase() === text.toLowerCase())
+  );
+
+  const preset = matchingPreset || (
+    themeId && themeId !== "custom"
+      ? PROFILE_THEME_PRESETS.find(
+          (p) =>
+            p.id === themeId &&
+            p.background.toLowerCase() === bg.toLowerCase() &&
+            p.accent.toLowerCase() === accent.toLowerCase()
+        )
+      : undefined
   );
 
   const bgIsLight = isLightColor(bg);
@@ -366,6 +380,7 @@ export function resolveThemeTokens(card: {
   const borderHover = hexToRgba(accent, 0.65);
 
   // 4. Primary & Secondary Gradients:
+  // When a preset is active, use preset.primary (or accent). When customized, accent is authoritative!
   const primary = preset?.primary || accent;
   const secondaryColor =
     preset?.secondary ||
@@ -422,7 +437,7 @@ export function resolveThemeTokens(card: {
     "--profile-secondary-bg": secondaryBtnBg,
     "--profile-secondary-border": secondaryBtnBorder,
     "--profile-secondary-text": secondaryBtnText,
-    "--profile-accent": preset?.accent || accent,
+    "--profile-accent": accent,
     "--profile-text": text,
     "--profile-muted": mutedText,
     "--profile-icon": iconColor,
@@ -480,7 +495,7 @@ export function resolveThemeTokens(card: {
       secondaryBtnBg,
       secondaryBtnBorder,
       secondaryBtnText,
-      accent: preset?.accent || accent,
+      accent,
       text,
       mutedText,
       iconColor,

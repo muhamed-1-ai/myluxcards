@@ -998,14 +998,14 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                 <button
                   type="button"
                   onClick={() => setScheduleLead(null)}
-                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 600, borderRadius: 8, background: "var(--bg-secondary)", color: "#CBD5E1", border: "none", cursor: "pointer" }}
+                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 600, borderRadius: 8, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={scheduling}
-                  style={{ padding: "8px 18px", fontSize: 12, fontWeight: 800, borderRadius: 8, background: "#0066FF", color: "#07080B", border: "none", cursor: "pointer" }}
+                  style={{ padding: "8px 18px", fontSize: 12, fontWeight: 800, borderRadius: 8, background: "#0066FF", color: "#FFFFFF", border: "none", cursor: "pointer" }}
                 >
                   {scheduling ? "SCHEDULING..." : "SCHEDULE FOLLOW-UP"}
                 </button>

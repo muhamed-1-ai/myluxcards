@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { ProfileActions } from "@/components/card/ProfileActions";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
+import LeadContactCardDrawer from "@/components/leads/LeadContactCardDrawer";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
 import { buildVCardString } from "@/lib/vcard";
@@ -250,10 +251,51 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     window.location.href = `/?login=1&next=${encodeURIComponent(targetPath)}`;
   };
 
+  const handleTabSwitch = (view: PublicProfileView) => {
+    setActiveView(view);
+    if (view === "profile") {
+      trackActivity("PROFILE_OPENED", { assetType: "profile" });
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("tab") || url.searchParams.has("section") || url.searchParams.has("view") || url.searchParams.has("mode")) {
+          url.searchParams.delete("tab");
+          url.searchParams.delete("section");
+          url.searchParams.delete("view");
+          url.searchParams.delete("mode");
+          const cleanSearch = url.searchParams.toString();
+          window.history.replaceState(null, "", url.pathname + (cleanSearch ? `?${cleanSearch}` : "") + url.hash);
+        }
+      }
+    } else if (view === "vehicle") {
+      trackActivity("VEHICLE_MODE_OPENED", { assetType: "vehicle" });
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", "vehicle");
+        window.history.replaceState(null, "", url.pathname + `?${url.searchParams.toString()}` + url.hash);
+      }
+    } else if (view === "lost_found") {
+      trackActivity("LOST_FOUND_MODE_OPENED", { assetType: "lost_found_item" });
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", "lost_found");
+        window.history.replaceState(null, "", url.pathname + `?${url.searchParams.toString()}` + url.hash);
+      }
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     if (typeof window !== "undefined") {
-      setIsPreviewParam(new URLSearchParams(window.location.search).get("preview") === "1");
+      const sp = new URLSearchParams(window.location.search);
+      setIsPreviewParam(sp.get("preview") === "1");
+      const rawTab = (sp.get("tab") || sp.get("section") || sp.get("view") || sp.get("mode") || "").toLowerCase().trim();
+      if (rawTab === "vehicle" || rawTab === "vehicles") {
+        setActiveView("vehicle");
+      } else if (rawTab === "lost_found" || rawTab === "lost-found" || rawTab === "lostfound" || rawTab === "lost" || rawTab === "found") {
+        setActiveView("lost_found");
+      } else {
+        setActiveView("profile");
+      }
     }
   }, []);
 
@@ -282,6 +324,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [leadErrors, setLeadErrors] = useState<{ name?: string; contactNumber?: string; email?: string; general?: string }>({});
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -454,6 +497,17 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             setProfileAchievements(Array.isArray(payload.profileAchievements) ? payload.profileAchievements : []);
             setProfileCertifications(Array.isArray(payload.profileCertifications) ? payload.profileCertifications : []);
             setLoaded(true);
+
+            // Verify active tab permissions against card features
+            const pf = payload.card?.profileFeatures || {};
+            const vEnabled = (pf.VEHICLE ? pf.VEHICLE.enabled : true) && payload.card?.enabledFeatures?.vehicleConnect !== false;
+            const lfEnabled = (pf.LOST_AND_FOUND ? pf.LOST_AND_FOUND.enabled : true) && payload.card?.enabledFeatures?.lostAndFound !== false;
+            setActiveView((prev) => {
+              if (prev === "vehicle" && !vEnabled) return "profile";
+              if (prev === "lost_found" && !lfEnabled) return "profile";
+              return prev;
+            });
+
             trackActivity("PROFILE_OPENED", { assetType: "profile" });
           }
           return;
@@ -534,42 +588,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     trackActivity(type, { linkType });
   };
   const saveContact = () => {
-    const contactEnabled = pf.CONTACT ? pf.CONTACT.enabled : true;
-    const basicEnabled = pf.BASIC_PROFILE ? pf.BASIC_PROFILE.enabled : true;
-    const websiteEnabled = pf.WEBSITE ? pf.WEBSITE.enabled : true;
-
-    if (slug) {
-      // Trigger fresh server vCard download (Mobile compatible with RFC 6350 & proper response headers)
-      const vcardUrl = `/api/cards/public/${encodeURIComponent(slug)}/vcard`;
-      const link = document.createElement("a");
-      link.href = vcardUrl;
-      link.download = `${card.name || "contact"}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      // Fallback for draft/preview cards: client-side build using RFC 6350 vCard helper
-      const vcardObj = buildVCardString({
-        profileName: card.name,
-        cardName: card.name,
-        companyName: card.business,
-        title: card.title,
-        phone: contactEnabled ? phone : undefined,
-        email: contactEnabled ? card.email : undefined,
-        website: websiteEnabled ? card.website : undefined,
-        address: contactEnabled ? location : undefined,
-      });
-
-      const blob = new Blob([vcardObj.vcard], { type: "text/vcard;charset=utf-8" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `${vcardObj.fullName || "contact"}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-    }
-
+    setContactModalOpen(true);
     track("CONTACT_SAVE");
   };
 
@@ -788,81 +807,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       {/* ── Feedback Notification Banner ── */}
       {actionToast && <div className="pc-toast-notice">{actionToast}</div>}
 
-      {/* ── HERO CARD (Standard Format Only) ── */}
-      {(!card.profileFormat || card.profileFormat === "standard" || activeView !== "profile") && (
-        <div className="pc-hero">
-          {activeView === "profile" && (
-            <div className="pc-profile-edit-bar">
-              <button
-                type="button"
-                onClick={handleEditProfileClick}
-                aria-label="Edit profile"
-                className="pc-profile-edit-btn"
-              >
-                <PencilIcon />
-                <span>Edit</span>
-              </button>
-            </div>
-          )}
-          <div className="pc-hero-cover">
-            {card.cover && <img
-              src={resolveMediaUrl(card.cover)}
-              className="pc-hero-cover-image"
-              alt=""
-              style={{
-                transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
-                objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
-              }}
-            />}
-            {!card.cover && <span className="pc-hero-wordmark">ZAPPIT</span>}
-            <div className="pc-hero-overlay">
-              <div className="pc-hero-bottom">
-                {card.logo && (
-                  <div className="pc-hero-logo-badge">
-                    <img
-                      src={resolveMediaUrl(card.logo)}
-                      alt={card.name || "Logo"}
-                      style={{
-                        transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
-                        objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
-                      }}
-                    />
-                  </div>
-                )}
-                <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
-                {card.title && <p className="pc-hero-title">{card.title}</p>}
-                {card.business && <p className="pc-hero-biz">{card.business}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick-dial icon buttons */}
-          <div className="pc-hero-icons">
-            {phone && (
-              <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
-                <PhoneIcon />
-              </a>
-            )}
-            {whatsapp && (
-              <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
-                <WhatsAppBrandIcon />
-              </a>
-            )}
-            {card.email && (
-              <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
-                <MailIcon />
-              </a>
-            )}
-            {card.website && (
-              <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
-                <WebIcon />
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── DYNAMIC MODE SWITCHER BAR (Visible across all views if > 1 feature enabled) ── */}
+      {/* ── DYNAMIC MODE SWITCHER BAR (Navigation placed above profile card, matching Screenshot 2) ── */}
       {availableModesCount > 1 && (
         <div className="pc-mode-switcher-bar" role="tablist" aria-label="Profile views">
           {digitalEnabled && (
@@ -871,10 +816,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               role="tab"
               aria-selected={activeView === "profile"}
               className={`pc-mode-switch-btn ${activeView === "profile" ? "active" : ""}`}
-              onClick={() => {
-                setActiveView("profile");
-                trackActivity("PROFILE_OPENED", { assetType: "profile" });
-              }}
+              onClick={() => handleTabSwitch("profile")}
             >
               Profile
             </button>
@@ -885,10 +827,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               role="tab"
               aria-selected={activeView === "vehicle"}
               className={`pc-mode-switch-btn ${activeView === "vehicle" ? "active" : ""}`}
-              onClick={() => {
-                setActiveView("vehicle");
-                trackActivity("VEHICLE_MODE_OPENED", { assetType: "vehicle" });
-              }}
+              onClick={() => handleTabSwitch("vehicle")}
             >
               🚗 Vehicle
             </button>
@@ -899,10 +838,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               role="tab"
               aria-selected={activeView === "lost_found"}
               className={`pc-mode-switch-btn ${activeView === "lost_found" ? "active" : ""}`}
-              onClick={() => {
-                setActiveView("lost_found");
-                trackActivity("LOST_FOUND_MODE_OPENED", { assetType: "lost_found_item" });
-              }}
+              onClick={() => handleTabSwitch("lost_found")}
             >
               🏷️ Lost &amp; Found
             </button>
@@ -920,7 +856,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         return (
           <div className="pc-vehicle-card">
             <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
-              🚗 ZAPPIT VEHICLE CONNECT
+              🚗 ZAPPIT VEHICLE CONNECT {/* MYLUX VEHICLE CONNECT */}
             </div>
 
             {activeVehicles.length === 0 ? (
@@ -1107,7 +1043,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         return (
           <div className="pc-lost-card">
             <div className="pc-mode-pill-header" style={{ alignSelf: "center", marginBottom: 12 }}>
-              🏷️ ZAPPIT LOST &amp; FOUND
+              🏷️ ZAPPIT LOST &amp; FOUND {/* MYLUX LOST & FOUND */}
             </div>
 
             {activeItems.length === 0 ? (
@@ -1265,7 +1201,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
       {/* ── VIEW 3: DIGITAL PROFILE ── */}
       {activeView === "profile" && (
-        card.profileFormat === "modern" ? (
+        (card.profileFormat || "modern") !== "standard" ? (
           <ModernProfileLayout
             card={card}
             profileProducts={profileProducts}
@@ -1284,6 +1220,76 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           />
         ) : (
           <>
+            {/* Standard Hero Card for Standard Profile Format */}
+            <div className="pc-hero">
+              <div className="pc-profile-edit-bar">
+                <button
+                  type="button"
+                  onClick={handleEditProfileClick}
+                  aria-label="Edit profile"
+                  className="pc-profile-edit-btn"
+                >
+                  <PencilIcon />
+                  <span>Edit</span>
+                </button>
+              </div>
+              <div className="pc-hero-cover">
+                {card.cover && <img
+                  src={resolveMediaUrl(card.cover)}
+                  className="pc-hero-cover-image"
+                  alt=""
+                  style={{
+                    transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`,
+                    objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%`,
+                  }}
+                />}
+                {!card.cover && <span className="pc-hero-wordmark">ZAPPIT</span>}
+                <div className="pc-hero-overlay">
+                  <div className="pc-hero-bottom">
+                    {card.logo && (
+                      <div className="pc-hero-logo-badge">
+                        <img
+                          src={resolveMediaUrl(card.logo)}
+                          alt={card.name || "Logo"}
+                          style={{
+                            transform: `scale(${(card.logoScale ?? 100) / 100}) rotate(${card.logoRotation ?? 0}deg)`,
+                            objectPosition: `${card.logoX ?? 50}% ${card.logoY ?? 50}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                    <h1 className="pc-hero-name">{card.name || "Digital Business Card"}</h1>
+                    {card.title && <p className="pc-hero-title">{card.title}</p>}
+                    {card.business && <p className="pc-hero-biz">{card.business}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick-dial icon buttons */}
+              <div className="pc-hero-icons">
+                {phone && (
+                  <a href={`tel:${phone}`} className="pc-icon-btn" aria-label="Call" onClick={() => track("LINK_CLICK", "phone")}>
+                    <PhoneIcon />
+                  </a>
+                )}
+                {whatsapp && (
+                  <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} className="pc-icon-btn" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "whatsapp")}>
+                    <WhatsAppBrandIcon />
+                  </a>
+                )}
+                {card.email && (
+                  <a href={`mailto:${card.email}`} className="pc-icon-btn" aria-label="Email" onClick={() => track("LINK_CLICK", "email")}>
+                    <MailIcon />
+                  </a>
+                )}
+                {card.website && (
+                  <a href={card.website} className="pc-icon-btn" aria-label="Website" target="_blank" rel="noopener noreferrer" onClick={() => track("LINK_CLICK", "website")}>
+                    <WebIcon />
+                  </a>
+                )}
+              </div>
+            </div>
+
             {/* Action buttons (Save Contact / Share Your Details / Share / QR Code) */}
             <ProfileActions
               card={card}
@@ -1885,6 +1891,28 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         onClose={() => setLeadModalOpen(false)}
         slug={slug}
         recipientName={card.name}
+      />
+
+      {/* ── Contact Details Sheet / Popup ── */}
+      <LeadContactCardDrawer
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+        contact={{
+          slug,
+          isPublicProfile: true,
+          name: card.name,
+          companyName: card.business,
+          business: card.business,
+          jobTitle: card.title,
+          title: card.title,
+          contactNumber: phone,
+          phone,
+          mobile: card.mobile,
+          whatsapp: card.whatsapp,
+          email: card.email,
+          website: card.website,
+          address: location,
+        }}
       />
 
       {/* ── Footer ── */}

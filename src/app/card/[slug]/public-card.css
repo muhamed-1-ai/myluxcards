@@ -654,6 +654,8 @@
 /* ── Vehicle Connect View Styles ── */
 .pc-vehicle-card {
   width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
   background: linear-gradient(145deg, rgba(20, 24, 33, 0.95), rgba(10, 12, 16, 0.98));
   border: 1px solid color-mix(in srgb, var(--pc-accent, #0066FF) 40%, transparent);
   border-radius: 28px;
@@ -736,6 +738,8 @@
 /* ── Lost & Found View Styles ── */
 .pc-lost-card {
   width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
   background: linear-gradient(145deg, rgba(28, 20, 30, 0.95), rgba(15, 10, 18, 0.98));
   border: 1px solid color-mix(in srgb, var(--pc-accent, #0066FF) 40%, transparent);
   border-radius: 28px;
@@ -1057,13 +1061,14 @@
 /* ── Mode Switcher Bar ── */
 .pc-mode-switcher-bar {
   width: 100%;
+  max-width: 500px;
+  margin: 0 auto 16px;
   display: flex;
-  background: color-mix(in srgb, var(--pc-accent, #b8962e) 15%, rgba(0,0,0,0.85));
-  border: 1.5px solid color-mix(in srgb, var(--pc-accent, #b8962e) 35%, transparent);
+  background: color-mix(in srgb, var(--pc-accent, #0066FF) 15%, rgba(0,0,0,0.85));
+  border: 1.5px solid color-mix(in srgb, var(--pc-accent, #0066FF) 35%, transparent);
   border-radius: 50px;
   padding: 4px;
   gap: 4px;
-  margin: 12px 0 16px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.5);
 }
 

@@ -93,6 +93,32 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
       glow: "rgba(0, 217, 255, 0.2)",
     },
   },
+  NPC: {
+    label: "NFC Tap",
+    shortLabel: "NFC",
+    icon: Radio,
+    emoji: "📡",
+    tooltip: "Lead generated from Zappit profile share",
+    badgeStyle: {
+      bg: "rgba(0, 102, 255, 0.14)",
+      border: "rgba(0, 217, 255, 0.35)",
+      text: "#00E5FF",
+      glow: "rgba(0, 217, 255, 0.2)",
+    },
+  },
+  NPC_TAP: {
+    label: "NFC Tap",
+    shortLabel: "NFC",
+    icon: Radio,
+    emoji: "📡",
+    tooltip: "Lead generated from Zappit profile share",
+    badgeStyle: {
+      bg: "rgba(0, 102, 255, 0.14)",
+      border: "rgba(0, 217, 255, 0.35)",
+      text: "#00E5FF",
+      glow: "rgba(0, 217, 255, 0.2)",
+    },
+  },
   MANUAL: {
     label: "Manual",
     shortLabel: "Manual",
@@ -214,7 +240,7 @@ export function getLeadSourceConfig(rawSource?: string | null): LeadSourceConfig
   }
 
   // Check partial key match
-  if (normalizedKey.includes("NFC") || normalizedKey.includes("SHARE")) {
+  if (normalizedKey.includes("NFC") || normalizedKey.includes("NPC") || normalizedKey.includes("SHARE")) {
     return SOURCE_CONFIG_REGISTRY.NFC;
   }
   if (normalizedKey.includes("QR")) {

@@ -177,10 +177,10 @@ export const DEFAULT_LOST_AND_FOUND: LostAndFoundSettings = {
 const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
   state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
-  logo:"", cover:"", profileBackground:"#020202", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
+  logo:"", cover:"", profileBackground:"#050B14", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
   logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
   profileMode: "DIGITAL_PROFILE",
-  profileFormat: "standard",
+  profileFormat: "modern",
   modernConfig: {},
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
   profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
@@ -210,7 +210,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
     } else if (field === "profileFormat") {
       output.profileFormat = ["standard", "modern"].includes(String(value || "").toLowerCase())
         ? String(value).toLowerCase()
-        : "standard";
+        : "modern";
     } else if (field === "modernConfig" && value && typeof value === "object" && !Array.isArray(value)) {
       const mc = value as Record<string, unknown>;
       output.modernConfig = {
@@ -310,7 +310,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       else if (["mobile","whatsapp","defaultContactPhone","defaultEmergencyPhone"].includes(field)) output[field] = /^[0-9 ()+.-]{0,30}$/.test(trimmed) ? trimmed : "";
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
       else if (["theme","profileTheme"].includes(field)) output[field] = trimmed.slice(0, 50);
-      else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#020202" : field === "profileAccent" ? "#0066FF" : "#ffffff";
+      else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#050B14" : field === "profileAccent" ? "#0066FF" : "#ffffff";
       else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
       else if (field === "brochureData") output[field] = /^https?:\/\/[^\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
       else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
@@ -322,9 +322,21 @@ export function cleanCardProfile(input: Record<string, unknown>) {
 export function completeCardProfile(input: unknown) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const cleaned = cleanCardProfile(source);
+  const rawFormat = String(source.profileFormat || "").toLowerCase().trim();
+  const resolvedFormat = rawFormat === "standard" ? "standard" : "modern";
+
+  const isLegacyGoldDefault = (!source.profileBackground && !source.profileAccent);
+
+  const resolvedBg = isLegacyGoldDefault ? "#050B14" : (cleaned.profileBackground || "#050B14");
+  const resolvedAccent = isLegacyGoldDefault ? "#0066FF" : (cleaned.profileAccent || "#0066FF");
+
   return {
     ...CARD_PROFILE_DEFAULTS,
     ...cleaned,
+    profileFormat: resolvedFormat,
+    profileBackground: resolvedBg,
+    profileAccent: resolvedAccent,
+    profileText: cleaned.profileText || "#ffffff",
     social: cleaned.social && typeof cleaned.social === "object" ? cleaned.social : {},
     services: Array.isArray(cleaned.services) ? cleaned.services : [],
     enabledFeatures: { ...DEFAULT_ENABLED_FEATURES, ...(cleaned.enabledFeatures as object) },

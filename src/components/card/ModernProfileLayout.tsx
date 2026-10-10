@@ -213,7 +213,7 @@ export function ModernProfileLayout({
   };
 
   const name = card.name || "Your Name";
-  const subtitle = [card.title, card.business].filter(Boolean).join(" – ") || "Title – Company Name";
+  const subtitle = [card.title, card.business].filter(Boolean).join(" – ");
   const fullPhone = card.mobile ? `${formatCountryCode(card.countryCode)} ${card.mobile}`.trim() : "";
   const fullWhatsapp = card.whatsapp ? `${formatCountryCode(card.countryCode)} ${card.whatsapp}`.trim() : "";
   const hasBrochure = Boolean(card.brochure || card.brochureData);
@@ -315,7 +315,7 @@ export function ModernProfileLayout({
         {/* ── 3. CENTERED PROFILE HEADER (Always stays below avatar) ── */}
         <div className="zappit-modern-header">
           <h1 className="zappit-modern-name">{name}</h1>
-          <p className="zappit-modern-subtitle">{subtitle}</p>
+          {subtitle && <p className="zappit-modern-subtitle">{subtitle}</p>}
         </div>
 
         {/* ── 3. PRIMARY ACTION ROW ── */}

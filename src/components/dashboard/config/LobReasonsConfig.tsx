@@ -411,7 +411,7 @@ export function LobReasonsConfig() {
             padding: "0 22px",
             fontSize: 13,
             fontWeight: 800,
-            color: "#07080B",
+            color: "#FFFFFF",
             background: "#0066FF",
             border: "none",
             borderRadius: 10,
@@ -794,7 +794,7 @@ export function LobReasonsConfig() {
                 background: "#0066FF",
                 border: "none",
                 borderRadius: 8,
-                color: "#07080B",
+                color: "#FFFFFF",
                 cursor: "pointer",
                 boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
               }}
@@ -1070,7 +1070,7 @@ export function LobReasonsConfig() {
                   fontWeight: 800,
                   borderRadius: 9,
                   background: "#0066FF",
-                  color: "#07080B",
+                  color: "#FFFFFF",
                   border: "none",
                   cursor: isSaving ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 14px rgba(0, 229, 255, 0.25)",
@@ -1137,7 +1137,7 @@ export function LobReasonsConfig() {
               <button
                 type="button"
                 onClick={() => setDeletingReason(null)}
-                style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "#CBD5E1", border: "none", cursor: "pointer" }}
+                style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -1146,7 +1146,7 @@ export function LobReasonsConfig() {
                 <button
                   type="button"
                   onClick={handleConfirmDelete}
-                  style={{ padding: "10px 20px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#07080B", border: "none", cursor: "pointer" }}
+                  style={{ padding: "10px 20px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#FFFFFF", border: "none", cursor: "pointer" }}
                 >
                   Deactivate Reason Instead
                 </button>
