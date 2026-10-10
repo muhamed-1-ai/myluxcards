@@ -410,36 +410,10 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     return result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [userPrefs.sections, isWidgetFeatureAllowed]);
 
-  if (loading && !data) {
-    return (
-      <div className="crm-loading-container">
-        <div className="crm-loading-spinner" />
-        <p className="crm-loading-text">
-          {retryAttempt > 0
-            ? `Reconnecting to server (Attempt ${retryAttempt}/3)...`
-            : "Loading dashboard analytics..."}
-        </p>
-      </div>
-    );
-  }
-
-  if (error && !data) {
-    return (
-      <div className="crm-error-container">
-        <AlertCircle className="crm-error-icon" />
-        <h3 className="crm-error-title">Unable to load dashboard</h3>
-        <p className="crm-error-msg">{error}</p>
-        <button
-          type="button"
-          onClick={() => fetchDashboardData(true)}
-          className="crm-btn-primary"
-        >
-          <RefreshCw style={{ width: 16, height: 16 }} />
-          Try Again
-        </button>
-      </div>
-    );
-  }
+  // NOTE: We intentionally do NOT early-return on loading/error.
+  // The top bar controls (Add Lead, Refresh, Customize) must always be rendered
+  // and interactive — even while dashboard data is still loading.
+  // Loading/error states are shown inline below the top bar.
 
   const kpis = data?.kpis || {
     totalLeads: 811,
@@ -729,8 +703,37 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       </div>
 
-      {/* EMPTY DASHBOARD STATE */}
-      {visibleCards.length === 0 && visibleSections.length === 0 && (
+      {/* INLINE LOADING STATE — shown in data area while top bar remains interactive */}
+      {loading && !data && (
+        <div className="crm-loading-container">
+          <div className="crm-loading-spinner" />
+          <p className="crm-loading-text">
+            {retryAttempt > 0
+              ? `Reconnecting to server (Attempt ${retryAttempt}/3)...`
+              : "Loading dashboard analytics..."}
+          </p>
+        </div>
+      )}
+
+      {/* INLINE ERROR STATE — shown in data area while top bar remains interactive */}
+      {error && !data && !loading && (
+        <div className="crm-error-container">
+          <AlertCircle className="crm-error-icon" />
+          <h3 className="crm-error-title">Unable to load dashboard</h3>
+          <p className="crm-error-msg">{error}</p>
+          <button
+            type="button"
+            onClick={() => fetchDashboardData(true)}
+            className="crm-btn-primary"
+          >
+            <RefreshCw style={{ width: 16, height: 16 }} />
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* EMPTY DASHBOARD STATE — only shown when loaded and genuinely empty */}
+      {!loading && !error && visibleCards.length === 0 && visibleSections.length === 0 && (
         <div
           style={{
             padding: "60px 24px",
@@ -787,8 +790,8 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       )}
 
-      {/* PRIMARY METRIC CARDS (DYNAMIC PREFERENCES & CUSTOM NAMES) */}
-      {visibleCards.length > 0 && (
+      {/* PRIMARY METRIC CARDS — only rendered after data loads */}
+      {(!loading || data) && visibleCards.length > 0 && (
         <div className="crm-kpi-grid">
           {visibleCards.map((cardPref) => {
             const label = (cardPref.displayName || cardPref.defaultTitle).toUpperCase();
@@ -853,8 +856,8 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       )}
 
-      {/* DASHBOARD SECTIONS (PREFERENCE ORDERED) */}
-      {visibleSections.map((secPref) => {
+      {/* DASHBOARD SECTIONS — only rendered after data loads */}
+      {(!loading || data) && visibleSections.map((secPref) => {
         if (secPref.id === "lob_analysis" || secPref.id === "calendar_companion") {
           // Render combined or individual LOB/Calendar row only once when encountering the first one
           const firstLobOrCal = visibleSections.find(
