@@ -528,7 +528,7 @@ export function LeadSourcesConfig() {
                     border: "none",
                     cursor: "pointer",
                     background: isActive ? "#0066FF" : "transparent",
-                    color: isActive ? "#08080A" : "#8E8EA0",
+                    color: isActive ? "#FFFFFF" : "var(--text-secondary)",
                     transition: "all 0.15s ease",
                   }}
                 >
@@ -817,9 +817,9 @@ export function LeadSourcesConfig() {
                   </div>
 
                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    <div>Created by: <span style={{ color: "#E2E8F0" }}>{src.createdBy}</span></div>
-                    <div>Created: <span style={{ color: "#E2E8F0" }}>{formatDate(src.createdAt)}</span></div>
-                    <div>Modified: <span style={{ color: "#E2E8F0" }}>{formatDateTime(src.updatedAt)}</span></div>
+                    <div>Created by: <span style={{ color: "var(--text-primary)" }}>{src.createdBy}</span></div>
+                    <div>Created: <span style={{ color: "var(--text-primary)" }}>{formatDate(src.createdAt)}</span></div>
+                    <div>Modified: <span style={{ color: "var(--text-primary)" }}>{formatDateTime(src.updatedAt)}</span></div>
                   </div>
 
                   <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -927,7 +927,7 @@ export function LeadSourcesConfig() {
                 background: "#0066FF",
                 border: "none",
                 borderRadius: 8,
-                color: "#08080A",
+                color: "#FFFFFF",
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",

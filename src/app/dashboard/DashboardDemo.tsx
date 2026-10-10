@@ -425,15 +425,26 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    const root = document.documentElement;
+    const body = document.body;
+
+    root.setAttribute("data-theme", theme);
+    body.setAttribute("data-theme", theme);
+
     if (theme === "light") {
-      document.body.classList.add("light-mode");
-      document.body.classList.remove("dark-mode");
-      document.documentElement.classList.remove("dark");
+      root.classList.add("light", "light-mode");
+      root.classList.remove("dark", "dark-mode");
+      body.classList.add("light", "light-mode");
+      body.classList.remove("dark", "dark-mode");
+      root.style.colorScheme = "light";
+      body.style.colorScheme = "light";
     } else {
-      document.body.classList.add("dark-mode");
-      document.body.classList.remove("light-mode");
-      document.documentElement.classList.add("dark");
+      root.classList.add("dark", "dark-mode");
+      root.classList.remove("light", "light-mode");
+      body.classList.add("dark", "dark-mode");
+      body.classList.remove("light", "light-mode");
+      root.style.colorScheme = "dark";
+      body.style.colorScheme = "dark";
     }
     try {
       localStorage.setItem("zappit_theme", theme);

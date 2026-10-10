@@ -196,6 +196,7 @@ export function CompactDashboardCalendar({
             <button
               key={`day-${dStr}`}
               type="button"
+              aria-label={`Day ${dayNum}${isToday ? ", today" : ""}${eventCount > 0 ? `, ${eventCount} activities` : ""}`}
               onClick={() => setSelectedDateStr(dStr)}
               className={`crm-cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}`}
             >

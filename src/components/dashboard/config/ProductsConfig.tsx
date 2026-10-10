@@ -730,10 +730,10 @@ export function ProductsConfig() {
                   </div>
 
                   <div style={{ fontSize: 12, color: "var(--text-muted)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div>Category: <span style={{ color: "#E2E8F0", fontWeight: 600 }}>{prod.category}</span></div>
+                    <div>Category: <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{prod.category}</span></div>
                     <div>Price: <span style={{ color: "#0066FF", fontWeight: 800 }}>{formatCurrency(prod.price)}</span></div>
-                    <div>Created: <span style={{ color: "#E2E8F0" }}>{formatDate(prod.createdAt)}</span></div>
-                    <div>Updated: <span style={{ color: "#E2E8F0" }}>{formatDate(prod.updatedAt)}</span></div>
+                    <div>Created: <span style={{ color: "var(--text-primary)" }}>{formatDate(prod.createdAt)}</span></div>
+                    <div>Updated: <span style={{ color: "var(--text-primary)" }}>{formatDate(prod.updatedAt)}</span></div>
                   </div>
 
                   <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -843,7 +843,7 @@ export function ProductsConfig() {
                 background: "#0066FF",
                 border: "none",
                 borderRadius: 8,
-                color: "#08080A",
+                color: "#FFFFFF",
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",

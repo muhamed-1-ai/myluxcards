@@ -107,7 +107,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
   return (
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>CRM Calendar</h2>
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "2px 0 0" }}>Activity timeline & schedule</p>
@@ -118,7 +118,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
             type="button"
             onClick={goToToday}
             className="crm-cal-btn-today"
-            style={{ padding: "4px 10px", fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}
+            style={{ padding: "6px 12px", minHeight: 36, fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}
             title="Go to Current Month"
           >
             Month
@@ -129,11 +129,11 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               onClick={prevMonth}
               aria-label="Previous Month"
               className="crm-cal-nav-btn"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 6, minWidth: 36, minHeight: 36, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
             >
-              <ChevronLeft style={{ width: 16, height: 16 }} />
+              <ChevronLeft style={{ width: 18, height: 18 }} />
             </button>
-            <span className="crm-cal-month-title" style={{ fontSize: 12, fontWeight: 700, padding: "0 4px" }}>
+            <span className="crm-cal-month-title" style={{ fontSize: 13, fontWeight: 700, padding: "0 6px" }}>
               {monthName} {year}
             </span>
             <button
@@ -141,9 +141,9 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               onClick={nextMonth}
               aria-label="Next Month"
               className="crm-cal-nav-btn"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 6, minWidth: 36, minHeight: 36, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
             >
-              <ChevronRight style={{ width: 16, height: 16 }} />
+              <ChevronRight style={{ width: 18, height: 18 }} />
             </button>
           </div>
         </div>
@@ -175,6 +175,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
             <button
               key={`day-${dateStr}-${idx}`}
               type="button"
+              aria-label={`Day ${dayNum}, ${totalEvents} activities`}
               onClick={() => handleDateClick(dateStr)}
               className={`crm-cal-day-cell ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}`}
               style={{
@@ -225,11 +226,11 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
         })}
       </div>
 
-      {/* Selected Day Activity Slide-Out Drawer */}
+      {/* Selected Day Activity Slide-Out Drawer / Mobile Modal */}
       {selectedDateStr && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "flex-end" }} onClick={() => setSelectedDateStr(null)}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "flex-end", alignItems: "stretch" }} onClick={() => setSelectedDateStr(null)}>
           <div
-            style={{ width: "100%", maxWidth: 440, background: "var(--surface)", borderLeft: "1px solid var(--border-color)", height: "100%", padding: 24, display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "var(--card-shadow)" }}
+            style={{ width: "100%", maxWidth: 440, background: "var(--surface)", borderLeft: "1px solid var(--border-color)", height: "100%", padding: "20px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "var(--card-shadow)", overflowY: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 16, borderBottom: "1px solid var(--border-color)" }}>

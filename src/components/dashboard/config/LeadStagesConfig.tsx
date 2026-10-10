@@ -871,7 +871,7 @@ export function LeadStagesConfig() {
                     border: "none",
                     cursor: "pointer",
                     background: isActive ? "#0066FF" : "transparent",
-                    color: isActive ? "#08080A" : "#8E8EA0",
+                    color: isActive ? "#FFFFFF" : "var(--text-secondary)",
                     transition: "all 0.15s ease",
                   }}
                 >
@@ -1203,10 +1203,10 @@ export function LeadStagesConfig() {
                   </div>
 
                   <div style={{ fontSize: 12, color: "var(--text-muted)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div>Order: <span style={{ color: "#E2E8F0", fontWeight: 700 }}>#{stg.stageOrder}</span></div>
+                    <div>Order: <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>#{stg.stageOrder}</span></div>
                     <div>Leads: <span style={{ color: "#0066FF", fontWeight: 800 }}>{stg.leadCount}</span></div>
-                    <div>Outcome: <span style={{ color: stg.isClosed ? "#10B981" : "#E2E8F0" }}>{stg.isClosed ? (stg.isLob ? "Loss (LOB)" : "Won") : "Open"}</span></div>
-                    <div>Calendar: <span style={{ color: "#E2E8F0" }}>{stg.showInCalendar ? "Yes" : "No"}</span></div>
+                    <div>Outcome: <span style={{ color: stg.isClosed ? "#10B981" : "var(--text-primary)" }}>{stg.isClosed ? (stg.isLob ? "Loss (LOB)" : "Won") : "Open"}</span></div>
+                    <div>Calendar: <span style={{ color: "var(--text-primary)" }}>{stg.showInCalendar ? "Yes" : "No"}</span></div>
                   </div>
 
                   <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>

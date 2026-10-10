@@ -131,6 +131,16 @@ export function CalendarConfig() {
   const [eventTypeFilter, setEventTypeFilter] = useState<"ALL" | "SCHEDULED" | "COMPLETED" | "OVERDUE" | "CALL" | "VISIT" | "MEETING">("ALL");
   const [ownershipFilter, setOwnershipFilter] = useState<"MY" | "ALL">("MY");
 
+  // Responsive Mobile Detection
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 767);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Data States
   const [followUps, setFollowUps] = useState<FollowUpEvent[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -602,7 +612,7 @@ export function CalendarConfig() {
                 borderRadius: 7,
                 border: "none",
                 background: "#0066FF",
-                color: "#08080A",
+                color: "#FFFFFF",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
@@ -671,7 +681,7 @@ export function CalendarConfig() {
                     borderRadius: 7,
                     border: "none",
                     background: isActive ? "#0066FF" : "transparent",
-                    color: isActive ? "#08080A" : "#8E8EA0",
+                    color: isActive ? "#FFFFFF" : "var(--text-secondary)",
                     cursor: "pointer",
                     transition: "all 0.15s ease",
                   }}
@@ -907,20 +917,94 @@ export function CalendarConfig() {
         {activeView === "MONTH" && (
           <div>
             {/* WEEKDAY HEADERS (MON, TUE, WED, THU, FRI, SAT, SUN) */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 8, marginBottom: 8, textAlign: "center", width: "100%" }}>
-              {(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const).map((dayName) => (
-                <div key={dayName} style={{ padding: "10px 0", fontSize: 11, fontWeight: 800, color: "#0066FF", letterSpacing: "0.06em", minWidth: 0 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: isMobile ? 4 : 8, marginBottom: 8, textAlign: "center", width: "100%" }}>
+              {(isMobile ? ["M", "T", "W", "T", "F", "S", "S"] : ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]).map((dayName, idx) => (
+                <div key={`${dayName}-${idx}`} style={{ padding: "8px 0", fontSize: 11, fontWeight: 800, color: "#0066FF", letterSpacing: "0.06em", minWidth: 0 }}>
                   {dayName}
                 </div>
               ))}
             </div>
 
             {/* 7-COLUMN MONTH GRID */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 8, width: "100%" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: isMobile ? 4 : 8, width: "100%" }}>
               {calendarGrid.map((dayItem, gridIdx) => {
                 const dayEvents = eventsByDate[dayItem.dateStr] || [];
                 const isToday = dayItem.isToday;
+                const isSelected = getLocalDateString(selectedDate) === dayItem.dateStr;
                 const nowIso = new Date().toISOString();
+
+                if (isMobile) {
+                  return (
+                    <button
+                      key={`cell-m-${dayItem.dateStr}-${gridIdx}`}
+                      type="button"
+                      aria-label={`${dayItem.date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}${isToday ? ", today" : ""}${dayEvents.length > 0 ? `, ${dayEvents.length} tasks` : ""}`}
+                      style={{
+                        minHeight: 48,
+                        minWidth: 40,
+                        padding: 4,
+                        borderRadius: 10,
+                        border: isSelected
+                          ? "2px solid #0066FF"
+                          : isToday
+                          ? "2px solid #00E5FF"
+                          : dayItem.isCurrentMonth
+                          ? "1px solid var(--border-color)"
+                          : "1px solid transparent",
+                        background: isSelected
+                          ? "rgba(0, 102, 255, 0.25)"
+                          : isToday
+                          ? "rgba(0, 229, 255, 0.12)"
+                          : dayItem.isCurrentMonth
+                          ? "var(--bg-secondary)"
+                          : "rgba(18, 19, 26, 0.2)",
+                        opacity: dayItem.isCurrentMonth ? 1 : 0.45,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                      onClick={() => setSelectedDate(dayItem.date)}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: isToday || isSelected ? 800 : 600,
+                          color: isSelected
+                            ? "#FFFFFF"
+                            : isToday
+                            ? "#00E5FF"
+                            : dayItem.isCurrentMonth
+                            ? "var(--text-primary)"
+                            : "var(--text-muted)",
+                          marginTop: 2,
+                        }}
+                      >
+                        {dayItem.date.getDate()}
+                      </span>
+
+                      {/* Event Dot Indicators */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 3 }}>
+                        {dayEvents.slice(0, 3).map((ev, evIdx) => (
+                          <span
+                            key={`dot-${ev.id || evIdx}`}
+                            style={{
+                              width: 5,
+                              height: 5,
+                              borderRadius: "50%",
+                              background: ev.stageColor || (ev.status === "COMPLETED" ? "#10B981" : "#0066FF"),
+                            }}
+                          />
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <span style={{ fontSize: 9, fontWeight: 800, color: "#0066FF" }}>+{dayEvents.length - 3}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                }
 
                 return (
                   <div
@@ -929,7 +1013,11 @@ export function CalendarConfig() {
                       minHeight: 140,
                       minWidth: 0,
                       background: dayItem.isCurrentMonth ? "var(--bg-secondary)" : "rgba(18, 19, 26, 0.4)",
-                      border: isToday ? "2px solid #0066FF" : "1px solid rgba(255, 255, 255, 0.06)",
+                      border: isSelected
+                        ? "2px solid #0066FF"
+                        : isToday
+                        ? "2px solid #00E5FF"
+                        : "1px solid rgba(255, 255, 255, 0.06)",
                       borderRadius: 12,
                       padding: 10,
                       display: "flex",
@@ -940,18 +1028,10 @@ export function CalendarConfig() {
                       overflow: "hidden",
                     }}
                     onClick={() => {
-                      if (dayEvents.length > 0) {
-                        setSelectedDate(dayItem.date);
-                        setActiveView("DAY");
-                      } else {
+                      setSelectedDate(dayItem.date);
+                      if (dayEvents.length === 0) {
                         handleOpenScheduleModal(dayItem.dateStr);
                       }
-                    }}
-                    onMouseEnter={(e) => {
-                      if (dayItem.isCurrentMonth) e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (dayItem.isCurrentMonth && !isToday) e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
                     }}
                   >
                     {/* Date Cell Top Header */}
@@ -1049,6 +1129,94 @@ export function CalendarConfig() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* SELECTED DATE AGENDA PANEL FOR MOBILE & QUICK ACTION */}
+            <div
+              style={{
+                marginTop: 18,
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-color)",
+                borderRadius: 14,
+                padding: 16,
+                boxShadow: "var(--card-shadow)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, borderBottom: "1px solid var(--border-color)", paddingBottom: 10 }}>
+                <div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>SELECTED DATE</span>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: "2px 0 0" }}>
+                    {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+                  </h3>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "3px 10px", borderRadius: 50, border: "1px solid rgba(0, 102, 255, 0.25)" }}>
+                  {(eventsByDate[getLocalDateString(selectedDate)] || []).length} Tasks
+                </span>
+              </div>
+
+              {((eventsByDate[getLocalDateString(selectedDate)]) || []).length === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px 10px", color: "var(--text-muted)" }}>
+                  <CalendarIcon style={{ width: 28, height: 28, color: "var(--text-muted)", margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>No tasks scheduled for this date.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {(eventsByDate[getLocalDateString(selectedDate)] || []).map((ev) => (
+                    <div
+                      key={ev.id}
+                      onClick={() => setActiveEventDetail(ev)}
+                      style={{
+                        padding: 12,
+                        background: "var(--surface)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: "rgba(0, 102, 255, 0.1)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.2)" }}>
+                            {ev.type}
+                          </span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>
+                            {formatLocalTime(ev.scheduledAt)}
+                          </span>
+                        </div>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{ev.leadName}</h4>
+                        {ev.description && <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "2px 0 0" }}>{ev.description}</p>}
+                      </div>
+                      <ChevronRight style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleOpenScheduleModal(getLocalDateString(selectedDate))}
+                style={{
+                  marginTop: 14,
+                  width: "100%",
+                  minHeight: 44,
+                  borderRadius: 10,
+                  background: "#0066FF",
+                  color: "#FFFFFF",
+                  border: "none",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                <Plus style={{ width: 18, height: 18, strokeWidth: 3 }} />
+                Schedule Task for {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </button>
             </div>
           </div>
         )}
@@ -1153,7 +1321,7 @@ export function CalendarConfig() {
               <button
                 type="button"
                 onClick={() => handleOpenScheduleModal(getLocalDateString(selectedDate))}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "#0066FF", color: "#08080A", fontWeight: 800, borderRadius: 8, border: "none", cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "#0066FF", color: "#FFFFFF", fontWeight: 800, borderRadius: 8, border: "none", cursor: "pointer" }}
               >
                 <Plus style={{ width: 16, height: 16 }} />
                 Add Follow-Up
@@ -1763,7 +1931,7 @@ export function CalendarConfig() {
                   <button
                     type="button"
                     onClick={() => handleRescheduleEvent(activeEventDetail.id)}
-                    style={{ padding: "6px 14px", fontSize: 12, fontWeight: 800, background: "#0066FF", color: "#08080A", border: "none", borderRadius: 6, cursor: "pointer" }}
+                    style={{ padding: "6px 14px", fontSize: 12, fontWeight: 800, background: "#0066FF", color: "#FFFFFF", border: "none", borderRadius: 6, cursor: "pointer" }}
                   >
                     Confirm Reschedule
                   </button>

@@ -379,10 +379,11 @@
 .url-card,
 .preview-card,
 .table-card {
-  background: #fff;
-  border: 1px solid var(--d-line);
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(20, 38, 54, 0.045);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 .form-card {
   padding: 30px;
@@ -425,12 +426,12 @@
 .field textarea,
 .add-service input {
   width: 100%;
-  border: 1px solid #d8e0e6;
-  border-radius: 5px;
-  background: #fff;
+  border: 1px solid var(--input-border, var(--border-color));
+  border-radius: 8px;
+  background: var(--input-bg, var(--surface));
   padding: 11px 12px;
   outline: none;
-  color: var(--d-ink);
+  color: var(--input-text, var(--text-main));
 }
 .field input:focus,
 .field select:focus,
@@ -459,10 +460,10 @@
   overflow: hidden;
 }
 .phone span {
-  background: #f3f6f8;
+  background: var(--bg-secondary);
   padding: 11px;
-  border-right: 1px solid #d8e0e6;
-  color: #516273;
+  border-right: 1px solid var(--border-color);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 .phone input {
@@ -2646,7 +2647,7 @@ th {
   .table-card .table-scroll table,.table-card .table-scroll tbody,.table-card .table-scroll tr,.table-card .table-scroll td { display: block; width: 100%; min-width: 0; }
   .table-card .table-scroll thead { display: none; }
   .table-card .table-scroll tbody { display: grid; gap: 12px; }
-  .table-card .table-scroll tr { padding: 6px 14px; border: 1px solid #0066FF40; border-radius: 12px; background:#080807; }
+  .table-card .table-scroll tr { padding: 6px 14px; border: 1px solid #0066FF40; border-radius: 12px; background:var(--surface); }
   .table-card .table-scroll td { display:grid; grid-template-columns: 92px minmax(0,1fr); gap:12px; align-items:center; min-height:42px; padding:10px 0; border-bottom:1px solid #0066FF25; overflow-wrap:anywhere; }
   .table-card .table-scroll td:last-child { border-bottom:0; }
   .table-card .table-scroll td::before { content:attr(data-label); color:#0066FF; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
@@ -4518,8 +4519,8 @@ th {
 }
 
 .crm-cal-day-btn {
-  height: 32px;
-  border-radius: 7px;
+  min-height: 38px;
+  border-radius: 8px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-primary, #E2E8F0);
@@ -4563,6 +4564,44 @@ th {
 
 .crm-cal-day-btn.is-selected .crm-cal-dot {
   background: #FFFFFF;
+}
+
+/* RESPONSIVE MOBILE CALENDAR BREAKPOINTS */
+@media (max-width: 767px) {
+  .crm-calendar-widget-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .crm-cal-day-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    font-size: 13px !important;
+  }
+
+  .crm-cal-arrow-btn,
+  .crm-cal-today-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    font-size: 13px !important;
+    padding: 0 14px !important;
+  }
+
+  .crm-cal-days-grid {
+    gap: 4px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .crm-calendar-widget-card {
+    padding: 12px !important;
+  }
+
+  .crm-cal-day-btn {
+    min-height: 42px !important;
+    min-width: 36px !important;
+    font-size: 12px !important;
+  }
 }
 
 .crm-cal-agenda-section {
@@ -5741,6 +5780,11 @@ body.light-mode .crm-dashboard-root {
   color: #0F172A !important;
 }
 
+[data-theme="light"] .form-card,
+[data-theme="light"] .table-card,
+[data-theme="light"] .preview-card,
+[data-theme="light"] .url-card,
+[data-theme="light"] .mini-card,
 [data-theme="light"] .crm-filter-card,
 [data-theme="light"] .crm-kpi-card,
 [data-theme="light"] .crm-capacity-card,
@@ -5749,6 +5793,12 @@ body.light-mode .crm-dashboard-root {
 [data-theme="light"] .crm-lob-card,
 [data-theme="light"] .crm-calendar-widget-card,
 [data-theme="light"] .crm-product-analytics-card,
+[data-theme="light"] .mode-settings-block,
+body.light-mode .form-card,
+body.light-mode .table-card,
+body.light-mode .preview-card,
+body.light-mode .url-card,
+body.light-mode .mini-card,
 body.light-mode .crm-filter-card,
 body.light-mode .crm-kpi-card,
 body.light-mode .crm-capacity-card,
@@ -5756,10 +5806,26 @@ body.light-mode .crm-chart-card,
 body.light-mode .crm-pipeline-card,
 body.light-mode .crm-lob-card,
 body.light-mode .crm-calendar-widget-card,
-body.light-mode .crm-product-analytics-card {
+body.light-mode .crm-product-analytics-card,
+body.light-mode .mode-settings-block {
   background: #FFFFFF !important;
   border-color: #E2E8F0 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6,
+body.light-mode h1,
+body.light-mode h2,
+body.light-mode h3,
+body.light-mode h4,
+body.light-mode h5,
+body.light-mode h6 {
   color: #0F172A !important;
 }
 
@@ -5785,10 +5851,16 @@ body.light-mode .crm-tile-value {
   color: #0F172A !important;
 }
 
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea,
 [data-theme="light"] .crm-filter-select,
 [data-theme="light"] .crm-filter-date,
 [data-theme="light"] .crm-filter-control-wrap input,
 [data-theme="light"] .crm-filter-control-wrap select,
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea,
 body.light-mode .crm-filter-select,
 body.light-mode .crm-filter-date,
 body.light-mode .crm-filter-control-wrap input,
@@ -5797,13 +5869,117 @@ body.light-mode .crm-filter-control-wrap select {
   border: 1px solid #CBD5E1 !important;
   color: #0F172A !important;
   -webkit-text-fill-color: #0F172A !important;
-  color-scheme: light;
+  color-scheme: light !important;
 }
 
-[data-theme="light"] .crm-filter-select option,
-body.light-mode .crm-filter-select option {
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder,
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder {
+  color: #94A3B8 !important;
+  -webkit-text-fill-color: #94A3B8 !important;
+}
+
+[data-theme="light"] select option,
+body.light-mode select option {
   background-color: #FFFFFF !important;
   color: #0F172A !important;
+}
+
+/* DARK MODE SYSTEM OVERRIDES (DARK NAVY + WHITE TEXT) */
+[data-theme="dark"] body,
+[data-theme="dark"] .dash-shell,
+[data-theme="dark"] .dash-main,
+[data-theme="dark"] .crm-dashboard-root,
+body.dark-mode,
+body.dark-mode .dash-shell,
+body.dark-mode .dash-main,
+body.dark-mode .crm-dashboard-root {
+  background: #070D19 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .form-card,
+[data-theme="dark"] .table-card,
+[data-theme="dark"] .preview-card,
+[data-theme="dark"] .url-card,
+[data-theme="dark"] .mini-card,
+[data-theme="dark"] .crm-filter-card,
+[data-theme="dark"] .crm-kpi-card,
+[data-theme="dark"] .crm-capacity-card,
+[data-theme="dark"] .crm-chart-card,
+[data-theme="dark"] .crm-pipeline-card,
+[data-theme="dark"] .crm-lob-card,
+[data-theme="dark"] .crm-calendar-widget-card,
+[data-theme="dark"] .crm-product-analytics-card,
+[data-theme="dark"] .mode-settings-block,
+body.dark-mode .form-card,
+body.dark-mode .table-card,
+body.dark-mode .preview-card,
+body.dark-mode .url-card,
+body.dark-mode .mini-card,
+body.dark-mode .crm-filter-card,
+body.dark-mode .crm-kpi-card,
+body.dark-mode .crm-capacity-card,
+body.dark-mode .crm-chart-card,
+body.dark-mode .crm-pipeline-card,
+body.dark-mode .crm-lob-card,
+body.dark-mode .crm-calendar-widget-card,
+body.dark-mode .crm-product-analytics-card,
+body.dark-mode .mode-settings-block {
+  background: #0D1726 !important;
+  border-color: #1E293B !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .crm-filter-select,
+[data-theme="dark"] .crm-filter-date,
+[data-theme="dark"] .crm-filter-control-wrap input,
+[data-theme="dark"] .crm-filter-control-wrap select,
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea,
+body.dark-mode .crm-filter-select,
+body.dark-mode .crm-filter-date,
+body.dark-mode .crm-filter-control-wrap input,
+body.dark-mode .crm-filter-control-wrap select {
+  background-color: #070E1A !important;
+  border: 1px solid #1E293B !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  color-scheme: dark !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder,
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+}
+
+[data-theme="dark"] select option,
+body.dark-mode select option {
+  background-color: #070E1A !important;
+  color: #FFFFFF !important;
 }
 
 [data-theme="light"] .crm-btn-refresh,
