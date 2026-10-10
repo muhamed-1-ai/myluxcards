@@ -208,9 +208,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         ? String(value)
         : "DIGITAL_PROFILE";
     } else if (field === "profileFormat") {
-      output.profileFormat = ["standard", "modern"].includes(String(value || "").toLowerCase())
-        ? String(value).toLowerCase()
-        : "modern";
+      output.profileFormat = "modern";
     } else if (field === "modernConfig" && value && typeof value === "object" && !Array.isArray(value)) {
       const mc = value as Record<string, unknown>;
       output.modernConfig = {
@@ -323,9 +321,9 @@ export function completeCardProfile(input: unknown) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const cleaned = cleanCardProfile(source);
   const rawFormat = String(source.profileFormat || "").toLowerCase().trim();
-  const resolvedFormat = rawFormat === "standard" ? "standard" : "modern";
-
-  const isLegacyGoldDefault = (!source.profileBackground && !source.profileAccent);
+  const isRetiredOrInvalidFormat = !rawFormat || rawFormat === "standard" || rawFormat !== "modern";
+  const isLegacyGold = cleaned.profileAccent === "#FFAE00" || cleaned.profileAccent === "#D4AF37" || cleaned.profileAccent === "#C5A059";
+  const isLegacyGoldDefault = (!source.profileBackground && !source.profileAccent) || (isRetiredOrInvalidFormat && isLegacyGold);
 
   const resolvedBg = isLegacyGoldDefault ? "#050B14" : (cleaned.profileBackground || "#050B14");
   const resolvedAccent = isLegacyGoldDefault ? "#0066FF" : (cleaned.profileAccent || "#0066FF");
@@ -333,7 +331,7 @@ export function completeCardProfile(input: unknown) {
   return {
     ...CARD_PROFILE_DEFAULTS,
     ...cleaned,
-    profileFormat: resolvedFormat,
+    profileFormat: "modern",
     profileBackground: resolvedBg,
     profileAccent: resolvedAccent,
     profileText: cleaned.profileText || "#ffffff",

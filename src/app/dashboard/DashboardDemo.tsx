@@ -277,7 +277,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     activatedAt: typeof card.activatedAt === "string" ? card.activatedAt : null,
     analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
     profileMode: card.profileMode || fallback.profileMode,
-    profileFormat: card.profileFormat === "standard" ? "standard" : "modern",
+    profileFormat: "modern",
     enabledFeatures: {
       digitalProfile: card.enabledFeatures?.digitalProfile !== false,
       vehicleConnect: card.enabledFeatures?.vehicleConnect !== false,
@@ -5205,19 +5205,6 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
     }
   };
 
-  const contact = [
-    ["☎", "Mobile", card.mobile ? `${card.countryCode} ${card.mobile}` : ""], ["✉", "Email", card.email],
-    ["⌁", "Website", card.website], ["◉", "WhatsApp", card.whatsapp ? `${card.countryCode} ${card.whatsapp}` : ""],
-  ].filter((x) => x[2]);
-  const socialLinks = [
-    ["Instagram", "instagram"],
-    ["Facebook", "facebook"],
-    ["YouTube", "youtube"],
-    ["LinkedIn", "linkedin"],
-    ["Twitter", "twitter"],
-    ["Google Business", "google"],
-    ["Google Maps", "maps"],
-  ].map(([name, brand]) => ({ name, brand, url: card.social[name] })).filter((item) => item.url);
   return <aside className="preview-panel">
     {qrOpen && (
       <div className="qr-modal-overlay" onClick={() => setQrOpen(false)}>
@@ -5267,41 +5254,16 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
     </div>
     <div className="preview-card">
       <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
-      {(card.profileFormat || "modern") !== "standard" ? (
-        <div style={{ padding: "8px 0" }}>
-          <ModernProfileLayout
-            card={card}
-            isDashboardPreview
-            onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
-            onShareDetails={() => setShareDetailsModalOpen(true)}
-            onShare={() => alert("Share demo: in live public profile this opens share options.")}
-            onOpenBrochure={card.brochure ? () => alert("Brochure demo: downloads your uploaded brochure file.") : undefined}
-          />
-        </div>
-      ) : (
-        <div className="phone-preview" style={resolveThemeTokens(card).styleObj}>
-          <div className="wa-bar"><input placeholder="Enter WhatsApp Number" /><button style={{ background: "var(--profile-primary)", color: "var(--profile-primary-text)" }}>Share</button></div>
-          <div className="cover">{card.cover ? <img src={resolveMediaUrl(card.cover)} alt="" style={{ transform: `scale(${(card.coverScale ?? 100) / 100}) rotate(${card.coverRotation ?? 0}deg)`, objectPosition: `${card.coverX ?? 50}% ${card.coverY ?? 50}%` }} /> : <span>ZAPPIT</span>}</div>
-          <div className="profile-logo">{card.logo ? <img src={resolveMediaUrl(card.logo)} alt="" style={{ transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`, objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%` }} /> : <span>{card.name.split(" ").map((x) => x[0]).join("").slice(0, 2) || "ML"}</span>}</div>
-          <div className="profile-copy"><h3>{card.name || "Your Name"}</h3><p>{[card.title, card.business].filter(Boolean).join(" – ") || "Title – Business name"}</p></div>
-          <div className="profile-actions">
-            <button type="button" style={{ background: "var(--profile-primary-gradient)", color: "var(--profile-primary-text)", borderColor: "var(--profile-primary)" }} onClick={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}>＋ Save Contact</button>
-            <button type="button" onClick={() => setShareDetailsModalOpen(true)} style={{ background: "var(--profile-secondary-bg)", borderColor: "var(--profile-secondary-border)", color: "var(--profile-secondary-text)" }}>Share Your Details</button>
-            {card.brochure && <button type="button" style={{ background: "var(--profile-secondary-bg)", borderColor: "var(--profile-secondary-border)", color: "var(--profile-secondary-text)" }}>▤ Brochure</button>}
-            <button type="button" style={{ background: "var(--profile-secondary-bg)", borderColor: "var(--profile-secondary-border)", color: "var(--profile-secondary-text)" }} onClick={() => alert("Share demo: in live public profile this opens share options.")}>↗ Share</button>
-          </div>
-          <div className="contact-grid">{contact.map((x) => <div key={x[1]}><i>{x[0]}</i><span><small>{x[1]}</small><b>{x[2]}</b></span></div>)}</div>
-          {(card.about || card.services.length > 0) && <div className="company-preview">
-            <h4>Business Information</h4>
-            {card.about && <div className="company-about-preview"><h5>About Company</h5><p>{card.about}</p></div>}
-            {card.services.length > 0 && <div className="company-services-preview"><h5>Services / Products</h5><ol>{card.services.map((service) => <li key={service}>{service}</li>)}</ol></div>}
-          </div>}
-          {socialLinks.length > 0 && <div className="social-preview">
-            <h4>Apps &amp; Links</h4>
-            <div>{socialLinks.map((item) => <a className={`social-preview-icon ${item.brand}`} href={item.url} target="_blank" rel="noopener noreferrer" key={item.name} aria-label={`Open ${item.name}`} title={item.name}><SocialBrandIcon brand={item.brand} /></a>)}</div>
-          </div>}
-        </div>
-      )}
+      <div style={{ padding: "8px 0" }}>
+        <ModernProfileLayout
+          card={card}
+          isDashboardPreview
+          onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
+          onShareDetails={() => setShareDetailsModalOpen(true)}
+          onShare={() => alert("Share demo: in live public profile this opens share options.")}
+          onOpenBrochure={card.brochure ? () => alert("Brochure demo: downloads your uploaded brochure file.") : undefined}
+        />
+      </div>
       <ShareDetailsModal
         isOpen={shareDetailsModalOpen}
         onClose={() => setShareDetailsModalOpen(false)}
@@ -5310,16 +5272,6 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
       />
     </div>
   </aside>;
-}
-
-function SocialBrandIcon({ brand }: { brand: string }) {
-  if (brand === "maps") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 10.2A3.2 3.2 0 1 1 12 5.8a3.2 3.2 0 0 1 0 6.4Z" /></svg>;
-  if (brand === "instagram") return <svg viewBox="0 0 24 24" aria-hidden><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5.2" fill="none" stroke="currentColor" strokeWidth="2.2" /><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" strokeWidth="2.2" /><circle cx="17.6" cy="6.7" r="1.2" fill="currentColor" /></svg>;
-  if (brand === "facebook") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M13.8 21v-8h2.8l.4-3.1h-3.2V8c0-.9.3-1.6 1.6-1.6h1.8V3.6c-.4 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5v1.9H7.3V13h2.9v8h3.6Z" /></svg>;
-  if (brand === "linkedin") return <svg viewBox="0 0 24 24" aria-hidden><circle cx="6.2" cy="6.3" r="2" fill="currentColor" /><path fill="currentColor" d="M4.5 9.5h3.4V20H4.5V9.5Zm5.5 0h3.3v1.4h.1c.7-1.1 1.9-1.8 3.4-1.8 3.6 0 4.2 2.4 4.2 5.4V20h-3.4v-4.9c0-1.2 0-2.8-1.8-2.8s-2 1.3-2 2.7v5H10V9.5Z" /></svg>;
-  if (brand === "twitter") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M4 3h4.5l4.3 5.8L17.8 3H20l-6.2 7.3L21 21h-4.5l-4.8-6.5L6.2 21H4l6.7-8L4 3Zm3.4 2 10.1 14h1.9L9.3 5H7.4Z" /></svg>;
-  if (brand === "youtube") return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M21.4 7.1a2.5 2.5 0 0 0-1.8-1.8C18 4.9 12 4.9 12 4.9s-6 0-7.6.4a2.5 2.5 0 0 0-1.8 1.8A26 26 0 0 0 2.2 12a26 26 0 0 0 .4 4.9 2.5 2.5 0 0 0 1.8 1.8c1.6.4 7.6.4 7.6.4s6 0 7.6-.4a2.5 2.5 0 0 0 1.8-1.8 26 26 0 0 0 .4-4.9 26 26 0 0 0-.4-4.9ZM10 15.6V8.4l6.2 3.6-6.2 3.6Z" /></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.7 4.7 0 0 1-2 3v2.6h3.3c1.9-1.8 2.9-4.4 2.9-7.5ZM12 22c2.7 0 5-.9 6.7-2.3l-3.3-2.6c-.9.6-2.1 1-3.4 1a5.9 5.9 0 0 1-5.5-4.1H3.1v2.7A10 10 0 0 0 12 22ZM6.5 14a6 6 0 0 1 0-3.9V7.4H3.1a10 10 0 0 0 0 9.3L6.5 14ZM12 5.9c1.5 0 2.8.5 3.9 1.5l2.9-2.9A9.8 9.8 0 0 0 3.1 7.4l3.4 2.7A5.9 5.9 0 0 1 12 5.9Z" /></svg>;
 }
 
 function GenericProfileSectionManager({
