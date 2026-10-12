@@ -138,6 +138,7 @@ model Lead {
   paymentInformation      Json?    @default("{}") @map("payment_information")
   products                Json?    @default("[]") @map("products")
   followUpType            String?  @default("CALL") @map("follow_up_type")
+  lostAtStage             String?  @map("lost_at_stage")
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
 

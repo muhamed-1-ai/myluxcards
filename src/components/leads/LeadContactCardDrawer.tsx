@@ -100,8 +100,18 @@ export default function LeadContactCardDrawer({
   const phone = activeContact ? resolvePhoneNumber(activeContact) : "";
   const cleanPhoneDigits = phone.replace(/[^0-9]/g, "");
   const email = (activeContact?.email || "").trim();
-  const company = (activeContact?.companyName || activeContact?.business || "").trim();
-  const jobTitle = (activeContact?.jobTitle || activeContact?.title || "").trim();
+  const company = (
+    activeContact?.companyName ||
+    activeContact?.company_name ||
+    activeContact?.business ||
+    ""
+  ).trim();
+  const jobTitle = (
+    activeContact?.jobTitle ||
+    activeContact?.job_title ||
+    activeContact?.title ||
+    ""
+  ).trim();
   const address = (activeContact?.address || "").trim();
 
   // Handle / subtitle badge: e.g. card slug or brand tag if provided

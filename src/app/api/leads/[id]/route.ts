@@ -393,9 +393,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
            notes = COALESCE($13, notes),
            payment_information = $14,
            products = $15,
+           lost_at_stage = CASE
+             WHEN $8 = 'LOST' AND status != 'LOST' THEN status
+             WHEN $8 IS NOT NULL AND $8 != 'LOST' THEN NULL
+             ELSE lost_at_stage
+           END,
            updated_at = NOW()
        WHERE id = $16 AND ${accessClause.replace(/owner_user_id/g, "owner_user_id").replace(/\$2/g, "$17")}
-       RETURNING id, name, company_name as "companyName", contact_number as "contactNumber", email, status, source, profile_image as "profileImage", assigned_user_id as "assignedUserId", address, total_amount as "totalAmount", advance_amount as "advanceAmount", remarks, payment_information as "paymentInformation", products, updated_at as "updatedAt"`,
+       RETURNING id, name, company_name as "companyName", contact_number as "contactNumber", email, status, lost_at_stage as "lostAtStage", source, profile_image as "profileImage", assigned_user_id as "assignedUserId", address, total_amount as "totalAmount", advance_amount as "advanceAmount", remarks, payment_information as "paymentInformation", products, updated_at as "updatedAt"`,
       identity.role === "SUPER_ADMIN"
         ? [name, companyName, contactNumber, finalNormPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id]
         : [name, companyName, contactNumber, finalNormPhone, email, profileImage, assignedUserId, status, source, safeAddress, safeTotalAmount, safeAdvanceAmount, note, JSON.stringify(paymentInfo), JSON.stringify(products), id, identity.id]

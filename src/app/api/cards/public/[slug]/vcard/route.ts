@@ -98,11 +98,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       .replace(/[^a-zA-Z0-9_\-\u0D00-\u0D7F\u0600-\u06FF]+/g, "_")
       .slice(0, 50);
 
+    const url = new URL(_.url);
+    const isExplicitDownload = url.searchParams.get("download") === "1" || url.searchParams.get("attachment") === "1";
+    const dispositionType = isExplicitDownload ? "attachment" : "inline";
+
     return new Response(vcardResult.vcard, {
       status: 200,
       headers: {
         "Content-Type": "text/vcard; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${safeFilename}.vcf"`,
+        "Content-Disposition": `${dispositionType}; filename="${safeFilename}.vcf"; filename*=UTF-8''${encodeURIComponent(safeFilename + ".vcf")}`,
         "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0",

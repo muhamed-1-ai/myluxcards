@@ -4498,6 +4498,205 @@ th {
   max-width: 80px;
 }
 
+/* LOB Total Count Badge */
+.crm-lob-total-badge {
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(0, 102, 255, 0.12);
+  color: #0066FF;
+  border: 1px solid rgba(0, 102, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Desktop vs Mobile Chart Switch */
+.crm-lob-desktop-chart {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.crm-lob-mobile-chart {
+  display: none !important;
+}
+
+/* Horizontal Bar Chart for Mobile Breakpoint */
+.crm-lob-horizontal-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.crm-lob-hbar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 42px;
+  width: 100%;
+  justify-content: center;
+}
+
+.crm-lob-hbar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+}
+
+.crm-lob-hbar-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+}
+
+.crm-lob-hbar-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.crm-lob-hbar-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #94A3B8);
+  margin-left: 4px;
+}
+
+.crm-lob-hbar-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.crm-lob-hbar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0066FF 0%, #00E5FF 100%);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* LOB Skeleton & Empty & Error States */
+.crm-lob-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 0;
+}
+
+.crm-lob-skeleton-row {
+  height: 24px;
+  width: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: crm-skeleton-pulse 1.5s infinite;
+}
+
+.crm-lob-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  text-align: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.crm-lob-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.crm-lob-empty-sub {
+  font-size: 12px;
+  color: var(--text-muted, #94A3B8);
+  max-width: 340px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.crm-lob-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  gap: 10px;
+  width: 100%;
+  color: #EF4444;
+  font-size: 13px;
+}
+
+.crm-lob-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 102, 255, 0.12);
+  border: 1px solid rgba(0, 102, 255, 0.3);
+  color: #0066FF;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Responsive Overrides at Mobile Breakpoint */
+@media (max-width: 768px) {
+  .crm-lob-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  .crm-lob-desktop-chart {
+    display: none !important;
+  }
+
+  .crm-lob-mobile-chart {
+    display: flex !important;
+  }
+}
+
+/* Light Mode Overrides for LOB Widget */
+[data-theme="light"] .crm-lob-hbar-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .crm-lob-skeleton-row {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.08) 50%, rgba(0, 0, 0, 0.04) 75%);
+}
+
+[data-theme="light"] .crm-lob-total-badge {
+  background: rgba(0, 102, 255, 0.08);
+  color: #0066FF;
+  border-color: rgba(0, 102, 255, 0.2);
+}
+
 /* COMPACT DASHBOARD CALENDAR WIDGET */
 .crm-calendar-widget-card {
   background: var(--surface, #12131A);

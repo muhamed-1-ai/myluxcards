@@ -450,6 +450,7 @@ export default function LeadDetailsDrawer({
                           e.preventDefault();
                           e.stopPropagation();
                           exportLeadContact({
+                            id: lead.id,
                             name: lead.name,
                             contactNumber: lead.contactNumber,
                             email: lead.email,

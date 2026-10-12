@@ -31,6 +31,7 @@ import {
   DashboardSummaryPayload,
   LeadStage,
   PipelineLeadCard,
+  LostStageMetric,
 } from "@/lib/crm";
 import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
@@ -326,23 +327,19 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     }
   };
 
-  // Compute LOB Analysis Data from data or pipelineCounts
-  const lobAnalysisData = useMemo(() => {
-    if (!data) return [];
-    const lostCount = data.kpis.lostLeads || data.pipelineCounts?.LOST || 0;
-    return [
-      { stage: "NEW / UNCONTACTED", count: Math.round(lostCount * 0.35) || 4, pct: 35 },
-      { stage: "CONTACTED", count: Math.round(lostCount * 0.25) || 3, pct: 25 },
-      { stage: "INTERESTED", count: Math.round(lostCount * 0.20) || 2, pct: 20 },
-      { stage: "PROPOSAL / DEMO", count: Math.round(lostCount * 0.12) || 1, pct: 12 },
-      { stage: "NEGOTIATION", count: Math.round(lostCount * 0.08) || 1, pct: 8 },
-    ];
-  }, [data]);
+  // Normalized LOB Analysis Data from backend summary
+  const lobAnalysisData: LostStageMetric[] = useMemo(() => {
+    return data?.lostLeadsByStage || [];
+  }, [data?.lostLeadsByStage]);
+
+  const totalLostCount = useMemo(() => {
+    return lobAnalysisData.reduce((sum, item) => sum + item.count, 0);
+  }, [lobAnalysisData]);
 
   const maxLobCount = useMemo(() => {
     if (!lobAnalysisData || lobAnalysisData.length === 0) return 1;
-    const max = Math.max(...lobAnalysisData.map((d) => d.count), 1);
-    return max;
+    const max = Math.max(...lobAnalysisData.map((d) => d.count), 0);
+    return max > 0 ? max : 1;
   }, [lobAnalysisData]);
 
 
@@ -883,44 +880,128 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                         </span>
                       </div>
                     </div>
+                    {data && (
+                      <span className="crm-lob-total-badge">
+                        {totalLostCount} {totalLostCount === 1 ? "Lead" : "Leads"}
+                      </span>
+                    )}
                   </div>
                   <div className="crm-divider" style={{ margin: "16px 0 20px" }} />
 
-                  {/* Vertical Bar Chart */}
-                  <div className="crm-lob-vertical-chart-container">
-                    <div className="crm-lob-y-axis">
-                      {[4, 3, 2, 1, 0].map((step) => {
-                        const val = Math.round((step / 4) * maxLobCount);
-                        return (
-                          <div key={step} className="crm-lob-y-step">
-                            <span className="crm-lob-y-label">{val}</span>
-                            <div className="crm-lob-y-line" />
-                          </div>
-                        );
-                      })}
+                  {/* Loading Skeleton */}
+                  {loading && !data && (
+                    <div className="crm-lob-skeleton">
+                      <div className="crm-lob-skeleton-row" />
+                      <div className="crm-lob-skeleton-row" />
+                      <div className="crm-lob-skeleton-row" />
+                      <div className="crm-lob-skeleton-row" />
                     </div>
+                  )}
 
-                    <div className="crm-lob-bars-area">
-                      {lobAnalysisData.map((item) => {
-                        const heightPct = Math.min(100, Math.max(6, (item.count / maxLobCount) * 100));
-                        return (
-                          <div key={item.stage} className="crm-lob-bar-col">
-                            <div className="crm-lob-bar-wrapper">
+                  {/* Error State */}
+                  {error && !data && (
+                    <div className="crm-lob-error-state">
+                      <p>{error}</p>
+                      <button
+                        type="button"
+                        onClick={() => void fetchDashboardData(true)}
+                        className="crm-lob-retry-btn"
+                      >
+                        <RefreshCw style={{ width: 14, height: 14 }} />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Genuine Empty State */}
+                  {!loading && data && totalLostCount === 0 && (
+                    <div className="crm-lob-empty-state">
+                      <p className="crm-lob-empty-title">No lost leads in this period</p>
+                      <span className="crm-lob-empty-sub">
+                        Leads that transition to Lost within active filters will appear here by stage.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Render Data Chart */}
+                  {data && totalLostCount > 0 && (
+                    <>
+                      {/* Desktop: Vertical Bar Chart */}
+                      <div className="crm-lob-desktop-chart">
+                        <div className="crm-lob-vertical-chart-container">
+                          <div className="crm-lob-y-axis">
+                            {[4, 3, 2, 1, 0].map((step) => {
+                              const val = Math.round((step / 4) * maxLobCount);
+                              return (
+                                <div key={step} className="crm-lob-y-step">
+                                  <span className="crm-lob-y-label">{val}</span>
+                                  <div className="crm-lob-y-line" />
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="crm-lob-bars-area">
+                            {lobAnalysisData.map((item) => {
+                              const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
+                              const heightPct = maxLobCount > 0 && item.count > 0 ? Math.min(100, Math.max(6, (item.count / maxLobCount) * 100)) : 0;
+                              return (
+                                <div key={item.stageId} className="crm-lob-bar-col">
+                                  <div className="crm-lob-bar-wrapper">
+                                    <div
+                                      className="crm-lob-bar-fill"
+                                      style={{ height: `${heightPct}%` }}
+                                      aria-label={`${item.label}: ${item.count} leads (${pct}%)`}
+                                    >
+                                      <div className="crm-lob-bar-tooltip">
+                                        <strong>{item.count} Leads</strong> ({pct}%)
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className="crm-lob-x-label" title={item.label}>{item.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mobile: Horizontal Bar Chart */}
+                      <div className="crm-lob-mobile-chart">
+                        <div className="crm-lob-horizontal-chart-container">
+                          {lobAnalysisData.map((item) => {
+                            const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
+                            const widthPct = maxLobCount > 0 && item.count > 0 ? Math.min(100, Math.max(2, (item.count / maxLobCount) * 100)) : 0;
+                            return (
                               <div
-                                className="crm-lob-bar-fill"
-                                style={{ height: `${heightPct}%` }}
+                                key={item.stageId}
+                                className="crm-lob-hbar-row"
+                                aria-label={`${item.label}: ${item.count} leads (${pct}%)`}
                               >
-                                <div className="crm-lob-bar-tooltip">
-                                  <strong>{item.count} Leads</strong> ({item.pct}%)
+                                <div className="crm-lob-hbar-header">
+                                  <span className="crm-lob-hbar-label" title={item.label}>
+                                    {item.label}
+                                  </span>
+                                  <span className="crm-lob-hbar-val">
+                                    {item.count}{" "}
+                                    <span className="crm-lob-hbar-unit">
+                                      ({pct}%)
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="crm-lob-hbar-track">
+                                  <div
+                                    className="crm-lob-hbar-fill"
+                                    style={{ width: `${widthPct}%` }}
+                                  />
                                 </div>
                               </div>
-                            </div>
-                            <span className="crm-lob-x-label" title={item.stage}>{item.stage}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

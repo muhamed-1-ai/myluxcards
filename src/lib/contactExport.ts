@@ -17,13 +17,16 @@ export interface ContactData {
   isPublicProfile?: boolean;
   name?: string | null;
   contactNumber?: string | null;
+  contact_number?: string | null;
   phone?: string | null;
   mobile?: string | null;
   whatsapp?: string | null;
   email?: string | null;
   companyName?: string | null;
+  company_name?: string | null;
   business?: string | null;
   jobTitle?: string | null;
+  job_title?: string | null;
   title?: string | null;
   address?: string | null;
   city?: string | null;
@@ -60,6 +63,7 @@ export function getSafeVCardFilename(name?: string | null): string {
 export function resolvePhoneNumber(contact: ContactData): string {
   return (
     contact.contactNumber ||
+    contact.contact_number ||
     contact.phone ||
     contact.mobile ||
     contact.whatsapp ||
@@ -75,8 +79,8 @@ export function serializeContactToVCard(contact: ContactData): string {
   const vcardInput: VCardInput = {
     profileName: contact.name,
     cardName: contact.name,
-    companyName: contact.companyName || contact.business,
-    title: contact.jobTitle || contact.title,
+    companyName: contact.companyName || contact.company_name || contact.business,
+    title: contact.jobTitle || contact.job_title || contact.title,
     phone: phone || undefined,
     email: contact.email || undefined,
     address: contact.address || undefined,
@@ -92,7 +96,10 @@ export function serializeContactToVCard(contact: ContactData): string {
 
 /**
  * Native phone contact preview/save handoff.
- * Attempts native OS contact flow where supported, with graceful fallbacks.
+ * - On iOS devices (Safari / WebKit): Performs user-initiated navigation to the authorized
+ *   HTTPS .vcf resource, opening the native iOS Contacts Card preview (Screenshot 3).
+ * - Avoids Web Share API file sharing, which causes the unwanted system share sheet (Screenshot 2).
+ * - On Android & Desktop: Downloads the .vcf contact file with clear user feedback.
  */
 export async function executeNativeContactHandoff(
   contact: ContactData,
@@ -109,98 +116,113 @@ export async function executeNativeContactHandoff(
 
   const filename = getSafeVCardFilename(fullName);
 
-  // 1. Fetch authorized vCard if an API endpoint is available, or build client-side
-  let vcardText = "";
-  try {
-    let endpointUrl = "";
-    if (contact.isPublicProfile && contact.slug) {
-      endpointUrl = `/api/cards/public/${encodeURIComponent(contact.slug)}/vcard`;
-    } else if (contact.id && /^[0-9a-f-]{36}$/i.test(contact.id)) {
-      endpointUrl = `/api/leads/${encodeURIComponent(contact.id)}/vcard`;
-    }
-
-    if (endpointUrl && typeof window !== "undefined") {
-      const res = await fetch(endpointUrl, {
-        headers: { Accept: "text/vcard, text/plain, */*" },
-      });
-      if (res.ok) {
-        vcardText = await res.text();
-      }
-    }
-  } catch {
-    // Non-fatal: fallback to client-side serializer below
+  // 1. Determine authorized endpoint URL
+  let endpointUrl = "";
+  if (contact.id && /^[0-9a-f-]{36}$/i.test(contact.id)) {
+    endpointUrl = `/api/leads/${encodeURIComponent(contact.id)}/vcard`;
+  } else if (contact.isPublicProfile && contact.slug) {
+    endpointUrl = `/api/cards/public/${encodeURIComponent(contact.slug)}/vcard`;
   }
 
-  if (!vcardText || !vcardText.startsWith("BEGIN:VCARD")) {
-    vcardText = serializeContactToVCard(contact);
-  }
-
-  // 2. Try Mobile Web Share API with File (iOS 15+, modern Android)
-  if (typeof navigator !== "undefined" && typeof File !== "undefined") {
-    try {
-      const vcardFile = new File([vcardText], filename, {
-        type: "text/vcard;charset=utf-8",
-      });
-
-      if (navigator.canShare && navigator.canShare({ files: [vcardFile] })) {
-        await navigator.share({
-          files: [vcardFile],
-          title: fullName,
-        });
-
-        // Native share completed without exception
-        if (onFeedback) {
-          onFeedback("Complete saving in your phone's Contacts app.");
-        }
-        return { success: true, method: "share_api" };
-      }
-    } catch (err: any) {
-      // User cancelled the native share sheet
-      if (err?.name === "AbortError") {
-        return { success: true, method: "cancelled" };
-      }
-      // If another error occurred, proceed to fallbacks
-    }
-  }
-
-  // 3. Browser-specific fallback
   const isIOS =
     typeof navigator !== "undefined" &&
     (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
-  const blob = new Blob([vcardText], { type: "text/vcard;charset=utf-8" });
+  const isAndroid =
+    typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
 
+  // 2. Pre-verify authorized endpoint if available to prevent navigating into error pages
+  let verifiedVCardText = "";
+  if (endpointUrl && typeof window !== "undefined") {
+    try {
+      const res = await fetch(endpointUrl, {
+        method: "GET",
+        headers: { Accept: "text/vcard, text/x-vcard, text/plain, */*" },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          const msg = "Sign-in required to export this contact.";
+          if (onFeedback) onFeedback(msg, true);
+          return { success: false, method: "error", message: msg };
+        }
+        if (res.status === 403) {
+          const msg = "Access denied to export this contact.";
+          if (onFeedback) onFeedback(msg, true);
+          return { success: false, method: "error", message: msg };
+        }
+        if (res.status === 404) {
+          const msg = "Contact record not found.";
+          if (onFeedback) onFeedback(msg, true);
+          return { success: false, method: "error", message: msg };
+        }
+        const msg = "Unable to load contact file. Please try again.";
+        if (onFeedback) onFeedback(msg, true);
+        return { success: false, method: "error", message: msg };
+      }
+
+      const bodyText = await res.text();
+      if (!bodyText.startsWith("BEGIN:VCARD")) {
+        const msg = "Server returned an invalid contact format.";
+        if (onFeedback) onFeedback(msg, true);
+        return { success: false, method: "error", message: msg };
+      }
+
+      verifiedVCardText = bodyText;
+    } catch (err: any) {
+      console.warn("[vCard Pre-check Error]", err);
+    }
+  }
+
+  // 3. User-Initiated Native Handoff
+  // A. On iOS devices (Safari / WebKit):
+  // Normal user-initiated navigation to the authorized HTTPS .vcf resource triggers
+  // iOS's native QuickLook / AddressBook contact card preview modal (Screenshot 3).
+  // Note: Web Share API file sharing is explicitly NOT called to avoid the unwanted generic share sheet (Screenshot 2).
   if (isIOS) {
-    // On iOS Safari, creating a blob link and clicking it prompts the native contact preview
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-
     if (onFeedback) {
       onFeedback("Opening contact preview on your device...");
     }
+
+    if (endpointUrl) {
+      // Direct navigation to authorized HTTPS .vcf resource
+      window.location.href = endpointUrl;
+      return { success: true, method: "ios_preview" };
+    }
+
+    // Fallback for contacts without backend endpoint (e.g. preview drafts)
+    const vcardContent = verifiedVCardText || serializeContactToVCard(contact);
+    const blob = new Blob([vcardContent], { type: "text/vcard;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    window.location.href = blobUrl;
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
     return { success: true, method: "ios_preview" };
   }
 
-  // 4. Android & Desktop: Clean file download with guidance
-  triggerVCardBlobDownload(blob, filename);
+  // B. On Android and Desktop (or browsers without native inline vCard preview):
+  // Clean file download from the verified endpoint with explicit attachment disposition, or blob download
+  if (endpointUrl) {
+    const downloadUrl = `${endpointUrl}?download=1`;
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } else {
+    const vcardContent = verifiedVCardText || serializeContactToVCard(contact);
+    const blob = new Blob([vcardContent], { type: "text/vcard;charset=utf-8" });
+    triggerVCardBlobDownload(blob, filename);
+  }
 
-  const isMobile =
-    typeof window !== "undefined" &&
-    (window.innerWidth <= 1024 || /Android/i.test(navigator.userAgent));
-
-  const feedbackMsg = isMobile
+  const feedbackMsg = isAndroid
     ? "Contact file downloaded. Tap the notification to add to contacts."
     : `Contact file downloaded (${filename}).`;
 
   if (onFeedback) onFeedback(feedbackMsg);
-
   return { success: true, method: "download", message: feedbackMsg };
 }
 
@@ -213,8 +235,23 @@ export function triggerExplicitVCardDownload(
 ): boolean {
   const fullName = (contact.name || "").trim() || "Contact";
   const filename = getSafeVCardFilename(fullName);
-  const vcardText = serializeContactToVCard(contact);
 
+  if (contact.id && /^[0-9a-f-]{36}$/i.test(contact.id)) {
+    const downloadUrl = `/api/leads/${encodeURIComponent(contact.id)}/vcard?download=1`;
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (onFeedback) {
+      onFeedback(`Downloaded ${filename}`);
+    }
+    return true;
+  }
+
+  const vcardText = serializeContactToVCard(contact);
   try {
     const blob = new Blob([vcardText], { type: "text/vcard;charset=utf-8" });
     triggerVCardBlobDownload(blob, filename);

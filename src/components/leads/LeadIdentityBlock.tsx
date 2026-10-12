@@ -46,6 +46,7 @@ export default function LeadIdentityBlock({
     e.preventDefault();
     e.stopPropagation();
     exportLeadContact({
+      id: lead.id,
       name: leadName,
       contactNumber: lead.contactNumber,
       email: lead.email,

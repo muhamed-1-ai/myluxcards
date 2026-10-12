@@ -76,11 +76,65 @@ export interface LeadGrowthPoint {
   count: number;
 }
 
+export type LostStageMetric = {
+  stageId: string;
+  label: string;
+  count: number;
+  order: number;
+};
+
+export const CANONICAL_LOST_STAGES: Array<{ stageId: string; label: string; order: number }> = [
+  { stageId: "NEW", label: "New / Uncontacted", order: 1 },
+  { stageId: "CONTACTED", label: "Contacted", order: 2 },
+  { stageId: "INTERESTED", label: "Interested", order: 3 },
+  { stageId: "FOLLOW_UP", label: "Follow-up", order: 4 },
+  { stageId: "PROPOSAL", label: "Proposal / Demo", order: 5 },
+  { stageId: "NEGOTIATION", label: "Negotiation", order: 6 },
+];
+
+export function normalizeLostStageId(rawStage: string | null | undefined): { stageId: string; label: string; order: number } {
+  if (!rawStage) {
+    return { stageId: "UNKNOWN", label: "Unknown / Unavailable", order: 99 };
+  }
+  const clean = rawStage.trim();
+  const normalized = clean.toUpperCase().replace(/[\s\/-]+/g, "_");
+  if (normalized === "NEW" || normalized === "NEW_UNCONTACTED" || normalized === "UNCONTACTED" || normalized === "NEW_LEAD") {
+    return { stageId: "NEW", label: "New / Uncontacted", order: 1 };
+  }
+  if (normalized === "CONTACTED" || normalized === "CNT") {
+    return { stageId: "CONTACTED", label: "Contacted", order: 2 };
+  }
+  if (normalized === "INTERESTED" || normalized === "INT") {
+    return { stageId: "INTERESTED", label: "Interested", order: 3 };
+  }
+  if (normalized === "FOLLOW_UP" || normalized === "FOLLOWUP" || normalized === "FU") {
+    return { stageId: "FOLLOW_UP", label: "Follow-up", order: 4 };
+  }
+  if (normalized === "PROPOSAL" || normalized === "PROPOSAL_DEMO" || normalized === "DEMO") {
+    return { stageId: "PROPOSAL", label: "Proposal / Demo", order: 5 };
+  }
+  if (normalized === "NEGOTIATION" || normalized === "NEG") {
+    return { stageId: "NEGOTIATION", label: "Negotiation", order: 6 };
+  }
+  if (normalized === "WON" || normalized === "CONVERTED") {
+    return { stageId: "WON", label: "Won / Converted", order: 7 };
+  }
+  if (normalized === "UNKNOWN" || normalized === "UNAVAILABLE" || normalized === "UNSPECIFIED") {
+    return { stageId: "UNKNOWN", label: "Unknown / Unavailable", order: 99 };
+  }
+  return {
+    stageId: normalized,
+    label: clean,
+    order: 50,
+  };
+}
+
 export interface DashboardSummaryPayload {
   kpis: LeadKpis;
   attentionItems: NeedsAttentionItem[];
   pipeline: Record<LeadStage, PipelineLeadCard[]>;
   pipelineCounts: Record<LeadStage, number>;
+  lostLeadsByStage: LostStageMetric[];
   todaysFollowUps: FollowUpItem[];
   overdueFollowUps: FollowUpItem[];
   upcomingFollowUps: FollowUpItem[];
@@ -114,6 +168,7 @@ export const DEFAULT_DASHBOARD_SUMMARY: DashboardSummaryPayload = {
   attentionItems: [],
   pipeline: { NEW: [], CONTACTED: [], INTERESTED: [], FOLLOW_UP: [], WON: [], LOST: [] },
   pipelineCounts: { NEW: 0, CONTACTED: 0, INTERESTED: 0, FOLLOW_UP: 0, WON: 0, LOST: 0 },
+  lostLeadsByStage: CANONICAL_LOST_STAGES.map((s) => ({ ...s, count: 0 })),
   todaysFollowUps: [],
   overdueFollowUps: [],
   upcomingFollowUps: [],
@@ -305,14 +360,36 @@ export async function getDashboardSummaryData(
       params
     );
 
+    // Query 7: Lost Leads by Stage (grouping lost leads by stage occupied before becoming lost)
+    const lostStageRes = pool.query<{ stage_key: string; count: string | number }>(
+      `SELECT 
+         COALESCE(
+           l.lost_at_stage,
+           (SELECT la.from_value 
+            FROM lead_activities la 
+            WHERE la.lead_id = l.id 
+              AND (la.type = 'LEAD_LOST' OR la.to_value = 'LOST') 
+              AND la.from_value IS NOT NULL 
+            ORDER BY la.occurred_at DESC 
+            LIMIT 1),
+           'UNKNOWN'
+         ) AS stage_key,
+         COUNT(l.id)::int AS count
+       FROM leads l
+       WHERE ${leadsWhereClause} AND l.status = 'LOST'
+       GROUP BY stage_key`,
+      params
+    );
+
     // Await all parallel queries
-    const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData] = await Promise.all([
+    const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData, lostStageData] = await Promise.all([
       kpiRes,
       pipelineRes,
       followUpsRes,
       activityRes,
       sourceRes,
       growthRes,
+      lostStageRes,
     ]);
 
   // Process KPIs
@@ -492,11 +569,43 @@ export async function getDashboardSummaryData(
     count: parseInt(row.count, 10),
   }));
 
+  // Process Lost Leads by Stage
+  const stagesMap = new Map<string, LostStageMetric>();
+  for (const def of CANONICAL_LOST_STAGES) {
+    stagesMap.set(def.stageId, {
+      stageId: def.stageId,
+      label: def.label,
+      count: 0,
+      order: def.order,
+    });
+  }
+
+  for (const row of lostStageData.rows) {
+    const norm = normalizeLostStageId(row.stage_key);
+    const countVal = typeof row.count === "number" ? row.count : parseInt(String(row.count), 10) || 0;
+    const existing = stagesMap.get(norm.stageId);
+    if (existing) {
+      existing.count += countVal;
+    } else {
+      stagesMap.set(norm.stageId, {
+        stageId: norm.stageId,
+        label: norm.label,
+        count: countVal,
+        order: norm.order,
+      });
+    }
+  }
+
+  const lostLeadsByStage: LostStageMetric[] = Array.from(stagesMap.values()).sort(
+    (a, b) => a.order - b.order
+  );
+
     return {
       kpis,
       attentionItems,
       pipeline,
       pipelineCounts,
+      lostLeadsByStage,
       todaysFollowUps,
       overdueFollowUps,
       upcomingFollowUps,
@@ -638,11 +747,18 @@ export async function updateLeadStage(
       return { success: true, previousStage, currentStage: targetStage };
     }
 
-    // Update lead status
-    await client.query(
-      `UPDATE leads SET status = $1, updated_at = NOW() WHERE id = $2 AND owner_user_id = $3`,
-      [targetStage, leadId, ownerUserId]
-    );
+    // Update lead status and atomically capture stage before lost
+    if (targetStage === "LOST") {
+      await client.query(
+        `UPDATE leads SET status = $1, lost_at_stage = $2, updated_at = NOW() WHERE id = $3 AND owner_user_id = $4`,
+        [targetStage, previousStage, leadId, ownerUserId]
+      );
+    } else {
+      await client.query(
+        `UPDATE leads SET status = $1, lost_at_stage = NULL, updated_at = NOW() WHERE id = $2 AND owner_user_id = $3`,
+        [targetStage, leadId, ownerUserId]
+      );
+    }
 
     // Determine activity type
     let activityType = "STAGE_CHANGED";

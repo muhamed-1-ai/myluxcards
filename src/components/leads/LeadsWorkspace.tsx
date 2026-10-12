@@ -1234,7 +1234,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
               onClick={() => {
                 const targetLead = actionMenuTarget.lead;
                 setActionMenuTarget(null);
-                exportLeadContact(targetLead);
+                setContactSheetLead(targetLead);
               }}
               className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
             >

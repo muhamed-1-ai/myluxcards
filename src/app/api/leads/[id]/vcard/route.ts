@@ -146,8 +146,9 @@ export async function GET(
       company_name: string | null;
       contact_number: string;
       email: string | null;
+      address: string | null;
     }>(
-      `SELECT l.id, l.owner_user_id, l.assigned_user_id, l.name, l.company_name, l.contact_number, l.email
+      `SELECT l.id, l.owner_user_id, l.assigned_user_id, l.name, l.company_name, l.contact_number, l.email, l.address
        FROM leads l
        WHERE l.id = $1 AND ${accessClause}
        LIMIT 1`,
@@ -184,7 +185,10 @@ export async function GET(
         }
 
         if (k.includes("address") && typeof valStr === "string") addressVal = valStr;
-        if ((k.includes("title") || k.includes("role") || k.includes("occupation")) && typeof valStr === "string") {
+        if (
+          (k.includes("title") || k.includes("role") || k.includes("occupation") || k.includes("designation")) &&
+          typeof valStr === "string"
+        ) {
           jobTitleVal = valStr;
         }
       });
@@ -194,6 +198,7 @@ export async function GET(
 
     const leadName = (lead.name || "").trim() || (lead.company_name || "").trim() || "Lead Contact";
     const phone = (lead.contact_number || "").trim();
+    const finalAddress = (lead.address || "").trim() || addressVal;
 
     const vcardResult = buildVCardString({
       profileName: leadName,
@@ -202,7 +207,7 @@ export async function GET(
       title: jobTitleVal,
       phone,
       email: lead.email,
-      address: addressVal,
+      address: finalAddress,
     });
 
     // Sanitize filename against CRLF, header injection, quotes, and invalid characters
@@ -213,11 +218,15 @@ export async function GET(
       .slice(0, 60);
     const safeFilename = `${cleanBasename || "Contact"}.vcf`;
 
+    const url = new URL(request.url);
+    const isExplicitDownload = url.searchParams.get("download") === "1" || url.searchParams.get("attachment") === "1";
+    const dispositionType = isExplicitDownload ? "attachment" : "inline";
+
     return new Response(vcardResult.vcard, {
       status: 200,
       headers: {
         "Content-Type": "text/vcard; charset=utf-8",
-        "Content-Disposition": `inline; filename="${safeFilename}"`,
+        "Content-Disposition": `${dispositionType}; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`,
         "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0",
