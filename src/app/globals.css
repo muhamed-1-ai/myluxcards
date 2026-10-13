@@ -5219,46 +5219,82 @@ iframe {
   position: absolute !important;
   right: 0 !important;
   top: calc(100% + 10px) !important;
-  width: 360px !important;
+  width: 410px !important;
+  max-width: calc(100vw - 24px) !important;
   background: var(--surface) !important;
   border: 1px solid var(--border-color) !important;
-  border-radius: 16px !important;
-  box-shadow: var(--card-shadow-hover) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-color) !important;
   z-index: 100 !important;
   overflow: hidden !important;
   color: var(--text-primary) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+[data-theme="light"] .notif-dropdown-panel,
+body.light-mode .notif-dropdown-panel {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 102, 255, 0.12), 0 0 0 1px #E2E8F0 !important;
+}
+
+[data-theme="light"] .notif-bell-btn,
+body.light-mode .notif-bell-btn {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0066FF !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .notif-bell-btn:hover,
+body.light-mode .notif-bell-btn:hover,
+[data-theme="light"] .notif-bell-btn.open,
+body.light-mode .notif-bell-btn.open {
+  background: #F8FAFC !important;
+  border-color: #0066FF !important;
+  box-shadow: 0 0 12px rgba(0, 102, 255, 0.2) !important;
 }
 
 .notif-dropdown-header {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 14px 18px !important;
-  background: var(--bg-secondary) !important;
+  padding: 12px 16px !important;
+  background: var(--surface) !important;
   border-bottom: 1px solid var(--border-color) !important;
+  flex-shrink: 0 !important;
 }
 
 .notif-dropdown-footer {
-  padding: 12px 18px !important;
+  padding: 11px 16px !important;
   background: var(--bg-secondary) !important;
   border-top: 1px solid var(--border-color) !important;
   text-align: center !important;
+  flex-shrink: 0 !important;
 }
 
 .notif-dropdown-footer a {
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: center !important;
   gap: 6px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
   color: #0066FF !important;
   text-decoration: none !important;
-  letter-spacing: 0.05em !important;
-  transition: color 0.2s ease !important;
+  letter-spacing: 0.03em !important;
+  transition: all 0.15s ease !important;
+  width: 100% !important;
 }
 
 .notif-dropdown-footer a:hover {
-  color: #00E5FF !important;
+  color: #008CFF !important;
+}
+
+[data-theme="light"] .notif-dropdown-footer a:hover,
+body.light-mode .notif-dropdown-footer a:hover {
+  color: #0052CC !important;
 }
 
 /* Mobile Optimized CRM Modal & Form Styling */
