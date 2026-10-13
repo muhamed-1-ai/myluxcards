@@ -14,19 +14,8 @@ export const metadata: Metadata = {
 export default async function QrActivityPage() {
   const identity = await currentIdentity();
   if (!identity) {
-    redirect("/?login=1&next=%2Fdashboard%2Fqr-activity");
+    redirect("/?login=1&next=%2Fdashboard%3Ftab%3Dleads");
   }
 
-  return (
-    <DashboardDemo
-      identity={{
-        id: identity.id,
-        name: identity.name,
-        email: identity.email,
-        role: identity.role,
-        featurePermissions: identity.featurePermissions,
-      }}
-      initialTab="analytics"
-    />
-  );
+  redirect("/dashboard?tab=leads");
 }

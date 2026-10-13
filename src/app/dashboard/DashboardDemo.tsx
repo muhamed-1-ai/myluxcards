@@ -339,7 +339,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedId, setSelectedId] = useState(emptyCard.id);
   const [draft, setDraft] = useState<Card>(emptyCard);
-  const [tab, setTab] = useState<Tab>(initialTab || "dashboard");
+  const [tab, setTab] = useState<Tab>(initialTab === "analytics" ? "leads" : (initialTab || "dashboard"));
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -348,8 +348,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       const editCard = sp.get("editCard");
       const editSlug = sp.get("editSlug");
       if (qTab === "qr-activity" || qTab === "analytics") {
-        setTab("analytics");
-      } else if (qTab && ["dashboard", "leads", "analytics", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
+        setTab("leads");
+      } else if (qTab && ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
         setTab(qTab as Tab);
       } else if (editCard || editSlug) {
         setTab("contact");
@@ -1153,8 +1153,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         <nav className="side-nav-scroll scrollbar-thin">
           {/* Section: Dashboards */}
           {(isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) ||
-            isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) ||
-            isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role)) && (
+            isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role)) && (
               <div className="side-nav-group">
                 <span className="side-group-title">Dashboards</span>
                 {isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) && (
@@ -1178,18 +1177,6 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                     <span className="side-nav-item-left">
                       <Users className="side-nav-icon" />
                       <span>All Leads</span>
-                    </span>
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "qr_activity", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`side-nav-item ${tab === "analytics" ? "active" : ""}`}
-                    onClick={() => { selectTab("analytics"); setSidebar(false); }}
-                  >
-                    <span className="side-nav-item-left">
-                      <BarChart2 className="side-nav-icon" />
-                      <span>QR Activity</span>
                     </span>
                   </button>
                 )}

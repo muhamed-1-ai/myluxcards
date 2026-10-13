@@ -366,7 +366,6 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
       {/* Mobile Tabbar */}
       <nav className="mobile-tabbar" aria-label="Dashboard sections">
         <a href="/dashboard">Home</a>
-        <a href="/dashboard?tab=analytics">QR Activity</a>
         <a href="/dashboard?tab=cards">My Cards</a>
         <a href="/dashboard?tab=leads">Leads</a>
         <a href="/dashboard?tab=whatsapp">WhatsApp</a>
@@ -379,7 +378,6 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
       <aside className={`dash-side ${sidebar ? "open" : ""}`}>
         <nav>
           <a className="side-link" href="/dashboard"><I>⌂</I> Dashboard</a>
-          <a className="side-link" href="/dashboard?tab=analytics"><I>📊</I> QR Activity</a>
           <a className="side-link" href="/dashboard?tab=cards"><I>▣</I> My Cards</a>
           <a className="side-link" href="/dashboard?tab=leads"><I>👥</I> Leads</a>
           <a className="side-link" href="/dashboard?tab=whatsapp"><I>💬</I> WhatsApp</a>
