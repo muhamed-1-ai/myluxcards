@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import CookieConsent from '@/components/ui/CookieConsent';
+import { FollowUpReminderModal } from '@/components/notifications/FollowUpReminderModal';
 
 export const metadata: Metadata = {
   title: 'Zappit | One Tap. Your Digital World Connected.',
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <CookieConsent />
+        <FollowUpReminderModal />
       </body>
     </html>
   );

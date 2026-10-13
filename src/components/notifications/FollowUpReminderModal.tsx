@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 export interface DueReminder {
@@ -24,21 +25,52 @@ interface FollowUpReminderModalProps {
 
 export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [reminders, setReminders] = useState<DueReminder[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [showQueueList, setShowQueueList] = useState(false);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
+  // Local deduplication tracking for dismissed reminder versions
+  // Key format: `${followUpId}:${reminderVersion}`
+  const dismissedKeysRef = useRef<Set<string>>(new Set());
+
+  // Mount tracking for portal
+  useEffect(() => {
+    setMounted(true);
+
+    // Initialize dismissed keys from sessionStorage if present
+    try {
+      const stored = sessionStorage.getItem("zappit_dismissed_reminder_keys");
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) {
+          dismissedKeysRef.current = new Set(arr);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Fetch pending due reminders from API
   const fetchDueReminders = useCallback(async () => {
     try {
-      const res = await fetch("/api/follow-ups/reminders/due");
+      const res = await fetch("/api/follow-ups/reminders/due", {
+        headers: { Accept: "application/json" },
+      });
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data.dueReminders)) {
-        setReminders(data.dueReminders);
-        setCurrentIndex((prev) => (prev >= data.dueReminders.length ? 0 : prev));
+        // Filter out reminders that were explicitly dismissed for this exact reminder version
+        const eligible = data.dueReminders.filter((r: DueReminder) => {
+          const key = `${r.id}:${r.reminderVersion}`;
+          return !dismissedKeysRef.current.has(key);
+        });
+
+        setReminders(eligible);
+        setCurrentIndex((prev) => (prev >= eligible.length ? 0 : prev));
       }
     } catch {
       // Ignore background fetch errors
@@ -56,6 +88,10 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
       channel.onmessage = (event) => {
         if (event.data?.type === "REMINDER_RESOLVED") {
           const resolvedId = event.data.followUpId;
+          const resolvedVersion = event.data.reminderVersion;
+          if (resolvedId && resolvedVersion !== undefined) {
+            dismissedKeysRef.current.add(`${resolvedId}:${resolvedVersion}`);
+          }
           setReminders((prev) => prev.filter((r) => r.id !== resolvedId));
         } else if (event.data?.type === "REFRESH_REMINDERS") {
           fetchDueReminders();
@@ -63,7 +99,21 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
       };
     }
 
-    // Window focus & tab visibility change listener
+    // Storage event listener for multi-tab sync fallback
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "zappit_last_reminder_action" && e.newValue) {
+        const [actionType, id, ver] = e.newValue.split(":");
+        if (actionType === "dismiss" && id && ver) {
+          dismissedKeysRef.current.add(`${id}:${ver}`);
+          setReminders((prev) => prev.filter((r) => r.id !== id));
+        } else if (actionType === "refresh") {
+          fetchDueReminders();
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    // Window focus & tab visibility change listener (immediate pickup on resume/focus)
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         fetchDueReminders();
@@ -74,10 +124,11 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("online", fetchDueReminders);
 
-    // Foreground poll every 40s
-    const pollInterval = setInterval(fetchDueReminders, 40000);
+    // Foreground poll every 10s for responsive latency (< 10s SLA)
+    const pollInterval = setInterval(fetchDueReminders, 10000);
 
     return () => {
+      window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", fetchDueReminders);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("online", fetchDueReminders);
@@ -88,50 +139,93 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
     };
   }, [fetchDueReminders]);
 
-  // Listen to SSE notifications stream
+  // Real-time Server-Sent Events (SSE) notification listener with auto-reconnect
   useEffect(() => {
     let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource("/api/notifications/stream");
-      eventSource.onmessage = (e) => {
-        try {
-          const data = JSON.parse(e.data || "{}");
-          if (
-            data.type === "NOTIFICATION" &&
-            (data.notification?.type?.startsWith("FOLLOW_UP_") ||
-              data.notification?.entity_type === "lead_follow_up")
-          ) {
-            fetchDueReminders();
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isUnmounted = false;
+
+    const connectSSE = () => {
+      if (isUnmounted) return;
+      try {
+        eventSource = new EventSource("/api/notifications/stream");
+
+        eventSource.onopen = () => {
+          // Connected, fetch immediately in case any event arrived during reconnect
+          fetchDueReminders();
+        };
+
+        eventSource.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data || "{}");
+            if (
+              data.type === "NOTIFICATION" &&
+              (data.notification?.type?.startsWith("FOLLOW_UP_") ||
+                data.notification?.entity_type === "lead_follow_up")
+            ) {
+              fetchDueReminders();
+            } else if (data.type === "CONNECTED") {
+              fetchDueReminders();
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
-        }
-      };
-    } catch {
-      // fallback to polling
-    }
+        };
+
+        eventSource.onerror = () => {
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          if (!isUnmounted) {
+            // Reconnect after 4s
+            reconnectTimeout = setTimeout(connectSSE, 4000);
+          }
+        };
+      } catch {
+        // Fallback to active interval polling
+      }
+    };
+
+    connectSSE();
 
     return () => {
+      isUnmounted = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (eventSource) eventSource.close();
     };
   }, [fetchDueReminders]);
 
-  const notifyOtherTabs = (followUpId: string) => {
+  const notifyOtherTabs = (followUpId: string, reminderVersion: number, action: "dismiss" | "complete" | "snooze") => {
     try {
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.postMessage({
           type: "REMINDER_RESOLVED",
           followUpId,
+          reminderVersion,
+          action,
         });
       }
-      localStorage.setItem("zappit_last_reminder_action", `${followUpId}:${Date.now()}`);
+      localStorage.setItem("zappit_last_reminder_action", `${action}:${followUpId}:${reminderVersion}:${Date.now()}`);
     } catch {
       // ignore
     }
   };
 
-  const removeCurrentReminder = (id: string) => {
-    notifyOtherTabs(id);
+  const removeCurrentReminder = (id: string, reminderVersion: number, action: "dismiss" | "complete" | "snooze") => {
+    // Add to local dismissed set for this specific version
+    dismissedKeysRef.current.add(`${id}:${reminderVersion}`);
+    try {
+      sessionStorage.setItem(
+        "zappit_dismissed_reminder_keys",
+        JSON.stringify(Array.from(dismissedKeysRef.current))
+      );
+    } catch {
+      // ignore
+    }
+
+    notifyOtherTabs(id, reminderVersion, action);
+
     setReminders((prev) => {
       const next = prev.filter((r) => r.id !== id);
       if (currentIndex >= next.length && next.length > 0) {
@@ -158,16 +252,16 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
         method: "POST",
       });
       if (res.ok) {
-        removeCurrentReminder(reminder.id);
+        removeCurrentReminder(reminder.id, reminder.reminderVersion, "complete");
       }
     } catch (err) {
-      console.error("Error completing follow-up:", err);
+      console.error("[FollowUpModal] Error completing follow-up:", err);
     } finally {
       setLoadingAction(null);
     }
   };
 
-  // Handler: Snooze 15 Minutes
+  // Handler: Snooze 15 Minutes (increments version so new snooze becomes eligible when due)
   const handleSnooze = async (reminder: DueReminder) => {
     setLoadingAction(`snooze-${reminder.id}`);
     try {
@@ -177,16 +271,16 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
         body: JSON.stringify({ minutes: 15 }),
       });
       if (res.ok) {
-        removeCurrentReminder(reminder.id);
+        removeCurrentReminder(reminder.id, reminder.reminderVersion, "snooze");
       }
     } catch (err) {
-      console.error("Error snoozing follow-up:", err);
+      console.error("[FollowUpModal] Error snoozing follow-up:", err);
     } finally {
       setLoadingAction(null);
     }
   };
 
-  // Handler: Dismiss
+  // Handler: Dismiss (acknowledges reminder without marking follow-up completed)
   const handleDismiss = async (reminder: DueReminder) => {
     setLoadingAction(`dismiss-${reminder.id}`);
     try {
@@ -194,16 +288,16 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
         method: "POST",
       });
       if (res.ok) {
-        removeCurrentReminder(reminder.id);
+        removeCurrentReminder(reminder.id, reminder.reminderVersion, "dismiss");
       }
     } catch (err) {
-      console.error("Error dismissing reminder:", err);
+      console.error("[FollowUpModal] Error dismissing reminder:", err);
     } finally {
       setLoadingAction(null);
     }
   };
 
-  if (reminders.length === 0) {
+  if (!mounted || reminders.length === 0) {
     return null;
   }
 
@@ -224,16 +318,18 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
 
   const isOverdue = activeReminder.isOverdue;
 
-  return (
+  const modalNode = (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
+      id="zappit-follow-up-reminder-portal"
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
+      style={{ zIndex: 999999, pointerEvents: "auto" }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="reminder-title"
     >
       <div
         className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all transform flex flex-col"
-        style={{ maxHeight: "90vh" }}
+        style={{ maxHeight: "90vh", zIndex: 1000000, pointerEvents: "auto" }}
       >
         {/* Header Bar */}
         <div
@@ -440,4 +536,6 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalNode, document.body) : null;
 }

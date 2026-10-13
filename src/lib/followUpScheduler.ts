@@ -187,29 +187,33 @@ export async function runFollowUpReminderScan(): Promise<ScanResult> {
           },
         });
 
-        // 2. Check user notification preferences before Web Push
-        const prefs = await getNotificationPreferences(targetUserId);
-        if (prefs.follow_up_reminders !== false) {
-          // Send Web Push to all registered devices (background/closed browser)
-          // Keep lock-screen content privacy conscious (no sensitive phone numbers or internal notes)
-          const cleanPushBody = row.note
-            ? (row.note.length > 80 ? `${row.note.slice(0, 77)}...` : row.note)
-            : `Scheduled ${row.type.toLowerCase()} follow-up is due.`;
+        // 2. Check user notification preferences before Web Push (strictly isolated so push issues never block in-app popup)
+        try {
+          const prefs = await getNotificationPreferences(targetUserId);
+          if (prefs.follow_up_reminders !== false) {
+            // Send Web Push to all registered devices (background/closed browser)
+            // Keep lock-screen content privacy conscious (no sensitive phone numbers or internal notes)
+            const cleanPushBody = row.note
+              ? (row.note.length > 80 ? `${row.note.slice(0, 77)}...` : row.note)
+              : `Scheduled ${row.type.toLowerCase()} follow-up is due.`;
 
-          await sendWebPushToUser(targetUserId, {
-            title: titleText,
-            body: cleanPushBody,
-            tag: `zappit-followup-${row.id}`,
-            data: {
-              url: `/dashboard?tab=leads&leadId=${row.lead_id}&followUpId=${row.id}`,
-              leadId: row.lead_id,
-              followUpId: row.id,
-              leadName: row.lead_name,
-              scheduledAt: row.scheduled_at.toISOString(),
-              type: row.type,
-              timestamp: Date.now(),
-            },
-          });
+            await sendWebPushToUser(targetUserId, {
+              title: titleText,
+              body: cleanPushBody,
+              tag: `zappit-followup-${row.id}`,
+              data: {
+                url: `/dashboard?tab=leads&leadId=${row.lead_id}&followUpId=${row.id}`,
+                leadId: row.lead_id,
+                followUpId: row.id,
+                leadName: row.lead_name,
+                scheduledAt: row.scheduled_at.toISOString(),
+                type: row.type,
+                timestamp: Date.now(),
+              },
+            });
+          }
+        } catch (pushErr) {
+          console.warn(`[FollowUpScheduler] Web push dispatch failed for user ${targetUserId} (in-app reminder preserved):`, pushErr);
         }
 
         result.dispatched++;
@@ -237,14 +241,14 @@ export async function runFollowUpReminderScan(): Promise<ScanResult> {
 
 /**
  * Singleton timer manager for the backend background reminder runner.
- * Runs every 30 seconds by default.
+ * Runs every 10 seconds by default.
  */
 declare global {
   // eslint-disable-next-line no-var
   var __reminderSchedulerInterval: NodeJS.Timeout | undefined;
 }
 
-export function startReminderScheduler(intervalMs = 30000): void {
+export function startReminderScheduler(intervalMs = 10000): void {
   if (global.__reminderSchedulerInterval) {
     return; // Already running
   }

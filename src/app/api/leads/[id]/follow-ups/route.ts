@@ -1,5 +1,6 @@
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 import { scheduleFollowUp } from "@/lib/crm";
+import { startReminderScheduler } from "@/lib/followUpScheduler";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!validMutationOrigin(request)) {
@@ -25,6 +26,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const followUpType = body.type || body.followUpType;
     const item = await scheduleFollowUp(identity.id, id, scheduledAt, body.note, followUpType);
+
+    // Ensure scheduler is actively ticking
+    startReminderScheduler();
+
     return Response.json({
       ok: true,
       message: "Follow-up scheduled successfully.",

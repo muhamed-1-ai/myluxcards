@@ -220,6 +220,22 @@ export default function LeadDetailsDrawer({
       setFollowUpNote("");
       fetchLeadDetails();
       onUpdated();
+
+      // Notify reminder controller across all tabs immediately
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        try {
+          const ch = new BroadcastChannel("zappit_reminders_sync");
+          ch.postMessage({ type: "REFRESH_REMINDERS" });
+          ch.close();
+        } catch {
+          // ignore
+        }
+      }
+      try {
+        localStorage.setItem("zappit_last_reminder_action", `refresh:${Date.now()}`);
+      } catch {
+        // ignore
+      }
     } catch (err: any) {
       setSchedulingError(err.message || "Could not schedule follow-up.");
     } finally {
