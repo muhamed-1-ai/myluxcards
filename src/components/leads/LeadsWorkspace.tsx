@@ -103,6 +103,8 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
 
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(searchParams.get("leadId") || null);
+  const [selectedFollowUpId, setSelectedFollowUpId] = useState<string | null>(searchParams.get("followUpId") || null);
+  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(searchParams.get("notificationId") || null);
   const [contactSheetLead, setContactSheetLead] = useState<any | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
@@ -177,10 +179,23 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     setSortBy(sBy);
     setSortOrder(sOrder);
     const paramLeadId = searchParams.get("leadId");
-    if (paramLeadId) {
-      setSelectedLeadId(paramLeadId);
-    }
+    const paramFollowUpId = searchParams.get("followUpId");
+    const paramNotificationId = searchParams.get("notificationId");
+    setSelectedLeadId(paramLeadId || null);
+    setSelectedFollowUpId(paramFollowUpId || null);
+    setSelectedNotificationId(paramNotificationId || null);
   }, [searchParams]);
+
+  // Open lead with optional follow-up and URL sync
+  const handleOpenLead = useCallback(
+    (leadId: string, followUpId?: string | null) => {
+      setSelectedLeadId(leadId);
+      setSelectedFollowUpId(followUpId || null);
+      setSelectedNotificationId(null);
+      updateUrl({ leadId, followUpId: followUpId || null, notificationId: null });
+    },
+    [updateUrl]
+  );
 
   // Server-side lead fetching with race-condition identity check
   const fetchLeads = useCallback(async () => {
@@ -725,7 +740,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                     return (
                       <tr
                         key={lead.id}
-                        onClick={() => setSelectedLeadId(lead.id)}
+                        onClick={() => handleOpenLead(lead.id)}
                         className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
                       >
                         {/* SELECT CHECKBOX */}
@@ -750,7 +765,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                         </td>
 
                         {/* NEXT FOLLOW-UP COLUMN */}
-                        <td onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}>
+                        <td onClick={(e) => { e.stopPropagation(); handleOpenLead(lead.id); }}>
                           <div className="crm-followup-pill-box cursor-pointer">
                             <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
                             <div className="text-left">
@@ -892,7 +907,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                 return (
                   <div
                     key={lead.id}
-                    onClick={() => setSelectedLeadId(lead.id)}
+                    onClick={() => handleOpenLead(lead.id)}
                     className={`crm-mobile-lead-card ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""}`}
                   >
                     {/* Header: Avatar, Name, Phone, Email, Company, Star, Actions Menu */}
@@ -985,7 +1000,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
 
                     {/* Follow-Up Section Box */}
                     <div
-                      onClick={(e) => { e.stopPropagation(); setSelectedLeadId(lead.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleOpenLead(lead.id); }}
                       className="mt-3 p-2.5 rounded-xl bg-[var(--bg-secondary,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -1185,10 +1200,20 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
       {selectedLeadId && (
         <LeadDetailsDrawer
           leadId={selectedLeadId}
-          onClose={() => setSelectedLeadId(null)}
+          followUpId={selectedFollowUpId}
+          notificationId={selectedNotificationId}
+          onClose={() => {
+            setSelectedLeadId(null);
+            setSelectedFollowUpId(null);
+            setSelectedNotificationId(null);
+            updateUrl({ leadId: null, followUpId: null, notificationId: null });
+          }}
           onUpdated={() => fetchLeads()}
           onEditLead={(lead) => {
             setSelectedLeadId(null);
+            setSelectedFollowUpId(null);
+            setSelectedNotificationId(null);
+            updateUrl({ leadId: null, followUpId: null, notificationId: null });
             setEditingLead(lead);
           }}
         />
@@ -1214,7 +1239,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
               onClick={() => {
                 const id = actionMenuTarget.lead.id;
                 setActionMenuTarget(null);
-                setSelectedLeadId(id);
+                handleOpenLead(id);
               }}
               className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
             >

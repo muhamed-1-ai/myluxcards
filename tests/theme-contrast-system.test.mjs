@@ -190,3 +190,97 @@ test("5. Buttons in master config pages and dashboard do NOT use black text (#07
     );
   }
 });
+
+test("6. WCAG AA Contrast Audit across all 16 Profile Theme Presets", async () => {
+  const { PROFILE_THEME_PRESETS, resolveThemeTokens } = await import("../src/lib/themeTokens.ts");
+
+  assert.equal(PROFILE_THEME_PRESETS.length, 16, "Must audit all 16 profile presets");
+
+  for (const preset of PROFILE_THEME_PRESETS) {
+    const { tokens, cssVars } = resolveThemeTokens({
+      theme: preset.id,
+      profileBackground: preset.background,
+      profileAccent: preset.accent,
+      profileText: preset.text,
+    });
+
+    // 1. Navigation Unselected Tab Contrast >= 4.5:1
+    const navUnselectedRatio = getContrastRatio(tokens.navText, tokens.navBg);
+    assert.ok(
+      navUnselectedRatio >= 4.5,
+      `[${preset.name}] Nav unselected text (${tokens.navText}) on navBg (${tokens.navBg}) contrast is ${navUnselectedRatio.toFixed(2)}:1 (must be >= 4.5:1)`
+    );
+
+    // 2. Navigation Selected Tab Contrast >= 4.5:1
+    const navSelectedRatio = getContrastRatio(tokens.navSelectedText, tokens.primary);
+    assert.ok(
+      navSelectedRatio >= 4.5,
+      `[${preset.name}] Nav selected text (${tokens.navSelectedText}) on primary (${tokens.primary}) contrast is ${navSelectedRatio.toFixed(2)}:1 (must be >= 4.5:1)`
+    );
+
+    // 3. Profile Card Body Text Contrast >= 4.5:1
+    const cardTextRatio = getContrastRatio(tokens.text, tokens.surface);
+    assert.ok(
+      cardTextRatio >= 4.5,
+      `[${preset.name}] Card body text (${tokens.text}) on surface (${tokens.surface}) contrast is ${cardTextRatio.toFixed(2)}:1 (must be >= 4.5:1)`
+    );
+
+    // 4. Primary Button Text Contrast >= 4.5:1
+    const primaryBtnRatio = getContrastRatio(tokens.primaryText, tokens.primary);
+    assert.ok(
+      primaryBtnRatio >= 4.5,
+      `[${preset.name}] Primary button text (${tokens.primaryText}) on primary (${tokens.primary}) contrast is ${primaryBtnRatio.toFixed(2)}:1 (must be >= 4.5:1)`
+    );
+
+    // 5. Edit Button Text Contrast >= 4.5:1
+    const editBtnRatio = getContrastRatio(tokens.editBtnText, tokens.surface);
+    assert.ok(
+      editBtnRatio >= 4.5,
+      `[${preset.name}] Edit button text (${tokens.editBtnText}) on surface (${tokens.surface}) contrast is ${editBtnRatio.toFixed(2)}:1 (must be >= 4.5:1)`
+    );
+
+    // 6. Muted Text Contrast >= 4.5:1
+    const mutedRatio = getContrastRatio(tokens.mutedText, tokens.surface);
+    assert.ok(
+      mutedRatio >= 4.5,
+      `[${preset.name}] Muted text (${tokens.mutedText}) on surface (${tokens.surface}) contrast is ${mutedRatio.toFixed(2)}:1 (must be >= 4.5:1)`
+    );
+
+    // 7. Verify CSS variables exist
+    assert.ok(cssVars["--pc-nav-bg"], `[${preset.name}] must export --pc-nav-bg`);
+    assert.ok(cssVars["--pc-nav-text"], `[${preset.name}] must export --pc-nav-text`);
+    assert.ok(cssVars["--pc-nav-selected-bg"], `[${preset.name}] must export --pc-nav-selected-bg`);
+    assert.ok(cssVars["--pc-nav-selected-text"], `[${preset.name}] must export --pc-nav-selected-text`);
+  }
+});
+
+test("7. Public Card CSS decouples navigation text from card body text and eliminates hardcoded #00E5FF", () => {
+  const publicCssPath = path.resolve(process.cwd(), "src/app/card/[slug]/public-card.css");
+  const publicCss = fs.readFileSync(publicCssPath, "utf-8");
+
+  // Ensure .pc-mode-switch-btn uses --pc-nav-text and not var(--pc-text)
+  const modeBtnMatch = publicCss.match(/\.pc-mode-switch-btn\s*\{([^}]+)\}/);
+  assert.ok(modeBtnMatch, ".pc-mode-switch-btn rule must exist");
+  assert.ok(
+    !modeBtnMatch[1].includes("var(--pc-text"),
+    ".pc-mode-switch-btn must NOT mix with var(--pc-text)"
+  );
+
+  // Ensure .pc-mode-switch-btn.active uses --pc-nav-selected-text
+  assert.ok(
+    publicCss.includes("color: var(--pc-nav-selected-text,"),
+    ".pc-mode-switch-btn.active must use var(--pc-nav-selected-text)"
+  );
+
+  // Ensure .zappit-profile-edit-btn does NOT hardcode color: #00E5FF
+  assert.ok(
+    !publicCss.includes("color: #00E5FF;"),
+    ".zappit-profile-edit-btn must not hardcode color: #00E5FF"
+  );
+
+  // Ensure .pc-action-btn:hover does not mix black text over arbitrary accents
+  assert.ok(
+    !publicCss.includes("color: color-mix(in srgb, var(--pc-bg, #0a0a0a) 20%, #000);"),
+    ".pc-action-btn:hover must not mix black text over accents"
+  );
+});

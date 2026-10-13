@@ -208,12 +208,25 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
   };
 
   const handleNotificationRowClick = (n: NotificationItem) => {
-    if (!n.is_read) {
+    const isLeadEntity =
+      n.entity_type === "lead" ||
+      n.entity_type === "lead_follow_up" ||
+      n.type?.startsWith("FOLLOW_UP");
+
+    if (!isLeadEntity && !n.is_read) {
       void handleMarkRead(n.id);
     }
 
     if (n.action_url) {
-      window.location.href = n.action_url;
+      try {
+        const url = new URL(n.action_url, window.location.origin);
+        if (isLeadEntity && !n.is_read) {
+          url.searchParams.set("notificationId", n.id);
+        }
+        window.location.href = url.pathname + url.search;
+      } catch {
+        window.location.href = n.action_url;
+      }
     } else if (n.type.includes("WHATSAPP")) {
       window.location.href = "/dashboard?tab=whatsapp";
     } else if (n.type.includes("LEAD")) {

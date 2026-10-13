@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import "./products-modal.css";
 import {
   Plus,
   Search,
@@ -76,6 +77,61 @@ export function ProductsConfig() {
     status: "ACTIVE" as "ACTIVE" | "INACTIVE",
     description: "",
   });
+
+  const modalBodyRef = useRef<HTMLDivElement | null>(null);
+
+  // Lock background scroll and adjust to VisualViewport on mobile (virtual keyboard support)
+  useEffect(() => {
+    if (!isFormOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleViewportChange = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const overlayEl = document.getElementById("product-modal-overlay");
+      if (overlayEl) {
+        overlayEl.style.height = `${vv.height}px`;
+        overlayEl.style.top = `${vv.offsetTop}px`;
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsFormOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange);
+      window.visualViewport.addEventListener("scroll", handleViewportChange);
+      handleViewportChange();
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportChange);
+        window.visualViewport.removeEventListener("scroll", handleViewportChange);
+      }
+      const overlayEl = document.getElementById("product-modal-overlay");
+      if (overlayEl) {
+        overlayEl.style.height = "";
+        overlayEl.style.top = "";
+      }
+    };
+  }, [isFormOpen]);
+
+  // Scroll to top of modal body when validation error occurs
+  useEffect(() => {
+    if (formError && modalBodyRef.current) {
+      modalBodyRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [formError]);
 
   // Load from account-scoped localStorage on mount
   useEffect(() => {
@@ -890,291 +946,154 @@ export function ProductsConfig() {
         )}
       </div>
 
-      {/* ADD / EDIT PRODUCT MODAL (Matching 2-Column Reference Layout) */}
+      {/* ADD / EDIT PRODUCT MODAL (Bounded 3-Section Layout) */}
       {isFormOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 60,
-            background: "rgba(0, 0, 0, 0.8)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-          }}
+          id="product-modal-overlay"
+          className="prod-modal-overlay"
           onClick={() => setIsFormOpen(false)}
         >
           <div
-            style={{
-              width: "100%",
-              maxWidth: 720,
-              background: "var(--surface)",
-              border: "1px solid rgba(0, 229, 255, 0.3)",
-              borderRadius: 18,
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
-              overflow: "hidden",
-            }}
+            className="prod-modal-card"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "22px 28px",
-                borderBottom: "1px solid var(--border-color)",
-                background: "#161722",
-              }}
-            >
+            {/* 1. Header (Fixed at top) */}
+            <div className="prod-modal-header">
               <div>
-                <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                <span className="prod-modal-header-badge">
                   MASTER CONFIGURATION
                 </span>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>
+                <h2 className="prod-modal-title">
                   {editingProduct ? "Edit Product" : "Add Product"}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: 8,
-                  width: 32,
-                  height: 32,
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                className="prod-modal-close-btn"
+                aria-label="Close dialog"
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSaveProduct} style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Validation Error Banner */}
-              {formError && (
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    background: "rgba(239, 68, 68, 0.12)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    color: "#F87171",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                >
-                  {formError}
-                </div>
-              )}
+            {/* Form containing Scrollable Body and Fixed Footer */}
+            <form id="product-modal-form" onSubmit={handleSaveProduct} className="prod-modal-form">
+              {/* 2. Scrollable Body */}
+              <div className="prod-modal-body" ref={modalBodyRef}>
+                {/* Validation Error Banner */}
+                {formError && (
+                  <div className="prod-form-error-banner">
+                    <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0 }} />
+                    <span>{formError}</span>
+                  </div>
+                )}
 
-              {/* 2-Column Form Grid */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: 18,
-                }}
-              >
-                {/* Row 1, Left: Product Name */}
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                    Product Name *
+                {/* 2-Column Desktop Grid / 1-Column Mobile */}
+                <div className="prod-modal-grid">
+                  {/* Row 1, Left: Product Name */}
+                  <div className="prod-form-group">
+                    <label className="prod-form-label">
+                      Product Name *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Executive Gold Card"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="prod-form-input"
+                      required
+                    />
+                  </div>
+
+                  {/* Row 1, Right: Product Code */}
+                  <div className="prod-form-group">
+                    <label className="prod-form-label">
+                      Product Code
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. EXEC-GOLD"
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                      className="prod-form-input"
+                      style={{ fontFamily: "monospace" }}
+                    />
+                  </div>
+
+                  {/* Row 2, Left: Category */}
+                  <div className="prod-form-group">
+                    <label className="prod-form-label">
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. NFC Cards"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="prod-form-input"
+                    />
+                  </div>
+
+                  {/* Row 2, Right: Unit Price */}
+                  <div className="prod-form-group">
+                    <label className="prod-form-label">
+                      Unit Price (₹) *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 4999"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      className="prod-form-input"
+                      required
+                    />
+                  </div>
+
+                  {/* Row 3, Left: Status */}
+                  <div className="prod-form-group">
+                    <label className="prod-form-label">
+                      Status
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                      className="prod-form-select"
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Description (Full Width) */}
+                <div className="prod-form-group">
+                  <label className="prod-form-label">
+                    Description
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Executive Gold Card"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    style={{
-                      width: "100%",
-                      height: 46,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                    }}
-                    required
+                  <textarea
+                    rows={3}
+                    placeholder="Enter product description..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="prod-form-textarea"
                   />
-                </div>
-
-                {/* Row 1, Right: Product Code */}
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                    Product Code
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. EXEC-GOLD"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    style={{
-                      width: "100%",
-                      height: 46,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                      fontFamily: "monospace",
-                    }}
-                  />
-                </div>
-
-                {/* Row 2, Left: Category */}
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                    Category
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. NFC Cards"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    style={{
-                      width: "100%",
-                      height: 46,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Row 2, Right: Unit Price */}
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                    Unit Price (₹) *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 4999"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    style={{
-                      width: "100%",
-                      height: 46,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                    }}
-                    required
-                  />
-                </div>
-
-                {/* Row 3, Left: Status */}
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                    Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    style={{
-                      width: "100%",
-                      height: 46,
-                      padding: "0 14px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: 10,
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      outline: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </select>
                 </div>
               </div>
 
-              {/* Row 4: Description (Full Width) */}
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
-                  Description
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Enter product description..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    background: "var(--bg-secondary)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: 10,
-                    color: "var(--text-primary)",
-                    fontSize: 13,
-                    outline: "none",
-                    resize: "vertical",
-                    minHeight: 80,
-                  }}
-                />
-              </div>
-
-              {/* Modal Footer Buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 12,
-                  paddingTop: 14,
-                  borderTop: "1px solid var(--border-color)",
-                }}
-              >
+              {/* 3. Footer (Fixed at bottom) */}
+              <div className="prod-modal-footer">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    borderRadius: 9,
-                    background: "var(--bg-secondary)",
-                    color: "#CBD5E1",
-                    border: "1px solid var(--border-color)",
-                    cursor: "pointer",
-                  }}
+                  className="prod-btn-cancel"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  style={{
-                    padding: "10px 24px",
-                    fontSize: 13,
-                    fontWeight: 800,
-                    borderRadius: 9,
-                    background: "#0066FF",
-                    color: "#FFFFFF",
-                    border: "none",
-                    cursor: isSaving ? "not-allowed" : "pointer",
-                    boxShadow: "0 4px 14px rgba(0, 229, 255, 0.25)",
-                  }}
+                  className="prod-btn-save"
                 >
                   {isSaving ? "Saving..." : editingProduct ? "Save Changes" : "Save Product"}
                 </button>

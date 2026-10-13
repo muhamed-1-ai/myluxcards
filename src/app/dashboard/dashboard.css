@@ -7558,12 +7558,7 @@ body.dark-mode .side-nav-item.active,
   }
 
   .notif-dropdown-panel {
-    position: fixed !important;
-    top: calc(64px + env(safe-area-inset-top, 0px)) !important;
-    right: 12px !important;
-    left: 12px !important;
-    width: auto !important;
-    max-width: calc(100% - 24px) !important;
+    display: none !important;
   }
 }
 

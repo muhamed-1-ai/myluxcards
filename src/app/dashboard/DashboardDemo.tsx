@@ -4,6 +4,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -333,6 +334,7 @@ const optimizeProfileImage = async (source: string, maxWidth: number, maxHeight:
   });
 };
 export default function DashboardDemo({ identity, initialTab }: { identity: CurrentUser; initialTab?: Tab }) {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(identity || null);
   const [authReady, setAuthReady] = useState(false);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
@@ -1413,9 +1415,21 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
               <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
               <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
             </button>
-            <NotificationBell onSelectEntity={(entityType, entityId, actionUrl) => {
+            <NotificationBell onSelectEntity={(entityType, entityId, actionUrl, notifId) => {
               if (actionUrl) {
-                window.location.href = actionUrl;
+                try {
+                  const parsed = new URL(actionUrl, window.location.origin);
+                  const targetTab = (parsed.searchParams.get("tab") || "leads") as Tab;
+                  if (notifId) {
+                    parsed.searchParams.set("notificationId", notifId);
+                  }
+                  if (tab !== targetTab) {
+                    setTab(targetTab);
+                  }
+                  router.push(parsed.pathname + parsed.search);
+                } catch {
+                  window.location.href = actionUrl;
+                }
               }
             }} />
             <div className="account-menu">

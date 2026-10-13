@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -73,6 +73,7 @@ interface LeadData {
   createdByEmail?: string | null;
   profileImage?: string | null;
   nextFollowUp?: NextFollowUpData | null;
+  followUps?: NextFollowUpData[];
   activities?: ActivityData[];
   customFields?: Record<string, string>;
   isStarred?: boolean;
@@ -80,6 +81,8 @@ interface LeadData {
 
 interface LeadDetailsDrawerProps {
   leadId: string | null;
+  followUpId?: string | null;
+  notificationId?: string | null;
   onClose: () => void;
   onUpdated: () => void;
   onEditLead?: (lead: LeadData) => void;
@@ -87,6 +90,8 @@ interface LeadDetailsDrawerProps {
 
 export default function LeadDetailsDrawer({
   leadId,
+  followUpId,
+  notificationId,
   onClose,
   onUpdated,
   onEditLead,
@@ -95,6 +100,7 @@ export default function LeadDetailsDrawer({
   const [lead, setLead] = useState<LeadData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "activity">("overview");
   const [isStarred, setIsStarred] = useState(false);
 
@@ -127,16 +133,31 @@ export default function LeadDetailsDrawer({
     }
     setLoading(true);
     setError(null);
+    setIsNotFound(false);
     try {
       const res = await fetch(`/api/leads/${leadId}`);
+      if (res.status === 404) {
+        setIsNotFound(true);
+        setError("This lead is no longer available in your workspace.");
+        return;
+      }
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Failed to fetch lead details (${res.status})`);
+        throw new Error(errData.message || errData.error || `Failed to fetch lead details (${res.status})`);
       }
       const data = await res.json();
       if (data.lead) {
         setLead(data.lead);
         setIsStarred(!!data.lead.isStarred);
+
+        // Only mark notification as read upon a strictly successful fetch!
+        if (notificationId) {
+          fetch("/api/notifications", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: notificationId }),
+          }).catch(() => {});
+        }
       } else {
         throw new Error("Lead record not returned.");
       }
@@ -146,7 +167,7 @@ export default function LeadDetailsDrawer({
     } finally {
       setLoading(false);
     }
-  }, [leadId]);
+  }, [leadId, notificationId]);
 
   useEffect(() => {
     fetchLeadDetails();
@@ -292,6 +313,18 @@ export default function LeadDetailsDrawer({
 
   const followUpPill = getFollowUpStatusPill(lead?.nextFollowUp);
 
+  const highlightedFollowUp = useMemo(() => {
+    if (!followUpId || !lead) return null;
+    if (lead.followUps && Array.isArray(lead.followUps)) {
+      const match = lead.followUps.find((f) => f.id === followUpId);
+      if (match) return match;
+    }
+    if (lead.nextFollowUp && lead.nextFollowUp.id === followUpId) {
+      return lead.nextFollowUp;
+    }
+    return null;
+  }, [followUpId, lead]);
+
   return createPortal(
     <div className="lead-drawer-container">
       {/* Dark Blurred Backdrop */}
@@ -329,19 +362,66 @@ export default function LeadDetailsDrawer({
           </div>
         )}
 
-        {/* Error State */}
-        {!loading && error && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: "50%", backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
-              <AlertCircle className="w-6 h-6" />
+        {/* Inaccessible / Deleted Lead State */}
+        {!loading && isNotFound && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: "rgba(239, 68, 68, 0.12)", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <AlertCircle className="w-7 h-7" />
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ld-text-title)", marginBottom: 4 }}>Failed to load lead</h3>
-            <p style={{ fontSize: 13, color: "var(--ld-text-muted)", marginBottom: 16 }}>{error}</p>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ld-text-title)", marginBottom: 8 }}>
+              This lead is no longer available
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--ld-text-muted)", maxWidth: 360, lineHeight: 1.5, marginBottom: 24 }}>
+              The requested lead could not be found or you do not have permission to access it in this workspace. It may have been deleted or archived.
+            </p>
             <div style={{ display: "flex", gap: 12 }}>
-              <button type="button" onClick={fetchLeadDetails} className="lead-drawer-edit-btn" style={{ height: 38, width: "auto", padding: "0 16px" }}>
-                <RefreshCw className="w-3.5 h-3.5" /> Retry
+              <button
+                type="button"
+                onClick={fetchLeadDetails}
+                disabled={loading}
+                className="lead-drawer-edit-btn"
+                style={{ height: 40, width: "auto", padding: "0 18px", fontSize: 13 }}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Retry
               </button>
-              <button type="button" onClick={onClose} style={{ height: 38, padding: "0 16px", border: "1px solid var(--ld-card-border)", borderRadius: 10, background: "transparent", color: "var(--ld-text-body)", cursor: "pointer", fontWeight: 600 }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ height: 40, padding: "0 18px", border: "1px solid var(--ld-card-border)", borderRadius: 10, background: "transparent", color: "var(--ld-text-body)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* General Error State */}
+        {!loading && !isNotFound && error && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#F59E0B", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <AlertCircle className="w-7 h-7" />
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ld-text-title)", marginBottom: 8 }}>
+              Failed to load lead
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--ld-text-muted)", maxWidth: 360, lineHeight: 1.5, marginBottom: 24 }}>
+              {error}
+            </p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                onClick={fetchLeadDetails}
+                disabled={loading}
+                className="lead-drawer-edit-btn"
+                style={{ height: 40, width: "auto", padding: "0 18px", fontSize: 13 }}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Retry
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ height: 40, padding: "0 18px", border: "1px solid var(--ld-card-border)", borderRadius: 10, background: "transparent", color: "var(--ld-text-body)", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+              >
                 Close
               </button>
             </div>
@@ -349,7 +429,7 @@ export default function LeadDetailsDrawer({
         )}
 
         {/* Full Content */}
-        {!loading && !error && lead && (
+        {!loading && !error && !isNotFound && lead && (
           <>
             {/* 1. FIXED HEADER */}
             <header className="lead-drawer-header">
@@ -418,6 +498,61 @@ export default function LeadDetailsDrawer({
             <main className="lead-drawer-body">
               {activeTab === "overview" && (
                 <>
+                  {/* TARGETED FOLLOW-UP BANNER */}
+                  {followUpId && (
+                    <div
+                      style={{
+                        marginBottom: 16,
+                        padding: "14px 16px",
+                        borderRadius: 14,
+                        background: "linear-gradient(135deg, rgba(0, 102, 255, 0.15) 0%, rgba(0, 229, 255, 0.15) 100%)",
+                        border: "1.5px solid rgba(0, 229, 255, 0.5)",
+                        boxShadow: "0 4px 20px rgba(0, 102, 255, 0.15)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 800,
+                              letterSpacing: "0.08em",
+                              textTransform: "uppercase",
+                              color: "#00E5FF",
+                              backgroundColor: "rgba(0, 229, 255, 0.18)",
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                            }}
+                          >
+                            TARGETED FOLLOW-UP
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ld-text-title)" }}>
+                            {highlightedFollowUp ? `${highlightedFollowUp.type || "CALL"} • ${formatDate(highlightedFollowUp.scheduledAt)}` : `Follow-up Selected`}
+                          </span>
+                        </div>
+                        {highlightedFollowUp?.status && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: 6,
+                              background: highlightedFollowUp.status === "SCHEDULED" ? "rgba(245, 158, 11, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                              color: highlightedFollowUp.status === "SCHEDULED" ? "#F59E0B" : "#10B981",
+                            }}
+                          >
+                            {highlightedFollowUp.status}
+                          </span>
+                        )}
+                      </div>
+                      {highlightedFollowUp?.note && (
+                        <div style={{ fontSize: 13, color: "var(--ld-text-body)", lineHeight: 1.4 }}>
+                          "{highlightedFollowUp.note}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* CARD 1: CONTACT */}
                   <section className="lead-drawer-card">
                     <h3 className="lead-drawer-card-title">CONTACT</h3>
@@ -502,8 +637,29 @@ export default function LeadDetailsDrawer({
                   </section>
 
                   {/* CARD 2: NEXT FOLLOW-UP */}
-                  <section className="lead-drawer-card">
-                    <h3 className="lead-drawer-card-title">NEXT FOLLOW-UP</h3>
+                  <section
+                    className="lead-drawer-card"
+                    style={followUpId ? { border: "1.5px solid #00E5FF", boxShadow: "0 0 16px rgba(0, 229, 255, 0.2)" } : undefined}
+                  >
+                    <h3 className="lead-drawer-card-title">
+                      NEXT FOLLOW-UP {followUpId && <span style={{ color: "#00E5FF", fontSize: 11, fontWeight: 700, marginLeft: 6 }}>• HIGHLIGHTED</span>}
+                    </h3>
+
+                    {highlightedFollowUp && highlightedFollowUp.id !== lead.nextFollowUp?.id && (
+                      <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "rgba(0, 229, 255, 0.08)", border: "1px dashed rgba(0, 229, 255, 0.4)" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#00E5FF", marginBottom: 4, textTransform: "uppercase" }}>
+                          Targeted Follow-up ({highlightedFollowUp.status || "SCHEDULED"})
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ld-text-title)" }}>
+                          {formatDate(highlightedFollowUp.scheduledAt)} • {highlightedFollowUp.type || "CALL"}
+                        </div>
+                        {highlightedFollowUp.note && (
+                          <div style={{ fontSize: 12, color: "var(--ld-text-muted)", marginTop: 4 }}>
+                            {highlightedFollowUp.note}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {followUpPill ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

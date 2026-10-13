@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Bell,
   CheckCheck,
@@ -13,8 +14,11 @@ import {
   Send,
   Clock,
   Sparkles,
+  X,
+  RefreshCw,
 } from "lucide-react";
 import { apiFetch, refreshSession } from "@/lib/apiClient";
+import "./notifications/notification-sheet.css";
 
 export interface NotificationItem {
   id: string;
@@ -31,7 +35,12 @@ export interface NotificationItem {
 }
 
 interface NotificationBellProps {
-  onSelectEntity?: (entityType: string | null, entityId: string | null, actionUrl: string | null) => void;
+  onSelectEntity?: (
+    entityType: string | null,
+    entityId: string | null,
+    actionUrl: string | null,
+    notificationId?: string
+  ) => void;
 }
 
 interface DateGroup {
@@ -45,6 +54,19 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Responsive breakpoint tracking (< 640px)
+  useEffect(() => {
+    setMounted(true);
+    const mql = window.matchMedia("(max-width: 640px)");
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
 
   // Fetch unread count & initial notifications
   const fetchUnreadCount = async () => {
@@ -56,12 +78,22 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
 
   const fetchDropdownNotifications = async () => {
     setLoading(true);
-    const res = await apiFetch<{ notifications: NotificationItem[]; unreadCount: number }>("/api/notifications?limit=20");
-    if (res.ok && res.data) {
-      setNotifications(res.data.notifications || []);
-      setUnreadCount(res.data.unreadCount || 0);
+    setFetchError(null);
+    try {
+      const res = await apiFetch<{ notifications: NotificationItem[]; unreadCount: number }>(
+        "/api/notifications?limit=20"
+      );
+      if (res.ok && res.data) {
+        setNotifications(res.data.notifications || []);
+        setUnreadCount(res.data.unreadCount || 0);
+      } else {
+        setFetchError("Unable to load notifications. Please try again.");
+      }
+    } catch {
+      setFetchError("Unable to load notifications. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Real-time Server-Sent Events (SSE) Listener
@@ -133,10 +165,21 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
     };
   }, []);
 
-  // Close dropdown on click outside & Escape key
+  // Lock background scroll when mobile bottom sheet is open
+  useEffect(() => {
+    if (isOpen && isMobile) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen, isMobile]);
+
+  // Close dropdown on click outside & Escape key (dismissal does NOT mark notifications read)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      if (!isMobile && panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -154,7 +197,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   const toggleOpen = () => {
     const nextState = !isOpen;
@@ -199,15 +242,29 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
   };
 
   const handleNotificationClick = (n: NotificationItem) => {
-    if (!n.is_read) {
+    // If notification targets a lead or follow-up, do NOT mark read until the lead fetch actually succeeds!
+    const isLeadEntity =
+      n.entity_type === "lead" ||
+      n.entity_type === "lead_follow_up" ||
+      n.type?.startsWith("FOLLOW_UP");
+
+    if (!isLeadEntity && !n.is_read) {
       void handleMarkRead(n.id);
     }
     setIsOpen(false);
 
     if (onSelectEntity) {
-      onSelectEntity(n.entity_type, n.entity_id, n.action_url);
+      onSelectEntity(n.entity_type, n.entity_id, n.action_url, !n.is_read ? n.id : undefined);
     } else if (n.action_url) {
-      window.location.href = n.action_url;
+      try {
+        const url = new URL(n.action_url, window.location.origin);
+        if (isLeadEntity && !n.is_read) {
+          url.searchParams.set("notificationId", n.id);
+        }
+        window.location.href = url.pathname + url.search;
+      } catch {
+        window.location.href = n.action_url;
+      }
     } else {
       window.location.href = "/notifications";
     }
@@ -312,7 +369,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
         className={`notif-bell-btn ${isOpen ? "open" : ""}`}
         aria-label={`Notifications (${unreadCount} unread)`}
         aria-expanded={isOpen}
-        aria-controls="notif-dropdown-panel"
+        aria-controls={isMobile ? "notif-mobile-sheet" : "notif-dropdown-panel"}
       >
         <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "text-[#0066FF] scale-105" : "text-[#0066FF]"}`} />
 
@@ -324,8 +381,8 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
         )}
       </button>
 
-      {/* Upgraded Notification Dropdown Panel */}
-      {isOpen && (
+      {/* DESKTOP NOTIFICATION DROPDOWN PANEL (Preserved for min-width: 641px) */}
+      {isOpen && !isMobile && (
         <div
           id="notif-dropdown-panel"
           className="notif-dropdown-panel"
@@ -375,8 +432,19 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                   </div>
                 ))}
               </div>
+            ) : fetchError ? (
+              <div className="py-8 px-6 text-center">
+                <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
+                <p className="text-xs text-[var(--text-secondary)] mb-3">{fetchError}</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchDropdownNotifications()}
+                  className="px-3 py-1.5 text-xs font-semibold bg-[#0066FF] text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
             ) : notifications.length === 0 ? (
-              /* Refined Empty State */
               <div className="py-10 px-6 flex flex-col items-center justify-center text-center">
                 <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 dark:border-blue-500/30 flex items-center justify-center mb-3 text-[#0066FF]">
                   <Bell className="w-5 h-5" />
@@ -389,15 +457,11 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                 </p>
               </div>
             ) : (
-              /* Grouped Notification Rows */
               groupedNotifications.map((group) => (
                 <div key={group.label} className="relative">
-                  {/* Sticky Group Header */}
                   <div className="px-4 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--text-muted)] uppercase bg-[var(--bg-secondary)]/95 backdrop-blur-sm border-b border-[var(--border-color)]/60 sticky top-0 z-10">
                     {group.label}
                   </div>
-
-                  {/* Group Items */}
                   <div className="divide-y divide-[var(--border-color)]/40">
                     {group.items.map((n) => {
                       const iconConfig = getIconConfig(n.type);
@@ -419,14 +483,12 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                               : "bg-transparent hover:bg-[var(--surface-hover)]"
                           }`}
                         >
-                          {/* Type Icon Badge */}
                           <div
                             className={`w-9 h-9 rounded-xl border shrink-0 flex items-center justify-center mt-0.5 shadow-sm ${iconConfig.bg}`}
                           >
                             {iconConfig.icon}
                           </div>
 
-                          {/* Content Column */}
                           <div className="flex-1 min-w-0 pr-1">
                             <div className="flex items-baseline justify-between gap-2">
                               <h5
@@ -448,7 +510,6 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                             </p>
                           </div>
 
-                          {/* Unread Indicator & Quick Mark Read Button */}
                           <div className="shrink-0 flex items-center gap-1 self-start mt-1">
                             {!n.is_read && (
                               <>
@@ -485,6 +546,198 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
             </a>
           </div>
         </div>
+      )}
+
+      {/* MOBILE NOTIFICATION BOTTOM SHEET (Rendered via React Portal) */}
+      {isOpen && isMobile && mounted && createPortal(
+        <>
+          {/* Dimmed Backdrop */}
+          <div
+            id="notif-sheet-backdrop"
+            className="notif-sheet-backdrop"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Bottom Sheet Card */}
+          <div
+            id="notif-mobile-sheet"
+            className="notif-sheet-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notif-sheet-title"
+          >
+            {/* Pull Handle Bar */}
+            <div className="notif-sheet-handle-container">
+              <div className="notif-sheet-handle-bar" />
+            </div>
+
+            {/* 1. Header (Fixed at top) */}
+            <div className="notif-sheet-header">
+              <div className="notif-sheet-title-group">
+                <h3 id="notif-sheet-title" className="notif-sheet-title">
+                  Notifications
+                </h3>
+                {unreadCount > 0 && (
+                  <span className="notif-sheet-unread-badge">
+                    {unreadCount} unread
+                  </span>
+                )}
+              </div>
+
+              <div className="notif-sheet-actions">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    className="notif-sheet-mark-all-btn"
+                    title="Mark all notifications as read"
+                  >
+                    <CheckCheck style={{ width: 14, height: 14 }} />
+                    <span>Mark all read</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="notif-sheet-close-btn"
+                  aria-label="Close notifications"
+                >
+                  <X style={{ width: 18, height: 18 }} />
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Scrollable Body */}
+            <div className="notif-sheet-body">
+              {loading ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3, 4].map((key) => (
+                    <div key={key} className="flex items-start gap-3 p-3 animate-pulse border-b border-[var(--border-color)]">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--border-color)] shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-[var(--border-color)] rounded w-3/4" />
+                        <div className="h-3.5 bg-[var(--border-color)]/60 rounded w-full" />
+                        <div className="h-3 bg-[var(--border-color)]/40 rounded w-1/4 mt-1" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : fetchError ? (
+                <div className="notif-sheet-error-state">
+                  <AlertTriangle style={{ width: 40, height: 40, color: "#EF4444", marginBottom: 10 }} />
+                  <div className="notif-sheet-empty-title">Failed to load notifications</div>
+                  <div className="notif-sheet-empty-desc">{fetchError}</div>
+                  <button
+                    type="button"
+                    onClick={() => void fetchDropdownNotifications()}
+                    className="notif-sheet-retry-btn"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="notif-sheet-empty-state">
+                  <div className="notif-sheet-empty-icon">
+                    <Bell style={{ width: 24, height: 24 }} />
+                  </div>
+                  <h4 className="notif-sheet-empty-title">No Notifications Yet</h4>
+                  <p className="notif-sheet-empty-desc">
+                    You&apos;re all caught up. Follow-up reminders and activity updates will appear here.
+                  </p>
+                </div>
+              ) : (
+                groupedNotifications.map((group) => (
+                  <div key={group.label}>
+                    {/* Sticky Date Group Header */}
+                    <div className="notif-sheet-date-header">
+                      {group.label}
+                    </div>
+
+                    {/* Notification Rows */}
+                    <div>
+                      {group.items.map((n) => {
+                        const iconConfig = getIconConfig(n.type);
+                        return (
+                          <div
+                            key={n.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleNotificationClick(n)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleNotificationClick(n);
+                              }
+                            }}
+                            className={`notif-sheet-row ${!n.is_read ? "unread" : ""}`}
+                          >
+                            {/* Left Icon Container */}
+                            <div className={`notif-sheet-icon-box ${iconConfig.bg}`}>
+                              {iconConfig.icon}
+                            </div>
+
+                            {/* Flexible Text Content Column */}
+                            <div className="notif-sheet-text-col">
+                              <h5 className="notif-sheet-item-title">
+                                {n.title}
+                              </h5>
+
+                              <p className="notif-sheet-item-body">
+                                {n.body}
+                              </p>
+
+                              {/* Separate Timestamp Below Message */}
+                              <div className="notif-sheet-item-time">
+                                <Clock style={{ width: 12, height: 12 }} />
+                                <span>{formatTimeAgo(n.created_at)}</span>
+                              </div>
+                            </div>
+
+                            {/* Unread Indicator & Quick Action */}
+                            <div className="notif-sheet-status-box">
+                              {!n.is_read && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleMarkRead(n.id, e)}
+                                    title="Mark as read"
+                                    className="notif-sheet-quick-read-btn"
+                                    aria-label="Mark notification as read"
+                                  >
+                                    <Check style={{ width: 14, height: 14 }} />
+                                  </button>
+                                  <span
+                                    className="notif-sheet-unread-dot"
+                                    aria-label="Unread notification"
+                                  />
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* 3. Footer (Fixed at bottom) */}
+            <div className="notif-sheet-footer">
+              <a
+                href="/notifications"
+                onClick={() => setIsOpen(false)}
+                className="notif-sheet-view-all-btn"
+              >
+                <span>View all notifications</span>
+                <ArrowRight style={{ width: 15, height: 15 }} />
+              </a>
+            </div>
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );

@@ -96,39 +96,43 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       });
     }
 
-    // Next follow-up scoped to owner
-    const fuRes = await pool.query(
-      `SELECT id, scheduled_at as "scheduledAt", note, status, COALESCE(type, 'CALL') as type
+    // All follow-ups for this authorized lead
+    const allFuRes = await pool.query(
+      `SELECT id, scheduled_at as "scheduledAt", note, status, COALESCE(type, 'CALL') as type, created_at as "createdAt"
        FROM lead_follow_ups
-       WHERE lead_id = $1 AND owner_user_id = $2 AND status = 'SCHEDULED'
-       ORDER BY scheduled_at ASC LIMIT 1`,
-      [id, identity.id]
+       WHERE lead_id = $1
+       ORDER BY scheduled_at ASC`,
+      [id]
     );
-    let nextFollowUp = fuRes.rows[0] || null;
-    let followUpType: FollowUpType = normalizeFollowUpType(lead.followUpType);
 
-    if (nextFollowUp) {
-      const extracted = extractFollowUpTypeAndCleanNote(
-        nextFollowUp.note,
-        lead.followUpType ? normalizeFollowUpType(lead.followUpType) : nextFollowUp.type
-      );
-      nextFollowUp.type = extracted.type;
-      nextFollowUp.note = extracted.cleanNote || null;
-      followUpType = extracted.type;
-      lead.followUpNote = extracted.cleanNote || lead.followUpNote;
-    } else if (lead.followUpNote) {
+    const followUps = allFuRes.rows.map((f: any) => {
+      const extracted = extractFollowUpTypeAndCleanNote(f.note, f.type);
+      return {
+        id: f.id,
+        scheduledAt: f.scheduledAt ? new Date(f.scheduledAt).toISOString() : null,
+        note: extracted.cleanNote || null,
+        status: f.status,
+        type: extracted.type,
+      };
+    });
+
+    const nextScheduled = followUps.find((f: any) => f.status === "SCHEDULED") || null;
+    let nextFollowUp = nextScheduled || (followUps.length > 0 ? followUps[0] : null);
+    let followUpType: FollowUpType = nextFollowUp ? nextFollowUp.type : normalizeFollowUpType(lead.followUpType);
+
+    if (lead.followUpNote && !nextFollowUp) {
       const extracted = extractFollowUpTypeAndCleanNote(lead.followUpNote, lead.followUpType);
       followUpType = extracted.type;
       lead.followUpNote = extracted.cleanNote || null;
     }
 
-    // Recent activities scoped to owner
+    // Recent activities for this authorized lead
     const actRes = await pool.query(
       `SELECT id, type, description, from_value as "fromValue", to_value as "toValue", occurred_at as "occurredAt"
        FROM lead_activities
-       WHERE lead_id = $1 AND owner_user_id = $2
+       WHERE lead_id = $1
        ORDER BY occurred_at DESC LIMIT 50`,
-      [id, identity.id]
+      [id]
     );
     const activities = actRes.rows;
 
@@ -164,6 +168,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         stage: lead.status,
         expectedRevenue: resolvedTotalAmount,
         nextFollowUp,
+        followUps,
         activities,
         lastRemark,
         customFieldValues: customFieldValuesMap,

@@ -25,6 +25,18 @@ export interface ThemeTokens {
   headerBg: string;
   cardRadius: string;
   btnRadius: string;
+  navBg: string;
+  navBorder: string;
+  navText: string;
+  navTextHover: string;
+  navHoverBg: string;
+  navSelectedBg: string;
+  navSelectedBorder: string;
+  navSelectedText: string;
+  navSelectedShadow: string;
+  editBtnBg: string;
+  editBtnBorder: string;
+  editBtnText: string;
 }
 
 export interface ProfileThemePreset {
@@ -40,6 +52,7 @@ export interface ProfileThemePreset {
   primary?: string;
   secondary?: string;
   mutedText?: string;
+  navBg?: string;
 }
 
 export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
@@ -181,7 +194,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     secondary: "#1e3a4c",
     accent: "#0284c7",
     text: "#101820",
-    mutedText: "#64748b",
+    mutedText: "#475569",
   },
   {
     id: "ivory-estate",
@@ -195,7 +208,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     secondary: "#5c4526",
     accent: "#d97706",
     text: "#17130E",
-    mutedText: "#786c5e",
+    mutedText: "#574c3e",
   },
   {
     id: "carbon-platinum",
@@ -219,7 +232,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     surface: "#2b131c",
     surfaceSecondary: "#3b1a27",
     border: "#6e2539",
-    primary: "#C94B68",
+    primary: "#C03D5B",
     secondary: "#962e45",
     accent: "#fb7185",
     text: "#FFF2F5",
@@ -247,7 +260,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     surface: "#0f2045",
     surfaceSecondary: "#152d61",
     border: "#1e4bb8",
-    primary: "#367BFF",
+    primary: "#2563EB",
     secondary: "#1d4ed8",
     accent: "#60a5fa",
     text: "#F4F7FF",
@@ -269,24 +282,20 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
   },
 ];
 
-export function getLuminance(hex?: string): number {
-  if (!hex || typeof hex !== "string") return 0;
-  const clean = hex.replace("#", "").trim();
-  if (clean.length < 6) return 0;
-  const r = parseInt(clean.substring(0, 2), 16) / 255;
-  const g = parseInt(clean.substring(2, 4), 16) / 255;
-  const b = parseInt(clean.substring(4, 6), 16) / 255;
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return 0;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-export function isLightColor(hex?: string): boolean {
-  return getLuminance(hex) > 0.45;
-}
-
 export function parseHex(hexStr?: string): [number, number, number] {
   if (!hexStr || typeof hexStr !== "string") return [5, 11, 20];
-  const clean = hexStr.replace("#", "").trim();
+  const str = hexStr.trim().toLowerCase();
+  if (str.startsWith("rgb")) {
+    const match = str.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (match) {
+      return [
+        Math.max(0, Math.min(255, parseInt(match[1], 10) || 0)),
+        Math.max(0, Math.min(255, parseInt(match[2], 10) || 0)),
+        Math.max(0, Math.min(255, parseInt(match[3], 10) || 0)),
+      ];
+    }
+  }
+  const clean = str.replace("#", "").trim();
   if (clean.length === 3) {
     const r = parseInt(clean[0] + clean[0], 16) || 0;
     const g = parseInt(clean[1] + clean[1], 16) || 0;
@@ -300,6 +309,51 @@ export function parseHex(hexStr?: string): [number, number, number] {
     return [r, g, b];
   }
   return [5, 11, 20];
+}
+
+export function getLuminance(hex?: string): number {
+  if (!hex || typeof hex !== "string") return 0;
+  const clean = hex.replace("#", "").trim();
+  if (clean.length < 3) return 0;
+  const [r, g, b] = parseHex(clean);
+  const toLinear = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+export function isLightColor(hex?: string): boolean {
+  return getLuminance(hex) > 0.45;
+}
+
+export function getContrastRatio(hex1?: string, hex2?: string): number {
+  if (!hex1 || !hex2) return 1;
+  const lum1 = getLuminance(hex1);
+  const lum2 = getLuminance(hex2);
+  const brightest = Math.max(lum1, lum2);
+  const darkest = Math.min(lum1, lum2);
+  return (brightest + 0.05) / (darkest + 0.05);
+}
+
+export function ensureReadableTextColor(
+  bgHex?: string,
+  preferredHex?: string,
+  minRatio: number = 4.5
+): string {
+  if (!bgHex) return preferredHex || "#ffffff";
+  if (preferredHex && getContrastRatio(preferredHex, bgHex) >= minRatio) {
+    return preferredHex;
+  }
+  const whiteRatio = getContrastRatio("#ffffff", bgHex);
+  const darkRatio = getContrastRatio("#0F172A", bgHex);
+  if (whiteRatio >= minRatio && whiteRatio >= darkRatio) {
+    return "#ffffff";
+  }
+  if (darkRatio >= minRatio) {
+    return "#0F172A";
+  }
+  return darkRatio > whiteRatio ? "#0F172A" : "#ffffff";
 }
 
 export function hexToRgba(hexStr: string, alpha: number): string {
@@ -388,7 +442,8 @@ export function resolveThemeTokens(card: {
 
   const primaryIsLight = isLightColor(primary);
   const primaryText =
-    mc.primaryBtnText || (primaryIsLight ? "#000000" : "#ffffff");
+    mc.primaryBtnText ||
+    ensureReadableTextColor(primary, primaryIsLight ? "#0F172A" : "#ffffff", 4.5);
   const primaryGradient =
     mc.primaryBtnBg ||
     `linear-gradient(135deg, ${primary}, ${secondaryColor})`;
@@ -405,7 +460,7 @@ export function resolveThemeTokens(card: {
   const mutedText =
     mc.mutedText ||
     preset?.mutedText ||
-    (bgIsLight ? "rgba(0, 0, 0, 0.62)" : mixHex(text, bg, 0.42));
+    (bgIsLight ? "#475569" : mixHex(text, bg, 0.42));
 
   // 7. Icons & Extras:
   const iconColor = primary;
@@ -420,6 +475,69 @@ export function resolveThemeTokens(card: {
     mc.headerStyle === "solid"
       ? bg
       : `linear-gradient(135deg, ${headerGradStart}, ${headerGradEnd})`;
+
+  // 9. Navigation Bar Tokens:
+  // Decoupled from card body text and paired directly with the navigation bar's actual surface.
+  // When navBg is dark (luminance < 0.45), labels are crisp light text (> 12:1 contrast).
+  // When navBg is light (luminance >= 0.45), labels are crisp dark text (> 10:1 contrast).
+  const navBg =
+    mc.navBg ||
+    preset?.navBg ||
+    (bgIsLight ? "rgba(15, 23, 42, 0.90)" : mixHex(surfaceSecondary, "#000000", 0.45));
+  const navBgIsLight = isLightColor(navBg);
+
+  const navBorder =
+    mc.navBorder ||
+    (navBgIsLight
+      ? "rgba(0, 0, 0, 0.14)"
+      : hexToRgba(primary, 0.4));
+
+  const navText =
+    mc.navText ||
+    (navBgIsLight
+      ? "#1E293B"
+      : "#F1F5F9");
+
+  const navTextHover =
+    mc.navTextHover ||
+    (navBgIsLight
+      ? "#0F172A"
+      : "#FFFFFF");
+
+  const navHoverBg =
+    navBgIsLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.09)";
+  const navActiveHoverBg =
+    navBgIsLight ? "rgba(0, 0, 0, 0.10)" : "rgba(255, 255, 255, 0.15)";
+
+  const navSelectedBg =
+    mc.navSelectedBg || primaryGradient;
+
+  const navSelectedBorder =
+    mc.navSelectedBorder || primary;
+
+  const navSelectedText =
+    mc.navSelectedText || ensureReadableTextColor(primary, primaryText, 4.5);
+
+  const navSelectedShadow =
+    mc.navSelectedShadow ||
+    (navBgIsLight
+      ? "0 2px 8px rgba(0, 0, 0, 0.16)"
+      : "0 3px 12px rgba(0, 0, 0, 0.40)");
+
+  // 10. Edit Button Tokens:
+  const editBtnBg =
+    mc.editBtnBg ||
+    (bgIsLight ? "rgba(0, 0, 0, 0.05)" : hexToRgba(primary, 0.15));
+  const editBtnBorder =
+    mc.editBtnBorder ||
+    (bgIsLight ? hexToRgba(primary, 0.4) : hexToRgba(primary, 0.4));
+  const editBtnText =
+    mc.editBtnText ||
+    ensureReadableTextColor(surface, primary, 4.5);
+  const editBtnHoverBg =
+    mc.editBtnHoverBg || primary;
+  const editBtnHoverText =
+    mc.editBtnHoverText || primaryText;
 
   // Combine CSS custom properties into a single dictionary:
   const cssVars: Record<string, string> = {
@@ -443,6 +561,25 @@ export function resolveThemeTokens(card: {
     "--profile-icon": iconColor,
     "--profile-success": success,
 
+    // Navigation Tokens:
+    "--profile-nav-bg": navBg,
+    "--profile-nav-border": navBorder,
+    "--profile-nav-text": navText,
+    "--profile-nav-text-hover": navTextHover,
+    "--profile-nav-hover-bg": navHoverBg,
+    "--profile-nav-active-hover-bg": navActiveHoverBg,
+    "--profile-nav-selected-bg": navSelectedBg,
+    "--profile-nav-selected-border": navSelectedBorder,
+    "--profile-nav-selected-text": navSelectedText,
+    "--profile-nav-selected-shadow": navSelectedShadow,
+
+    // Edit Button Tokens:
+    "--profile-edit-btn-bg": editBtnBg,
+    "--profile-edit-btn-border": editBtnBorder,
+    "--profile-edit-btn-text": editBtnText,
+    "--profile-edit-btn-hover-bg": editBtnHoverBg,
+    "--profile-edit-btn-hover-text": editBtnHoverText,
+
     // Public Card CSS compatibility variables:
     "--pc-bg": bg,
     "--pc-accent": primary,
@@ -451,6 +588,21 @@ export function resolveThemeTokens(card: {
     "--pc-surface-secondary": surfaceSecondary,
     "--pc-border": border,
     "--pc-muted": mutedText,
+    "--pc-nav-bg": navBg,
+    "--pc-nav-border": navBorder,
+    "--pc-nav-text": navText,
+    "--pc-nav-text-hover": navTextHover,
+    "--pc-nav-hover-bg": navHoverBg,
+    "--pc-nav-active-hover-bg": navActiveHoverBg,
+    "--pc-nav-selected-bg": navSelectedBg,
+    "--pc-nav-selected-border": navSelectedBorder,
+    "--pc-nav-selected-text": navSelectedText,
+    "--pc-nav-selected-shadow": navSelectedShadow,
+    "--pc-edit-btn-bg": editBtnBg,
+    "--pc-edit-btn-border": editBtnBorder,
+    "--pc-edit-btn-text": editBtnText,
+    "--pc-edit-btn-hover-bg": editBtnHoverBg,
+    "--pc-edit-btn-hover-text": editBtnHoverText,
 
     // Modern Profile CSS compatibility variables:
     "--mod-bg": bg,
@@ -503,6 +655,18 @@ export function resolveThemeTokens(card: {
       headerBg,
       cardRadius: `${mc.cardRadius ?? 14}px`,
       btnRadius: `${mc.buttonRadius ?? 24}px`,
+      navBg,
+      navBorder,
+      navText,
+      navTextHover,
+      navHoverBg,
+      navSelectedBg,
+      navSelectedBorder,
+      navSelectedText,
+      navSelectedShadow,
+      editBtnBg,
+      editBtnBorder,
+      editBtnText,
     },
     cssVars,
     styleObj: cssVars as unknown as React.CSSProperties,

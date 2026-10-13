@@ -210,7 +210,7 @@
 }
 .pc-action-btn:hover {
   background: var(--pc-accent, #b8962e);
-  color: color-mix(in srgb, var(--pc-bg, #0a0a0a) 20%, #000);
+  color: var(--profile-primary-text, #ffffff);
 }
 .pc-action-btn:disabled {
   opacity: 0.5;
@@ -1064,44 +1064,69 @@
   max-width: 500px;
   margin: 0 auto 16px;
   display: flex;
-  background: color-mix(in srgb, var(--pc-accent, #0066FF) 15%, rgba(0,0,0,0.85));
-  border: 1.5px solid color-mix(in srgb, var(--pc-accent, #0066FF) 35%, transparent);
+  background: var(--pc-nav-bg, color-mix(in srgb, var(--pc-accent, #0066FF) 15%, rgba(10, 15, 25, 0.92)));
+  border: 1.5px solid var(--pc-nav-border, color-mix(in srgb, var(--pc-accent, #0066FF) 35%, transparent));
   border-radius: 50px;
-  padding: 4px;
+  padding: 5px;
   gap: 4px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  box-shadow: var(--pc-nav-shadow, 0 6px 20px rgba(0, 0, 0, 0.45));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .pc-mode-switch-btn {
   flex: 1;
   background: transparent;
   border: 1px solid transparent;
-  color: color-mix(in srgb, var(--pc-text, #fff) 75%, transparent);
+  color: var(--pc-nav-text, #F1F5F9);
   border-radius: 50px;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 10px 14px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  text-decoration: none;
+  line-height: 1.2;
 }
 
-.pc-mode-switch-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+.pc-mode-switch-btn:hover:not(.active) {
+  color: var(--pc-nav-text-hover, #FFFFFF);
+  background: var(--pc-nav-hover-bg, rgba(255, 255, 255, 0.09));
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.pc-mode-switch-btn:active:not(.active) {
+  transform: scale(0.97);
+  background: var(--pc-nav-active-hover-bg, rgba(255, 255, 255, 0.15));
+}
+
+.pc-mode-switch-btn:focus-visible {
+  outline: 2px solid var(--pc-nav-selected-border, var(--profile-primary, #38bdf8));
+  outline-offset: 2px;
 }
 
 .pc-mode-switch-btn.active {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--pc-accent, #b8962e) 30%, #000), color-mix(in srgb, var(--pc-accent, #b8962e) 15%, #000));
-  border-color: var(--pc-accent, #b8962e);
-  color: var(--pc-accent, #0066FF);
+  background: var(--pc-nav-selected-bg, var(--profile-primary-gradient, linear-gradient(135deg, #0066FF, #0052cc)));
+  border: 1px solid var(--pc-nav-selected-border, var(--profile-primary, #0066FF));
+  color: var(--pc-nav-selected-text, var(--profile-primary-text, #FFFFFF));
   font-weight: 700;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), inset 0 0 0 1px color-mix(in srgb, var(--pc-accent, #b8962e) 40%, transparent);
+  box-shadow: var(--pc-nav-selected-shadow, 0 3px 12px rgba(0, 0, 0, 0.35));
+}
+
+.pc-mode-switch-btn.active:hover {
+  filter: brightness(1.08);
+}
+
+.pc-mode-switch-btn.active:active {
+  transform: scale(0.98);
 }
 
 .pc-btn-emergency-alert {
@@ -1528,27 +1553,27 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #00E5FF;
-  background: rgba(0, 229, 255, 0.1);
-  border: 1px solid rgba(0, 229, 255, 0.3);
+  color: var(--pc-edit-btn-text, var(--profile-edit-btn-text, var(--profile-primary, #315D7A)));
+  background: var(--pc-edit-btn-bg, var(--profile-edit-btn-bg, var(--profile-secondary-bg, rgba(0, 0, 0, 0.05))));
+  border: 1px solid var(--pc-edit-btn-border, var(--profile-edit-btn-border, var(--profile-secondary-border, rgba(0, 0, 0, 0.15))));
   border-radius: 9999px;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .pc-profile-edit-btn:hover,
 .zappit-profile-edit-btn:hover {
-  background: rgba(0, 229, 255, 0.22);
-  border-color: rgba(0, 229, 255, 0.6);
-  color: #ffffff;
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
+  background: var(--pc-edit-btn-hover-bg, var(--profile-edit-btn-hover-bg, var(--profile-primary, #315D7A)));
+  border-color: var(--pc-edit-btn-hover-bg, var(--profile-edit-btn-hover-bg, var(--profile-primary, #315D7A)));
+  color: var(--pc-edit-btn-hover-text, var(--profile-edit-btn-hover-text, var(--profile-primary-text, #ffffff)));
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
   transform: translateY(-1px);
 }
 
 .pc-profile-edit-btn:focus-visible,
 .zappit-profile-edit-btn:focus-visible {
-  outline: 2px solid #00E5FF;
+  outline: 2px solid var(--profile-primary, #315D7A);
   outline-offset: 2px;
 }
 
@@ -1579,12 +1604,12 @@
   position: relative;
   width: 100%;
   max-width: 420px;
-  background: #091322;
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: var(--profile-surface, #091322);
+  border: 1px solid var(--profile-border, rgba(0, 229, 255, 0.25));
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-  color: #ffffff;
+  color: var(--profile-text, #ffffff);
   box-sizing: border-box;
 }
 
@@ -1618,9 +1643,9 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(0, 229, 255, 0.15);
-  border: 1px solid rgba(0, 229, 255, 0.35);
-  color: #00E5FF;
+  background: var(--profile-secondary-bg, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--profile-secondary-border, rgba(255, 255, 255, 0.25));
+  color: var(--profile-primary, #38bdf8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1644,9 +1669,9 @@
 
 .pc-modal-user-info {
   font-size: 12.5px;
-  color: rgba(0, 229, 255, 0.9);
-  background: rgba(0, 229, 255, 0.08);
-  border: 1px solid rgba(0, 229, 255, 0.2);
+  color: var(--profile-text, #ffffff);
+  background: var(--profile-secondary-bg, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--profile-secondary-border, rgba(255, 255, 255, 0.15));
   border-radius: 8px;
   padding: 8px 12px;
   text-align: center;
@@ -1665,8 +1690,8 @@
   padding: 12px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: #000000;
-  background: linear-gradient(135deg, #00E5FF 0%, #0066FF 100%);
+  color: var(--profile-primary-text, #ffffff);
+  background: var(--profile-primary-gradient, linear-gradient(135deg, var(--pc-accent, #0066FF) 0%, #0044cc 100%));
   border: none;
   border-radius: 12px;
   cursor: pointer;

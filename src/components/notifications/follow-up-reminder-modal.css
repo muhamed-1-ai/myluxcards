@@ -1,0 +1,650 @@
+/* ==========================================================================
+   ZAPPIT FOLLOW-UP REMINDER MODAL (SCOPED COMPONENT STYLES)
+   ========================================================================== */
+
+/* Design Tokens & Theme Variables */
+:root {
+  --fur-surface: #0B1324;
+  --fur-border: #1E293B;
+  --fur-border-subtle: rgba(255, 255, 255, 0.08);
+  --fur-text-title: #FFFFFF;
+  --fur-text-body: #CBD5E1;
+  --fur-text-muted: #94A3B8;
+  --fur-note-bg: rgba(15, 23, 42, 0.7);
+  --fur-note-border: rgba(255, 255, 255, 0.08);
+  --fur-badge-overdue-bg: rgba(245, 158, 11, 0.14);
+  --fur-badge-overdue-text: #F59E0B;
+  --fur-badge-overdue-border: rgba(245, 158, 11, 0.3);
+  --fur-badge-due-bg: rgba(0, 102, 255, 0.14);
+  --fur-badge-due-text: #00E5FF;
+  --fur-badge-due-border: rgba(0, 102, 255, 0.3);
+  --fur-type-badge-bg: rgba(255, 255, 255, 0.08);
+  --fur-type-badge-text: #CBD5E1;
+  --fur-type-badge-border: rgba(255, 255, 255, 0.12);
+  --fur-btn-primary-bg: #0066FF;
+  --fur-btn-primary-hover: #0052CC;
+  --fur-btn-primary-active: #0040A8;
+  --fur-btn-primary-text: #FFFFFF;
+  --fur-btn-secondary-bg: rgba(255, 255, 255, 0.05);
+  --fur-btn-secondary-border: rgba(255, 255, 255, 0.16);
+  --fur-btn-secondary-hover: rgba(255, 255, 255, 0.09);
+  --fur-btn-secondary-text: #F8FAFC;
+  --fur-btn-quieter-bg: transparent;
+  --fur-btn-quieter-border: rgba(255, 255, 255, 0.1);
+  --fur-btn-quieter-hover: rgba(255, 255, 255, 0.06);
+  --fur-btn-quieter-text: #94A3B8;
+  --fur-btn-quieter-text-hover: #F1F5F9;
+  --fur-close-hover-bg: rgba(255, 255, 255, 0.08);
+  --fur-close-hover-color: #FFFFFF;
+  --fur-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  --fur-focus-ring: rgba(0, 102, 255, 0.5);
+}
+
+[data-theme="light"],
+html.light,
+html.light-mode,
+body.light-mode {
+  --fur-surface: #FFFFFF;
+  --fur-border: #E2E8F0;
+  --fur-border-subtle: rgba(0, 0, 0, 0.06);
+  --fur-text-title: #0F172A;
+  --fur-text-body: #334155;
+  --fur-text-muted: #64748B;
+  --fur-note-bg: #F8FAFC;
+  --fur-note-border: #E2E8F0;
+  --fur-badge-overdue-bg: rgba(217, 119, 6, 0.12);
+  --fur-badge-overdue-text: #B45309;
+  --fur-badge-overdue-border: rgba(217, 119, 6, 0.28);
+  --fur-badge-due-bg: rgba(0, 102, 255, 0.1);
+  --fur-badge-due-text: #0066FF;
+  --fur-badge-due-border: rgba(0, 102, 255, 0.25);
+  --fur-type-badge-bg: #F1F5F9;
+  --fur-type-badge-text: #475569;
+  --fur-type-badge-border: #CBD5E1;
+  --fur-btn-primary-bg: #0066FF;
+  --fur-btn-primary-hover: #0052CC;
+  --fur-btn-primary-active: #0040A8;
+  --fur-btn-primary-text: #FFFFFF;
+  --fur-btn-secondary-bg: #FFFFFF;
+  --fur-btn-secondary-border: #CBD5E1;
+  --fur-btn-secondary-hover: #F8FAFC;
+  --fur-btn-secondary-text: #0F172A;
+  --fur-btn-quieter-bg: #F8FAFC;
+  --fur-btn-quieter-border: #E2E8F0;
+  --fur-btn-quieter-hover: #F1F5F9;
+  --fur-btn-quieter-text: #64748B;
+  --fur-btn-quieter-text-hover: #0F172A;
+  --fur-close-hover-bg: rgba(0, 0, 0, 0.06);
+  --fur-close-hover-color: #0F172A;
+  --fur-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.16), 0 0 1px 1px rgba(0, 0, 0, 0.06);
+  --fur-focus-ring: rgba(0, 102, 255, 0.4);
+}
+
+/* Dim Backdrop with Lightweight Blur */
+.fur-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: furFadeIn 0.2s ease-out;
+}
+
+[data-theme="light"] .fur-backdrop,
+body.light-mode .fur-backdrop {
+  background-color: rgba(15, 23, 42, 0.45);
+}
+
+/* Centered Modal Card */
+.fur-card {
+  width: 100%;
+  max-width: 472px;
+  max-height: calc(100dvh - 32px);
+  background: var(--fur-surface);
+  border: 1px solid var(--fur-border);
+  border-radius: 18px;
+  box-shadow: var(--fur-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  animation: furScaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  color: var(--fur-text-body);
+}
+
+/* Scrollable Inner Container */
+.fur-body-scroll {
+  padding: 24px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 1. HEADER SECTION */
+.fur-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.fur-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fur-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 102, 255, 0.12);
+  color: #0066FF;
+  flex-shrink: 0;
+}
+
+.fur-icon-wrapper.overdue {
+  background: rgba(245, 158, 11, 0.14);
+  color: #F59E0B;
+}
+
+.fur-title-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fur-text-muted);
+  letter-spacing: -0.01em;
+}
+
+/* Overdue / Due Now Compact Badge */
+.fur-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.fur-status-badge.overdue {
+  background: var(--fur-badge-overdue-bg);
+  color: var(--fur-badge-overdue-text);
+  border: 1px solid var(--fur-badge-overdue-border);
+}
+
+.fur-status-badge.due {
+  background: var(--fur-badge-due-bg);
+  color: var(--fur-badge-due-text);
+  border: 1px solid var(--fur-badge-due-border);
+}
+
+.fur-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.fur-status-badge.overdue .fur-status-dot {
+  animation: furPulseDot 1.6s infinite ease-in-out;
+}
+
+.fur-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fur-queue-toggle-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0066FF;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+
+.fur-queue-toggle-btn:hover {
+  background: rgba(0, 102, 255, 0.1);
+}
+
+.fur-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--fur-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.fur-close-btn:hover {
+  background: var(--fur-close-hover-bg);
+  color: var(--fur-close-hover-color);
+}
+
+.fur-close-btn:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 1px;
+}
+
+/* Multi-reminder Queue Drawer */
+.fur-queue-list {
+  background: var(--fur-note-bg);
+  border: 1px solid var(--fur-note-border);
+  border-radius: 12px;
+  padding: 6px;
+  margin-bottom: 16px;
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fur-queue-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: var(--fur-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.fur-queue-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fur-text-title);
+}
+
+.fur-queue-item.active {
+  background: rgba(0, 102, 255, 0.14);
+  color: #00E5FF;
+  font-weight: 600;
+}
+
+[data-theme="light"] .fur-queue-item.active,
+body.light-mode .fur-queue-item.active {
+  color: #0066FF;
+}
+
+/* 2. LEAD SECTION */
+.fur-lead-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.fur-lead-headline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Explicit Sans-Serif Enforcement to override global Instrument Serif */
+.fur-lead-name {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--fur-text-title) !important;
+  letter-spacing: -0.02em;
+  margin: 0;
+  padding: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.fur-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--fur-type-badge-bg);
+  border: 1px solid var(--fur-type-badge-border);
+  color: var(--fur-type-badge-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.fur-lead-company {
+  font-size: 13px;
+  color: var(--fur-text-muted);
+  line-height: 1.4;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3. SCHEDULED TIME SECTION */
+.fur-schedule-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fur-text-body);
+  margin-bottom: 20px;
+}
+
+.fur-schedule-icon {
+  width: 15px;
+  height: 15px;
+  color: #0066FF;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .fur-schedule-icon,
+body.dark-mode .fur-schedule-icon {
+  color: #00E5FF;
+}
+
+.fur-schedule-text {
+  letter-spacing: -0.01em;
+}
+
+/* 4. NOTE SECTION */
+.fur-note-section {
+  background: var(--fur-note-bg);
+  border: 1px solid var(--fur-note-border);
+  border-radius: 14px;
+  padding: 15px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fur-note-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fur-text-muted);
+  margin: 0;
+}
+
+.fur-note-content {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--fur-text-body);
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.fur-note-empty {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--fur-text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Multi-item pagination nav (if applicable) */
+.fur-queue-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--fur-text-muted);
+}
+
+.fur-stepper-btn {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--fur-text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  font-family: inherit;
+}
+
+.fur-stepper-btn:hover {
+  color: var(--fur-text-title);
+}
+
+/* Action Error Banner */
+.fur-action-error {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #EF4444;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* 5. ACTIONS FOOTER */
+.fur-footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.fur-button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Shared Button Base */
+.fur-btn {
+  height: 44px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  box-sizing: border-box;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.fur-btn:focus-visible {
+  outline: 2px solid var(--fur-focus-ring);
+  outline-offset: 2px;
+}
+
+.fur-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Open Lead (Solid Primary Blue) */
+.fur-btn-primary {
+  background: var(--fur-btn-primary-bg);
+  color: var(--fur-btn-primary-text);
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.28);
+}
+
+.fur-btn-primary:hover:not(:disabled) {
+  background: var(--fur-btn-primary-hover);
+  box-shadow: 0 6px 18px rgba(0, 102, 255, 0.38);
+}
+
+.fur-btn-primary:active:not(:disabled) {
+  background: var(--fur-btn-primary-active);
+  transform: translateY(1px);
+}
+
+/* Mark Done (Secondary Outlined) */
+.fur-btn-secondary {
+  background: var(--fur-btn-secondary-bg);
+  border: 1px solid var(--fur-btn-secondary-border);
+  color: var(--fur-btn-secondary-text);
+}
+
+.fur-btn-secondary:hover:not(:disabled) {
+  background: var(--fur-btn-secondary-hover);
+  border-color: rgba(0, 102, 255, 0.4);
+}
+
+.fur-btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Snooze 15m & Dismiss (Quieter Secondary Controls) */
+.fur-btn-quieter {
+  height: 42px;
+  background: var(--fur-btn-quieter-bg);
+  border: 1px solid var(--fur-btn-quieter-border);
+  color: var(--fur-btn-quieter-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fur-btn-quieter:hover:not(:disabled) {
+  background: var(--fur-btn-quieter-hover);
+  color: var(--fur-btn-quieter-text-hover);
+}
+
+.fur-btn-quieter:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Spinner */
+.fur-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: furSpin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Keyframes */
+@keyframes furFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes furScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes furPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes furSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS (< 520px)
+   ========================================================================== */
+@media (max-width: 520px) {
+  .fur-backdrop {
+    padding: 12px;
+    align-items: center;
+  }
+
+  .fur-card {
+    max-width: 100%;
+    border-radius: 16px;
+  }
+
+  .fur-body-scroll {
+    padding: 20px 18px;
+  }
+
+  .fur-lead-name {
+    font-size: 19px;
+  }
+
+  .fur-button-row.main-actions {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .fur-button-row.secondary-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .fur-btn {
+    height: 44px;
+    font-size: 13.5px;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .fur-backdrop,
+  .fur-card,
+  .fur-status-badge.overdue .fur-status-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}
