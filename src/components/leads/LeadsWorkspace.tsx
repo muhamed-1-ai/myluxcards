@@ -102,7 +102,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   const [editingLead, setEditingLead] = useState<any | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(searchParams.get("leadId") || null);
   const [contactSheetLead, setContactSheetLead] = useState<any | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
@@ -176,6 +176,10 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     setScopeFilter(scope);
     setSortBy(sBy);
     setSortOrder(sOrder);
+    const paramLeadId = searchParams.get("leadId");
+    if (paramLeadId) {
+      setSelectedLeadId(paramLeadId);
+    }
   }, [searchParams]);
 
   // Server-side lead fetching with race-condition identity check

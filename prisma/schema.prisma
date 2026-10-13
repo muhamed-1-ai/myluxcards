@@ -164,9 +164,13 @@ model LeadFollowUp {
   scheduledAt DateTime  @map("scheduled_at") @db.Timestamptz
   note        String?
   status      String    @default("SCHEDULED")
-  completedAt DateTime? @map("completed_at") @db.Timestamptz
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  remindedAt      DateTime? @map("reminded_at") @db.Timestamptz
+  snoozedUntil    DateTime? @map("snoozed_until") @db.Timestamptz
+  dismissedAt     DateTime? @map("dismissed_at") @db.Timestamptz
+  reminderVersion Int       @default(1) @map("reminder_version")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)

@@ -5,6 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import type { NotificationItem } from "@/components/NotificationBell";
+import { DevicePushSettings } from "@/components/notifications/DevicePushSettings";
 import {
   Bell,
   CheckCheck,
@@ -311,6 +312,12 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
   const hasActiveFilters = filter !== "ALL" || typeFilter !== "ALL" || search !== "";
 
   const logout = async () => {
+    try {
+      const { unsubscribeDeviceFromPush } = await import("@/lib/pushClient");
+      await unsubscribeDeviceFromPush().catch(() => {});
+    } catch {
+      // ignore
+    }
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     localStorage.removeItem("myluxcards_current_user");
     sessionStorage.removeItem("myluxcards_auth_next");
@@ -450,6 +457,10 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
                     </label>
                   </div>
                 ))}
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <DevicePushSettings />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>

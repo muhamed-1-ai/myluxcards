@@ -875,16 +875,20 @@ export async function scheduleFollowUp(
 /**
  * Completes a scheduled follow-up.
  */
-export async function completeFollowUp(ownerUserId: string, followUpId: string): Promise<boolean> {
+export async function completeFollowUp(userId: string, followUpId: string): Promise<boolean> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const fuRes = await client.query<{ id: string; lead_id: string; note: string | null }>(
-      `UPDATE lead_follow_ups SET status = 'COMPLETED', completed_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND owner_user_id = $2 AND status = 'SCHEDULED'
-       RETURNING id, lead_id, note`,
-      [followUpId, ownerUserId]
+      `UPDATE lead_follow_ups f
+       SET status = 'COMPLETED', completed_at = NOW(), reminder_version = reminder_version + 1, updated_at = NOW()
+       WHERE f.id = $1 AND f.status = 'SCHEDULED'
+         AND (f.owner_user_id = $2 OR EXISTS (
+           SELECT 1 FROM leads l WHERE l.id = f.lead_id AND (l.owner_user_id = $2 OR l.assigned_user_id = $2)
+         ))
+       RETURNING f.id, f.lead_id, f.note`,
+      [followUpId, userId]
     );
 
     const fu = fuRes.rows[0];
@@ -897,7 +901,7 @@ export async function completeFollowUp(ownerUserId: string, followUpId: string):
     await client.query(
       `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, entity_type, entity_id, occurred_at, created_at)
        VALUES ($1, $2, 'FOLLOW_UP_COMPLETED', $3, 'lead_follow_up', $4, NOW(), NOW())`,
-      [ownerUserId, fu.lead_id, `Follow-up completed`, fu.id]
+      [userId, fu.lead_id, `Follow-up completed`, fu.id]
     );
 
     await client.query("COMMIT");
@@ -913,16 +917,20 @@ export async function completeFollowUp(ownerUserId: string, followUpId: string):
 /**
  * Cancels a scheduled follow-up.
  */
-export async function cancelFollowUp(ownerUserId: string, followUpId: string): Promise<boolean> {
+export async function cancelFollowUp(userId: string, followUpId: string): Promise<boolean> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const fuRes = await client.query<{ id: string; lead_id: string }>(
-      `UPDATE lead_follow_ups SET status = 'CANCELLED', updated_at = NOW()
-       WHERE id = $1 AND owner_user_id = $2
-       RETURNING id, lead_id`,
-      [followUpId, ownerUserId]
+      `UPDATE lead_follow_ups f
+       SET status = 'CANCELLED', reminder_version = reminder_version + 1, updated_at = NOW()
+       WHERE f.id = $1
+         AND (f.owner_user_id = $2 OR EXISTS (
+           SELECT 1 FROM leads l WHERE l.id = f.lead_id AND (l.owner_user_id = $2 OR l.assigned_user_id = $2)
+         ))
+       RETURNING f.id, f.lead_id`,
+      [followUpId, userId]
     );
 
     const fu = fuRes.rows[0];
@@ -935,7 +943,7 @@ export async function cancelFollowUp(ownerUserId: string, followUpId: string): P
     await client.query(
       `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, entity_type, entity_id, occurred_at, created_at)
        VALUES ($1, $2, 'FOLLOW_UP_CANCELLED', 'Follow-up cancelled', 'lead_follow_up', $3, NOW(), NOW())`,
-      [ownerUserId, fu.lead_id, fu.id]
+      [userId, fu.lead_id, fu.id]
     );
 
     await client.query("COMMIT");
@@ -950,9 +958,10 @@ export async function cancelFollowUp(ownerUserId: string, followUpId: string): P
 
 /**
  * Reschedules a follow-up.
+ * Invalidates obsolete unsent reminders and resets reminder timestamps.
  */
 export async function rescheduleFollowUp(
-  ownerUserId: string,
+  userId: string,
   followUpId: string,
   newScheduledAt: Date
 ): Promise<boolean> {
@@ -961,8 +970,13 @@ export async function rescheduleFollowUp(
     await client.query("BEGIN");
 
     const fuRes = await client.query<{ id: string; lead_id: string; scheduled_at: Date }>(
-      `SELECT id, lead_id, scheduled_at FROM lead_follow_ups WHERE id = $1 AND owner_user_id = $2`,
-      [followUpId, ownerUserId]
+      `SELECT f.id, f.lead_id, f.scheduled_at 
+       FROM lead_follow_ups f
+       WHERE f.id = $1 
+         AND (f.owner_user_id = $2 OR EXISTS (
+           SELECT 1 FROM leads l WHERE l.id = f.lead_id AND (l.owner_user_id = $2 OR l.assigned_user_id = $2)
+         ))`,
+      [followUpId, userId]
     );
 
     const fu = fuRes.rows[0];
@@ -974,7 +988,15 @@ export async function rescheduleFollowUp(
     const prevDateStr = fu.scheduled_at.toISOString();
 
     await client.query(
-      `UPDATE lead_follow_ups SET scheduled_at = $1, status = 'SCHEDULED', updated_at = NOW() WHERE id = $2`,
+      `UPDATE lead_follow_ups 
+       SET scheduled_at = $1, 
+           status = 'SCHEDULED', 
+           reminded_at = NULL, 
+           snoozed_until = NULL, 
+           dismissed_at = NULL, 
+           reminder_version = reminder_version + 1, 
+           updated_at = NOW() 
+       WHERE id = $2`,
       [newScheduledAt, followUpId]
     );
 
@@ -983,7 +1005,7 @@ export async function rescheduleFollowUp(
       `INSERT INTO lead_activities (owner_user_id, lead_id, type, from_value, to_value, description, entity_type, entity_id, occurred_at, created_at)
        VALUES ($1, $2, 'FOLLOW_UP_RESCHEDULED', $3, $4, $5, 'lead_follow_up', $6, NOW(), NOW())`,
       [
-        ownerUserId,
+        userId,
         fu.lead_id,
         prevDateStr,
         newScheduledAt.toISOString(),
@@ -1000,6 +1022,145 @@ export async function rescheduleFollowUp(
   } finally {
     client.release();
   }
+}
+
+/**
+ * Snoozes a follow-up reminder for a given number of minutes (defaults to 15m).
+ * Preserves the original scheduled_at deadline.
+ */
+export async function snoozeFollowUp(
+  userId: string,
+  followUpId: string,
+  minutes = 15
+): Promise<{ success: boolean; snoozedUntil?: string }> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const fuRes = await client.query<{ id: string; lead_id: string; scheduled_at: Date; snoozed_until: Date }>(
+      `UPDATE lead_follow_ups f
+       SET snoozed_until = NOW() + ($1 || ' minutes')::interval,
+           dismissed_at = NULL,
+           reminder_version = reminder_version + 1,
+           updated_at = NOW()
+       WHERE f.id = $2 AND f.status = 'SCHEDULED'
+         AND (f.owner_user_id = $3 OR EXISTS (
+           SELECT 1 FROM leads l WHERE l.id = f.lead_id AND (l.owner_user_id = $3 OR l.assigned_user_id = $3)
+         ))
+       RETURNING f.id, f.lead_id, f.scheduled_at, f.snoozed_until`,
+      [minutes, followUpId, userId]
+    );
+
+    const fu = fuRes.rows[0];
+    if (!fu) {
+      await client.query("ROLLBACK");
+      return { success: false };
+    }
+
+    // Log Activity
+    await client.query(
+      `INSERT INTO lead_activities (owner_user_id, lead_id, type, description, entity_type, entity_id, occurred_at, created_at)
+       VALUES ($1, $2, 'FOLLOW_UP_SNOOZED', $3, 'lead_follow_up', $4, NOW(), NOW())`,
+      [
+        userId,
+        fu.lead_id,
+        `Snoozed reminder for ${minutes} minutes (until ${fu.snoozed_until.toLocaleString()})`,
+        fu.id,
+      ]
+    );
+
+    await client.query("COMMIT");
+    return { success: true, snoozedUntil: fu.snoozed_until.toISOString() };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Dismisses/acknowledges an in-app reminder without completing or cancelling the follow-up.
+ */
+export async function dismissFollowUpReminder(userId: string, followUpId: string): Promise<boolean> {
+  const res = await pool.query(
+    `UPDATE lead_follow_ups f
+     SET dismissed_at = NOW(), updated_at = NOW()
+     WHERE f.id = $1 AND f.status = 'SCHEDULED'
+       AND (f.owner_user_id = $2 OR EXISTS (
+         SELECT 1 FROM leads l WHERE l.id = f.lead_id AND (l.owner_user_id = $2 OR l.assigned_user_id = $2)
+       ))`,
+    [followUpId, userId]
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+export interface DueReminderItem {
+  id: string;
+  leadId: string;
+  leadName: string;
+  leadCompany: string | null;
+  contactNumber: string | null;
+  email: string | null;
+  type: FollowUpType;
+  note: string | null;
+  scheduledAt: string;
+  snoozedUntil: string | null;
+  isOverdue: boolean;
+  reminderVersion: number;
+}
+
+/**
+ * Fetches all due and active follow-up reminders for a user (tenant and role isolated).
+ * Excludes reminders that have already been acknowledged in this cycle.
+ */
+export async function getDueFollowUpReminders(userId: string): Promise<DueReminderItem[]> {
+  const query = `
+    SELECT 
+      f.id,
+      f.lead_id as "leadId",
+      l.name as "leadName",
+      l.company_name as "leadCompany",
+      l.contact_number as "contactNumber",
+      l.email as "email",
+      f.type,
+      f.note,
+      f.scheduled_at as "scheduledAt",
+      f.snoozed_until as "snoozedUntil",
+      f.reminder_version as "reminderVersion"
+    FROM lead_follow_ups f
+    JOIN leads l ON l.id = f.lead_id
+    WHERE f.status = 'SCHEDULED'
+      AND (f.owner_user_id = $1 OR l.owner_user_id = $1 OR l.assigned_user_id = $1)
+      AND (
+        (f.snoozed_until IS NOT NULL AND f.snoozed_until <= NOW())
+        OR (f.snoozed_until IS NULL AND f.scheduled_at <= NOW())
+      )
+      AND (
+        f.dismissed_at IS NULL
+        OR (f.snoozed_until IS NOT NULL AND f.snoozed_until > f.dismissed_at)
+      )
+    ORDER BY COALESCE(f.snoozed_until, f.scheduled_at) ASC
+    LIMIT 20
+  `;
+
+  const res = await pool.query(query, [userId]);
+  const now = new Date();
+
+  return res.rows.map((row) => ({
+    id: row.id,
+    leadId: row.leadId,
+    leadName: row.leadName,
+    leadCompany: row.leadCompany,
+    contactNumber: row.contactNumber,
+    email: row.email,
+    type: row.type as FollowUpType,
+    note: row.note,
+    scheduledAt: new Date(row.scheduledAt).toISOString(),
+    snoozedUntil: row.snoozedUntil ? new Date(row.snoozedUntil).toISOString() : null,
+    isOverdue: new Date(row.scheduledAt) < now,
+    reminderVersion: row.reminderVersion,
+  }));
 }
 
 /**

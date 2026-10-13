@@ -842,6 +842,12 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   }, [draft, authReady, cloudReady, currentUser, uploadingKind]);
   const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
   const logout = async () => {
+    try {
+      const { unsubscribeDeviceFromPush } = await import("@/lib/pushClient");
+      await unsubscribeDeviceFromPush().catch(() => {});
+    } catch {
+      // ignore
+    }
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     localStorage.removeItem("myluxcards_current_user");
     window.location.replace("/");
