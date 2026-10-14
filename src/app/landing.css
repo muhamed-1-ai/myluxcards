@@ -1835,6 +1835,262 @@ body:has(.landing-page) {
 }
 
 /* ==========================================================================
+   TWO-BUNDLE COMPARISON SECTION (Clean White & Blue Theme)
+   ========================================================================== */
+.landing-page .apple-bundles {
+  padding: 110px 0;
+  background: #FFFFFF;
+  border-top: 1px solid #E5EAF2;
+  position: relative;
+}
+
+.landing-page .bundles-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: stretch;
+}
+
+/* Individual Bundle Card */
+.landing-page .bundle-card {
+  background: #FFFFFF;
+  border: 1px solid #E5EAF2;
+  border-radius: 24px;
+  padding: 40px 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.02);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.landing-page .bundle-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 45px -6px rgba(0, 0, 0, 0.08), 0 8px 20px rgba(0, 102, 255, 0.06);
+}
+
+/* Bundle 2 Highlighted Border & Ambient Glow */
+.landing-page .bundle-card.bundle-featured {
+  border: 1.5px solid var(--apple-blue, #0066FF);
+  box-shadow: 0 16px 40px -6px rgba(0, 102, 255, 0.12), 0 0 24px rgba(0, 102, 255, 0.05);
+}
+
+.landing-page .bundle-card.bundle-featured:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 55px -8px rgba(0, 102, 255, 0.2), 0 0 30px rgba(0, 102, 255, 0.08);
+  border-color: #0052CC;
+}
+
+/* Badge for Bundle 2 */
+.landing-page .bundle-badge-wrapper {
+  margin-bottom: 12px;
+}
+
+.landing-page .bundle-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: var(--apple-blue, #0066FF);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.landing-page .bundle-kicker {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+
+.landing-page .bundle-title {
+  font-family: var(--apple-headline-font, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif);
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #111827;
+  margin: 0 0 10px 0;
+  line-height: 1.25;
+}
+
+.landing-page .bundle-desc {
+  font-size: 0.925rem;
+  line-height: 1.55;
+  color: #526176;
+  margin: 0 0 24px 0;
+  min-height: 48px;
+}
+
+/* Pricing Header */
+.landing-page .bundle-price-block {
+  margin-bottom: 8px;
+}
+
+.landing-page .bundle-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.landing-page .bundle-currency {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.landing-page .bundle-price {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.landing-page .bundle-price-term {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748B;
+  margin-left: 4px;
+}
+
+.landing-page .bundle-custom-price {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--apple-blue, #0066FF);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.landing-page .bundle-billing-type {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1F2937;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.landing-page .bundle-billing-detail {
+  font-size: 0.825rem;
+  line-height: 1.45;
+  color: #64748B;
+  margin: 0;
+}
+
+/* Subtle Divider */
+.landing-page .bundle-divider {
+  width: 100%;
+  height: 1px;
+  background: #E5EAF2;
+  margin: 26px 0;
+}
+
+/* Feature List */
+.landing-page .bundle-features-block {
+  flex-grow: 1;
+  margin-bottom: 32px;
+}
+
+.landing-page .bundle-features-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+  margin-bottom: 18px;
+}
+
+.landing-page .bundle-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.landing-page .bundle-feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.925rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.landing-page .bundle-check-icon {
+  width: 17px;
+  height: 17px;
+  color: var(--apple-blue, #0066FF);
+  flex-shrink: 0;
+  margin-top: 3px;
+  stroke-width: 2.5;
+}
+
+/* Action Buttons */
+.landing-page .bundle-card-footer {
+  margin-top: auto;
+  width: 100%;
+}
+
+.landing-page .bundle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: var(--apple-radius-full, 9999px);
+  font-family: var(--apple-font);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-page .bundle-btn-secondary {
+  background: #FFFFFF;
+  border: 1.5px solid var(--apple-blue, #0066FF);
+  color: var(--apple-blue, #0066FF);
+}
+
+.landing-page .bundle-btn-secondary:hover {
+  background: #F0F6FF;
+  border-color: #0052CC;
+  color: #0052CC;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 102, 255, 0.15);
+}
+
+.landing-page .bundle-btn-primary {
+  background: var(--apple-blue, #0066FF);
+  border: 1.5px solid var(--apple-blue, #0066FF);
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);
+}
+
+.landing-page .bundle-btn-primary:hover {
+  background: #0052CC;
+  border-color: #0052CC;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.45);
+}
+
+/* ==========================================================================
    FINAL CONVERSION CTA (Subtle Light Blue Accent Radial Gradient)
    ========================================================================== */
 .landing-page .apple-final-cta {
@@ -2459,6 +2715,26 @@ body:has(.landing-page) {
     grid-template-columns: 1fr;
   }
 
+  .landing-page .apple-bundles {
+    padding: 80px 0;
+  }
+
+  .landing-page .bundles-container {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+    gap: 24px;
+    margin: 0 auto;
+  }
+
+  .landing-page .bundle-card {
+    padding: 32px 24px;
+    border-radius: 20px;
+  }
+
+  .landing-page .bundle-desc {
+    min-height: auto;
+  }
+
   .landing-page .bento-card-wide {
     grid-column: span 1;
   }
@@ -2523,5 +2799,17 @@ body:has(.landing-page) {
 
   .landing-page .config-card {
     width: 100%;
+  }
+
+  .landing-page .bundle-card {
+    padding: 28px 20px;
+  }
+
+  .landing-page .bundle-title {
+    font-size: 1.35rem;
+  }
+
+  .landing-page .bundle-custom-price {
+    font-size: 1.55rem;
   }
 }

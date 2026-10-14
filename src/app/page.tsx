@@ -38,8 +38,7 @@ const redesignedMarkup = `
           <li><a href="#materials" class="nav-link">Materials</a></li>
           <li><a href="#profile-experience" class="nav-link">Digital Profile</a></li>
           <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
-          <li><a href="#card-configurator" class="nav-link">Card Studio</a></li>
-          <li><a href="#featured-categories-section" class="nav-link">Shop</a></li>
+          <li><a href="#bundles" class="nav-link">Bundles</a></li>
           <li class="nav-dashboard-link"><a href="/dashboard" class="nav-link">Dashboard</a></li>
         </ul>
         
@@ -71,7 +70,7 @@ const redesignedMarkup = `
           </div>
 
           <!-- Primary Blue CTA -->
-          <a class="nav-design-cta" id="nav-design-cta" href="#card-configurator">Design Your Card</a>
+          <a class="nav-design-cta" id="nav-design-cta" href="#bundles">Get Your Card</a>
           
           <!-- Hamburger Button for Mobile -->
           <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="nav-menu" aria-expanded="false">
@@ -102,7 +101,7 @@ const redesignedMarkup = `
           </p>
 
           <div class="hero-cta-group">
-            <a href="#card-configurator" class="apple-btn apple-btn-primary">Design Your Card</a>
+            <a href="#bundles" class="apple-btn apple-btn-primary">Get Your Card</a>
             <button class="apple-btn apple-btn-glass" id="tap-demo-trigger" type="button" onclick="document.getElementById('tap-card')?.click()">
               <i data-lucide="zap" style="width: 16px; height: 16px; margin-right: 4px;"></i>
               Try the Tap Demo
@@ -289,7 +288,7 @@ const redesignedMarkup = `
             <p>Deep obsidian polymer treated with a soft-touch micro-texture and chamfered edges. Scratch-resistant, waterproof, and equipped with a full-surface NFC antenna.</p>
             <div class="material-footer">
               <div class="material-price">₹899 <small>incl. 1-year profile</small></div>
-              <a href="#card-configurator" class="apple-btn apple-btn-glass" onclick="document.querySelector('[data-material=\\'Matte Black PVC\\']')?.click()">Customize Black</a>
+              <a href="#bundles" class="apple-btn apple-btn-glass">Choose Black</a>
             </div>
           </div>
         </article>
@@ -305,7 +304,7 @@ const redesignedMarkup = `
             <p>Pristine ceramic white aesthetic with laser-precise typography and ultra-durable composite core. Clean, architectural, and timeless in every setting.</p>
             <div class="material-footer">
               <div class="material-price">₹799 <small>incl. 1-year profile</small></div>
-              <a href="#card-configurator" class="apple-btn apple-btn-glass" onclick="document.querySelector('[data-material=\\'White PVC\\']')?.click()">Customize White</a>
+              <a href="#bundles" class="apple-btn apple-btn-glass">Choose White</a>
             </div>
           </div>
         </article>
@@ -402,351 +401,129 @@ const redesignedMarkup = `
     </div>
   </section>
 
-  <!-- Guided Card Studio Configurator -->
-  <section class="section-padding guided-configurator" id="card-configurator" aria-labelledby="configurator-title">
+
+
+  <!-- Two-Bundle Comparison Section -->
+  <section class="apple-bundles" id="bundles" aria-labelledby="bundles-title">
     <div class="container">
       <div class="section-intro">
-        <span class="section-eyebrow">Interactive Studio</span>
-        <h2 class="section-title" id="configurator-title">Design Your Zappit Card</h2>
-        <p class="section-desc">Build your print-ready premium NFC card in five simple steps with real-time 3D preview.</p>
+        <span class="section-eyebrow">Solutions &amp; Bundles</span>
+        <h2 class="section-title" id="bundles-title">Two transparent packages. Built for performance.</h2>
+        <p class="section-desc">Choose our core smart NFC card with standard profile software, or upgrade to complete Lead Management to turn taps into tracked business revenue.</p>
       </div>
 
-      <div class="designer-progress">
-        <div>
-          <span id="designer-step-label">Step 1 of 5 — Choose Your Material</span>
-          <b id="designer-progress-bar" style="width: 20%;"></b>
-        </div>
-      </div>
-
-      <div class="designer-layout">
-        <!-- Live Card Preview Column -->
-        <aside class="designer-preview">
-          <div class="preview-toolbar">
-            <button class="active" data-card-side="front" type="button">Front</button>
-            <button data-card-side="back" type="button">Back</button>
-            <button id="rotate-config-card" type="button">Flip Card</button>
-          </div>
-
-          <div class="configurator-preview">
-            <div class="config-card" id="config-card" data-side="front">
-              <div class="print-safe-area"></div>
-              <div class="config-front">
-                <div class="config-logo" id="config-logo"></div>
-                <div class="config-nfc" id="config-nfc">)))</div>
-                <div class="config-person">
-                  <div class="nfc-card-name">Your Name</div>
-                  <div class="nfc-card-subtitle">Your Designation</div>
-                  <div class="config-company">Your Company</div>
-                </div>
+      <div class="bundles-container">
+        <!-- Bundle 1: NFC Card + Software -->
+        <article class="bundle-card">
+          <div class="bundle-card-header">
+            <span class="bundle-kicker">Standard Bundle</span>
+            <h3 class="bundle-title">NFC Card + Software</h3>
+            <p class="bundle-desc">Physical NFC smart business card paired with our complete digital identity software for instant contact sharing.</p>
+            
+            <div class="bundle-price-block">
+              <div class="bundle-price-row">
+                <span class="bundle-currency">₹</span>
+                <span class="bundle-price">799</span>
+                <span class="bundle-price-term">onwards</span>
               </div>
-              <div class="config-back">
-                <div class="config-qr" id="config-qr"><span></span><span></span><span></span><span></span><b>QR</b></div>
-                <p style="font-size: 0.75rem; text-align: center; margin-top: 8px; opacity: 0.8;">Scan to connect</p>
-              </div>
+              <div class="bundle-billing-type">One-time hardware purchase</div>
+              <p class="bundle-billing-detail">Includes 1-year digital profile hosting. Annual renewal at ₹499/year. No app required.</p>
             </div>
           </div>
 
-          <div class="preview-quick-info">
-            <label>Name on card
-              <input id="quick-card-name" maxlength="32" placeholder="Enter your name">
-            </label>
-            <label>Designation
-              <input id="quick-card-title" maxlength="38" placeholder="Enter your designation">
-            </label>
-            <label>Company
-              <input id="quick-card-company" maxlength="38" placeholder="Enter your company">
-            </label>
+          <div class="bundle-divider"></div>
+
+          <div class="bundle-features-block">
+            <span class="bundle-features-label">Included Features</span>
+            <ul class="bundle-feature-list">
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Custom double-sided NFC smart card (White or Matte Black PVC)</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>High-speed NTAG216 chip + laser-engraved QR backup</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Digital profile page with 1-tap contact save (.vcf download)</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Social links, WhatsApp quick chat, and bio details</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Apple Wallet &amp; Google Wallet digital pass integration</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Unlimited cloud profile updates without reprinting</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Real-time QR and tap scan activity analytics</span>
+              </li>
+            </ul>
           </div>
 
-          <div class="design-warning" id="design-warning" hidden></div>
-        </aside>
-
-        <!-- Stepped Controls Column -->
-        <div class="designer-controls">
-          <!-- Step 1: Material -->
-          <div class="designer-step active" data-step="1">
-            <span class="step-kicker">Step 1</span>
-            <h3>Choose Your Material</h3>
-            <div class="material-grid">
-              <button class="material-option active" data-material="White PVC" data-price="799" type="button">
-                <div>
-                  <strong>White Minimalist PVC</strong>
-                  <div style="font-size: 0.8rem; opacity: 0.75;">Clean and durable ceramic finish</div>
-                </div>
-                <b>₹799</b>
-              </button>
-              <button class="material-option" data-material="Matte Black PVC" data-price="899" type="button">
-                <div>
-                  <strong>Matte Black PVC</strong>
-                  <div style="font-size: 0.8rem; opacity: 0.75;">Soft-touch velvet premium finish</div>
-                </div>
-                <b>+₹100</b>
-              </button>
-              <button class="material-option" data-material="Stainless Steel" data-price="1999" type="button" disabled aria-disabled="true">
-                <div>
-                  <strong>Stainless Steel</strong>
-                  <div style="font-size: 0.8rem; opacity: 0.75;">Maximum weight and presence</div>
-                </div>
-                <b style="color: var(--apple-text-tertiary);">Out of stock</b>
-              </button>
-            </div>
-          </div>
-
-          <!-- Step 2: Color and Finish -->
-          <div class="designer-step" data-step="2">
-            <span class="step-kicker">Step 2</span>
-            <h3>Colour and Finish</h3>
-            <div class="preset-grid">
-              <button class="colour-preset active" data-bg="#070D19" data-text="#FFFFFF" data-border="#0066FF" data-accent="#38BDF8" type="button">
-                <i style="--a:#070D19;--b:#0066FF"></i>Apple Midnight
-              </button>
-              <button class="colour-preset" data-bg="#0A0A0A" data-text="#E5E7EB" data-border="#334155" data-accent="#94A3B8" type="button">
-                <i style="--a:#0A0A0A;--b:#94A3B8"></i>Stealth Graphite
-              </button>
-              <button class="colour-preset" data-bg="#041E42" data-text="#FFFFFF" data-border="#0066FF" data-accent="#38BDF8" type="button">
-                <i style="--a:#041E42;--b:#0066FF"></i>Deep Royal Navy
-              </button>
-              <button class="colour-preset" data-bg="#181818" data-text="#C47A44" data-border="#A85D32" data-accent="#E0A06F" type="button">
-                <i style="--a:#181818;--b:#C47A44"></i>Charcoal &amp; Copper
-              </button>
-              <button class="colour-preset" data-bg="#F8FAFC" data-text="#0F172A" data-border="#CBD5E1" data-accent="#0066FF" type="button">
-                <i style="--a:#F8FAFC;--b:#0F172A"></i>Ceramic White
-              </button>
-              <button class="colour-preset" data-bg="#052E26" data-text="#E5E7EB" data-border="#059669" data-accent="#10B981" type="button">
-                <i style="--a:#052E26;--b:#10B981"></i>Emerald Studio
-              </button>
-            </div>
-            <div class="advanced-colours" style="display: flex; gap: 16px; margin-top: 16px;">
-              <label style="font-size: 0.8rem; font-weight: 600;">Custom Background <input id="custom-card-bg" type="color" value="#070D19" style="height: 36px; padding: 0 4px;"></label>
-              <label style="font-size: 0.8rem; font-weight: 600;">Custom Text <input id="custom-card-text" type="color" value="#FFFFFF" style="height: 36px; padding: 0 4px;"></label>
-              <label style="font-size: 0.8rem; font-weight: 600;">Finish 
-                <select id="card-finish" style="height: 36px; padding: 0 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--apple-border); color: inherit;">
-                  <option>Matte</option>
-                  <option>Glossy</option>
-                  <option>Brushed</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <!-- Step 3: Information -->
-          <div class="designer-step" data-step="3">
-            <span class="step-kicker">Step 3</span>
-            <h3>Card Typography & Details</h3>
-            <div class="config-fields">
-              <label>Full Name <input id="card-name-input" maxlength="32" placeholder="Your name"></label>
-              <label>Professional Designation <input id="card-title-input" maxlength="38" placeholder="Your designation"></label>
-              <label>Company or Brand <input id="card-company-input" maxlength="38" placeholder="Your company"></label>
-              <label>Typography Style 
-                <select id="card-font">
-                  <option value="minimal">Minimal Professional (Inter)</option>
-                  <option value="modern">Modern Geometric (Outfit)</option>
-                  <option value="editorial">Luxury Editorial</option>
-                  <option value="classic">Classic Serif</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <!-- Step 4: Logo & QR Layout -->
-          <div class="designer-step" data-step="4">
-            <span class="step-kicker">Step 4</span>
-            <h3>Logo and QR Layout</h3>
-            <div style="margin-bottom: 20px;">
-              <input id="card-logo-upload" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="display: none;">
-              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
-                <label for="card-logo-upload" class="apple-btn apple-btn-glass" style="font-size: 0.85rem; padding: 8px 16px;">
-                  <i data-lucide="upload" style="width: 14px; height: 14px;"></i> Upload Logo
-                </label>
-                <button id="remove-card-logo" type="button" class="text-action">Remove Logo</button>
-              </div>
-              <p style="font-size: 0.775rem; color: var(--apple-text-tertiary); margin: 0;">Supports high-res PNG or JPG up to 2 MB.</p>
-            </div>
-
-            <div class="config-fields">
-              <label>Logo Placement 
-                <select id="logo-placement">
-                  <option>Top left</option>
-                  <option>Top centre</option>
-                  <option>Centre</option>
-                </select>
-              </label>
-              <label>QR Code Placement 
-                <select id="qr-placement">
-                  <option>Back centre</option>
-                  <option>Back left</option>
-                  <option>Back right</option>
-                </select>
-              </label>
-              <label style="flex-direction: row; align-items: center; gap: 10px; cursor: pointer; margin-top: 6px;">
-                <input id="nfc-symbol-toggle" type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--apple-blue);">
-                <span>Show contactless NFC symbol</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Step 5: Review & Order -->
-          <div class="designer-step" data-step="5">
-            <span class="step-kicker">Step 5</span>
-            <h3>Review and Order</h3>
-            <div class="package-summary" style="margin-bottom: 20px;">
-              <h4 style="font-size: 0.95rem; margin-bottom: 10px; color: var(--apple-text-primary);">Included in your order:</h4>
-              <ul id="package-list" style="padding-left: 20px; font-size: 0.875rem; color: var(--apple-text-secondary); line-height: 1.6;"></ul>
-            </div>
-
-            <label style="display: flex; gap: 12px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--apple-border); cursor: pointer; margin-bottom: 20px;">
-              <input id="expert-design" type="checkbox" style="width: 18px; height: 18px; accent-color: var(--apple-blue); margin-top: 2px;">
-              <span>
-                <strong style="display: block; font-size: 0.9rem; color: var(--apple-text-primary);">Let Our In-House Designer Assist</strong>
-                <small style="font-size: 0.8rem; color: var(--apple-text-secondary);">Upload your brand assets. Our design team will prepare a refined print concept for your approval. (+₹499)</small>
-              </span>
-            </label>
-
-            <div style="font-size: 0.8rem; color: var(--apple-text-secondary); display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <span>✓ NFC tested before delivery</span>
-              <span>✓ High-contrast QR fallback</span>
-              <span>✓ Design preview confirmed</span>
-              <span>✓ Direct replacement guarantee</span>
-            </div>
-          </div>
-
-          <!-- Live Price Display -->
-          <div class="live-price">
-            <h4>Live Price Summary</h4>
-            <dl>
-              <div>
-                <dt id="price-material-name">White PVC Card</dt>
-                <dd id="price-material">₹799</dd>
-              </div>
-              <div>
-                <dt>Double-sided printing</dt>
-                <dd>Included</dd>
-              </div>
-              <div>
-                <dt>Custom logo engraving</dt>
-                <dd>Included</dd>
-              </div>
-              <div>
-                <dt>1-Year Digital Profile</dt>
-                <dd>₹499</dd>
-              </div>
-              <div id="expert-price-row" hidden>
-                <dt>Expert design service</dt>
-                <dd>₹499</dd>
-              </div>
-              <div class="price-total">
-                <dt>Total</dt>
-                <dd id="config-total">₹1,298</dd>
-              </div>
-            </dl>
-          </div>
-
-          <!-- Actions -->
-          <div class="designer-actions">
-            <button id="designer-prev" class="apple-btn apple-btn-glass" type="button" disabled>Back</button>
-            <button id="save-design-draft" class="text-action" type="button">Save Draft</button>
-            <button id="reset-card-design" class="text-action" type="button">Reset</button>
-            <button id="designer-next" class="apple-btn apple-btn-primary" type="button">Continue &rarr;</button>
-            <button id="save-card-design" class="apple-btn apple-btn-primary" type="button" hidden>Add to Cart</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Product Lineup & Hardware Showcase -->
-  <section class="apple-shop" id="featured-categories-section" aria-labelledby="shop-title">
-    <div class="container">
-      <div class="section-intro">
-        <span class="section-eyebrow">Product Lineup</span>
-        <h2 class="section-title" id="shop-title">Engineered for seamless networking.</h2>
-        <p class="section-desc">Choose a premium NFC card, keytag, or QR solution for yourself or your entire team.</p>
-      </div>
-
-      <div class="shop-grid">
-        <!-- 1. Premium NFC Cards -->
-        <article class="shop-card">
-          <div class="shop-card-img-wrap">
-            <img src="/assets/black-pvc-card.jpg" alt="Premium NFC Business Cards" class="shop-card-img" loading="lazy">
-          </div>
-          <h3>Premium NFC Cards</h3>
-          <p>Luxury double-sided business cards that share your verified contact profile with a single tap.</p>
-          <div class="shop-card-meta">
-            <span class="shop-card-price">₹1,499</span>
-            <button 
-              class="apple-btn apple-btn-primary buy-featured-product" 
-              data-product-id="nfc-card" 
-              data-product-name="Premium NFC Cards" 
-              data-product-price="1499" 
-              data-product-image="/assets/black-pvc-card.jpg"
-              type="button"
-            >Buy Now</button>
+          <div class="bundle-card-footer">
+            <a href="/support?topic=billing&bundle=nfc-card" class="bundle-btn bundle-btn-secondary" id="btn-bundle-standard">Get NFC Bundle</a>
           </div>
         </article>
 
-        <!-- 2. Smart NFC Keytags -->
-        <article class="shop-card">
-          <div class="shop-card-img-wrap">
-            <img src="/assets/cards/luxcards.svg" alt="Smart NFC Keytags" class="shop-card-img" loading="lazy">
+        <!-- Bundle 2: NFC Card + Lead Management -->
+        <article class="bundle-card bundle-featured">
+          <div class="bundle-card-header">
+            <div class="bundle-badge-wrapper">
+              <span class="bundle-badge">Includes Lead Management</span>
+            </div>
+            <h3 class="bundle-title">NFC Card + Lead Management</h3>
+            <p class="bundle-desc">Everything in the NFC Card + Software bundle, plus our complete Lead Management mini-CRM to capture, track, and close deals.</p>
+            
+            <div class="bundle-price-block">
+              <div class="bundle-price-row">
+                <span class="bundle-custom-price">Contact for Pricing</span>
+              </div>
+              <div class="bundle-billing-type">Hardware + Custom Team SaaS</div>
+              <p class="bundle-billing-detail">One-time NFC card (from ₹799) plus tailored team subscription based on seats and requirements.</p>
+            </div>
           </div>
-          <h3>Smart NFC Keytags</h3>
-          <p>Compact, durable keytag for on-the-go contact sharing, review links, and digital access.</p>
-          <div class="shop-card-meta">
-            <span class="shop-card-price">₹799</span>
-            <button 
-              class="apple-btn apple-btn-glass buy-featured-product" 
-              data-product-id="nfc-keytag" 
-              data-product-name="Smart NFC Keytags" 
-              data-product-price="799" 
-              data-product-image="/assets/cards/luxcards.svg"
-              type="button"
-              disabled
-              aria-disabled="true"
-            >Out of Stock</button>
-          </div>
-        </article>
 
-        <!-- 3. Custom QR Tags -->
-        <article class="shop-card">
-          <div class="shop-card-img-wrap">
-            <img src="/assets/cards/luxcards.svg" alt="Custom QR Tags" class="shop-card-img" loading="lazy">
-          </div>
-          <h3>Custom QR Tags</h3>
-          <p>Weatherproof high-contrast QR tags that open your portfolio from any camera-enabled phone.</p>
-          <div class="shop-card-meta">
-            <span class="shop-card-price">₹499</span>
-            <button 
-              class="apple-btn apple-btn-glass buy-featured-product" 
-              data-product-id="qr-tag" 
-              data-product-name="Custom QR Tags" 
-              data-product-price="499" 
-              data-product-image="/assets/cards/luxcards.svg"
-              type="button"
-              disabled
-              aria-disabled="true"
-            >Out of Stock</button>
-          </div>
-        </article>
+          <div class="bundle-divider"></div>
 
-        <!-- 4. Lost & Found Tags -->
-        <article class="shop-card">
-          <div class="shop-card-img-wrap">
-            <img src="/assets/cards/luxcards.svg" alt="Lost & Found QR Tags" class="shop-card-img" loading="lazy">
+          <div class="bundle-features-block">
+            <span class="bundle-features-label">Everything in the NFC Card + Software bundle, plus:</span>
+            <ul class="bundle-feature-list">
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Centralized Leads CRM workspace with custom pipeline stages</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Lead acquisition source attribution &amp; performance tracking</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Automated follow-up scheduling, calendar &amp; reminder alerts</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Product catalog integration with revenue &amp; advance tracking</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Dynamic custom fields builder for tailored lead capture</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Loss of Business (LOB) reason analytics &amp; pipeline reporting</span>
+              </li>
+            </ul>
           </div>
-          <h3>Lost &amp; Found QR Tags</h3>
-          <p>Private tags that help finders return your valuables through secure anonymous messaging.</p>
-          <div class="shop-card-meta">
-            <span class="shop-card-price">₹349</span>
-            <button 
-              class="apple-btn apple-btn-glass buy-featured-product" 
-              data-product-id="lost-found-tag" 
-              data-product-name="Lost & Found QR Tags" 
-              data-product-price="349" 
-              data-product-image="/assets/cards/luxcards.svg"
-              type="button"
-              disabled
-              aria-disabled="true"
-            >Out of Stock</button>
+
+          <div class="bundle-card-footer">
+            <a href="/support?topic=billing&bundle=lead-management" class="bundle-btn bundle-btn-primary" id="btn-bundle-leads">Get Lead Management Bundle</a>
           </div>
         </article>
       </div>
@@ -759,7 +536,7 @@ const redesignedMarkup = `
       <h2 class="final-cta-headline" id="cta-headline">Make an impression that lasts.</h2>
       <p class="final-cta-desc">Engineered with aerospace-grade composite materials and high-speed NFC technology. Delivered ready to tap.</p>
       <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-        <a href="#card-configurator" class="apple-btn apple-btn-primary" style="font-size: 1.05rem; padding: 16px 36px;">Design Your Card</a>
+        <a href="#bundles" class="apple-btn apple-btn-primary" style="font-size: 1.05rem; padding: 16px 36px;">Get Started</a>
         <a href="/dashboard" class="apple-btn apple-btn-glass" style="font-size: 1.05rem; padding: 16px 36px;">Open Dashboard</a>
       </div>
     </div>
@@ -777,9 +554,8 @@ const redesignedMarkup = `
         <div class="footer-col">
           <h4>Products</h4>
           <ul class="footer-links">
-            <li><a href="#featured-categories-section">NFC Business Cards</a></li>
-            <li><a href="#featured-categories-section">Smart NFC Keytags</a></li>
-            <li><a href="#card-configurator">Card Customizer Studio</a></li>
+            <li><a href="#materials">NFC Business Cards</a></li>
+            <li><a href="#bundles">Software Bundles</a></li>
             <li><a href="/partners">Partners Programme</a></li>
           </ul>
         </div>
@@ -831,7 +607,7 @@ const redesignedMarkup = `
     </div>
     <div class="drawer-body" id="wishlist-items"></div>
     <div class="drawer-footer">
-      <button class="apple-btn apple-btn-primary" onclick="document.querySelector('#featured-categories-section')?.scrollIntoView({behavior: 'smooth'}); document.querySelector('#wishlist-drawer .drawer-close')?.click();" style="width: 100%;">Explore More Cards</button>
+      <button class="apple-btn apple-btn-primary" onclick="document.querySelector('#bundles')?.scrollIntoView({behavior: 'smooth'}); document.querySelector('#wishlist-drawer .drawer-close')?.click();" style="width: 100%;">Explore Bundles</button>
     </div>
   </div>
 
@@ -1006,7 +782,7 @@ const redesignedMarkup = `
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Sticky Mobile Action Pill -->
-  <a class="mobile-design-cta" href="#card-configurator">Design Your Card</a>
+  <a class="mobile-design-cta" href="#bundles">Get Your Card</a>
 </div>
 `;
 
