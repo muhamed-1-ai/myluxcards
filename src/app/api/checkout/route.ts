@@ -20,7 +20,7 @@ const cleanOrderLogo=(value:unknown)=>{
   return /^data:image\/(?:png|jpeg);base64,[a-z0-9+/=\r\n]+$/i.test(text)&&text.length<=3_000_000?text:"";
 };
 type CheckoutItem={id:string;name:string;type:"NFC_CARD";sku:string;priceMinor:number;quantity:number;variant:Record<string,unknown>};
-const customMaterialPrices:Record<string,number>={"White PVC":79900,"Matte Black PVC":89900};
+const customMaterialPrices:Record<string,number>={"White PVC":99900,"Matte Black PVC":99900};
 
 export async function POST(request:Request){
   if(!validMutationOrigin(request))return Response.json({message:"Invalid request origin."},{status:403});

@@ -283,7 +283,7 @@ const redesignedMarkup = `
             <h3>Velvet Matte Black PVC</h3>
             <p>Deep obsidian polymer treated with a soft-touch matte finish and chamfered edges. Water-resistant, durable, and equipped with an embedded high-speed NFC antenna.</p>
             <div class="material-footer">
-              <div class="material-price">₹899 <small>incl. 1-year profile</small></div>
+              <div class="material-price">₹999 <small>incl. 1-year profile</small></div>
               <a href="#bundles" class="apple-btn apple-btn-glass">Choose Black</a>
             </div>
           </div>
@@ -299,7 +299,7 @@ const redesignedMarkup = `
             <h3>Ceramic White PVC</h3>
             <p>Pristine ceramic white aesthetic with laser-precise typography and ultra-durable composite core. Clean, architectural, and timeless in every setting.</p>
             <div class="material-footer">
-              <div class="material-price">₹799 <small>incl. 1-year profile</small></div>
+              <div class="material-price">₹999 <small>incl. 1-year profile</small></div>
               <a href="#bundles" class="apple-btn apple-btn-glass">Choose White</a>
             </div>
           </div>
@@ -419,7 +419,7 @@ const redesignedMarkup = `
             <div class="bundle-price-block">
               <div class="bundle-price-row">
                 <span class="bundle-currency">₹</span>
-                <span class="bundle-price">1,000</span>
+                <span class="bundle-price">999</span>
                 <span class="bundle-price-term">onwards</span>
               </div>
               <div class="bundle-billing-type">One-time hardware purchase</div>
@@ -472,7 +472,7 @@ const redesignedMarkup = `
             <div class="bundle-price-block">
               <div class="bundle-price-row">
                 <span class="bundle-currency">₹</span>
-                <span class="bundle-price">2,000</span>
+                <span class="bundle-price">1,999</span>
                 <span class="bundle-price-term">onwards</span>
               </div>
               <div class="bundle-billing-type">Hardware + Lead Management SaaS</div>
