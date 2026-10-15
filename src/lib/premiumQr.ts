@@ -5,6 +5,7 @@ export interface PremiumQrOptions {
   label?: string;
   darkColor?: string;
   lightColor?: string;
+  showFrame?: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function buildPremiumQrSvg(text: string, options: PremiumQrOptions = {}):
     label = "SCAN ME",
     darkColor = "#0066FF",
     lightColor = "#050505",
+    showFrame = true,
   } = options;
 
   const qr = QRCode.create(text, { errorCorrectionLevel: "H" });
@@ -34,7 +36,7 @@ export function buildPremiumQrSvg(text: string, options: PremiumQrOptions = {}):
   const frameInnerWidth = matrixSize + quietZone * 2;
   const frameInnerHeight = frameInnerWidth;
 
-  const framePadding = 16;
+  const framePadding = showFrame ? 16 : 0;
   const labelHeight = showLabel ? 44 : 0;
   const topOffset = framePadding + labelHeight;
 
@@ -97,7 +99,9 @@ export function buildPremiumQrSvg(text: string, options: PremiumQrOptions = {}):
     labelSvg = `<text x="${labelX}" y="${labelY}" fill="${darkColor}" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" font-size="14" font-weight="700" letter-spacing="3" text-anchor="middle">${label.toUpperCase()}</text>`;
   }
 
-  const frameSvg = `<rect x="${frameX.toFixed(2)}" y="${frameY.toFixed(2)}" width="${frameInnerWidth.toFixed(2)}" height="${frameInnerHeight.toFixed(2)}" rx="18" fill="none" stroke="${darkColor}" stroke-width="1.5" />`;
+  const frameSvg = showFrame
+    ? `<rect x="${frameX.toFixed(2)}" y="${frameY.toFixed(2)}" width="${frameInnerWidth.toFixed(2)}" height="${frameInnerHeight.toFixed(2)}" rx="18" fill="none" stroke="${darkColor}" stroke-width="1.5" />`
+    : "";
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -116,7 +120,7 @@ export function buildPremiumQrSvg(text: string, options: PremiumQrOptions = {}):
 /**
  * Converts an SVG string into a high-resolution PNG blob (default 1500px).
  */
-export async function svgToHighResPngBlob(svg: string, targetDimension = 1500): Promise<Blob> {
+export async function svgToHighResPngBlob(svg: string, targetDimension = 1500, backgroundColor?: string): Promise<Blob> {
   const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const svgUrl = URL.createObjectURL(svgBlob);
   try {
@@ -149,7 +153,9 @@ export async function svgToHighResPngBlob(svg: string, targetDimension = 1500): 
 
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.fillStyle = "#050505";
+    const rectFillMatch = svg.match(/<rect[^>]+width=["']100%["'][^>]+fill=["']([^"']+)["']/i);
+    const bgFill = backgroundColor || (rectFillMatch ? rectFillMatch[1] : "#050505");
+    ctx.fillStyle = bgFill;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     ctx.drawImage(image, 0, 0, canvasWidth, canvasHeight);
 

@@ -6518,99 +6518,104 @@ body.dark-mode {
   line-height: 1.4;
 }
 
-/* Modern Public Profile Renderer */
+/* ═══════════════════════════════════════════════════════════════
+   ZAPPIT MODERN PUBLIC PROFILE DESIGN SYSTEM (REFINED & SOFTENED)
+   Preserved layout, softened natural colors, sans-serif typography
+   ═══════════════════════════════════════════════════════════════ */
+
 .zappit-modern-wrapper {
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
   margin: 0 auto;
   box-sizing: border-box;
-  font-family: var(--mod-font-family, 'Inter', system-ui, -apple-system, sans-serif);
+  font-family: var(--mod-font-family, 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
+.zappit-modern-wrapper *,
+.zappit-modern-wrapper *::before,
+.zappit-modern-wrapper *::after {
+  box-sizing: border-box;
+  font-family: var(--mod-font-family, 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
 }
 
 .zappit-modern-container {
-  background: var(--profile-background, var(--mod-bg, #050B14));
-  border: 1px solid var(--profile-border, var(--mod-card-border, rgba(0, 140, 255, 0.25)));
-  border-radius: var(--mod-card-radius, 20px);
-  padding: 16px;
+  background: var(--profile-surface, #080F1E);
+  border: 1px solid var(--profile-border, rgba(59, 130, 246, 0.22));
+  border-radius: 18px;
+  padding: 14px;
   box-sizing: border-box;
-  color: var(--profile-text, var(--mod-text, #ffffff));
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  color: var(--profile-text, #F8FAFC);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+  position: relative;
 }
 
+/* Edit profile pill */
+.zappit-profile-edit-bar {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 15;
+}
+
+.zappit-profile-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zappit-profile-edit-btn:hover {
+  background: rgba(0, 0, 0, 0.65);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 1. Cover Area */
 .zappit-modern-cover {
   position: relative;
-  height: var(--mod-header-height, 180px);
-  border-radius: var(--mod-card-radius, 14px);
+  height: 140px;
+  min-height: 140px;
+  border-radius: 14px;
   overflow: hidden;
-  background: var(--profile-surface, var(--mod-header-bg, #0d1b2a));
+  background: var(--profile-surface-secondary, #0D1627);
 }
 
 .zappit-modern-cover-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--mod-card-radius, 14px);
+  border-radius: 14px;
   transform-origin: center center;
 }
 
 .zappit-modern-cover-gradient {
   width: 100%;
   height: 100%;
-  border-radius: var(--mod-card-radius, 14px);
-  background: var(--profile-surface, var(--mod-header-bg, linear-gradient(135deg, #061830 0%, #032b57 50%, #004b99 100%)));
+  border-radius: 14px;
+  background: linear-gradient(180deg, #101B2E 0%, #080F1E 100%);
 }
 
 .zappit-modern-cover-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.15) 60%, transparent 100%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.35) 0%, transparent 60%);
   pointer-events: none;
   z-index: 2;
-  border-radius: var(--mod-card-radius, 14px);
+  border-radius: 14px;
 }
 
-.zappit-modern-topbar {
-  position: absolute;
-  top: 12px;
-  left: 14px;
-  right: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  z-index: 3;
-}
-
-.zappit-modern-brand-logo {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--profile-surface, var(--mod-card-bg, rgba(5, 11, 20, 0.65)));
-  backdrop-filter: blur(8px);
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--profile-border, var(--mod-card-border, rgba(255, 255, 255, 0.1)));
-}
-
-.zappit-logo-icon {
-  font-size: 14px;
-  color: var(--profile-primary, var(--mod-accent, #00E5FF));
-}
-
-.zappit-logo-text {
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 1px;
-  color: var(--profile-text, var(--mod-text, #ffffff));
-}
-
-.zappit-logo-sub {
-  font-size: 9px;
-  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
-  letter-spacing: 0.5px;
-  margin-left: 2px;
-}
-
+/* 2. Floating Avatar Area (Subtle border, modest overlap) */
 .zappit-modern-avatar-wrap {
   display: flex;
   justify-content: center;
@@ -6621,11 +6626,11 @@ body.dark-mode {
   pointer-events: none;
 }
 
-.zappit-modern-avatar-ring {
+.zappit-modern-avatar-circle {
   border-radius: 50%;
-  padding: 3.5px;
-  background: var(--profile-primary-gradient, var(--mod-btn-primary-bg, linear-gradient(135deg, #00E5FF, #0066FF)));
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  background: var(--profile-surface, #080F1E);
+  border: 3.5px solid var(--profile-surface, #080F1E);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
   overflow: hidden;
   display: flex;
@@ -6640,8 +6645,6 @@ body.dark-mode {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--profile-background, var(--mod-bg, #050B14));
-  box-sizing: border-box;
   transform-origin: center center;
 }
 
@@ -6649,340 +6652,176 @@ body.dark-mode {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--profile-surface, var(--mod-card-bg, #0a1628));
-  border: 3px solid var(--profile-background, var(--mod-bg, #050B14));
+  background: #1E293B;
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--profile-primary, var(--mod-accent, #00E5FF));
-  box-sizing: border-box;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
+/* 3. Profile Header Typography (Enforce clean sans-serif across name and headings) */
 .zappit-modern-header {
-  margin-top: 14px;
+  margin-top: 10px;
   text-align: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  padding: 0 8px;
 }
 
 .zappit-modern-name {
-  font-size: var(--mod-name-size, 22px);
-  font-weight: 800;
-  color: var(--profile-text, var(--mod-text, #ffffff));
-  letter-spacing: -0.01em;
-  margin: 0;
-  line-height: 1.25;
-  word-break: break-word;
+  font-family: var(--mod-font-family, 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif) !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+  color: var(--profile-text, #F8FAFC) !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+  word-break: break-word !important;
 }
 
 .zappit-modern-subtitle {
-  font-size: var(--mod-body-size, 14px);
-  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
-  margin: 0;
-  font-weight: 500;
-  word-break: break-word;
+  font-family: var(--mod-font-family, 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--profile-muted, #94A3B8) !important;
+  margin: 0 !important;
+  line-height: 1.35 !important;
+  word-break: break-word !important;
 }
 
+/* 4. Action Buttons (Row of 3 buttons preserved, softened colors) */
 .zappit-modern-actions-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: var(--mod-gap, 14px);
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-}
-
-.zappit-modern-btn-primary,
-.zappit-modern-btn-glass {
-  flex: 1 1 calc(33.333% - 10px);
-  min-width: 110px;
-  height: 48px;
-  max-height: 48px;
-  border-radius: var(--mod-btn-radius, 24px);
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 8px;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
+  width: 100%;
+  margin-bottom: 16px;
+  justify-content: center;
 }
 
 .zappit-modern-btn-primary {
-  background: var(--profile-primary-gradient, var(--mod-btn-primary-bg, linear-gradient(135deg, #0066FF, #00D5FF)));
+  flex: 1 1 auto;
+  min-width: 110px;
+  height: 42px;
+  border-radius: 9999px;
+  background: var(--profile-primary, #2563EB) !important;
   border: none;
-  color: var(--profile-primary-text, var(--mod-btn-primary-text, #ffffff));
-  font-weight: 700;
-  box-shadow: 0 4px 16px var(--profile-secondary-bg, rgba(0, 102, 255, 0.25));
+  color: #FFFFFF !important;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  user-select: none;
+  text-decoration: none;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .zappit-modern-btn-primary:hover {
+  background: #1D4ED8 !important;
   transform: translateY(-1px);
-  filter: brightness(1.1);
-  box-shadow: 0 6px 20px var(--profile-secondary-bg, rgba(0, 102, 255, 0.4));
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+}
+
+.zappit-modern-btn-primary:active {
+  transform: translateY(0);
+}
+
+.zappit-modern-btn-primary:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
 }
 
 .zappit-modern-btn-glass {
-  background: var(--profile-secondary-bg, var(--mod-btn-glass-bg, rgba(15, 23, 42, 0.65)));
-  border: 1px solid var(--profile-secondary-border, var(--mod-btn-glass-border, rgba(0, 229, 255, 0.3)));
-  color: var(--profile-secondary-text, var(--mod-btn-glass-text, #ffffff));
+  flex: 1 1 auto;
+  min-width: 110px;
+  height: 42px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: var(--profile-text, #F8FAFC) !important;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  text-decoration: none;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .zappit-modern-btn-glass:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
   transform: translateY(-1px);
-  border-color: var(--profile-border-hover, var(--profile-primary));
-  opacity: 0.95;
 }
 
-.zappit-modern-btn-primary span,
-.zappit-modern-btn-glass span,
-.pc-action-btn span {
-  white-space: nowrap;
-  line-height: 1;
+.zappit-modern-btn-glass:active {
+  transform: translateY(0);
 }
 
-.zappit-modern-btn-primary svg,
-.zappit-modern-btn-glass svg,
-.pc-action-btn svg {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+.zappit-modern-btn-glass:focus-visible {
+  outline: 2px solid var(--profile-primary, #2563EB);
+  outline-offset: 2px;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   PREMIUM MOBILE NFC DIGITAL BUSINESS CARD EXPERIENTIAL BREAKPOINT
-   Scoped to max-width: 640px for mobile devices (iPhone SE, iPhone 15, Samsung Galaxy)
-   ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
-  .zappit-modern-wrapper {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-  }
-
-  .zappit-modern-container {
-    border-radius: 20px !important;
-    padding: 12px !important;
-    margin: 0 !important;
-    width: 100% !important;
-  }
-
-  /* 1. Cover Section: 160px Mobile Height */
-  .zappit-modern-cover {
-    position: relative !important;
-    height: 160px !important;
-    min-height: 160px !important;
-    border-radius: 18px !important;
-    overflow: hidden !important;
-  }
-
-  .zappit-modern-cover-img,
-  .zappit-modern-cover-gradient {
-    object-fit: cover !important;
-    border-radius: 18px !important;
-  }
-
-  .zappit-modern-cover-overlay {
-    position: absolute !important;
-    inset: 0 !important;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%) !important;
-  }
-
-  /* 2. Floating Avatar Design: 90px Mobile, Centered, Overlapping bottom of cover */
-  .zappit-modern-avatar-wrap {
-    margin-top: -45px !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    margin-bottom: 12px !important;
-    position: relative !important;
-    z-index: 20 !important;
-  }
-
-  .zappit-modern-avatar-ring {
-    width: 90px !important;
-    height: 90px !important;
-    border-radius: 50% !important;
-    background: var(--profile-surface, var(--mod-card-bg, #0D1726)) !important;
-    border: 4px solid var(--profile-background, var(--mod-bg, #070D19)) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
-    padding: 0 !important;
-    flex-shrink: 0 !important;
-    overflow: hidden !important;
-  }
-
-  .zappit-modern-avatar-img,
-  .zappit-modern-avatar-fallback {
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 50% !important;
-    border: none !important;
-    object-fit: cover !important;
-  }
-
-  .zappit-modern-avatar-fallback {
-    font-size: 24px !important;
-    font-weight: 700 !important;
-    background: var(--profile-surface, #0D1726) !important;
-    color: var(--profile-primary, #00E5FF) !important;
-  }
-
-  /* 3. Profile Information Layout & Typography */
-  .zappit-modern-header {
-    margin-top: 4px !important;
-    margin-bottom: 16px !important;
-    text-align: center !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 4px !important;
-  }
-
-  .zappit-modern-name {
-    font-size: 24px !important;
-    font-weight: 700 !important;
-    line-height: 1.25 !important;
-    text-align: center !important;
-    color: var(--profile-text, #ffffff) !important;
-  }
-
-  .zappit-modern-subtitle {
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    color: var(--profile-muted, #94A3B8) !important;
-    text-align: center !important;
-  }
-
-  /* 4. Action Button Redesign (Row 1: 50% + 50%, Row 2: 100% Share) */
-  .zappit-modern-actions-grid {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    margin-bottom: 16px !important;
-    width: 100% !important;
-    justify-content: space-between !important;
-  }
-
-  /* First row buttons: 50% width */
-  .zappit-modern-actions-grid > button:not(.zappit-btn-share) {
-    flex: 1 1 calc(50% - 4px) !important;
-    width: calc(50% - 4px) !important;
-    min-width: 0 !important;
-    height: 46px !important;
-    max-height: 46px !important;
-    border-radius: 14px !important;
-    padding: 0 10px !important;
-    font-size: 13px !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Second row button (Share): 100% width */
-  .zappit-modern-actions-grid > button.zappit-btn-share {
-    flex: 1 1 100% !important;
-    width: 100% !important;
-    height: 46px !important;
-    max-height: 46px !important;
-    border-radius: 14px !important;
-    padding: 0 14px !important;
-    font-size: 13.5px !important;
-    box-sizing: border-box !important;
-  }
-
-  .zappit-modern-btn-primary span,
-  .zappit-modern-btn-glass span {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-  }
-
-  /* 5 & 6. Mobile Section Cards (16px padding, 16px margin, 18px radius) */
-  .zappit-modern-card {
-    padding: 16px !important;
-    margin: 16px 0 !important;
-    border-radius: 18px !important;
-  }
-
-  .zappit-modern-card-header {
-    font-size: 14px !important;
-    font-weight: 700 !important;
-    margin-bottom: 12px !important;
-  }
-
-  /* Contact Items (64px height min, Icon, Label 11px uppercase, Value 14px) */
-  .zappit-modern-contact-row {
-    min-height: 64px !important;
-    padding: 12px 14px !important;
-    border-radius: 14px !important;
-    gap: 12px !important;
-  }
-
-  .zappit-modern-label {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    color: var(--profile-muted, #94a3b8) !important;
-  }
-
-  .zappit-modern-val {
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    word-break: break-all !important;
-    overflow-wrap: anywhere !important;
-    min-width: 0 !important;
-  }
-}
-
-
+/* 5. Section Cards (Existing shapes & borders preserved, softened understated borders) */
 .zappit-modern-card {
-  background: var(--profile-surface, var(--mod-card-bg, #0a1628));
-  border: 1px solid var(--profile-border, var(--mod-card-border, rgba(30, 58, 115, 0.45)));
-  border-radius: var(--mod-card-radius, 14px);
+  background: var(--profile-surface-secondary, rgba(255, 255, 255, 0.025));
+  border: 1px solid var(--profile-border, rgba(59, 130, 246, 0.22));
+  border-radius: 14px;
   padding: 14px 16px;
-  margin-bottom: var(--mod-gap, 14px);
+  margin-bottom: 12px;
+  transition: border-color 0.15s ease;
 }
 
 .zappit-modern-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--profile-text, var(--mod-text, #ffffff));
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--profile-border, var(--mod-card-border, rgba(255, 255, 255, 0.06)));
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--profile-text, #F8FAFC);
+  margin-bottom: 10px;
   padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* 6. Contact List (Individual row card boxes preserved, softened understated borders) */
 .zappit-modern-contact-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .zappit-modern-contact-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
-  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
-  border-radius: var(--mod-card-radius, 10px);
   padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  transition: border-color 0.15s ease;
 }
 
 .zappit-modern-contact-row.green-border {
-  border-color: rgba(16, 185, 129, 0.4);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
 .zappit-modern-icon-circle {
@@ -6993,18 +6832,13 @@ body.dark-mode {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: var(--profile-primary-gradient, var(--profile-primary));
-  color: var(--profile-primary-text, #ffffff);
-}
-
-.zappit-modern-icon-circle.blue {
-  background: var(--profile-primary-gradient, var(--mod-btn-primary-bg, linear-gradient(135deg, #0066FF, #00B2FF)));
-  color: var(--profile-primary-text, var(--mod-btn-primary-text, #ffffff));
+  background: rgba(37, 99, 235, 0.18);
+  color: #3B82F6;
 }
 
 .zappit-modern-icon-circle.green {
-  background: linear-gradient(135deg, #10B981, #059669);
-  color: #ffffff;
+  background: rgba(16, 185, 129, 0.18);
+  color: #10B981;
 }
 
 .zappit-modern-contact-body {
@@ -7012,197 +6846,78 @@ body.dark-mode {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 1px;
 }
 
 .zappit-modern-label {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 600;
   text-transform: uppercase;
-  color: var(--profile-muted, var(--mod-muted-text, #64748b));
   letter-spacing: 0.5px;
+  color: var(--profile-muted, #94A3B8);
 }
 
 .zappit-modern-val {
-  font-size: var(--mod-body-size, 13px);
+  font-size: 14px;
   font-weight: 500;
-  color: var(--profile-text, var(--mod-text, #e2e8f0));
+  color: var(--profile-text, #F8FAFC);
   overflow-wrap: break-word;
+  word-break: break-all;
+  text-decoration: none;
+  line-height: 1.35;
+}
+
+a.zappit-modern-val:hover {
+  color: #38BDF8;
 }
 
 .zappit-modern-copy-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   background: transparent;
   border: none;
-  color: var(--profile-muted, var(--mod-muted-text, #64748b));
-  padding: 6px;
+  color: #94A3B8;
   cursor: pointer;
-  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
+  transition: color 0.15s, background-color 0.15s;
+  flex-shrink: 0;
 }
 
 .zappit-modern-copy-btn:hover {
-  color: var(--profile-text, var(--mod-text, #ffffff));
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .zappit-modern-chat-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  border-radius: 16px;
-  padding: 4px 10px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
   font-size: 12px;
-  font-weight: 700;
-  color: #34d399;
-  cursor: pointer;
+  font-weight: 600;
   text-decoration: none;
-  transition: background-color 0.2s;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .zappit-modern-chat-btn:hover {
-  background: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.45);
 }
 
-.zappit-modern-apps-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 10px;
-}
-
-.zappit-modern-app-tile {
-  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
-  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
-  border-radius: var(--mod-card-radius, 12px);
-  padding: 12px 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  transition: transform 0.2s, border-color 0.2s;
-}
-
-.zappit-modern-app-tile:hover {
-  transform: translateY(-2px);
-  border-color: var(--profile-border-hover, var(--profile-primary, rgba(0, 229, 255, 0.5)));
-}
-
-.zappit-modern-app-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--profile-primary-gradient, rgba(255, 255, 255, 0.08));
-  border: 1px solid var(--profile-border, rgba(255, 255, 255, 0.15));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.zappit-modern-app-tile:hover .zappit-modern-app-icon {
-  transform: scale(1.1);
-}
-
-.zappit-modern-app-icon.instagram {
-  background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
-  border: none;
-  box-shadow: 0 4px 14px rgba(225, 48, 108, 0.45);
-}
-
-.zappit-modern-app-icon.linkedin {
-  background: linear-gradient(135deg, #0a66c2 0%, #004182 100%);
-  border: none;
-  box-shadow: 0 4px 14px rgba(10, 102, 194, 0.45);
-}
-
-.zappit-modern-app-icon.youtube {
-  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
-  border: none;
-  box-shadow: 0 4px 14px rgba(255, 0, 0, 0.45);
-}
-
-.zappit-modern-app-icon.facebook {
-  background: linear-gradient(135deg, #1877f2 0%, #0d5bb5 100%);
-  border: none;
-  box-shadow: 0 4px 14px rgba(24, 119, 242, 0.45);
-}
-
-.zappit-modern-app-icon.twitter {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-}
-
-.zappit-modern-app-icon.website {
-  background: var(--profile-primary-gradient, linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%));
-  border: none;
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45);
-}
-
-.zappit-modern-app-icon.maps,
-.zappit-modern-app-icon.google {
-  background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
-  border: none;
-  box-shadow: 0 4px 14px rgba(234, 67, 53, 0.45);
-}
-
-.zappit-modern-app-icon.whatsapp {
-  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
-  border: none;
-  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.45);
-}
-
-.zappit-modern-app-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--profile-text, var(--mod-text, #e2e8f0));
-  text-align: center;
-}
-
-.zappit-modern-app-arrow {
-  font-size: 10px;
-  color: var(--profile-primary, var(--mod-accent, #00E5FF));
-  margin-top: 2px;
-}
-
-.zappit-modern-about-body {
-  font-size: var(--mod-body-size, 13px);
-  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
-  line-height: 1.5;
-}
-
-.zappit-modern-about-text {
-  margin-bottom: 10px;
-  overflow-wrap: break-word;
-}
-
-.zappit-modern-about-graphic {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.zappit-graphic-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(0, 229, 255, 0.05)));
-  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(0, 229, 255, 0.2)));
-  padding: 6px 14px;
-  border-radius: 20px;
-}
-
-/* ── ZAPPIT MODERN SERVICES / BUSINESS INFO ── */
+/* 7. Services / Products List (Numbered badges and individual boxes preserved) */
 .zappit-modern-services-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .zappit-modern-service-row {
@@ -7210,186 +6925,400 @@ body.dark-mode {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
-  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
-  transition: all 0.2s ease;
-}
-
-.zappit-modern-service-row:hover {
-  border-color: var(--profile-border-hover, var(--profile-primary, #00E5FF));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(59, 130, 246, 0.22);
 }
 
 .zappit-modern-service-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--profile-primary, var(--mod-accent, #00E5FF));
-  color: var(--profile-primary-text, #000000);
-  font-size: 11px;
-  font-weight: 800;
   flex-shrink: 0;
 }
 
 .zappit-modern-service-name {
   font-size: 13.5px;
-  font-weight: 600;
-  color: var(--profile-text, var(--mod-text, #ffffff));
+  font-weight: 500;
+  color: var(--profile-text, #F8FAFC);
   line-height: 1.4;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  min-width: 0;
-  flex: 1;
 }
 
-/* ── ZAPPIT MODERN PRODUCTS SHOWCASE ── */
+/* 8. Products Showcase */
 .zappit-modern-products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
-@media (max-width: 480px) {
-  .zappit-modern-products-grid {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .zappit-modern-product-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
-  background: var(--profile-surface-secondary, var(--mod-row-bg, rgba(15, 27, 48, 0.7)));
-  border: 1px solid var(--profile-border, var(--mod-row-border, rgba(30, 58, 115, 0.5)));
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.zappit-modern-product-card:hover {
-  border-color: var(--profile-border-hover, var(--profile-primary, #00E5FF));
 }
 
 .zappit-modern-product-img-wrap {
   width: 100%;
-  height: 140px;
+  height: 90px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.2);
-  position: relative;
 }
 
 .zappit-modern-product-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.zappit-modern-product-card:hover .zappit-modern-product-img {
-  transform: scale(1.04);
 }
 
 .zappit-modern-product-img-fallback {
   width: 100%;
-  height: 100px;
+  height: 90px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .zappit-modern-product-body {
-  padding: 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 6px;
 }
 
 .zappit-modern-product-cat {
-  align-self: flex-start;
   font-size: 10px;
-  font-weight: 700;
-  color: var(--profile-primary, var(--mod-accent, #00E5FF));
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: var(--profile-surface, rgba(0, 229, 255, 0.1));
-  border: 1px solid var(--profile-border, rgba(0, 229, 255, 0.2));
-  padding: 2px 8px;
-  border-radius: 6px;
+  color: #94A3B8;
+  margin-bottom: 2px;
 }
 
 .zappit-modern-product-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--profile-text, var(--mod-text, #ffffff));
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--profile-text, #F8FAFC);
+  margin: 0 0 2px 0;
   line-height: 1.3;
-  margin: 0;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 
 .zappit-modern-product-price {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--profile-primary, #38ef7d);
-  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #38BDF8;
+  margin-bottom: 4px;
 }
 
 .zappit-modern-product-desc {
-  font-size: 12px;
-  color: var(--profile-muted, var(--mod-muted-text, #94a3b8));
-  line-height: 1.4;
-  margin: 0;
-  flex: 1;
+  font-size: 11px;
+  color: #94A3B8;
+  margin: 0 0 6px 0;
+  line-height: 1.35;
   word-break: break-word;
-  overflow-wrap: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .zappit-modern-product-cta {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--mod-btn-primary-bg, linear-gradient(135deg, #00E5FF, #0066FF));
-  color: var(--mod-btn-primary-text, #000000);
-  font-size: 12px;
-  font-weight: 700;
+  gap: 4px;
+  margin-top: auto;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.15);
+  color: #60A5FA;
+  font-size: 11px;
+  font-weight: 600;
   text-decoration: none;
-  transition: opacity 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .zappit-modern-product-cta:hover {
-  opacity: 0.9;
+  background: rgba(37, 99, 235, 0.25);
+  color: #93C5FD;
 }
 
+/* 9. Apps & Links Grid */
+.zappit-modern-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.zappit-modern-app-tile {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 10px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.zappit-modern-app-tile:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(59, 130, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+.zappit-modern-app-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.zappit-modern-app-tile:hover .zappit-modern-app-icon {
+  transform: scale(1.08);
+}
+
+.zappit-modern-app-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--profile-text, #F8FAFC);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.zappit-modern-app-arrow {
+  display: none;
+}
+
+/* 10. About Me */
+.zappit-modern-about-body {
+  font-size: 13.5px;
+  color: var(--profile-muted, #94A3B8);
+  line-height: 1.55;
+  margin-top: 4px;
+}
+
+.zappit-modern-about-text {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.zappit-modern-about-graphic {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.zappit-graphic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 11. Brand Footer */
 .zappit-modern-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 4px 4px 4px;
+  padding: 14px 4px 4px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 16px;
 }
 
 .zappit-footer-left {
   display: flex;
   align-items: center;
+  font-size: 11.5px;
 }
 
 .zappit-footer-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  font-size: 11px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT MODE SEMANTIC SUPPORT FOR MODERN PUBLIC PROFILE
+   White surfaces, soft gray borders, charcoal text, muted labels
+   ═══════════════════════════════════════════════════════════════ */
+[data-theme="light"] .zappit-modern-container,
+body.light-mode .zappit-modern-container,
+.light-mode .zappit-modern-container {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .zappit-modern-cover-gradient,
+body.light-mode .zappit-modern-cover-gradient {
+  background: linear-gradient(180deg, #E2E8F0 0%, #F1F5F9 100%) !important;
+}
+
+[data-theme="light"] .zappit-modern-avatar-circle,
+body.light-mode .zappit-modern-avatar-circle {
+  background: #FFFFFF !important;
+  border-color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .zappit-modern-avatar-fallback,
+body.light-mode .zappit-modern-avatar-fallback {
+  background: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-name,
+body.light-mode .zappit-modern-name {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-subtitle,
+body.light-mode .zappit-modern-subtitle {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .zappit-modern-btn-glass,
+body.light-mode .zappit-modern-btn-glass {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-btn-glass:hover,
+body.light-mode .zappit-modern-btn-glass:hover {
+  background: #E2E8F0 !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .zappit-modern-card,
+body.light-mode .zappit-modern-card {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-card-header,
+body.light-mode .zappit-modern-card-header {
+  color: #0F172A !important;
+  border-bottom-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-contact-row,
+body.light-mode .zappit-modern-contact-row {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-contact-row.green-border,
+body.light-mode .zappit-modern-contact-row.green-border {
+  border-color: #A7F3D0 !important;
+}
+
+[data-theme="light"] .zappit-modern-icon-circle,
+body.light-mode .zappit-modern-icon-circle {
+  background: #EFF6FF !important;
+  color: #2563EB !important;
+}
+
+[data-theme="light"] .zappit-modern-icon-circle.green,
+body.light-mode .zappit-modern-icon-circle.green {
+  background: #ECFDF5 !important;
+  color: #059669 !important;
+}
+
+[data-theme="light"] .zappit-modern-val,
+body.light-mode .zappit-modern-val {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-label,
+body.light-mode .zappit-modern-label {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .zappit-modern-copy-btn,
+body.light-mode .zappit-modern-copy-btn {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .zappit-modern-copy-btn:hover,
+body.light-mode .zappit-modern-copy-btn:hover {
+  color: #0F172A !important;
+  background: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-chat-btn,
+body.light-mode .zappit-modern-chat-btn {
+  background: #ECFDF5 !important;
+  color: #059669 !important;
+  border-color: #A7F3D0 !important;
+}
+
+[data-theme="light"] .zappit-modern-service-row,
+body.light-mode .zappit-modern-service-row {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-service-name,
+body.light-mode .zappit-modern-service-name {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-product-card,
+body.light-mode .zappit-modern-product-card {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-product-title,
+body.light-mode .zappit-modern-product-title {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-app-tile,
+body.light-mode .zappit-modern-app-tile {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .zappit-modern-app-name,
+body.light-mode .zappit-modern-app-name {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .zappit-modern-about-body,
+body.light-mode .zappit-modern-about-body {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .zappit-modern-footer,
+body.light-mode .zappit-modern-footer {
+  border-top-color: #E2E8F0 !important;
+}
+
 
 /* Modern Profile Customizer Dashboard Panel */
 .modern-customizer-panel {

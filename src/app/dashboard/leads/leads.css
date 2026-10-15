@@ -533,10 +533,20 @@ body.light-mode .crm-filter-input,
 [data-theme="light"] .crm-filter-select,
 body.light-mode .crm-filter-select,
 [data-theme="light"] .crm-filter-date,
-body.light-mode .crm-filter-date {
+body.light-mode .crm-filter-date,
+[data-theme="light"] .crm-datepicker-trigger,
+body.light-mode .crm-datepicker-trigger {
   background-color: #FFFFFF !important;
   border-color: #CBD5E1 !important;
   color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-datepicker-popover,
+body.light-mode .crm-datepicker-popover {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-theme="light"] .crm-filter-input:focus,
@@ -544,10 +554,12 @@ body.light-mode .crm-filter-input:focus,
 [data-theme="light"] .crm-filter-select:focus,
 body.light-mode .crm-filter-select:focus,
 [data-theme="light"] .crm-filter-date:focus,
-body.light-mode .crm-filter-date:focus {
-  border-color: #10B981 !important;
+body.light-mode .crm-filter-date:focus,
+[data-theme="light"] .crm-datepicker-trigger:focus,
+body.light-mode .crm-datepicker-trigger:focus {
+  border-color: #0066FF !important;
   background-color: #FFFFFF !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2) !important;
 }
 
 [data-theme="light"] .crm-mobile-btn-call,
@@ -663,10 +675,20 @@ body.dark-mode .crm-filter-input,
 [data-theme="dark"] .crm-filter-select,
 body.dark-mode .crm-filter-select,
 [data-theme="dark"] .crm-filter-date,
-body.dark-mode .crm-filter-date {
+body.dark-mode .crm-filter-date,
+[data-theme="dark"] .crm-datepicker-trigger,
+body.dark-mode .crm-datepicker-trigger {
   background-color: #071426 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .crm-datepicker-popover,
+body.dark-mode .crm-datepicker-popover {
+  background-color: #0B172A !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-theme="dark"] .crm-filter-input:focus,
@@ -674,8 +696,10 @@ body.dark-mode .crm-filter-input:focus,
 [data-theme="dark"] .crm-filter-select:focus,
 body.dark-mode .crm-filter-select:focus,
 [data-theme="dark"] .crm-filter-date:focus,
-body.dark-mode .crm-filter-date:focus {
-  border-color: #10B981 !important;
+body.dark-mode .crm-filter-date:focus,
+[data-theme="dark"] .crm-datepicker-trigger:focus,
+body.dark-mode .crm-datepicker-trigger:focus {
+  border-color: #0066FF !important;
   background-color: #0B172A !important;
 }
 

@@ -6162,15 +6162,19 @@ body.light-mode .crm-tile-value {
 [data-theme="light"] textarea,
 [data-theme="light"] .crm-filter-select,
 [data-theme="light"] .crm-filter-date,
+[data-theme="light"] .crm-datepicker-trigger,
 [data-theme="light"] .crm-filter-control-wrap input,
 [data-theme="light"] .crm-filter-control-wrap select,
+[data-theme="light"] .crm-filter-control-wrap button.crm-datepicker-trigger,
 body.light-mode input,
 body.light-mode select,
 body.light-mode textarea,
 body.light-mode .crm-filter-select,
 body.light-mode .crm-filter-date,
+body.light-mode .crm-datepicker-trigger,
 body.light-mode .crm-filter-control-wrap input,
-body.light-mode .crm-filter-control-wrap select {
+body.light-mode .crm-filter-control-wrap select,
+body.light-mode .crm-filter-control-wrap button.crm-datepicker-trigger {
   background-color: #FFFFFF !important;
   border: 1px solid #CBD5E1 !important;
   color: #0F172A !important;
@@ -6258,15 +6262,19 @@ body.dark-mode h6 {
 [data-theme="dark"] textarea,
 [data-theme="dark"] .crm-filter-select,
 [data-theme="dark"] .crm-filter-date,
+[data-theme="dark"] .crm-datepicker-trigger,
 [data-theme="dark"] .crm-filter-control-wrap input,
 [data-theme="dark"] .crm-filter-control-wrap select,
+[data-theme="dark"] .crm-filter-control-wrap button.crm-datepicker-trigger,
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea,
 body.dark-mode .crm-filter-select,
 body.dark-mode .crm-filter-date,
+body.dark-mode .crm-datepicker-trigger,
 body.dark-mode .crm-filter-control-wrap input,
-body.dark-mode .crm-filter-control-wrap select {
+body.dark-mode .crm-filter-control-wrap select,
+body.dark-mode .crm-filter-control-wrap button.crm-datepicker-trigger {
   background-color: #070E1A !important;
   border: 1px solid #1E293B !important;
   color: #FFFFFF !important;

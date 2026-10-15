@@ -239,3 +239,187 @@ body.dark-mode {
   background: var(--admin-panel);
 }
 
+/* Admin Managed Users - User QR Code Modal */
+.admin-user-qr-dialog {
+  width: min(440px, 100%) !important;
+  max-height: min(92vh, 660px) !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  background: var(--admin-panel) !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4) !important;
+  text-align: left !important;
+}
+
+.admin-user-qr-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  padding-bottom: 16px !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+.admin-user-qr-close {
+  width: 36px !important;
+  height: 36px !important;
+  flex-shrink: 0 !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 50% !important;
+  background: var(--admin-bg) !important;
+  color: var(--admin-text) !important;
+  font-size: 20px !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-user-qr-close:hover {
+  background: var(--admin-border) !important;
+}
+
+.admin-user-qr-body {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  padding-top: 20px !important;
+  width: 100% !important;
+}
+
+.admin-user-qr-preview-box {
+  width: 240px !important;
+  height: 240px !important;
+  max-width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  background: #FFFFFF !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  margin: 0 auto !important;
+}
+
+.admin-user-qr-svg-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.admin-user-qr-svg-wrapper svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+.admin-user-qr-actions-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  margin-top: 22px !important;
+  width: 100% !important;
+}
+
+.admin-user-qr-btn-row {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+.admin-qr-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 40px !important;
+  padding: 9px 14px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: all 0.15s ease !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+}
+
+.admin-qr-action-btn.primary {
+  background: var(--admin-cyan) !important;
+  color: #FFFFFF !important;
+  border: 1px solid var(--admin-cyan) !important;
+}
+
+.admin-qr-action-btn.primary:hover {
+  filter: brightness(1.1) !important;
+}
+
+.admin-qr-action-btn.secondary {
+  background: var(--admin-bg) !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+.admin-qr-action-btn.secondary:hover {
+  background: var(--admin-border) !important;
+}
+
+@media (max-width: 480px) {
+  .admin-user-qr-dialog {
+    padding: 16px !important;
+    max-height: 96vh !important;
+  }
+  .admin-user-qr-preview-box {
+    width: 200px !important;
+    height: 200px !important;
+  }
+  .admin-user-qr-actions-container {
+    margin-top: 18px !important;
+    gap: 8px !important;
+  }
+  .admin-user-qr-btn-row {
+    gap: 8px !important;
+  }
+  .admin-qr-action-btn {
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+    min-height: 38px !important;
+  }
+}
+
+@media (max-width: 320px) {
+  .admin-user-qr-btn-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-height: 600px) {
+  .admin-user-qr-preview-box {
+    width: 160px !important;
+    height: 160px !important;
+  }
+  .admin-user-qr-body {
+    padding-top: 12px !important;
+  }
+  .admin-user-qr-actions-container {
+    margin-top: 14px !important;
+    gap: 8px !important;
+  }
+}
+

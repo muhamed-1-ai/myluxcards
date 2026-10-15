@@ -1058,34 +1058,35 @@
   .pc-hero-cover { aspect-ratio: 1 / 1; }
 }
 
-/* ── Mode Switcher Bar ── */
+/* ── Mode Switcher Bar (Refined, Quiet, Professional) ── */
 .pc-mode-switcher-bar {
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
   margin: 0 auto 16px;
   display: flex;
-  background: var(--pc-nav-bg, color-mix(in srgb, var(--pc-accent, #0066FF) 15%, rgba(10, 15, 25, 0.92)));
-  border: 1.5px solid var(--pc-nav-border, color-mix(in srgb, var(--pc-accent, #0066FF) 35%, transparent));
-  border-radius: 50px;
-  padding: 5px;
+  background: var(--profile-nav-bg, rgba(13, 23, 38, 0.85));
+  border: 1px solid var(--profile-nav-border, rgba(59, 130, 246, 0.22));
+  border-radius: 9999px;
+  padding: 4px;
   gap: 4px;
-  box-shadow: var(--pc-nav-shadow, 0 6px 20px rgba(0, 0, 0, 0.45));
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-sizing: border-box;
 }
 
 .pc-mode-switch-btn {
-  flex: 1;
+  flex: 1 1 0%;
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--pc-nav-text, #F1F5F9);
-  border-radius: 50px;
-  padding: 10px 14px;
-  font-size: 13.5px;
-  font-weight: 600;
+  border: none;
+  color: var(--profile-nav-text, #94A3B8);
+  border-radius: 9999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1098,35 +1099,57 @@
 }
 
 .pc-mode-switch-btn:hover:not(.active) {
-  color: var(--pc-nav-text-hover, #FFFFFF);
-  background: var(--pc-nav-hover-bg, rgba(255, 255, 255, 0.09));
-  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--profile-text, #FFFFFF);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .pc-mode-switch-btn:active:not(.active) {
-  transform: scale(0.97);
-  background: var(--pc-nav-active-hover-bg, rgba(255, 255, 255, 0.15));
+  transform: scale(0.98);
 }
 
 .pc-mode-switch-btn:focus-visible {
-  outline: 2px solid var(--pc-nav-selected-border, var(--profile-primary, #38bdf8));
+  outline: 2px solid var(--profile-primary, #2563EB);
   outline-offset: 2px;
 }
 
 .pc-mode-switch-btn.active {
-  background: var(--pc-nav-selected-bg, var(--profile-primary-gradient, linear-gradient(135deg, #0066FF, #0052cc)));
-  border: 1px solid var(--pc-nav-selected-border, var(--profile-primary, #0066FF));
-  color: var(--pc-nav-selected-text, var(--profile-primary-text, #FFFFFF));
-  font-weight: 700;
-  box-shadow: var(--pc-nav-selected-shadow, 0 3px 12px rgba(0, 0, 0, 0.35));
+  background: var(--profile-primary, #2563EB);
+  border: none;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 
 .pc-mode-switch-btn.active:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.05);
 }
 
 .pc-mode-switch-btn.active:active {
   transform: scale(0.98);
+}
+
+[data-theme="light"] .pc-mode-switcher-bar,
+body.light-mode .pc-mode-switcher-bar {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .pc-mode-switch-btn,
+body.light-mode .pc-mode-switch-btn {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .pc-mode-switch-btn:hover:not(.active),
+body.light-mode .pc-mode-switch-btn:hover:not(.active) {
+  color: #0F172A !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .pc-mode-switch-btn.active,
+body.light-mode .pc-mode-switch-btn.active {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
 }
 
 .pc-btn-emergency-alert {

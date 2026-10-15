@@ -381,7 +381,12 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
 
   const downloadUserQr = async (user: Row, format: "png" | "svg") => {
     const qrUrl = user.qrUrl || getCanonicalUserQrUrl({ slug: user.digital_card_slug, id: user.id });
-    const svgString = buildPremiumQrSvg(qrUrl, { label: "3G ZAPPIT" });
+    const svgString = buildPremiumQrSvg(qrUrl, {
+      darkColor: "#000000",
+      lightColor: "#FFFFFF",
+      showLabel: false,
+      showFrame: false,
+    });
     const filename = `zappit-qr-${user.name ? user.name.replace(/\s+/g, "-").toLowerCase() : user.id}.${format}`;
 
     if (format === "svg") {
@@ -393,7 +398,7 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
       a.click();
       URL.revokeObjectURL(url);
     } else {
-      const blob = await svgToHighResPngBlob(svgString, 1500);
+      const blob = await svgToHighResPngBlob(svgString, 1500, "#FFFFFF");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -556,29 +561,86 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
       {qrModalUser && (() => {
         const qrUrl = qrModalUser.qrUrl || getCanonicalUserQrUrl({ slug: qrModalUser.digital_card_slug, id: qrModalUser.id });
         const cardUrl = getPublicCardUrl(qrModalUser.digital_card_slug || qrModalUser.id);
+        const adminQrSvg = buildPremiumQrSvg(qrUrl, {
+          darkColor: "#000000",
+          lightColor: "#FFFFFF",
+          showLabel: false,
+          showFrame: false,
+        });
+
         return (
-          <div className="admin-modal-back" onMouseDown={(e) => e.target === e.currentTarget && setQrModalUser(null)}>
-            <section className="customer-detail" role="dialog" style={{ maxWidth: "420px", textAlign: "center" }}>
-              <header>
-                <div>
-                  <small>USER QR CODE</small>
-                  <h2>{qrModalUser.name || qrModalUser.email}</h2>
-                  <p style={{ wordBreak: "break-all", fontSize: "11px" }}>{qrUrl}</p>
+          <div
+            className="admin-modal-back"
+            onMouseDown={(e) => e.target === e.currentTarget && setQrModalUser(null)}
+            role="presentation"
+          >
+            <section
+              key={qrModalUser.id}
+              className="admin-user-qr-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-user-qr-title"
+            >
+              <header className="admin-user-qr-header">
+                <div style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+                  <small style={{ color: "var(--admin-cyan)", fontSize: "11px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" }}>USER QR CODE</small>
+                  <h2 id="admin-user-qr-title" style={{ margin: "4px 0 6px", fontSize: "20px", fontWeight: 800, color: "var(--admin-text)", wordBreak: "break-word" }}>{qrModalUser.name || qrModalUser.email}</h2>
+                  <p style={{ margin: 0, color: "var(--admin-muted)", fontSize: "12px", wordBreak: "break-all", lineHeight: 1.45 }}>{qrUrl}</p>
                 </div>
-                <button onClick={() => setQrModalUser(null)}>×</button>
+                <button
+                  type="button"
+                  onClick={() => setQrModalUser(null)}
+                  aria-label="Close QR modal"
+                  className="admin-user-qr-close"
+                >
+                  ×
+                </button>
               </header>
-              <div style={{ padding: "20px 0" }}>
-                <div
-                  dangerouslySetInnerHTML={{ __html: buildPremiumQrSvg(qrUrl, { label: "3G ZAPPIT" }) }}
-                  style={{ width: "220px", height: "220px", margin: "0 auto 16px", background: "#050505", padding: "8px", borderRadius: "10px", border: "1px solid #333" }}
-                />
-                <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
-                  <button className="small gold" onClick={() => downloadUserQr(qrModalUser, "png")}>Download PNG</button>
-                  <button className="small gold" onClick={() => downloadUserQr(qrModalUser, "svg")}>Download SVG</button>
-                  <button className="small" onClick={() => copyToClipboard(qrUrl, "QR URL")}>Copy QR URL</button>
-                  <a className="small" href={cardUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "4px 8px", background: "#222", color: "#0066FF", border: "1px solid #333", borderRadius: "4px", textDecoration: "none" }}>
-                    Open Profile
-                  </a>
+
+              <div className="admin-user-qr-body">
+                {/* One centered square QR preview */}
+                <div className="admin-user-qr-preview-box">
+                  <div
+                    dangerouslySetInnerHTML={{ __html: adminQrSvg }}
+                    className="admin-user-qr-svg-wrapper"
+                  />
+                </div>
+
+                {/* Action buttons below it with clear spacing (~20-24px) */}
+                <div className="admin-user-qr-actions-container">
+                  <div className="admin-user-qr-btn-row">
+                    <button
+                      type="button"
+                      className="admin-qr-action-btn primary"
+                      onClick={() => downloadUserQr(qrModalUser, "png")}
+                    >
+                      Download PNG
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-qr-action-btn primary"
+                      onClick={() => downloadUserQr(qrModalUser, "svg")}
+                    >
+                      Download SVG
+                    </button>
+                  </div>
+                  <div className="admin-user-qr-btn-row">
+                    <button
+                      type="button"
+                      className="admin-qr-action-btn secondary"
+                      onClick={() => copyToClipboard(qrUrl, "QR URL")}
+                    >
+                      Copy QR URL
+                    </button>
+                    <a
+                      className="admin-qr-action-btn secondary"
+                      href={cardUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open Profile
+                    </a>
+                  </div>
                 </div>
               </div>
             </section>

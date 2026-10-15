@@ -425,51 +425,53 @@ export function resolveThemeTokens(card: {
     preset?.surfaceSecondary ||
     (bgIsLight ? mixHex(bg, "#000000", 0.05) : mixHex(bg, accent, 0.20));
 
-  // 3. Border Token:
+  // 3. Primary Color & Gradients:
+  // Use normal solid blue #2563EB or nearly flat fill, neutralizing neon gradients
+  const primary = preset?.primary || (accent === "#0066FF" ? "#2563EB" : accent);
+  const secondaryColor =
+    preset?.secondary ||
+    (bgIsLight ? mixHex(primary, "#000000", 0.15) : mixHex(primary, bg, 0.20));
+
+  // 4. Border Token:
   const border =
     mc.cardBorder ||
     preset?.border ||
-    (bgIsLight ? mixHex(accent, "#000000", 0.15) : hexToRgba(accent, 0.35));
+    (bgIsLight ? "#E2E8F0" : hexToRgba(primary, 0.22));
 
-  const borderHover = hexToRgba(accent, 0.65);
-
-  // 4. Primary & Secondary Gradients:
-  // When a preset is active, use preset.primary (or accent). When customized, accent is authoritative!
-  const primary = preset?.primary || accent;
-  const secondaryColor =
-    preset?.secondary ||
-    (bgIsLight ? mixHex(primary, "#000000", 0.25) : mixHex(primary, bg, 0.35));
+  const borderHover = bgIsLight ? "#CBD5E1" : hexToRgba(primary, 0.40);
 
   const primaryIsLight = isLightColor(primary);
   const primaryText =
     mc.primaryBtnText ||
     ensureReadableTextColor(primary, primaryIsLight ? "#0F172A" : "#ffffff", 4.5);
   const primaryGradient =
-    mc.primaryBtnBg ||
-    `linear-gradient(135deg, ${primary}, ${secondaryColor})`;
-  const secondaryGradient = `linear-gradient(135deg, ${secondaryColor}, ${surfaceSecondary})`;
+    mc.primaryBtnBg || primary;
+  const secondaryGradient =
+    mc.secondaryGradient || (bgIsLight ? "#F1F5F9" : surfaceSecondary);
 
-  // 5. Secondary / Glass Button Tokens:
+  // 5. Secondary / Glass Button Tokens (Neutral surfaces & borders):
   const secondaryBtnBg =
     mc.secondaryBtnBg ||
-    (bgIsLight ? "rgba(0, 0, 0, 0.06)" : hexToRgba(primary, 0.15));
-  const secondaryBtnBorder = mc.secondaryBtnBorder || hexToRgba(primary, 0.4);
+    (bgIsLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.05)");
+  const secondaryBtnBorder =
+    mc.secondaryBtnBorder ||
+    (bgIsLight ? "rgba(0, 0, 0, 0.10)" : "rgba(255, 255, 255, 0.12)");
   const secondaryBtnText = mc.secondaryBtnText || text;
 
   // 6. Typography & Muted Text:
   const mutedText =
     mc.mutedText ||
     preset?.mutedText ||
-    (bgIsLight ? "#475569" : mixHex(text, bg, 0.42));
+    (bgIsLight ? "#64748B" : "#94A3B8");
 
   // 7. Icons & Extras:
   const iconColor = primary;
-  const success = "#22c55e";
+  const success = "#10b981";
 
   // 8. Header background:
   const headerGradStart =
     mc.headerGradientStart ||
-    (bgIsLight ? primary : mixHex(bg, primary, 0.25));
+    (bgIsLight ? primary : mixHex(bg, primary, 0.20));
   const headerGradEnd = mc.headerGradientEnd || bg;
   const headerBg =
     mc.headerStyle === "solid"
@@ -477,26 +479,23 @@ export function resolveThemeTokens(card: {
       : `linear-gradient(135deg, ${headerGradStart}, ${headerGradEnd})`;
 
   // 9. Navigation Bar Tokens:
-  // Decoupled from card body text and paired directly with the navigation bar's actual surface.
-  // When navBg is dark (luminance < 0.45), labels are crisp light text (> 12:1 contrast).
-  // When navBg is light (luminance >= 0.45), labels are crisp dark text (> 10:1 contrast).
   const navBg =
     mc.navBg ||
     preset?.navBg ||
-    (bgIsLight ? "rgba(15, 23, 42, 0.90)" : mixHex(surfaceSecondary, "#000000", 0.45));
+    (bgIsLight ? "rgba(241, 245, 249, 0.95)" : "rgba(13, 22, 38, 0.85)");
   const navBgIsLight = isLightColor(navBg);
 
   const navBorder =
     mc.navBorder ||
     (navBgIsLight
-      ? "rgba(0, 0, 0, 0.14)"
-      : hexToRgba(primary, 0.4));
+      ? "rgba(0, 0, 0, 0.10)"
+      : "rgba(148, 163, 184, 0.20)");
 
   const navText =
     mc.navText ||
     (navBgIsLight
-      ? "#1E293B"
-      : "#F1F5F9");
+      ? "#64748B"
+      : "#94A3B8");
 
   const navTextHover =
     mc.navTextHover ||
@@ -505,12 +504,12 @@ export function resolveThemeTokens(card: {
       : "#FFFFFF");
 
   const navHoverBg =
-    navBgIsLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.09)";
+    navBgIsLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
   const navActiveHoverBg =
-    navBgIsLight ? "rgba(0, 0, 0, 0.10)" : "rgba(255, 255, 255, 0.15)";
+    navBgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.10)";
 
   const navSelectedBg =
-    mc.navSelectedBg || primaryGradient;
+    mc.navSelectedBg || primary;
 
   const navSelectedBorder =
     mc.navSelectedBorder || primary;
@@ -519,25 +518,22 @@ export function resolveThemeTokens(card: {
     mc.navSelectedText || ensureReadableTextColor(primary, primaryText, 4.5);
 
   const navSelectedShadow =
-    mc.navSelectedShadow ||
-    (navBgIsLight
-      ? "0 2px 8px rgba(0, 0, 0, 0.16)"
-      : "0 3px 12px rgba(0, 0, 0, 0.40)");
+    mc.navSelectedShadow || "0 2px 6px rgba(37, 99, 235, 0.25)";
 
   // 10. Edit Button Tokens:
   const editBtnBg =
     mc.editBtnBg ||
-    (bgIsLight ? "rgba(0, 0, 0, 0.05)" : hexToRgba(primary, 0.15));
+    (bgIsLight ? "rgba(0, 0, 0, 0.05)" : "rgba(0, 0, 0, 0.45)");
   const editBtnBorder =
     mc.editBtnBorder ||
-    (bgIsLight ? hexToRgba(primary, 0.4) : hexToRgba(primary, 0.4));
+    (bgIsLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.18)");
   const editBtnText =
     mc.editBtnText ||
-    ensureReadableTextColor(surface, primary, 4.5);
+    ensureReadableTextColor(editBtnBg, bgIsLight ? "#0F172A" : "#FFFFFF", 4.5);
   const editBtnHoverBg =
-    mc.editBtnHoverBg || primary;
+    mc.editBtnHoverBg || (bgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.65)");
   const editBtnHoverText =
-    mc.editBtnHoverText || primaryText;
+    mc.editBtnHoverText || editBtnText;
 
   // Combine CSS custom properties into a single dictionary:
   const cssVars: Record<string, string> = {

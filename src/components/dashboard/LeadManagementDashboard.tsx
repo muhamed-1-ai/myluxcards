@@ -686,6 +686,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
               value={startDateFilter}
               onChange={(dateStr) => setStartDateFilter(dateStr)}
               placeholder="Start Date"
+              maxDate={endDateFilter || undefined}
             />
           </div>
 
@@ -695,6 +696,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
               value={endDateFilter}
               onChange={(dateStr) => setEndDateFilter(dateStr)}
               placeholder="End Date"
+              minDate={startDateFilter || undefined}
             />
           </div>
         </div>
