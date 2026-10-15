@@ -40,6 +40,7 @@ import ImportLeadsModal from "./ImportLeadsModal";
 import LeadContactCardDrawer from "./LeadContactCardDrawer";
 import "../../app/dashboard/leads/leads.css";
 import { exportLeadContact, showToastNotification } from "@/lib/contactExport";
+import { normalizePhoneNumber } from "@/lib/phone";
 
 interface LeadsWorkspaceProps {
   identity: { id: string; name: string | null; email: string; role: string };
@@ -1035,22 +1036,25 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                       onClick={(e) => e.stopPropagation()}
                     >
                       {/* 1. CALL */}
-                      {lead.contactNumber ? (
-                        <a
-                          href={`tel:${lead.contactNumber}`}
-                          className="crm-mobile-btn-call whitespace-nowrap"
-                          title={`Call ${lead.contactNumber}`}
-                          aria-label={`Call ${lead.name || "lead"}`}
-                        >
-                          <Phone className="w-4 h-4 shrink-0" />
-                          <span>Call</span>
-                        </a>
-                      ) : (
-                        <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed whitespace-nowrap">
-                          <Phone className="w-4 h-4 shrink-0" />
-                          <span>Call</span>
-                        </button>
-                      )}
+                      {(() => {
+                        const norm = lead.contactNumber ? normalizePhoneNumber(lead.contactNumber) : null;
+                        return norm?.isValid ? (
+                          <a
+                            href={norm.telLink}
+                            className="crm-mobile-btn-call whitespace-nowrap"
+                            title={`Call ${norm.displayFormatted || norm.normalized}`}
+                            aria-label={`Call ${lead.name || "lead"}`}
+                          >
+                            <Phone className="w-4 h-4 shrink-0" />
+                            <span>Call</span>
+                          </a>
+                        ) : (
+                          <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed whitespace-nowrap">
+                            <Phone className="w-4 h-4 shrink-0" />
+                            <span>Call</span>
+                          </button>
+                        );
+                      })()}
 
                       {/* 2. SAVE */}
                       <button
@@ -1068,24 +1072,39 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                       </button>
 
                       {/* 3. CHAT */}
-                      {lead.contactNumber ? (
-                        <a
-                          href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="crm-mobile-btn-chat whitespace-nowrap"
-                          title="WhatsApp chat"
-                          aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
-                        >
-                          <MessageSquare className="w-4 h-4 shrink-0" />
-                          <span>Chat</span>
-                        </a>
-                      ) : (
-                        <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed whitespace-nowrap">
-                          <MessageSquare className="w-4 h-4 shrink-0" />
-                          <span>Chat</span>
-                        </button>
-                      )}
+                      {(() => {
+                        const norm = lead.contactNumber ? normalizePhoneNumber(lead.contactNumber) : null;
+                        return norm?.isValid ? (
+                          <a
+                            href={norm.waLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="crm-mobile-btn-chat whitespace-nowrap"
+                            title="WhatsApp chat"
+                            aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
+                          >
+                            <MessageSquare className="w-4 h-4 shrink-0" />
+                            <span>Chat</span>
+                          </a>
+                        ) : lead.contactNumber ? (
+                          <a
+                            href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="crm-mobile-btn-chat whitespace-nowrap"
+                            title="WhatsApp chat"
+                            aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
+                          >
+                            <MessageSquare className="w-4 h-4 shrink-0" />
+                            <span>Chat</span>
+                          </a>
+                        ) : (
+                          <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed whitespace-nowrap">
+                            <MessageSquare className="w-4 h-4 shrink-0" />
+                            <span>Chat</span>
+                          </button>
+                        );
+                      })()}
 
                       {/* 4. EDIT */}
                       <button

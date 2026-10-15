@@ -3,6 +3,7 @@
 import React from "react";
 import { Star, MessageSquare, Phone, UserPlus } from "lucide-react";
 import { exportLeadContact } from "@/lib/contactExport";
+import { normalizePhoneNumber } from "@/lib/phone";
 
 export interface LeadIdentityBlockProps {
   lead: {
@@ -38,9 +39,8 @@ export default function LeadIdentityBlock({
   const avatarLetter = leadName.charAt(0).toUpperCase();
   const hasEmail = Boolean(lead.email && lead.email.trim());
   const hasPhone = Boolean(lead.contactNumber && lead.contactNumber.trim());
-
-  // Format WhatsApp clean number (digits only)
-  const cleanPhone = hasPhone ? lead.contactNumber!.replace(/[^0-9]/g, "") : "";
+  const phoneNorm = hasPhone ? normalizePhoneNumber(lead.contactNumber) : null;
+  const cleanPhone = phoneNorm?.isValid ? phoneNorm.waDigits : (hasPhone ? lead.contactNumber!.replace(/[^0-9]/g, "") : "");
 
   const handleSaveContact = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -136,7 +136,7 @@ export default function LeadIdentityBlock({
             >
               {cleanPhone && (
                 <a
-                  href={`https://wa.me/${cleanPhone}`}
+                  href={phoneNorm?.isValid ? phoneNorm.waLink : `https://wa.me/${cleanPhone}`}
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
@@ -148,7 +148,7 @@ export default function LeadIdentityBlock({
                 </a>
               )}
               <a
-                href={`tel:${lead.contactNumber}`}
+                href={phoneNorm?.isValid ? phoneNorm.telLink : `tel:${lead.contactNumber}`}
                 onClick={(e) => e.stopPropagation()}
                 title="Call lead"
                 aria-label={`Call ${leadName}`}

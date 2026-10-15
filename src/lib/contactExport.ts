@@ -10,6 +10,7 @@
  */
 
 import { buildVCardString, VCardInput } from "./vcard";
+import { normalizePhoneNumber } from "./phone";
 
 export interface ContactData {
   id?: string;
@@ -21,6 +22,10 @@ export interface ContactData {
   phone?: string | null;
   mobile?: string | null;
   whatsapp?: string | null;
+  countryCode?: string | null;
+  country_code?: string | null;
+  countryIso?: string | null;
+  country_iso?: string | null;
   email?: string | null;
   companyName?: string | null;
   company_name?: string | null;
@@ -75,7 +80,16 @@ export function resolvePhoneNumber(contact: ContactData): string {
  * Prepares a valid RFC 6350 / vCard 3.0 string for the contact.
  */
 export function serializeContactToVCard(contact: ContactData): string {
-  const phone = resolvePhoneNumber(contact);
+  const rawPhone = resolvePhoneNumber(contact);
+  const countryContext =
+    contact.countryCode ||
+    contact.country_code ||
+    contact.countryIso ||
+    contact.country_iso ||
+    "+91";
+  const norm = normalizePhoneNumber(rawPhone, countryContext);
+  const phone = norm.isValid ? norm.normalized : rawPhone;
+
   const vcardInput: VCardInput = {
     profileName: contact.name,
     cardName: contact.name,

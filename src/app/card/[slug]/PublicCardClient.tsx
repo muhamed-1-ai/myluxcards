@@ -7,6 +7,7 @@ import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import LeadContactCardDrawer from "@/components/leads/LeadContactCardDrawer";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
+import { normalizePhoneNumber } from "@/lib/phone";
 import { buildVCardString } from "@/lib/vcard";
 import { resolveThemeTokens } from "@/lib/themeTokens";
 
@@ -189,7 +190,7 @@ type CardProfileCertification = {
 type Card = {
   id?: string;
   ownerId?: string;
-  name: string; slug: string; title: string; business: string; countryCode: string; mobile: string;
+  name: string; slug: string; title: string; business: string; countryCode: string; countryIso?: string; mobile: string;
   whatsapp: string; email: string; website: string; state: string; city: string; address: string;
   brochure: string; brochureData?: string; social: Record<string, string>; about: string;
   services: string[]; logo: string; cover: string; active: boolean;
@@ -564,8 +565,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     </main>
   );
 
-  const phone = card.mobile ? `${formatCountryCode(card.countryCode)}${card.mobile}` : "";
-  const whatsapp = card.whatsapp ? `${formatCountryCode(card.countryCode)}${card.whatsapp}` : "";
+  const normalizedPhone = normalizePhoneNumber(card.mobile, card.countryCode || card.countryIso);
+  const phone = normalizedPhone.isValid ? normalizedPhone.normalized : (card.mobile ? `${formatCountryCode(card.countryCode)}${card.mobile}` : "");
+  const normalizedWhatsapp = normalizePhoneNumber(card.whatsapp, card.countryCode || card.countryIso);
+  const whatsapp = normalizedWhatsapp.isValid ? normalizedWhatsapp.normalized : (card.whatsapp ? `${formatCountryCode(card.countryCode)}${card.whatsapp}` : "");
   const location = [card.address, card.city, card.state].filter(Boolean).join(", ");
   const preferredSocialOrder = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "WhatsApp", "Threads"];
   const socials = Object.entries(card.social || {})
@@ -941,34 +944,37 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                   <div className="pc-contact-owner-label">Vehicle Owner</div>
                   {Array.isArray(currentVehicle.ownerContacts) && currentVehicle.ownerContacts.length > 0 ? (
                     <div className="pc-numbers-list">
-                      {currentVehicle.ownerContacts.map((num, idx) => (
-                        <div key={idx} className="pc-number-card">
-                          <div className="pc-number-label">{num.label || "Personal"}</div>
-                          <div className="pc-number-val-row">
-                            <a
-                              href={`tel:${(num.countryCode ? num.countryCode + num.phoneNumber : num.phoneNumber).replace(/\D/g, "")}`}
-                              className="pc-phone-link"
-                              onClick={() => {
-                                trackActivity("PHONE_NUMBER_TAPPED", {
-                                  assetType: "vehicle",
-                                  vehicleId: currentVehicle.id,
-                                  context: "vehicle_owner",
-                                });
-                              }}
-                            >
-                              {num.countryCode ? `${formatCountryCode(num.countryCode)} ` : "+ "}{num.phoneNumber}
-                            </a>
-                            <button
-                              type="button"
-                              className="pc-copy-icon-btn"
-                              title="Copy phone number"
-                              onClick={() => copyToClipboard(num.countryCode ? `${formatCountryCode(num.countryCode)} ${num.phoneNumber}` : `+${num.phoneNumber}`)}
-                            >
-                              ⧉
-                            </button>
+                      {currentVehicle.ownerContacts.map((num, idx) => {
+                        const contactNorm = normalizePhoneNumber(num.phoneNumber, num.countryCode);
+                        return (
+                          <div key={idx} className="pc-number-card">
+                            <div className="pc-number-label">{num.label || "Personal"}</div>
+                            <div className="pc-number-val-row">
+                              <a
+                                href={contactNorm.isValid ? contactNorm.telLink : undefined}
+                                className="pc-phone-link"
+                                onClick={() => {
+                                  trackActivity("PHONE_NUMBER_TAPPED", {
+                                    assetType: "vehicle",
+                                    vehicleId: currentVehicle.id,
+                                    context: "vehicle_owner",
+                                  });
+                                }}
+                              >
+                                {contactNorm.isValid ? contactNorm.displayFormatted : `${num.countryCode ? `${formatCountryCode(num.countryCode)} ` : "+ "}${num.phoneNumber}`}
+                              </a>
+                              <button
+                                type="button"
+                                className="pc-copy-icon-btn"
+                                title="Copy phone number"
+                                onClick={() => copyToClipboard(contactNorm.normalized || (num.countryCode ? `${formatCountryCode(num.countryCode)} ${num.phoneNumber}` : `+${num.phoneNumber}`))}
+                              >
+                                ⧉
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="pc-empty-contact">No contact number has been provided.</div>
@@ -988,34 +994,37 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                           </div>
                           <div className="pc-numbers-list" style={{ marginTop: 8 }}>
                             {Array.isArray(ec.numbers) && ec.numbers.length > 0 ? (
-                              ec.numbers.map((num, nIdx) => (
-                                <div key={nIdx} className="pc-number-card">
-                                  <div className="pc-number-label">{num.label || "Mobile"}</div>
-                                  <div className="pc-number-val-row">
-                                    <a
-                                      href={`tel:${(num.countryCode ? num.countryCode + num.phoneNumber : num.phoneNumber).replace(/\D/g, "")}`}
-                                      className="pc-phone-link"
-                                      onClick={() => {
-                                        trackActivity("PHONE_NUMBER_TAPPED", {
-                                          assetType: "vehicle",
-                                          vehicleId: currentVehicle.id,
-                                          context: "vehicle_emergency",
-                                        });
-                                      }}
-                                    >
-                                      {num.countryCode ? `${formatCountryCode(num.countryCode)} ` : "+ "}{num.phoneNumber}
-                                    </a>
-                                    <button
-                                      type="button"
-                                      className="pc-copy-icon-btn"
-                                      title="Copy phone number"
-                                      onClick={() => copyToClipboard(num.countryCode ? `${formatCountryCode(num.countryCode)} ${num.phoneNumber}` : `+${num.phoneNumber}`)}
-                                    >
-                                      ⧉
-                                    </button>
+                              ec.numbers.map((num, nIdx) => {
+                                const contactNorm = normalizePhoneNumber(num.phoneNumber, num.countryCode);
+                                return (
+                                  <div key={nIdx} className="pc-number-card">
+                                    <div className="pc-number-label">{num.label || "Mobile"}</div>
+                                    <div className="pc-number-val-row">
+                                      <a
+                                        href={contactNorm.isValid ? contactNorm.telLink : undefined}
+                                        className="pc-phone-link"
+                                        onClick={() => {
+                                          trackActivity("PHONE_NUMBER_TAPPED", {
+                                            assetType: "vehicle",
+                                            vehicleId: currentVehicle.id,
+                                            context: "vehicle_emergency",
+                                          });
+                                        }}
+                                      >
+                                        {contactNorm.isValid ? contactNorm.displayFormatted : `${num.countryCode ? `${formatCountryCode(num.countryCode)} ` : "+ "}${num.phoneNumber}`}
+                                      </a>
+                                      <button
+                                        type="button"
+                                        className="pc-copy-icon-btn"
+                                        title="Copy phone number"
+                                        onClick={() => copyToClipboard(contactNorm.normalized || (num.countryCode ? `${formatCountryCode(num.countryCode)} ${num.phoneNumber}` : `+${num.phoneNumber}`))}
+                                      >
+                                        ⧉
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ))
+                                );
+                              })
                             ) : (
                               <div className="pc-empty-contact" style={{ padding: "4px 0" }}>No phone numbers listed.</div>
                             )}
@@ -1160,34 +1169,37 @@ export default function PublicCardClient({ slug }: { slug: string }) {
                   <div className="pc-contact-owner-label">Item Owner</div>
                   {Array.isArray(currentItem.ownerContacts) && currentItem.ownerContacts.length > 0 ? (
                     <div className="pc-numbers-list">
-                      {currentItem.ownerContacts.map((num, idx) => (
-                        <div key={idx} className="pc-number-card">
-                          <div className="pc-number-label">{num.label || "Personal"}</div>
-                          <div className="pc-number-val-row">
-                            <a
-                              href={`tel:${(num.countryCode ? num.countryCode + num.phoneNumber : num.phoneNumber).replace(/\D/g, "")}`}
-                              className="pc-phone-link"
-                              onClick={() => {
-                                trackActivity("PHONE_NUMBER_TAPPED", {
-                                  assetType: "lost_found_item",
-                                  lostItemId: currentItem.id,
-                                  context: "lost_found_owner",
-                                });
-                              }}
-                            >
-                              {num.countryCode ? `${num.countryCode} ` : ""}{num.phoneNumber}
-                            </a>
-                            <button
-                              type="button"
-                              className="pc-copy-icon-btn"
-                              title="Copy phone number"
-                              onClick={() => copyToClipboard(num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber)}
-                            >
-                              ⧉
-                            </button>
+                      {currentItem.ownerContacts.map((num, idx) => {
+                        const contactNorm = normalizePhoneNumber(num.phoneNumber, num.countryCode);
+                        return (
+                          <div key={idx} className="pc-number-card">
+                            <div className="pc-number-label">{num.label || "Personal"}</div>
+                            <div className="pc-number-val-row">
+                              <a
+                                href={contactNorm.isValid ? contactNorm.telLink : undefined}
+                                className="pc-phone-link"
+                                onClick={() => {
+                                  trackActivity("PHONE_NUMBER_TAPPED", {
+                                    assetType: "lost_found_item",
+                                    lostItemId: currentItem.id,
+                                    context: "lost_found_owner",
+                                  });
+                                }}
+                              >
+                                {contactNorm.isValid ? contactNorm.displayFormatted : `${num.countryCode ? `${num.countryCode} ` : ""}${num.phoneNumber}`}
+                              </a>
+                              <button
+                                type="button"
+                                className="pc-copy-icon-btn"
+                                title="Copy phone number"
+                                onClick={() => copyToClipboard(contactNorm.normalized || (num.countryCode ? `${num.countryCode} ${num.phoneNumber}` : num.phoneNumber))}
+                              >
+                                ⧉
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="pc-empty-contact">No contact number has been provided.</div>
@@ -1273,6 +1285,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           phone,
           mobile: card.mobile,
           whatsapp: card.whatsapp,
+          countryCode: card.countryCode,
+          countryIso: card.countryIso,
           email: card.email,
           website: card.website,
           address: location,

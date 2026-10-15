@@ -305,7 +305,20 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       const trimmed = value.trim();
       if (field === "website") output[field] = cleanUrl(trimmed);
       else if (field === "email") output[field] = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed.toLowerCase().slice(0, 254) : "";
-      else if (["mobile","whatsapp","defaultContactPhone","defaultEmergencyPhone"].includes(field)) output[field] = /^[0-9 ()+.-]{0,30}$/.test(trimmed) ? trimmed : "";
+      else if (["mobile","whatsapp","defaultContactPhone","defaultEmergencyPhone"].includes(field)) {
+        if (!/^[0-9 ()+.-]{0,30}$/.test(trimmed)) {
+          output[field] = "";
+        } else {
+          let cleanVal = trimmed.replace(/[^0-9+]/g, "");
+          const cc = String(input.countryCode || "").replace(/\D/g, "") || "91";
+          if (cleanVal.startsWith("+91") && cleanVal.length === 13) {
+            cleanVal = cleanVal.slice(3);
+          } else if (cc === "91" && cleanVal.length === 12 && cleanVal.startsWith("91")) {
+            cleanVal = cleanVal.slice(2);
+          }
+          output[field] = cleanVal;
+        }
+      }
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
       else if (["theme","profileTheme"].includes(field)) output[field] = trimmed.slice(0, 50);
       else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#050B14" : field === "profileAccent" ? "#0066FF" : "#ffffff";

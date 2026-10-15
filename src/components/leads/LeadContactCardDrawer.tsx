@@ -22,6 +22,7 @@ import {
   triggerExplicitVCardDownload,
   resolvePhoneNumber,
 } from "@/lib/contactExport";
+import { normalizePhoneNumber } from "@/lib/phone";
 import "./contact-card-drawer.css";
 
 export interface LeadContactCardDrawerProps {
@@ -97,8 +98,33 @@ export default function LeadContactCardDrawer({
     (activeContact?.business && activeContact.business.trim()) ||
     "Contact Details";
 
-  const phone = activeContact ? resolvePhoneNumber(activeContact) : "";
-  const cleanPhoneDigits = phone.replace(/[^0-9]/g, "");
+  const rawPhone = activeContact ? resolvePhoneNumber(activeContact) : "";
+  const countryContext =
+    activeContact?.countryCode ||
+    activeContact?.country_code ||
+    activeContact?.countryIso ||
+    activeContact?.country_iso ||
+    "+91";
+  const normPhone = normalizePhoneNumber(rawPhone, countryContext);
+  const phone = normPhone.isValid
+    ? (normPhone.displayFormatted || normPhone.normalized)
+    : rawPhone;
+  const telLink = normPhone.telLink;
+  const smsLink = normPhone.smsLink;
+  const waLink = normPhone.waLink;
+  const cleanPhoneDigits = normPhone.waDigits || rawPhone.replace(/[^0-9]/g, "");
+
+  const handlePhoneActionValidation = (e: React.MouseEvent, actionLabel: string) => {
+    if (!normPhone.isValid) {
+      e.preventDefault();
+      if (onToastFeedback) {
+        onToastFeedback(
+          normPhone.error || `Cannot ${actionLabel.toLowerCase()}: invalid or missing phone number.`,
+          true
+        );
+      }
+    }
+  };
   const email = (activeContact?.email || "").trim();
   const company = (
     activeContact?.companyName ||
@@ -261,14 +287,15 @@ export default function LeadContactCardDrawer({
         </div>
 
         {/* Quick Actions Row (Call, Message, WhatsApp, Email) */}
-        {(phone || email) && (
+        {(rawPhone || email) && (
           <div className="zappit-contact-actions-row">
-            {phone && (
+            {rawPhone && (
               <a
-                href={`tel:${phone}`}
-                className="zappit-action-item"
-                title={`Call ${phone}`}
-                aria-label={`Call ${phone}`}
+                href={normPhone.isValid ? telLink : undefined}
+                onClick={(e) => handlePhoneActionValidation(e, "Call")}
+                className={`zappit-action-item ${!normPhone.isValid ? "opacity-60 cursor-not-allowed" : ""}`}
+                title={normPhone.isValid ? `Call ${phone}` : normPhone.error || "Invalid phone number"}
+                aria-label={normPhone.isValid ? `Call ${phone}` : "Invalid phone number"}
               >
                 <div className="zappit-action-btn-circle zappit-action-call">
                   <Phone className="w-5 h-5" />
@@ -277,12 +304,13 @@ export default function LeadContactCardDrawer({
               </a>
             )}
 
-            {phone && (
+            {rawPhone && (
               <a
-                href={`sms:${phone}`}
-                className="zappit-action-item"
-                title={`Send SMS to ${phone}`}
-                aria-label={`Message ${phone}`}
+                href={normPhone.isValid ? smsLink : undefined}
+                onClick={(e) => handlePhoneActionValidation(e, "Message")}
+                className={`zappit-action-item ${!normPhone.isValid ? "opacity-60 cursor-not-allowed" : ""}`}
+                title={normPhone.isValid ? `Send SMS to ${phone}` : normPhone.error || "Invalid phone number"}
+                aria-label={normPhone.isValid ? `Message ${phone}` : "Invalid phone number"}
               >
                 <div className="zappit-action-btn-circle zappit-action-message">
                   <MessageSquare className="w-5 h-5" />
@@ -291,14 +319,15 @@ export default function LeadContactCardDrawer({
               </a>
             )}
 
-            {phone && (
+            {rawPhone && (
               <a
-                href={`https://wa.me/${cleanPhoneDigits}`}
+                href={normPhone.isValid ? waLink : undefined}
+                onClick={(e) => handlePhoneActionValidation(e, "WhatsApp")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="zappit-action-item"
-                title="Open WhatsApp chat"
-                aria-label="Open WhatsApp chat"
+                className={`zappit-action-item ${!normPhone.isValid ? "opacity-60 cursor-not-allowed" : ""}`}
+                title={normPhone.isValid ? "Open WhatsApp chat" : normPhone.error || "Invalid phone number"}
+                aria-label={normPhone.isValid ? "Open WhatsApp chat" : "Invalid phone number"}
               >
                 <div className="zappit-action-btn-circle zappit-action-whatsapp">
                   <MessageCircle className="w-5 h-5" />
@@ -325,17 +354,21 @@ export default function LeadContactCardDrawer({
 
         {/* Contact Details Surface */}
         <div className="zappit-details-surface">
-          {phone && (
+          {rawPhone && (
             <div className="zappit-detail-row">
               <div className="zappit-detail-content">
                 <span className="zappit-detail-label">Mobile</span>
-                <a href={`tel:${phone}`} className="zappit-detail-value">
+                <a
+                  href={normPhone.isValid ? telLink : undefined}
+                  onClick={(e) => handlePhoneActionValidation(e, "Call")}
+                  className="zappit-detail-value"
+                >
                   {phone}
                 </a>
               </div>
               <button
                 type="button"
-                onClick={() => handleCopy(phone, "Mobile Number")}
+                onClick={() => handleCopy(normPhone.normalized || rawPhone, "Mobile Number")}
                 className="zappit-copy-btn"
                 title="Copy Mobile Number"
                 aria-label="Copy Mobile Number"

@@ -4534,6 +4534,17 @@ function ProfileProductsManager({ cardId }: { cardId?: string }) {
   );
 }
 
+function cleanNationalPhoneInput(val: string, countryCode?: string): string {
+  let digits = val.replace(/\D/g, "");
+  const ccDigits = (countryCode || "+91").replace(/\D/g, "") || "91";
+  if (ccDigits === "91" && digits.length === 12 && digits.startsWith("91")) {
+    digits = digits.slice(2);
+  } else if (ccDigits && digits.length > 10 && digits.startsWith(ccDigits)) {
+    digits = digits.slice(ccDigits.length);
+  }
+  return digits;
+}
+
 function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) {
   const [dialCodes, setDialCodes] = useState<DialCode[]>([]);
   const [locationApi, setLocationApi] = useState<LocationApi | null>(null);
@@ -4599,8 +4610,8 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
       }} onBlur={() => setCountryQuery(selectedCountry ? countryLabel(selectedCountry) : "")} />
       <datalist id="country-code-options">{dialCodes.map((country) => <option key={country.iso} value={countryLabel(country)} />)}</datalist>
     </div></Field>
-    <Field label="Mobile Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.mobile} onChange={(e) => { update("mobile", e.target.value.replace(/\D/g, "")); if (same) update("whatsapp", e.target.value.replace(/\D/g, "")); }} inputMode="tel" placeholder="e.g. 9555555345" /></div></Field>
-    <Field label="WhatsApp Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.whatsapp} disabled={same} onChange={(e) => update("whatsapp", e.target.value.replace(/\D/g, ""))} inputMode="tel" placeholder="e.g. 9555555345" /></div><label className="same"><input type="checkbox" checked={same} onChange={(e) => { setSame(e.target.checked); if (e.target.checked) update("whatsapp", draft.mobile); }} /> Same as mobile</label></Field>
+    <Field label="Mobile Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.mobile} onChange={(e) => { const cleaned = cleanNationalPhoneInput(e.target.value, draft.countryCode); update("mobile", cleaned); if (same) update("whatsapp", cleaned); }} inputMode="tel" placeholder="e.g. 9555555345" /></div></Field>
+    <Field label="WhatsApp Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.whatsapp} disabled={same} onChange={(e) => update("whatsapp", cleanNationalPhoneInput(e.target.value, draft.countryCode))} inputMode="tel" placeholder="e.g. 9555555345" /></div><label className="same"><input type="checkbox" checked={same} onChange={(e) => { setSame(e.target.checked); if (e.target.checked) update("whatsapp", draft.mobile); }} /> Same as mobile</label></Field>
     <Field label="Email Address" error={errors.email}><input type="email" value={draft.email} onChange={(e) => update("email", e.target.value)} placeholder="name@company.com" /></Field>
     <Field label="Website" error={errors.website}><input value={draft.website} onChange={(e) => update("website", e.target.value)} placeholder="https://example.com" /></Field>
     <Field label="State / Province"><div className={`country-search ${!selectedCountryIso ? "is-disabled" : ""}`}>

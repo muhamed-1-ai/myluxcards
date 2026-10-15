@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardProfileProduct } from "@/lib/cards";
+import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
 import { resolveThemeTokens, isLightColor, getLuminance } from "@/lib/themeTokens";
 import {
@@ -55,6 +56,7 @@ export interface ModernProfileLayoutProps {
     title?: string;
     business?: string;
     countryCode?: string;
+    countryIso?: string;
     mobile?: string;
     whatsapp?: string;
     email?: string;
@@ -214,8 +216,10 @@ export function ModernProfileLayout({
 
   const name = card.name || "Your Name";
   const subtitle = [card.title, card.business].filter(Boolean).join(" – ");
-  const fullPhone = card.mobile ? `${formatCountryCode(card.countryCode)} ${card.mobile}`.trim() : "";
-  const fullWhatsapp = card.whatsapp ? `${formatCountryCode(card.countryCode)} ${card.whatsapp}`.trim() : "";
+  const normPhone = normalizePhoneNumber(card.mobile, card.countryCode || card.countryIso);
+  const fullPhone = normPhone.isValid ? (normPhone.displayFormatted || normPhone.normalized) : (card.mobile || "");
+  const normWhatsapp = normalizePhoneNumber(card.whatsapp, card.countryCode || card.countryIso);
+  const fullWhatsapp = normWhatsapp.isValid ? (normWhatsapp.displayFormatted || normWhatsapp.normalized) : (card.whatsapp || "");
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
   const socialLinks = [
@@ -352,14 +356,14 @@ export function ModernProfileLayout({
                   </div>
                   <div className="zappit-modern-contact-body">
                     <span className="zappit-modern-label">Mobile</span>
-                    <a href={`tel:${card.mobile}`} className="zappit-modern-val">
+                    <a href={normPhone.isValid ? normPhone.telLink : undefined} className="zappit-modern-val">
                       {fullPhone}
                     </a>
                   </div>
                   <button
                     type="button"
                     className="zappit-modern-copy-btn"
-                    onClick={() => handleCopy(fullPhone, "phone")}
+                    onClick={() => handleCopy(normPhone.normalized || fullPhone, "phone")}
                     title="Copy phone"
                   >
                     {copiedField === "phone" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -407,10 +411,10 @@ export function ModernProfileLayout({
                     <span className="zappit-modern-val">{fullWhatsapp}</span>
                   </div>
                   <a
-                    href={`https://wa.me/${card.whatsapp?.replace(/\D/g, "")}`}
+                    href={normWhatsapp.isValid ? normWhatsapp.waLink : undefined}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="zappit-modern-chat-btn"
+                    className={`zappit-modern-chat-btn ${!normWhatsapp.isValid ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                     <span>Chat</span>

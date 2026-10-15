@@ -29,6 +29,7 @@ import LeadSourceBadge from "./LeadSourceBadge";
 import "./lead-drawer.css";
 import { FollowUpType, normalizeFollowUpType } from "@/lib/follow-up-types";
 import { exportLeadContact } from "@/lib/contactExport";
+import { normalizePhoneNumber } from "@/lib/phone";
 
 interface NextFollowUpData {
   id: string;
@@ -568,56 +569,61 @@ export default function LeadDetailsDrawer({
                     </div>
 
                     {/* Phone & Inline Actions */}
-                    <div className="lead-drawer-phone-row">
-                      <Phone className="lead-drawer-contact-icon" />
-                      <span className="lead-drawer-phone-prefix">IN</span>
-                      <span className="lead-drawer-phone-number">
-                        {lead.contactNumber || "No contact number"}
-                      </span>
+                    {(() => {
+                      const norm = normalizePhoneNumber(lead.contactNumber);
+                      return (
+                        <div className="lead-drawer-phone-row">
+                          <Phone className="lead-drawer-contact-icon" />
+                          <span className="lead-drawer-phone-prefix">IN</span>
+                          <span className="lead-drawer-phone-number">
+                            {norm.isValid ? (norm.displayFormatted || norm.normalized) : (lead.contactNumber || "No contact number")}
+                          </span>
 
-                      {/* WhatsApp Green Icon Circle */}
-                      <a
-                        href={`https://wa.me/${(lead.contactNumber || "").replace(/[^0-9]/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="WhatsApp"
-                        className="lead-drawer-wa-btn"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 fill-current" />
-                      </a>
-                      {/* Call Button */}
-                      <a
-                        href={`tel:${lead.contactNumber || ""}`}
-                        title="Call"
-                        className="lead-drawer-call-btn"
-                      >
-                        <Phone className="w-3.5 h-3.5 fill-current" />
-                        <span>Call</span>
-                      </a>
-                      {/* Save Contact Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          exportLeadContact({
-                            id: lead.id,
-                            name: lead.name,
-                            contactNumber: lead.contactNumber,
-                            email: lead.email,
-                            companyName: lead.companyName,
-                            address: lead.address,
-                          });
-                        }}
-                        title="Save Contact"
-                        aria-label={`Save contact for ${lead.name || "lead"}`}
-                        className="lead-drawer-call-btn"
-                        style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", borderColor: "rgba(0, 102, 255, 0.3)" }}
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>Save</span>
-                      </button>
-                    </div>
+                          {/* WhatsApp Green Icon Circle */}
+                          <a
+                            href={norm.isValid ? norm.waLink : (lead.contactNumber ? `https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}` : undefined)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="WhatsApp"
+                            className={`lead-drawer-wa-btn ${!norm.isValid && !lead.contactNumber ? "opacity-40 pointer-events-none" : ""}`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 fill-current" />
+                          </a>
+                          {/* Call Button */}
+                          <a
+                            href={norm.isValid ? norm.telLink : undefined}
+                            title="Call"
+                            className={`lead-drawer-call-btn ${!norm.isValid ? "opacity-40 pointer-events-none" : ""}`}
+                          >
+                            <Phone className="w-3.5 h-3.5 fill-current" />
+                            <span>Call</span>
+                          </a>
+                          {/* Save Contact Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              exportLeadContact({
+                                id: lead.id,
+                                name: lead.name,
+                                contactNumber: lead.contactNumber,
+                                email: lead.email,
+                                companyName: lead.companyName,
+                                address: lead.address,
+                              });
+                            }}
+                            title="Save Contact"
+                            aria-label={`Save contact for ${lead.name || "lead"}`}
+                            className="lead-drawer-call-btn"
+                            style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", borderColor: "rgba(0, 102, 255, 0.3)" }}
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Save</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     {/* Business */}
                     <div className="lead-drawer-contact-row">
@@ -669,7 +675,7 @@ export default function LeadDetailsDrawer({
                             <span>{followUpPill.label}</span>
                           </div>
                           <a
-                            href={`https://wa.me/${(lead.contactNumber || "919744850272").replace(/[^0-9]/g, "")}`}
+                            href={normalizePhoneNumber(lead.contactNumber || "919744850272").waLink}
                             target="_blank"
                             rel="noreferrer"
                             title="WhatsApp"
