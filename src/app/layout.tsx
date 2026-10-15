@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Zappit | One Tap. Your Digital World Connected.',
   description: 'Smart NFC cards, vehicle identification, lost & found solutions, and business tools connected through one powerful Zappit platform.',
   keywords: ['Zappit', 'Smart Tap Solutions', 'NFC business cards', 'digital identity', 'vehicle identification', 'lost and found QR', 'NFC keytags'],
-  authors: [{ name: 'Antigravity Team' }],
+  authors: [{ name: 'Zappit' }],
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

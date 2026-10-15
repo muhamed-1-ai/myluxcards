@@ -102,10 +102,6 @@ const redesignedMarkup = `
 
           <div class="hero-cta-group">
             <a href="#bundles" class="apple-btn apple-btn-primary">Get Your Card</a>
-            <button class="apple-btn apple-btn-glass" id="tap-demo-trigger" type="button" onclick="document.getElementById('tap-card')?.click()">
-              <i data-lucide="zap" style="width: 16px; height: 16px; margin-right: 4px;"></i>
-              Try the Tap Demo
-            </button>
           </div>
         </div>
 
@@ -214,7 +210,7 @@ const redesignedMarkup = `
         </div>
         <div class="hero-pill-item">
           <i data-lucide="qr-code"></i>
-          <span>Laser-Engraved QR Backup</span>
+          <span>High-Contrast QR Backup</span>
         </div>
         <div class="hero-pill-item">
           <i data-lucide="smartphone"></i>
@@ -222,7 +218,7 @@ const redesignedMarkup = `
         </div>
         <div class="hero-pill-item">
           <i data-lucide="refresh-cw"></i>
-          <span>Unlimited Cloud Profile Updates</span>
+          <span>Live Cloud Profile Updates</span>
         </div>
       </div>
     </div>
@@ -245,7 +241,7 @@ const redesignedMarkup = `
             <i data-lucide="shield-check"></i>
           </div>
           <h3>Dual-Layer Connection</h3>
-          <p>Every card features a high-frequency NFC antenna paired with a high-contrast QR code backup for complete phone compatibility.</p>
+          <p>Every card features an NFC antenna paired with a high-contrast QR code backup for broad smartphone compatibility.</p>
         </article>
 
         <article class="trust-card">
@@ -260,8 +256,8 @@ const redesignedMarkup = `
           <div class="trust-icon-box">
             <i data-lucide="check-circle-2"></i>
           </div>
-          <h3>Pre-Dispatch Tested</h3>
-          <p>Every single card is individually signal-tested for NFC resonance and print fidelity before it leaves our workshop.</p>
+          <h3>Quality Checked Hardware</h3>
+          <p>Cards are constructed with durable water-resistant PVC and checked for NFC chip encoding and URL routing before dispatch.</p>
         </article>
       </div>
     </div>
@@ -283,9 +279,9 @@ const redesignedMarkup = `
             <img src="/assets/black-pvc-card.jpg" alt="Zappit Velvet Matte Black PVC smart card" class="material-img" loading="lazy">
           </div>
           <div class="material-body">
-            <span class="material-badge">Best Seller</span>
+            <span class="material-badge">Matte Finish</span>
             <h3>Velvet Matte Black PVC</h3>
-            <p>Deep obsidian polymer treated with a soft-touch micro-texture and chamfered edges. Scratch-resistant, waterproof, and equipped with a full-surface NFC antenna.</p>
+            <p>Deep obsidian polymer treated with a soft-touch matte finish and chamfered edges. Water-resistant, durable, and equipped with an embedded high-speed NFC antenna.</p>
             <div class="material-footer">
               <div class="material-price">₹899 <small>incl. 1-year profile</small></div>
               <a href="#bundles" class="apple-btn apple-btn-glass">Choose Black</a>
@@ -328,7 +324,7 @@ const redesignedMarkup = `
             <i data-lucide="user-plus"></i>
           </div>
           <h3>One-Tap Contact Save</h3>
-          <p>Recipients can download your verified .vcf contact card straight to their phone address book with a single tap.</p>
+          <p>Recipients can download your standard .vcf contact card with one tap and prompt to save your details directly into their phone contacts.</p>
         </article>
 
         <!-- WhatsApp Integration -->
@@ -336,17 +332,17 @@ const redesignedMarkup = `
           <div class="bento-icon">
             <i data-lucide="message-circle"></i>
           </div>
-          <h3>WhatsApp Quick Chat</h3>
-          <p>Pre-configure a greeting message so new leads and partners can initiate direct WhatsApp conversations instantly.</p>
+          <h3>WhatsApp Direct Chat</h3>
+          <p>Set up a direct WhatsApp chat link with an optional pre-filled greeting so visitors can message you directly in WhatsApp with one tap.</p>
         </article>
 
-        <!-- Digital Wallet -->
+        <!-- Vehicle & Recovery Modes -->
         <article class="bento-card">
           <div class="bento-icon">
-            <i data-lucide="wallet"></i>
+            <i data-lucide="shield-alert"></i>
           </div>
-          <h3>Apple & Google Wallet</h3>
-          <p>Keep a digital backup pass saved inside Apple Wallet or Google Wallet ready to display whenever your card is in your bag.</p>
+          <h3>Vehicle &amp; Recovery Modes</h3>
+          <p>Switch your profile to Vehicle Connect to display parking notes and emergency contacts, or enable private Lost &amp; Found QR tags.</p>
         </article>
 
         <!-- Catalogue & Booking (Wide) -->
@@ -354,8 +350,8 @@ const redesignedMarkup = `
           <div class="bento-icon">
             <i data-lucide="calendar"></i>
           </div>
-          <h3>Appointment Booking & Service Catalogue</h3>
-          <p>Embed your Calendly, Google Calendar, or service pricing directly on your profile page so prospects can book meetings or review your offerings immediately after meeting you.</p>
+          <h3>Service Showcase &amp; Booking Links</h3>
+          <p>Display your products and services with pricing, and link directly to your Calendly or booking page so clients can schedule time or review offerings.</p>
         </article>
 
         <!-- Privacy Controls -->
@@ -382,8 +378,8 @@ const redesignedMarkup = `
       <div class="steps-grid">
         <article class="step-item">
           <span class="step-number">01</span>
-          <h3>Design and customise</h3>
-          <p>Select your card material, background tones, and typography in our Studio Configurator below, then preview your design live.</p>
+          <h3>Choose your card</h3>
+          <p>Select your card material (Matte Black or Ceramic White PVC), place your order, and receive your card delivered ready to tap.</p>
         </article>
 
         <article class="step-item">
@@ -423,7 +419,7 @@ const redesignedMarkup = `
             <div class="bundle-price-block">
               <div class="bundle-price-row">
                 <span class="bundle-currency">₹</span>
-                <span class="bundle-price">799</span>
+                <span class="bundle-price">1,000</span>
                 <span class="bundle-price-term">onwards</span>
               </div>
               <div class="bundle-billing-type">One-time hardware purchase</div>
@@ -442,27 +438,19 @@ const redesignedMarkup = `
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>High-speed NTAG216 chip + laser-engraved QR backup</span>
+                <span>High-speed NTAG216 chip + high-contrast QR backup</span>
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Digital profile page with 1-tap contact save (.vcf download)</span>
+                <span>Digital profile page with 1-tap contact download (.vcf file)</span>
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Social links, WhatsApp quick chat, and bio details</span>
+                <span>Social links, direct WhatsApp link, and profile bio</span>
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Apple Wallet &amp; Google Wallet digital pass integration</span>
-              </li>
-              <li>
-                <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Unlimited cloud profile updates without reprinting</span>
-              </li>
-              <li>
-                <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Real-time QR and tap scan activity analytics</span>
+                <span>Live cloud profile updates anytime without reprinting</span>
               </li>
             </ul>
           </div>
@@ -483,10 +471,12 @@ const redesignedMarkup = `
             
             <div class="bundle-price-block">
               <div class="bundle-price-row">
-                <span class="bundle-custom-price">Contact for Pricing</span>
+                <span class="bundle-currency">₹</span>
+                <span class="bundle-price">2,000</span>
+                <span class="bundle-price-term">onwards</span>
               </div>
-              <div class="bundle-billing-type">Hardware + Custom Team SaaS</div>
-              <p class="bundle-billing-detail">One-time NFC card (from ₹799) plus tailored team subscription based on seats and requirements.</p>
+              <div class="bundle-billing-type">Hardware + Lead Management SaaS</div>
+              <p class="bundle-billing-detail">Includes smart NFC card + complete Lead Management CRM access. No app required.</p>
             </div>
           </div>
 
@@ -505,7 +495,7 @@ const redesignedMarkup = `
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Automated follow-up scheduling, calendar &amp; reminder alerts</span>
+                <span>Follow-up scheduling with calendar tracking &amp; in-app reminder alerts</span>
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
@@ -534,7 +524,7 @@ const redesignedMarkup = `
   <section class="apple-final-cta" aria-labelledby="cta-headline">
     <div class="final-cta-container">
       <h2 class="final-cta-headline" id="cta-headline">Make an impression that lasts.</h2>
-      <p class="final-cta-desc">Engineered with aerospace-grade composite materials and high-speed NFC technology. Delivered ready to tap.</p>
+      <p class="final-cta-desc">Engineered with durable PVC polymer materials and high-speed NFC technology. Delivered ready to tap.</p>
       <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
         <a href="#bundles" class="apple-btn apple-btn-primary" style="font-size: 1.05rem; padding: 16px 36px;">Get Started</a>
         <a href="/dashboard" class="apple-btn apple-btn-glass" style="font-size: 1.05rem; padding: 16px 36px;">Open Dashboard</a>

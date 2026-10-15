@@ -19,6 +19,12 @@ export default function Page() {
     .replace(/<!-- Wishlist Drawer -->[\s\S]*?<!-- Cart Drawer -->/, "<!-- Cart Drawer -->")
     .replace(/<!-- Cart Drawer -->[\s\S]*?<!-- Login Modal -->/, "<!-- Login Modal -->")
     .replace(/<!-- Login Modal -->[\s\S]*?<!-- Toast Alerts Container -->/, "<!-- Toast Alerts Container -->")
-    .replaceAll('/brand/zappit-logo.png', '/brand/zappit-logo-transparent.png');
+    .replaceAll('/brand/zappit-logo.png', '/brand/zappit-logo-transparent.png')
+    .replace('alt="3G Zappit logo"', 'alt="Zappit logo"')
+    .replace('&copy; 2026 MYmyluxcards. Crafted with absolute elegance. All Rights Reserved.', '&copy; 2026 Zappit. All rights reserved.')
+    .replace('<p>Tap the future</p>', '<p>Smart connections, beautifully made.</p>')
+    .replace('<a href="#">Privacy Policy</a>', '<a href="/privacy-policy">Privacy Policy</a>')
+    .replace('<a href="#">Terms of Service</a>', '<a href="/terms-of-service">Terms of Service</a>')
+    .replace('<a href="#">Refund Policy</a>', '<a href="/refunds">Refund Policy</a>');
   return <LegacyPage markup={cleanMarkup} />;
 }
