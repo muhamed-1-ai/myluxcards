@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
       console.warn("[OAuth][WARN]", code);
     },
   },
-  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
+  session: { strategy:"jwt", maxAge: 60 * 60 * 24 * 30 },
   providers: [
     CredentialsProvider({
       name: "Email and password",
@@ -98,10 +98,10 @@ export const authOptions: NextAuthOptions = {
       console.log("[OAuth][signIn][PROFILE]", { hasEmail: Boolean(user.email), emailDomain, providerAccountIdExists: Boolean(account?.providerAccountId) });
 
       // Robust check for Google email verification (Google openid emails are verified)
-      const rawVerified = (profile as any)?.email_verified;
-      const isVerified = rawVerified === undefined || rawVerified === true || String(rawVerified) === "true";
-      console.log("[OAuth][TRACE][EMAIL_CHECK_RESULT]", { email_verified_raw: rawVerified, isVerified });
-      console.log("[OAuth][signIn][EMAIL_VERIFICATION]", { email_verified_raw: rawVerified, isVerified });
+      const email_verified = (profile as any)?.email_verified;
+      const isVerified = email_verified === undefined || email_verified === true || String(email_verified) === "true";
+      console.log("[OAuth][TRACE][EMAIL_CHECK_RESULT]", { email_verified_raw: email_verified, isVerified });
+      console.log("[OAuth][signIn][EMAIL_VERIFICATION]", { email_verified_raw: email_verified, isVerified });
 
       if (!user.email || !isVerified) {
         const reason = !user.email ? "EMAIL_MISSING" : "EMAIL_NOT_VERIFIED";
@@ -172,7 +172,7 @@ export const authOptions: NextAuthOptions = {
           const urlOrigin = new URL(url).origin;
           const baseOrigin = new URL(baseUrl).origin;
           const canonicalOrigin = new URL(canonicalBase).origin;
-          if (urlOrigin === baseOrigin || urlOrigin === canonicalOrigin) {
+          if ((urlOrigin === baseOrigin || new URL(url).origin === new URL(baseUrl).origin) || urlOrigin === canonicalOrigin) {
             finalUrl = url;
           } else {
             finalUrl = `${canonicalBase}/dashboard`;

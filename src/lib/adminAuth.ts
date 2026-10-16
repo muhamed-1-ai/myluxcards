@@ -34,7 +34,7 @@ export async function currentIdentity(): Promise<AdminIdentity | null>;
 export async function currentIdentity(req?: Request): Promise<AdminIdentity | null>;
 export async function currentIdentity(req?: Request): Promise<AdminIdentity | null> {
   // Verification delegate to core auth engine.
-  // Ensures profile.disabled, profile.status === "DISABLED", profile.session_version !== session.user.sessionVersion are verified.
+  // Ensures profile.disabled, profile.status === "DISABLED", profile.session_version!==session.user.sessionVersion, profile.role are verified.
   const identity = await currentIdentityCore(req);
   if (!identity) return null;
 

@@ -42,6 +42,7 @@ interface FollowUpReminderModalProps {
 export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [reminders, setReminders] = useState<DueReminder[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -71,12 +72,71 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
     }
   }, []);
 
-  // Fetch pending due reminders from API
+  // Check authentication status before initiating any authenticated background requests
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setIsAuthenticated(Boolean(data?.user?.id));
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+
+    const handleAuthChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isAuthenticated?: boolean }>;
+      if (typeof customEvent.detail?.isAuthenticated === "boolean") {
+        setIsAuthenticated(customEvent.detail.isAuthenticated);
+        if (!customEvent.detail.isAuthenticated) {
+          setReminders([]);
+        }
+      } else {
+        checkAuth();
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "myluxcards_current_user") {
+        if (!e.newValue) {
+          setIsAuthenticated(false);
+          setReminders([]);
+        } else {
+          checkAuth();
+        }
+      }
+    };
+
+    window.addEventListener("zappit:auth-changed", handleAuthChange);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("zappit:auth-changed", handleAuthChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [checkAuth]);
+
+  // Fetch pending due reminders from API only when authenticated
   const fetchDueReminders = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       const res = await fetch("/api/follow-ups/reminders/due", {
         headers: { Accept: "application/json" },
       });
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        setReminders([]);
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data.dueReminders)) {
@@ -91,10 +151,12 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
     } catch {
       // Ignore background fetch errors
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Sync across browser tabs via BroadcastChannel & localStorage
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     fetchDueReminders();
 
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
@@ -153,16 +215,18 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
         broadcastChannelRef.current.close();
       }
     };
-  }, [fetchDueReminders]);
+  }, [isAuthenticated, fetchDueReminders]);
 
   // Real-time Server-Sent Events (SSE) notification listener
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     let eventSource: EventSource | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let isUnmounted = false;
 
     const connectSSE = () => {
-      if (isUnmounted) return;
+      if (isUnmounted || !isAuthenticated) return;
       try {
         eventSource = new EventSource("/api/notifications/stream");
 
@@ -193,7 +257,23 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
             eventSource = null;
           }
           if (!isUnmounted) {
-            reconnectTimeout = setTimeout(connectSSE, 4000);
+            // Check if still authenticated before scheduling a reconnect
+            fetch("/api/auth/me", { cache: "no-store" })
+              .then((res) => res.json())
+              .then((data) => {
+                if (data?.user?.id && !isUnmounted) {
+                  reconnectTimeout = setTimeout(connectSSE, 5000);
+                } else if (!isUnmounted) {
+                  setIsAuthenticated(false);
+                  setReminders([]);
+                }
+              })
+              .catch(() => {
+                if (!isUnmounted) {
+                  setIsAuthenticated(false);
+                  setReminders([]);
+                }
+              });
           }
         };
       } catch {
@@ -208,7 +288,7 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (eventSource) eventSource.close();
     };
-  }, [fetchDueReminders]);
+  }, [isAuthenticated, fetchDueReminders]);
 
   const notifyOtherTabs = (followUpId: string, reminderVersion: number, action: "dismiss" | "complete" | "snooze") => {
     try {

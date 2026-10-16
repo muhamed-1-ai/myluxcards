@@ -70,7 +70,7 @@ class LuxApp {
     const button = document.getElementById('login-trigger');
     if (!button) return;
     if (!user) {
-      button.textContent = 'Login';
+      button.innerHTML = `<i data-lucide="user" style="width:16px;height:16px;"></i><span class="account-label">Login</span>`;
       button.removeAttribute('title');
       button.removeAttribute('data-authenticated');
       button.setAttribute('aria-label', 'Login');
@@ -78,14 +78,22 @@ class LuxApp {
       const dropdown = document.getElementById('account-dropdown');
       if (dropdown) dropdown.hidden = true;
       this.updateMobileAccountMenu(null);
+      if (window.lucide) window.lucide.createIcons();
       return;
     }
-    button.textContent = user.name?.split(' ')[0] || 'Account';
+    const fullName = String(user.name || '').trim();
+    const normalizedName = fullName.toLowerCase().replace(/[^a-z]/g, '');
+    const firstName = normalizedName.startsWith('muhammed')
+      ? 'Muhammed'
+      : fullName.split(/[\s._-]+/)[0] || 'Account';
+    const initial = firstName.charAt(0).toUpperCase();
+    button.innerHTML = `<span class="account-avatar-badge">${initial}</span><span class="account-label">${firstName}</span>`;
     button.title = `Signed in as ${user.email}`;
     button.dataset.authenticated = 'true';
-    button.setAttribute('aria-label', `Signed in as ${user.name || user.email}`);
+    button.setAttribute('aria-label', `Open account menu for ${user.name || user.email}`);
     button.setAttribute('aria-expanded', 'false');
     this.updateMobileAccountMenu(user);
+    if (window.lucide) window.lucide.createIcons();
   }
 
   updateMobileAccountMenu(user) {
@@ -94,36 +102,33 @@ class LuxApp {
     nav.querySelector('.mobile-account-actions')?.remove();
     const item = document.createElement('li');
     item.className = 'mobile-account-actions';
-    if (!user) {
-      item.innerHTML = '<button type="button" class="nav-link mobile-login">Log in</button>';
+    if (user) {
+      const name = String(user.name || '').trim().split(/\s+/)[0] || 'Account';
+      item.innerHTML = `<a href="/dashboard" class="nav-link">${name} Dashboard</a><button type="button" class="nav-link mobile-logout">Log out</button>`;
+      item.querySelector('.mobile-logout')?.addEventListener('click', () => this.logout());
+    } else {
+      item.innerHTML = '<button type="button" class="nav-link mobile-login">Login</button>';
       item.querySelector('.mobile-login')?.addEventListener('click', () => {
+        nav.classList.remove('is-open');
         nav.style.display = 'none';
         document.getElementById('hamburger')?.setAttribute('aria-expanded', 'false');
-        document.getElementById('login-modal')?.classList.add('open');
+        document.getElementById('hamburger')?.setAttribute('aria-label', 'Open menu');
+        const modal = document.getElementById('login-modal');
+        if (modal) modal.classList.add('open');
       });
-      nav.appendChild(item);
-      return;
     }
-    item.innerHTML = `<a href="/dashboard" class="nav-link">${user.name?.split(' ')[0] || 'Account'} dashboard</a><button type="button" class="nav-link mobile-logout">Log out</button>`;
     nav.appendChild(item);
-    item.querySelector('.mobile-logout')?.addEventListener('click', () => this.logout());
   }
 
   async logout() {
-    const button = document.getElementById('account-logout');
-    if (button) button.disabled = true;
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } finally {
-      localStorage.removeItem('myluxcards_current_user');
-      sessionStorage.removeItem('myluxcards_auth_next');
-      this.updateAccountButton(null);
-      const dropdown = document.getElementById('account-dropdown');
-      if (dropdown) dropdown.hidden = true;
-      window.location.replace('/');
-    }
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (_) {}
+    localStorage.removeItem('myluxcards_current_user');
+    window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: false, user: null } }));
+    this.updateAccountButton(null);
+    window.location.replace('/');
   }
-
 
   async loginWithGoogle() {
     const googleBtns = document.querySelectorAll('.btn-google, .google-auth-button, #google-login, #google-login-btn, #google-signup-btn');
@@ -196,42 +201,37 @@ class LuxApp {
   setupGoogleOneTap() {}
   handleGoogleOneTapResponse() {}
 
-
   init() {
-    // 1. Instant Loader dismissal
-    const hideLoader = () => {
-      const loader = document.getElementById('page-loader');
-      if (!loader) return;
-      loader.classList.add('is-hidden');
-      loader.style.opacity = '0';
-      setTimeout(() => loader.style.display = 'none', 300);
-    };
-
-    hideLoader();
-    window.addEventListener('load', hideLoader);
+    this.dismissPageLoader();
+    window.addEventListener('load', () => this.dismissPageLoader());
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      hideLoader();
+      this.dismissPageLoader();
     }
 
-    // 3. Render Initial Catalog Grid
-    this.renderCatalog();
-    this.renderCategoryChips();
-    this.renderTestimonials();
-    this.initTestimonialAutoPlay();
-    this.renderSupportTickets();
-    this.updateCounters();
-    this.initTheme();
+    try {
+      // Render Initial Catalog & Components
+      this.renderCatalog();
+      this.renderCategoryChips();
+      this.renderTestimonials();
+      this.initTestimonialAutoPlay();
+      this.renderSupportTickets();
+      this.updateCounters();
+      this.initTheme();
 
-    // 4. Bind All UI Events
-    this.bindEvents();
-    this.initScrollReveal();
-    this.initHeroParticles();
-    this.initEngagementBanner();
-    this.initCustomCursor();
-    this.initConfigurator();
-    this.initTapDemo();
-    this.initProfileBuilder();
-    this.initLeadCapture();
+      // Bind All UI Events
+      this.bindEvents();
+      this.initScrollReveal();
+      this.initHeroParticles();
+      this.initEngagementBanner();
+      this.initConfigurator();
+      this.initTapDemo();
+      this.initProfileBuilder();
+      this.initLeadCapture();
+    } catch (err) {
+      console.error('[Zappit App] Step initialization error:', err);
+    } finally {
+      this.dismissPageLoader();
+    }
   }
 
   initCustomCursor() {
@@ -252,7 +252,7 @@ class LuxApp {
     const animateCursor = () => {
       ringX += (mouseX - ringX) * speedRing;
       ringY += (mouseY - ringY) * speedRing;
-      
+
       ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate3d(-50%, -50%, 0)`;
       requestAnimationFrame(animateCursor);
     };
@@ -270,6 +270,10 @@ class LuxApp {
   }
 
   initConfigurator() {
+    if (document.querySelector('.guided-configurator')) {
+      this.initGuidedConfigurator();
+      return;
+    }
     const swatches = document.querySelectorAll('.color-swatch');
     const configCard = document.getElementById('config-card');
     if (!swatches.length || !configCard) return;
@@ -280,10 +284,10 @@ class LuxApp {
       swatch.addEventListener('click', () => {
         swatches.forEach(s => s.classList.remove('active'));
         swatch.classList.add('active');
-        
+
         const color = swatch.dataset.color;
         const accent = swatch.dataset.accent;
-        
+
         configCard.style.background = `linear-gradient(135deg, ${color}, #000)`;
         configCard.style.color = accent;
         configCard.style.borderColor = accent;
@@ -347,6 +351,152 @@ class LuxApp {
     });
   }
 
+  initGuidedConfigurator() {
+    const card = document.getElementById('config-card');
+    if (!card) return;
+    const $ = id => document.getElementById(id);
+    const steps = [...document.querySelectorAll('.designer-step')];
+    let step = 1;
+    let material = { name: 'White PVC', price: 799 };
+    let logoData = '';
+    const bg = $('custom-card-bg');
+    const ink = $('custom-card-text');
+    const warning = $('design-warning');
+    const getDesign = () => ({
+      material: material.name, finish: $('card-finish')?.value || 'Matte',
+      name: $('card-name-input')?.value.trim() || 'Your Name',
+      designation: $('card-title-input')?.value.trim() || 'Your Designation',
+      company: $('card-company-input')?.value.trim() || 'Your Company',
+      font: $('card-font')?.value || 'classic', logoPlacement: $('logo-placement')?.value || 'Top left',
+      qrPlacement: $('qr-placement')?.value || 'Back centre', nfcSymbol: $('nfc-symbol-toggle')?.checked !== false,
+      color: bg?.value || '#090909',
+      accent: ink?.value || '#0066FF',
+      borderColor: document.querySelector('.colour-preset.active')?.dataset.border || ink?.value || '#0066FF',
+      secondaryColor: document.querySelector('.colour-preset.active')?.dataset.accent || ink?.value || '#0066FF',
+      nameColor: $('quick-name-text')?.value || ink?.value, titleColor: $('quick-title-text')?.value || ink?.value,
+      companyColor: $('quick-company-text')?.value || ink?.value,
+      logoColor: $('quick-logo-colour')?.value || ink?.value,
+      logoPosition: { left: $('config-logo')?.style.left || '', top: $('config-logo')?.style.top || '' },
+      qrPosition: { left: $('config-qr')?.style.left || '', top: $('config-qr')?.style.top || '' },
+      colorName: document.querySelector('.colour-preset.active')?.textContent.trim() || 'Custom Colours',
+      expertDesign: $('expert-design')?.checked === true,
+      logoData
+    });
+    const updateCard = () => {
+      const preset = document.querySelector('.colour-preset.active');
+      const border = preset?.dataset.border || ink.value;
+      const accent = preset?.dataset.accent || ink.value;
+      card.style.background = `linear-gradient(135deg,${bg.value},color-mix(in srgb,${bg.value} 70%,#000))`;
+      card.style.color = ink.value;
+      card.style.borderColor = border;
+      card.style.setProperty('--card-ink', ink.value);
+      card.style.setProperty('--border-ink', border);
+      card.style.setProperty('--accent-ink', accent);
+    };
+    const updatePrice = () => {
+      const expert = $('expert-design')?.checked;
+      const total = material.price + 499 + (expert ? 499 : 0);
+      $('price-material-name').textContent = `${material.name} Card`;
+      $('price-material').textContent = `₹${material.price.toLocaleString('en-IN')}`;
+      $('config-total').textContent = `₹${total.toLocaleString('en-IN')}`;
+      $('expert-price-row').hidden = !expert;
+      $('save-card-design').textContent = `Add to Cart · ₹${total.toLocaleString('en-IN')}`;
+      $('package-list').innerHTML = `<li>${material.name}</li><li>${getDesign().colorName}</li><li>Double-sided printing</li><li>${logoData ? 'Custom image' : 'No image selected'}</li><li>QR backup</li><li>NFC profile activation</li><li>One-year premium profile</li>`;
+      return total;
+    };
+    const showStep = value => {
+      step = Math.max(1, Math.min(5, value));
+      const labels = ['Choose Your Material', 'Choose Your Finish', 'Add Your Information', 'Logo and Layout', 'Review and Order'];
+      steps.forEach(item => item.classList.toggle('active', Number(item.dataset.step) === step));
+      $('designer-step-label').textContent = `Step ${step} of 5 — ${labels[step - 1]}`;
+      $('designer-progress-bar').style.width = `${step * 20}%`;
+      $('designer-prev').disabled = step === 1; $('designer-next').hidden = step === 5; $('save-card-design').hidden = step !== 5;
+      updatePrice();
+    };
+    document.querySelectorAll('.material-option').forEach(option => option.addEventListener('click', () => {
+      document.querySelectorAll('.material-option').forEach(item => item.classList.remove('active')); option.classList.add('active');
+      material = { name: option.dataset.material, price: Number(option.dataset.price) }; card.dataset.material = material.name; updatePrice();
+    }));
+    document.querySelectorAll('.colour-preset').forEach(preset => preset.addEventListener('click', () => {
+      document.querySelectorAll('.colour-preset').forEach(item => item.classList.remove('active')); preset.classList.add('active');
+      bg.value = preset.dataset.bg; ink.value = preset.dataset.text; updateCard(); updatePrice();
+    }));
+    [bg, ink].forEach(input => input?.addEventListener('input', () => { document.querySelectorAll('.colour-preset').forEach(item => item.classList.remove('active')); updateCard(); }));
+    const quickBg = $('quick-card-bg'); const quickInk = $('quick-card-text');
+    const syncColours = (background, text) => {
+      if (background) bg.value = background;
+      if (text) ink.value = text;
+      document.querySelectorAll('.colour-preset').forEach(item => item.classList.remove('active')); updateCard(); updatePrice();
+    };
+    document.querySelectorAll('[data-quick-bg]').forEach(button => button.addEventListener('click', () => syncColours(button.dataset.quickBg)));
+    quickBg?.addEventListener('input', event => syncColours(event.target.value));
+    quickInk?.addEventListener('input', event => syncColours(null, event.target.value));
+    const textColourControls = [
+      ['quick-name-text', '--name-ink'], ['quick-title-text', '--title-ink'], ['quick-company-text', '--company-ink']
+    ];
+    textColourControls.forEach(([id, property]) => $(id)?.addEventListener('input', event => card.style.setProperty(property, event.target.value)));
+    $('quick-logo-colour')?.addEventListener('input', event => card.style.setProperty('--logo-ink', event.target.value));
+    quickInk?.addEventListener('input', event => {
+      textColourControls.forEach(([id, property]) => { $(id).value = event.target.value; card.style.setProperty(property, event.target.value); });
+    });
+    const syncDetail = (mainId, quickId, selector, fallback) => {
+      const main = $(mainId); const quick = $(quickId);
+      const apply = (value, other) => { card.querySelector(selector).textContent = value || fallback; if (other && other.value !== value) other.value = value; };
+      main?.addEventListener('input', event => apply(event.target.value, quick));
+      quick?.addEventListener('input', event => apply(event.target.value, main));
+    };
+    syncDetail('card-name-input', 'quick-card-name', '.nfc-card-name', 'Your Name');
+    syncDetail('card-title-input', 'quick-card-title', '.nfc-card-subtitle', 'Your Designation');
+    syncDetail('card-company-input', 'quick-card-company', '.config-company', 'Your Company');
+    $('card-font')?.addEventListener('change', event => card.dataset.font = event.target.value);
+    $('card-finish')?.addEventListener('change', event => card.dataset.finish = event.target.value.toLowerCase());
+    $('nfc-symbol-toggle')?.addEventListener('change', event => $('config-nfc').hidden = !event.target.checked);
+    $('qr-placement')?.addEventListener('change', event => card.dataset.qr = event.target.value.toLowerCase().replaceAll(' ', '-'));
+    document.querySelectorAll('[data-card-side]').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-card-side]').forEach(item => item.classList.remove('active')); button.classList.add('active'); card.dataset.side = button.dataset.cardSide;
+    }));
+    $('rotate-config-card')?.addEventListener('click', () => document.querySelector(`[data-card-side="${card.dataset.side === 'front' ? 'back' : 'front'}"]`)?.click());
+    const makeMovable = element => {
+      if (!element) return;
+      element.addEventListener('pointerdown', event => {
+        event.preventDefault(); event.stopPropagation(); element.setPointerCapture(event.pointerId);
+        const cardBox = card.getBoundingClientRect(); const itemBox = element.getBoundingClientRect();
+        const offsetX = event.clientX - itemBox.left; const offsetY = event.clientY - itemBox.top;
+        const move = moveEvent => {
+          const maxX = cardBox.width - itemBox.width - 16; const maxY = cardBox.height - itemBox.height - 16;
+          const left = Math.max(16, Math.min(maxX, moveEvent.clientX - cardBox.left - offsetX));
+          const top = Math.max(16, Math.min(maxY, moveEvent.clientY - cardBox.top - offsetY));
+          element.style.left = `${left / cardBox.width * 100}%`; element.style.top = `${top / cardBox.height * 100}%`;
+          element.style.right = 'auto'; element.style.bottom = 'auto'; element.style.transform = 'none';
+        };
+        const finish = () => { element.removeEventListener('pointermove', move); element.removeEventListener('pointerup', finish); };
+        element.addEventListener('pointermove', move); element.addEventListener('pointerup', finish);
+      });
+    };
+    makeMovable($('config-logo')); makeMovable($('config-qr'));
+    $('card-logo-upload')?.addEventListener('change', event => {
+      const file = event.target.files?.[0]; if (!file) return;
+      if (!['image/png', 'image/jpeg'].includes(file.type)) { warning.hidden = false; warning.textContent = 'Choose a PNG or JPG image.'; event.target.value = ''; return; }
+      if (file.size > 2 * 1024 * 1024) { warning.hidden = false; warning.textContent = 'Image is larger than 2 MB. Choose a smaller file.'; event.target.value = ''; return; }
+      const reader = new FileReader(); reader.onload = () => { logoData = String(reader.result); $('config-logo').innerHTML = `<img src="${logoData}" alt="Uploaded logo">`; updatePrice(); }; reader.readAsDataURL(file);
+      const image = new Image(); image.onload = () => { if (image.width < 600 || image.height < 600) { warning.hidden = false; warning.textContent = 'Your image may appear blurred. Upload an image of at least 600 × 600px.'; } URL.revokeObjectURL(image.src); }; image.src = URL.createObjectURL(file);
+    });
+    $('remove-card-logo')?.addEventListener('click', () => { logoData = ''; $('config-logo').innerHTML = ''; $('card-logo-upload').value = ''; updatePrice(); });
+    $('expert-design')?.addEventListener('change', updatePrice);
+    $('designer-next')?.addEventListener('click', () => showStep(step + 1)); $('designer-prev')?.addEventListener('click', () => showStep(step - 1));
+    $('save-design-draft')?.addEventListener('click', () => { localStorage.setItem('myluxcards_saved_card_design', JSON.stringify(getDesign())); this.showToast('Design draft saved.', 'success'); });
+    $('reset-card-design')?.addEventListener('click', () => { localStorage.removeItem('myluxcards_saved_card_design'); window.location.reload(); });
+    card.addEventListener('pointermove', event => { const box = card.getBoundingClientRect(); card.style.transform = `rotateY(${((event.clientX - box.left) / box.width - .5) * 10}deg) rotateX(${((event.clientY - box.top) / box.height - .5) * -8}deg)`; });
+    card.addEventListener('pointerleave', () => card.style.transform = '');
+    $('save-card-design')?.addEventListener('click', () => {
+      const saved = getDesign(); const total = updatePrice();
+      const item = { id: 'custom-nfc-card', title: `${saved.name}'s Custom NFC Card`, price: total, currency: 'INR', quantity: 1, image: this.createConfiguredCardImage(saved), details: `${saved.material} · ${saved.finish} · ${saved.colorName}`, design: saved };
+      const index = this.state.cart.findIndex(existing => String(existing.id) === item.id); if (index < 0) this.state.cart.push(item); else this.state.cart[index] = item;
+      localStorage.setItem('myluxcards_saved_card_design', JSON.stringify(saved)); this.updateCounters(); this.renderCartDrawer(); this.openCartDrawer(); this.showToast(`Design added to cart for ₹${total.toLocaleString('en-IN')}.`, 'success');
+    });
+    updateCard(); showStep(1);
+  }
+
   createConfiguredCardImage(design) {
     const xml = (value) => String(value).replace(/[&<>"']/g, character => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'
@@ -356,15 +506,17 @@ class LuxApp {
       : '';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="350" viewBox="0 0 560 350">
       <defs><linearGradient id="card" x2="1" y2="1"><stop stop-color="${xml(design.color)}"/><stop offset="1"/></linearGradient></defs>
-      <rect width="560" height="350" rx="28" fill="url(#card)" stroke="${xml(design.accent)}" stroke-width="4"/>
+      <rect width="560" height="350" rx="28" fill="url(#card)" stroke="${xml(design.borderColor || design.accent)}" stroke-width="4"/>
       ${glossy}
       <g fill="${xml(design.accent)}">
-        <text x="38" y="68" font-family="Arial,sans-serif" font-size="27" font-weight="700">ZAPPIT</text>
-        <text x="38" y="96" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">SMART TAP SOLUTIONS</text>
+        <text x="38" y="68" font-family="Arial,sans-serif" font-size="27" font-weight="700">MYLUXCARDS</text>
         <text x="38" y="268" font-family="Georgia,serif" font-size="30" font-weight="700">${xml(design.name)}</text>
+      </g>
+      <g fill="${xml(design.secondaryColor || design.accent)}">
+        <text x="38" y="96" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">PREMIUM EDITION</text>
         <text x="38" y="300" font-family="Arial,sans-serif" font-size="17">${xml(design.designation)}</text>
-        <rect x="455" y="260" width="58" height="43" rx="8" fill="none" stroke="${xml(design.accent)}" stroke-width="4"/>
-        <path d="M474 22q30 18 0 36m10-29q17 10 0 21m10-14q7 4 0 8" fill="none" stroke="${xml(design.accent)}" stroke-width="4" stroke-linecap="round"/>
+        <rect x="455" y="260" width="58" height="43" rx="8" fill="none" stroke="${xml(design.borderColor || design.accent)}" stroke-width="4"/>
+        <path d="M474 22q30 18 0 36m10-29q17 10 0 21m10-14q7 4 0 8" fill="none" stroke="${xml(design.borderColor || design.accent)}" stroke-width="4" stroke-linecap="round"/>
       </g>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
@@ -378,7 +530,7 @@ class LuxApp {
       if (!phone) return;
       phone.classList.add('is-open');
       const state = document.getElementById('tap-profile-state');
-      if (state) state.innerHTML = '<i data-lucide="badge-check"></i><strong>Aarav Menon</strong><span>Creative Director · Zappit Studio</span><button class="mini-profile-btn" type="button">View profile</button>';
+      if (state) state.innerHTML = '<i data-lucide="badge-check"></i><strong>Aarav Menon</strong><span>Creative Director · MyLux Studio</span><button class="mini-profile-btn" type="button">View profile</button>';
       if (window.lucide) window.lucide.createIcons();
       this.showToast('Tap successful — digital profile opened.', 'success');
     };
@@ -436,7 +588,7 @@ class LuxApp {
     const savedTheme = localStorage.getItem('myluxcards_theme') || 'light';
     const body = document.body;
     const themeIcon = document.querySelector('#theme-toggle i');
-    
+
     if (savedTheme === 'dark') {
       body.classList.add('dark-mode');
       if (themeIcon) themeIcon.className = 'lucide-sun';
@@ -449,7 +601,7 @@ class LuxApp {
   toggleTheme() {
     const body = document.body;
     const themeIcon = document.querySelector('#theme-toggle i');
-    
+
     if (body.classList.contains('dark-mode')) {
       body.classList.remove('dark-mode');
       localStorage.setItem('myluxcards_theme', 'light');
@@ -472,16 +624,16 @@ class LuxApp {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     const icon = type === 'success' ? 'check-circle' : 'info';
     toast.innerHTML = `
       <i data-lucide="${icon}"></i>
       <span>${message}</span>
     `;
-    
+
     container.appendChild(toast);
     if (window.lucide) window.lucide.createIcons();
-    
+
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(20px)';
@@ -494,11 +646,11 @@ class LuxApp {
   updateCounters() {
     const wishlistBadges = document.querySelectorAll('.wishlist-count-badge');
     const cartBadges = document.querySelectorAll('.cart-count-badge');
-    
+
     wishlistBadges.forEach(b => b.textContent = this.state.wishlist.length);
     const cartItemCount = this.state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
     cartBadges.forEach(b => b.textContent = cartItemCount);
-    
+
     localStorage.setItem('myluxcards_wishlist', JSON.stringify(this.state.wishlist));
     localStorage.setItem('myluxcards_cart', JSON.stringify(this.state.cart));
   }
@@ -522,7 +674,7 @@ class LuxApp {
   addToCart(cardId) {
     const card = window.LuxData.CARDS.find(c => c.id === cardId);
     if (!card) return;
-    
+
     // Check if already in cart
     const exists = this.state.cart.some(item => item.id === cardId);
     if (exists) {
@@ -612,11 +764,11 @@ class LuxApp {
     const itemCount = this.state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
     if (summary) summary.textContent = `${itemCount} item${itemCount === 1 ? '' : 's'} · ${this.formatCartTotal()}`;
     const user = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
+    const name = document.getElementById('checkout-name');
+    const email = document.getElementById('checkout-email');
     if (user) {
-      const name = document.getElementById('checkout-name');
-      const email = document.getElementById('checkout-email');
       if (name && !name.value) name.value = user.name || '';
-      if (email) email.value = user.email || '';
+      if (email && !email.value) email.value = user.email || '';
     }
     checkout.classList.add('open');
     checkout.setAttribute('aria-hidden', 'false');
@@ -633,7 +785,7 @@ class LuxApp {
       option.classList.toggle('active', option.querySelector('input')?.value === method);
     });
     const button = document.getElementById('pay-now-btn');
-    if (button) button.textContent = method === 'Cash on Delivery' ? 'Place cash on delivery order' : `Continue with ${method}`;
+    if (button) button.textContent = method === 'Cash on Delivery' ? 'Place cash on delivery order' : `Place order · ${method} payment pending`;
   }
 
   async completeCheckout() {
@@ -645,15 +797,15 @@ class LuxApp {
     const payload = {
       paymentMethod: method,
       couponCode: value('checkout-coupon'),
-      customer: { name:value('checkout-name'), email:value('checkout-email'), phone:value('checkout-phone') },
-      shippingAddress: { line1:value('checkout-address1'), line2:value('checkout-address2'), city:value('checkout-city'), state:value('checkout-state'), postalCode:value('checkout-postal'), country:value('checkout-country') },
-      items: this.state.cart.map(item => ({ id:String(item.id), quantity:Number(item.quantity)||1, details:item.details||'', design:item.design||{} })),
+      customer: { name: value('checkout-name'), jobTitle: value('checkout-job-title'), email: value('checkout-email'), phone: value('checkout-phone') },
+      shippingAddress: { line1: value('checkout-address1'), line2: value('checkout-address2'), city: value('checkout-city'), state: value('checkout-state'), postalCode: value('checkout-postal'), country: value('checkout-country') },
+      items: this.state.cart.map(item => ({ id: String(item.id), quantity: Number(item.quantity) || 1, details: item.details || '', design: item.design || {} })),
     };
     try {
-      let response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      let response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.status === 401) {
-        const refreshed = await fetch('/api/auth/refresh', { method:'POST' });
-        if (refreshed.ok) response = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        const refreshed = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (refreshed.ok) response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       }
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -664,6 +816,10 @@ class LuxApp {
         }
         throw new Error(result.message || 'The order could not be placed.');
       }
+      if (result.paymentCheckout?.provider === 'RAZORPAY') {
+        if (button) button.textContent = 'Opening secure payment…';
+        await this.completeRazorpayPayment(result, payload.customer);
+      }
       this.state.cart = [];
       this.updateCounters();
       this.renderCartDrawer();
@@ -672,12 +828,54 @@ class LuxApp {
       document.getElementById('cart-drawer')?.classList.remove('open');
       document.getElementById('checkout-form')?.reset();
       this.setPaymentMethod('UPI');
-      this.showToast(`Order ${result.orderNumber} was placed successfully.`, 'success');
+      this.showToast(`Order ${result.orderNumber} was placed successfully. ${result.paymentCheckout ? 'Payment confirmed.' : 'Payment is due on delivery.'}`, 'success');
     } catch (error) {
       this.showToast(error.message || 'The order could not be placed.', 'error');
     } finally {
       if (button) { button.disabled = false; this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI'); }
     }
+  }
+
+  async completeRazorpayPayment(order, customer) {
+    if (!window.Razorpay) {
+      await new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-razorpay-checkout]');
+        if (existing) { existing.addEventListener('load', resolve, { once: true }); existing.addEventListener('error', reject, { once: true }); return; }
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.dataset.razorpayCheckout = 'true';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Secure payment could not be loaded. Your pending order is saved; please try again or contact support.'));
+        document.head.appendChild(script);
+      });
+    }
+    if (!window.Razorpay) throw new Error('Secure payment is unavailable. Your pending order is saved; please contact support.');
+    await new Promise((resolve, reject) => {
+      let completed = false;
+      const checkout = new window.Razorpay({
+        key: order.paymentCheckout.keyId,
+        order_id: order.paymentCheckout.providerOrderId,
+        amount: order.totalMinor,
+        currency: order.currency,
+        name: 'MyLuxCards',
+        description: `Order ${order.orderNumber}`,
+        prefill: { name: customer.name, email: customer.email, contact: customer.phone },
+        theme: { color: '#0066FF' },
+        modal: { ondismiss: () => { if (!completed) reject(new Error(`Payment was not completed. Order ${order.orderNumber} remains pending.`)); } },
+        handler: async payment => {
+          completed = true;
+          try {
+            const response = await fetch('/api/payments/razorpay/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.orderId, ...payment }) });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.message || 'Payment verification failed.');
+            resolve(result);
+          } catch (error) { reject(error); }
+        },
+      });
+      checkout.on('payment.failed', response => reject(new Error(response?.error?.description || 'Payment failed. Please try again.')));
+      checkout.open();
+    });
   }
 
   removeFromCart(cardId) {
@@ -703,14 +901,14 @@ class LuxApp {
   renderCategoryChips() {
     const sidebarChips = document.querySelector('.category-chips');
     if (!sidebarChips) return;
-    
+
     let html = `
       <div class="chip ${this.state.activeCategory === 'all' ? 'active' : ''}" data-category="all">
         <span>All Occasions</span>
         <span class="chip-count">${window.LuxData.CARDS.length}</span>
       </div>
     `;
-    
+
     window.LuxData.CATEGORIES.forEach(cat => {
       const matchCount = window.LuxData.CARDS.filter(c => c.category === cat.id).length;
       html += `
@@ -720,9 +918,9 @@ class LuxApp {
         </div>
       `;
     });
-    
+
     sidebarChips.innerHTML = html;
-    
+
     // Attach click events
     sidebarChips.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -737,7 +935,7 @@ class LuxApp {
   renderCatalog() {
     const grid = document.querySelector('.cards-grid');
     if (!grid) return;
-    
+
     // Filter and Sort data
     let filtered = window.LuxData.CARDS.filter(card => {
       const matchCategory = this.state.activeCategory === 'all' || card.category === this.state.activeCategory;
@@ -762,7 +960,7 @@ class LuxApp {
     const totalPages = Math.ceil(filtered.length / this.state.cardsPerPage) || 1;
     const startIdx = (this.state.currentPage - 1) * this.state.cardsPerPage;
     const paginated = filtered.slice(startIdx, startIdx + this.state.cardsPerPage);
-    
+
     if (paginated.length === 0) {
       grid.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
@@ -822,7 +1020,7 @@ class LuxApp {
   renderPagination(totalPages) {
     const pagContainer = document.querySelector('.pagination');
     if (!pagContainer) return;
-    
+
     let html = '';
     for (let i = 1; i <= totalPages; i++) {
       html += `
@@ -903,9 +1101,9 @@ class LuxApp {
           <div class="testimonial-rating">
             <div class="review-stars">
               ${Array.from({ length: 5 }, (_, idx) => {
-                const filled = idx < Math.round(testimonial.rating || 0);
-                return `<i data-lucide="star" ${filled ? 'fill="currentColor"' : ''}></i>`;
-              }).join('')}
+      const filled = idx < Math.round(testimonial.rating || 0);
+      return `<i data-lucide="star" ${filled ? 'fill="currentColor"' : ''}></i>`;
+    }).join('')}
             </div>
             <span>${testimonial.rating.toFixed(1)}</span>
           </div>
@@ -940,10 +1138,11 @@ class LuxApp {
     dots.forEach((dot, index) => dot.classList.toggle('active', index === this.state.currentTestimonialIndex));
   }
 
-  handleSupportTicket() {
+  async handleSupportTicket() {
     const name = document.getElementById('support-name')?.value.trim();
     const email = document.getElementById('support-email')?.value.trim();
     const topic = document.getElementById('support-topic')?.value;
+    const contactTime = document.getElementById('support-contact')?.value.trim();
     const message = document.getElementById('support-message')?.value.trim();
 
     if (!name || !email || !topic || !message) {
@@ -951,22 +1150,25 @@ class LuxApp {
       return;
     }
 
-    const newTicket = {
-      id: `TKT-${Date.now()}`,
-      name,
-      email,
-      topic,
-      message,
-      createdAt: new Date().toISOString(),
-      status: 'Open'
-    };
-
-    this.state.supportTickets.unshift(newTicket);
-    localStorage.setItem('myluxcards_support_tickets', JSON.stringify(this.state.supportTickets));
-    this.renderSupportTickets();
-    this.showToast('Support ticket submitted successfully.', 'success');
-
-    document.getElementById('support-form')?.reset();
+    const form = document.getElementById('support-form');
+    const button = form?.querySelector('button[type="submit"]');
+    if (button?.disabled) return;
+    if (button) { button.disabled = true; button.textContent = 'Submitting…'; }
+    try {
+      const response = await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, topic, contactTime, message }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || 'Your support request could not be submitted.');
+      const newTicket = { id: result.reference, name, email, topic, message, createdAt: new Date().toISOString(), status: 'Open' };
+      this.state.supportTickets.unshift(newTicket);
+      try { localStorage.setItem('myluxcards_support_tickets', JSON.stringify(this.state.supportTickets.slice(0, 10))); } catch (_) { }
+      this.renderSupportTickets();
+      this.showToast(`Support ticket ${result.reference} submitted.`, 'success');
+      form?.reset();
+    } catch (error) {
+      this.showToast(error instanceof Error ? error.message : 'Support request failed. Please try again.', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Submit Support Ticket'; }
+    }
   }
 
   handleReviewSubmission() {
@@ -1003,11 +1205,11 @@ class LuxApp {
     const tickets = this.state.supportTickets;
     const ticketItems = tickets.length ? tickets.map(ticket => `
       <div class="ticket-card">
-        <strong>${ticket.topic} • ${ticket.status}</strong>
-        <span><strong>Name:</strong> ${ticket.name}</span>
-        <span><strong>Email:</strong> ${ticket.email}</span>
+        <strong>${this.escapeHtml(ticket.id || '')} · ${this.escapeHtml(ticket.topic)} • ${this.escapeHtml(ticket.status)}</strong>
+        <span><strong>Name:</strong> ${this.escapeHtml(ticket.name)}</span>
+        <span><strong>Email:</strong> ${this.escapeHtml(ticket.email)}</span>
         <span><strong>Submitted:</strong> ${new Date(ticket.createdAt).toLocaleString()}</span>
-        <span>${ticket.message}</span>
+        <span>${this.escapeHtml(ticket.message)}</span>
       </div>
     `).join('') : '<div class="ticket-empty">No support tickets yet. Submit one using the form to see your request appear here.</div>';
 
@@ -1036,7 +1238,7 @@ class LuxApp {
   renderWishlistDrawer() {
     const listContainer = document.getElementById('wishlist-items');
     if (!listContainer) return;
-    
+
     if (this.state.wishlist.length === 0) {
       listContainer.innerHTML = `
         <div class="drawer-empty">
@@ -1073,7 +1275,7 @@ class LuxApp {
     const listContainer = document.getElementById('cart-items');
     const totalElem = document.getElementById('cart-total-price');
     if (!listContainer) return;
-    
+
     if (this.state.cart.length === 0) {
       listContainer.innerHTML = `
         <div class="drawer-empty">
@@ -1128,12 +1330,12 @@ class LuxApp {
     this.state.searchQuery = val;
     const suggestions = document.getElementById('search-suggestions');
     if (!suggestions) return;
-    
+
     if (!val.trim()) {
       suggestions.style.display = 'none';
       return;
     }
-    
+
     const products = [
       { id: 'nfc-card', title: 'Premium NFC Cards', keywords: 'business card nfc profile professional' },
       { id: 'nfc-keytag', title: 'Smart NFC Keytags', keywords: 'keytag nfc menu review contact' },
@@ -1144,7 +1346,7 @@ class LuxApp {
     const matches = products.filter(product =>
       `${product.title} ${product.keywords}`.toLowerCase().includes(query)
     ).slice(0, 5);
-    
+
     if (matches.length === 0) {
       suggestions.innerHTML = `
         <div class="suggestion-item" style="cursor: default; color: var(--text-muted)">No NFC products found</div>
@@ -1152,7 +1354,7 @@ class LuxApp {
       suggestions.style.display = 'block';
       return;
     }
-    
+
     suggestions.innerHTML = matches.map(product => `
       <button class="suggestion-item" type="button" data-featured-product="${product.id}">
         <i data-lucide="search" style="width: 14px; height: 14px;"></i>
@@ -1162,7 +1364,7 @@ class LuxApp {
     suggestions.querySelectorAll('[data-featured-product]').forEach(item => {
       item.addEventListener('click', () => this.selectFeaturedProduct(item.dataset.featuredProduct));
     });
-    
+
     suggestions.style.display = 'block';
     if (window.lucide) window.lucide.createIcons();
   }
@@ -1180,11 +1382,11 @@ class LuxApp {
   openPreviewModal(cardId) {
     const card = window.LuxData.CARDS.find(c => c.id === cardId);
     if (!card) return;
-    
+
     const modal = document.getElementById('preview-modal');
     const modalBody = document.getElementById('preview-modal-body');
     if (!modal || !modalBody) return;
-    
+
     modalBody.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
         <div style="width: 100%; max-width: 320px; aspect-ratio: 3/4; border-radius: 16px; overflow: hidden; box-shadow: var(--card-shadow-hover);">
@@ -1202,7 +1404,7 @@ class LuxApp {
         </div>
       </div>
     `;
-    
+
     modal.classList.add('open');
   }
 
@@ -1216,16 +1418,16 @@ class LuxApp {
     const track = document.getElementById('testimonials-track');
     const dots = document.querySelectorAll('.dot-indicator');
     if (!track) return;
-    
+
     const maxIdx = window.LuxData.TESTIMONIALS.length - 1;
     let nextIdx = this.state.currentTestimonialIndex + direction;
-    
+
     if (nextIdx < 0) nextIdx = maxIdx;
     if (nextIdx > maxIdx) nextIdx = 0;
-    
+
     this.state.currentTestimonialIndex = nextIdx;
     track.style.transform = `translateX(-${nextIdx * 100}%)`;
-    
+
     dots.forEach((dot, index) => {
       dot.classList.toggle('active', index === nextIdx);
     });
@@ -1235,10 +1437,10 @@ class LuxApp {
     const track = document.getElementById('testimonials-track');
     const dots = document.querySelectorAll('.dot-indicator');
     if (!track) return;
-    
+
     this.state.currentTestimonialIndex = idx;
     track.style.transform = `translateX(-${idx * 100}%)`;
-    
+
     dots.forEach((dot, index) => {
       dot.classList.toggle('active', index === idx);
     });
@@ -1248,7 +1450,7 @@ class LuxApp {
   bindEvents() {
     // 1. Theme toggle
     document.getElementById('theme-toggle')?.addEventListener('click', () => this.toggleTheme());
-    
+
     // 2. Drawers triggering
     const overlay = document.getElementById('drawer-overlay');
     const cartDrawer = document.getElementById('cart-drawer');
@@ -1256,20 +1458,20 @@ class LuxApp {
     const supportTrigger = document.getElementById('support-trigger');
 
     supportTrigger?.addEventListener('click', () => this.openSupportModal());
-    
+
     const openDrawer = (drawer) => {
       overlay.classList.add('open');
       drawer.classList.add('open');
       if (drawer === cartDrawer) this.renderCartDrawer();
       if (drawer === wishlistDrawer) this.renderWishlistDrawer();
     };
-    
+
     const closeDrawers = () => {
       overlay.classList.remove('open');
       cartDrawer.classList.remove('open');
       wishlistDrawer.classList.remove('open');
     };
-    
+
     document.getElementById('cart-trigger')?.addEventListener('click', () => openDrawer(cartDrawer));
     document.getElementById('wishlist-trigger')?.addEventListener('click', () => openDrawer(wishlistDrawer));
     document.querySelectorAll('.buy-featured-product').forEach(button => {
@@ -1280,7 +1482,7 @@ class LuxApp {
       }
       button.addEventListener('click', () => this.addFeaturedProduct(button));
     });
-    
+
     document.querySelectorAll('.drawer-close').forEach(b => b.addEventListener('click', closeDrawers));
     overlay?.addEventListener('click', closeDrawers);
 
@@ -1293,36 +1495,71 @@ class LuxApp {
     document.querySelectorAll('input[name="payment-method"]').forEach(input => {
       input.addEventListener('change', () => this.setPaymentMethod(input.value));
     });
-    document.getElementById('checkout-form')?.addEventListener('submit', async (event) => {
+    document.getElementById('checkout-form')?.addEventListener('submit', (event) => {
       event.preventDefault();
-      await this.completeCheckout();
+      this.completeCheckout();
     });
     this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI');
 
     // 4. Hamburger Mobile Menu Toggle
     const mobileMenu = document.getElementById('nav-menu');
-    document.getElementById('hamburger')?.addEventListener('click', () => {
-      if (mobileMenu) {
-        if (mobileMenu.style.display === 'flex') {
-          mobileMenu.style.display = 'none';
-        } else {
-          mobileMenu.style.display = 'flex';
-          mobileMenu.style.flexDirection = 'column';
-          mobileMenu.style.position = 'absolute';
-          mobileMenu.style.top = '80px';
-          mobileMenu.style.left = '0';
-          mobileMenu.style.width = '100%';
-          mobileMenu.style.background = 'var(--bg-glass-solid)';
-          mobileMenu.style.padding = '20px';
-          mobileMenu.style.borderBottom = '1px solid var(--border-glass)';
+    const hamburger = document.getElementById('hamburger');
+    const closeMobileMenu = () => {
+      if (!mobileMenu || !hamburger) return;
+      mobileMenu.classList.remove('is-open');
+      mobileMenu.style.display = 'none';
+      hamburger.setAttribute('aria-expanded', 'false');
+      hamburger.setAttribute('aria-label', 'Open menu');
+    };
+
+    hamburger?.setAttribute('aria-expanded', 'false');
+    hamburger?.setAttribute('aria-controls', 'nav-menu');
+    hamburger?.setAttribute('aria-label', 'Open menu');
+    hamburger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!mobileMenu) return;
+      const isOpen = mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex';
+      if (isOpen) {
+        closeMobileMenu();
+      } else {
+        mobileMenu.classList.add('is-open');
+        mobileMenu.style.display = 'flex';
+        mobileMenu.style.flexDirection = 'column';
+        hamburger.setAttribute('aria-expanded', 'true');
+        hamburger.setAttribute('aria-label', 'Close menu');
+      }
+    });
+
+    mobileMenu?.querySelectorAll('a, button').forEach((link) => {
+      link.addEventListener('click', closeMobileMenu);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (mobileMenu && (mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex')) {
+        if (!mobileMenu.contains(e.target) && !hamburger?.contains(e.target)) {
+          closeMobileMenu();
         }
       }
     });
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileMenu && (mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex')) {
+        closeMobileMenu();
+        hamburger?.focus();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) {
+        closeMobileMenu();
+        mobileMenu?.removeAttribute('style');
+      }
+    }, { passive: true });
+
     // 4. Search actions
     const searchInput = document.getElementById('search-input');
     searchInput?.addEventListener('input', (e) => this.handleSearchInput(e.target.value));
-    
+
     // Dismiss suggestions list on clicking outside
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.search-container')) {
@@ -1389,10 +1626,10 @@ class LuxApp {
       trigger.addEventListener('click', () => {
         const item = trigger.closest('.faq-item');
         const isActive = item.classList.contains('active');
-        
+
         // Collapse all others
         document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-        
+
         if (!isActive) {
           item.classList.add('active');
         }
@@ -1407,16 +1644,20 @@ class LuxApp {
       });
     });
 
-    // Trigger login modal or route
-    document.getElementById('login-trigger')?.addEventListener('click', (event) => {
+    // Trigger login modal
+    const accountButton = document.getElementById('login-trigger');
+    const accountMenu = document.getElementById('account-menu');
+    const accountDropdown = document.getElementById('account-dropdown');
+    const closeAccountMenu = () => {
+      if (accountDropdown) accountDropdown.hidden = true;
+      accountButton?.setAttribute('aria-expanded', 'false');
+    };
+    accountButton?.addEventListener('click', () => {
       const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
       if (currentUser) {
-        event.stopPropagation();
-        const dropdown = document.getElementById('account-dropdown');
-        const button = event.currentTarget;
-        const opening = dropdown?.hidden ?? true;
-        if (dropdown) dropdown.hidden = !opening;
-        button.setAttribute('aria-expanded', String(opening));
+        const opening = accountDropdown?.hidden !== false;
+        if (accountDropdown) accountDropdown.hidden = !opening;
+        accountButton.setAttribute('aria-expanded', String(opening));
         return;
       }
       const modal = document.getElementById('login-modal');
@@ -1426,51 +1667,51 @@ class LuxApp {
         window.location.assign('/login');
       }
     });
-
-    document.getElementById('account-logout')?.addEventListener('click', () => this.logout());
+    [['account-dashboard', '/dashboard'], ['account-orders', '/orders']].forEach(([id, destination]) => {
+      document.getElementById(id)?.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeAccountMenu();
+        window.location.assign(destination);
+      });
+    });
+    document.getElementById('account-logout')?.addEventListener('click', async () => {
+      const logoutButton = document.getElementById('account-logout');
+      if (logoutButton) { logoutButton.disabled = true; logoutButton.textContent = 'Logging out…'; }
+      try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (_) { /* Local session is still cleared below. */ }
+      localStorage.removeItem('myluxcards_current_user');
+      sessionStorage.removeItem('myluxcards_auth_next');
+      this.updateAccountButton(null);
+      closeAccountMenu();
+      window.location.replace('/');
+    });
     document.querySelectorAll('#google-login, #google-login-btn, #google-signup-btn, .google-auth-button, .btn-google').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         this.loginWithGoogle();
       });
     });
-    document.addEventListener('click', (event) => {
-      const menu = document.getElementById('account-menu');
-      const dropdown = document.getElementById('account-dropdown');
-      const button = document.getElementById('login-trigger');
-      if (!menu?.contains(event.target) && dropdown && !dropdown.hidden) {
-        dropdown.hidden = true;
-        button?.setAttribute('aria-expanded', 'false');
-      }
+    document.addEventListener('click', event => {
+      if (accountMenu && !accountMenu.contains(event.target)) closeAccountMenu();
     });
-    document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape') return;
-      const dropdown = document.getElementById('account-dropdown');
-      if (dropdown && !dropdown.hidden) {
-        dropdown.hidden = true;
-        document.getElementById('login-trigger')?.setAttribute('aria-expanded', 'false');
-        document.getElementById('login-trigger')?.focus();
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && accountDropdown?.hidden === false) {
+        closeAccountMenu();
+        accountButton?.focus();
       }
     });
 
-    document.getElementById('dashboard-nav-link')?.addEventListener('click', async (event) => {
-      event.preventDefault();
-      let session = await fetch('/api/auth/me', { cache: 'no-store' });
-      let data = await session.json().catch(() => ({}));
-      if (!session.ok || !data?.user) {
-        const refreshed = await fetch('/api/auth/refresh', { method: 'POST' });
-        if (refreshed.ok) {
-          session = await fetch('/api/auth/me', { cache: 'no-store' });
-          data = await session.json().catch(() => ({}));
-        }
+    const urlParams = new URLSearchParams(window.location.search);
+    const loginFlag = urlParams.get('login') === '1';
+    const nextDestination = urlParams.get('next');
+    if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
+    if (loginFlag) {
+      const modal = document.getElementById('login-modal');
+      if (modal) {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
       }
-      if (session.ok && data?.user) {
-        window.location.href = '/dashboard';
-        return;
-      }
-      sessionStorage.setItem('myluxcards_auth_next', '/dashboard');
-      document.getElementById('login-modal')?.classList.add('open');
-    });
+    }
 
     const switchAuthModal = (fromId, toId) => {
       this.closeModal(fromId);
@@ -1489,6 +1730,45 @@ class LuxApp {
       switchAuthModal('signup-modal', 'login-modal');
     });
 
+
+    const signupPassword = document.getElementById('signup-password');
+    const passwordRules = {
+      length: value => value.length >= 12,
+      upper: value => /[A-Z]/.test(value),
+      lower: value => /[a-z]/.test(value),
+      number: value => /\d/.test(value),
+      symbol: value => /[^A-Za-z0-9]/.test(value)
+    };
+    const updatePasswordRequirements = () => {
+      const value = signupPassword?.value || '';
+      Object.entries(passwordRules).forEach(([rule, valid]) => {
+        document.querySelector(`[data-rule="${rule}"]`)?.classList.toggle('met', valid(value));
+      });
+    };
+    signupPassword?.addEventListener('input', updatePasswordRequirements);
+
+    document.querySelectorAll('[data-password-toggle]').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const input = document.getElementById(toggle.dataset.passwordToggle);
+        if (!input) return;
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        toggle.textContent = showing ? 'Show' : 'Hide';
+        toggle.setAttribute('aria-pressed', String(!showing));
+        input.focus({ preventScroll: true });
+      });
+    });
+
+    document.querySelectorAll('input[type="password"]').forEach(input => {
+      const warning = document.querySelector(`[data-caps-for="${input.id}"]`);
+      const updateCapsWarning = event => {
+        if (warning) warning.hidden = !event.getModifierState?.('CapsLock');
+      };
+      input.addEventListener('keyup', updateCapsWarning);
+      input.addEventListener('keydown', updateCapsWarning);
+      input.addEventListener('blur', () => { if (warning) warning.hidden = true; });
+    });
+
     document.getElementById('signup-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.currentTarget;
@@ -1499,6 +1779,12 @@ class LuxApp {
       const error = document.getElementById('signup-error');
       const submit = form.querySelector('button[type="submit"]');
       if (error) error.textContent = '';
+
+      if (!Object.values(passwordRules).every(rule => rule(password))) {
+        if (error) error.textContent = 'Use 12+ characters with upper, lower, number, and symbol.';
+        document.getElementById('signup-password')?.focus();
+        return;
+      }
 
       if (password !== confirmation) {
         if (error) error.textContent = 'Passwords do not match.';
@@ -1512,105 +1798,158 @@ class LuxApp {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name, email, password })
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.user) {
+        if (!response.ok) {
           if (error) error.textContent = data.message || data.msg || data.error_description || data.error || 'Unable to create your account. Please try again.';
           return;
         }
-        if (data.access_token) {
-          const user = {
-            name: data.user.user_metadata?.name || email.split('@')[0],
-            email: data.user.email || email,
-          };
-          localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-          this.updateAccountButton(user);
-          form.reset();
-          this.closeModal('signup-modal');
-          this.showToast(`Welcome to Zappit, ${user.name}!`, 'success');
-        } else {
-          const loginResponse = await fetch('/api/auth/login', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-            cache: 'no-store',
-          });
-          const loginData = await loginResponse.json().catch(() => ({}));
-          if (loginResponse.ok && loginData.user) {
-            const user = {
-              name: loginData.user.user_metadata?.name || loginData.user.email?.split('@')[0] || email.split('@')[0],
-              email: loginData.user.email || email,
-            };
-            localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-            this.updateAccountButton(user);
-            form.reset();
-            this.closeModal('signup-modal');
-            this.showToast(`Welcome to Zappit, ${user.name}!`, 'success');
-            return;
-          }
-          if (loginData.code === 'EMAIL_NOT_CONFIRMED' && error) {
-            error.textContent = 'Please confirm your email before signing in. A confirmation email has been sent.';
-          } else {
-            this.showToast('Check your email to confirm your account.', 'success');
-          }
-        }
-      } catch {
+        const user = {
+          id: data.user?.id,
+          name: data.user?.name || name,
+          email: data.user?.email || email,
+          role: data.role || 'CUSTOMER'
+        };
+        localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
+        this.updateAccountButton(user);
+        window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: true, user } }));
+        form.reset();
+        this.closeModal('signup-modal');
+        this.showToast(`Welcome to ZAPPIT, ${user.name}!`, 'success');
+
+        const nextUrl = new URLSearchParams(window.location.search).get('next') || sessionStorage.getItem('myluxcards_auth_next');
+        sessionStorage.removeItem('myluxcards_auth_next');
+        const targetUrl = (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//'))
+          ? nextUrl
+          : (data.redirectTo || '/dashboard');
+        window.location.href = targetUrl;
+      } catch (_) {
         if (error) error.textContent = 'We could not reach the sign-up service. Check your connection and try again.';
       } finally {
-        if (submit) { submit.disabled = false; submit.textContent = 'Create account'; }
+        if (submit) { submit.disabled = false; submit.textContent = 'Create Account'; }
       }
     });
 
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const form = e.currentTarget;
       const email = document.getElementById('login-email')?.value.trim().toLowerCase();
       const password = document.getElementById('login-password')?.value || '';
       const error = document.getElementById('login-error');
+      const button = form.querySelector('button[type="submit"]');
       if (error) error.textContent = '';
-      const fallbackLocalLogin = async () => {
-        const accounts = JSON.parse(localStorage.getItem('myluxcards_accounts') || '[]');
-        if (!accounts.length) return false;
-        const passwordHash = await this.hashPassword(password);
-        const match = accounts.find((account) => account.email?.toLowerCase() === email && account.passwordHash === passwordHash);
-        if (!match) return false;
-        const user = { name: match.name || email.split('@')[0], email };
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Signing in…';
+      }
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+          cache: 'no-store',
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.user) {
+          const message = data.message || data.error_description || data.error || data.msg || 'Login could not be completed. Please try again.';
+          if (error) error.textContent = message;
+          this.showToast(message, 'error');
+          return;
+        }
+        const user = {
+          name: data.user.name || email.split('@')[0],
+          email: data.user.email || email,
+          role: data.role || 'CUSTOMER'
+        };
         localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
         this.updateAccountButton(user);
-        e.currentTarget.reset();
+        window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: true, user } }));
+        form.reset();
+        document.getElementById('login-password').type = 'password';
+        const passwordToggle = document.getElementById('login-password-toggle');
+        if (passwordToggle) {
+          passwordToggle.textContent = 'Show';
+          passwordToggle.setAttribute('aria-pressed', 'false');
+        }
+        if (data.mustChangePassword) {
+          window.location.href = '/reset-password?required=1';
+          return;
+        }
+        if (data.role === 'ADMIN' || data.role === 'SUPER_ADMIN') {
+          window.location.href = '/admin';
+          return;
+        }
+        const nextUrl = new URLSearchParams(window.location.search).get('next') || sessionStorage.getItem('myluxcards_auth_next');
+        sessionStorage.removeItem('myluxcards_auth_next');
+        if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//')) {
+          window.location.href = nextUrl;
+          return;
+        }
         this.closeModal('login-modal');
         this.showToast(`Welcome back, ${user.name}!`, 'success');
-        return true;
-      };
+        window.location.href = data.redirectTo || '/dashboard';
+      } catch {
+        const message = 'The login service could not be reached. Please try again.';
+        if (error) error.textContent = message;
+        this.showToast(message, 'error');
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Login securely';
+        }
+      }
+    });
 
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        cache: 'no-store',
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (await fallbackLocalLogin()) return;
-        if (error) error.textContent = data.message || data.error_description || data.error || data.msg || 'Email or password is incorrect.';
-        return;
+    document.getElementById('forgot-password-trigger')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const resetEmail = document.getElementById('forgot-password-email');
+      if (resetEmail) resetEmail.value = document.getElementById('login-email')?.value || '';
+      switchAuthModal('login-modal', 'forgot-password-modal');
+    });
+
+    document.getElementById('forgot-back-to-login')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchAuthModal('forgot-password-modal', 'login-modal');
+    });
+
+    document.getElementById('forgot-password-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const email = document.getElementById('forgot-password-email')?.value.trim().toLowerCase();
+      const error = document.getElementById('forgot-password-error');
+      if (error) error.textContent = '';
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          if (error) error.textContent = data.message || 'Unable to send the reset email.';
+          return;
+        }
+        form.reset();
+        this.closeModal('forgot-password-modal');
+        this.showToast(data.message, 'success');
+      } finally {
+        if (button) button.disabled = false;
       }
-      const user = {
-        name: data.user?.user_metadata?.name || data.user?.email?.split('@')[0] || email.split('@')[0],
-        email: data.user?.email || email,
-      };
-      localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-      this.updateAccountButton(user);
-      e.currentTarget.reset();
-      this.closeModal('login-modal');
-      this.showToast(`Welcome back, ${user.name}!`, 'success');
-      const next = sessionStorage.getItem('myluxcards_auth_next');
-      if (next) {
-        sessionStorage.removeItem('myluxcards_auth_next');
-        window.location.href = next;
-      }
+    });
+
+    document.getElementById('login-password-toggle')?.addEventListener('click', (e) => {
+      const password = document.getElementById('login-password');
+      if (!password) return;
+      const showing = password.type === 'text';
+      password.type = showing ? 'password' : 'text';
+      e.currentTarget.textContent = showing ? 'Show' : 'Hide';
+      e.currentTarget.setAttribute('aria-pressed', String(!showing));
+      password.focus({ preventScroll: true });
     });
 
     const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
@@ -1626,53 +1965,37 @@ class LuxApp {
             this.updateAccountButton(null);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const loginFlag = urlParams.get('login') === '1';
-    const nextDestination = urlParams.get('next');
-    if (nextDestination) sessionStorage.setItem('myluxcards_auth_next', nextDestination);
-
+    // reuse existing urlParams, loginFlag, and nextDestination
     const oauthError = urlParams.get('error');
+
     if (oauthError) {
-      let friendlyMsg = 'Google authentication failed. Please try again.';
-      if (oauthError === 'OAuthCallback' || oauthError === 'Callback') {
-        friendlyMsg = 'Authentication was cancelled or the callback failed.';
-      } else if (oauthError === 'AccessDenied') {
-        friendlyMsg = 'Access was denied during Google sign in.';
-      } else if (oauthError === 'OAuthCreateAccount' || oauthError === 'EmailSignin') {
-        friendlyMsg = 'Could not sign in with Google account. Please try standard login.';
-      }
-      this.showToast(friendlyMsg, 'error');
-      const loginModal = document.getElementById('login-modal');
-      if (loginModal) loginModal.classList.add('open');
-    }
-
-
-    if (loginFlag) {
+      const error = document.getElementById('login-error');
+      if (error) error.textContent = oauthError === 'AccessDenied'
+        ? 'Google sign-in was cancelled or this account cannot be used.'
+        : 'Google sign-in could not be completed. Please try again.';
+      document.getElementById('login-modal')?.classList.add('open');
+    } else if (loginFlag) {
       fetch('/api/auth/me', { cache: 'no-store' })
         .then(async (res) => {
-          if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.user) {
             localStorage.removeItem('myluxcards_current_user');
-            const button = document.getElementById('login-trigger');
-            if (button) {
-              button.textContent = 'Login';
-              button.removeAttribute('title');
-              button.removeAttribute('data-authenticated');
-              button.setAttribute('aria-label', 'Login');
-            }
-            this.updateMobileAccountMenu(null);
-            const dropdown = document.getElementById('account-dropdown');
-            if (dropdown) dropdown.hidden = true;
+            this.updateAccountButton(null);
             document.getElementById('login-modal')?.classList.add('open');
           } else {
+            localStorage.setItem('myluxcards_current_user', JSON.stringify(data.user));
+            this.updateAccountButton(data.user);
+            this.updateMobileAccountMenu(data.user);
             const destination = sessionStorage.getItem('myluxcards_auth_next') || '/dashboard';
             sessionStorage.removeItem('myluxcards_auth_next');
             window.location.replace(destination);
           }
         })
         .catch(() => {
+          this.updateAccountButton(null);
           document.getElementById('login-modal')?.classList.add('open');
         });
     }
@@ -1686,18 +2009,18 @@ class LuxApp {
     // Support Panel Topics selection
     const supportPanelItems = document.querySelectorAll('.support-panel-item');
     const supportTopicSelect = document.getElementById('support-topic');
-    
+
     supportPanelItems.forEach(item => {
       item.addEventListener('click', () => {
         // Remove active class from all items
         supportPanelItems.forEach(i => i.classList.remove('active'));
         // Add active class to clicked item
         item.classList.add('active');
-        
+
         // Update select value based on data-topic
         if (supportTopicSelect) {
           supportTopicSelect.value = item.getAttribute('data-topic');
-          
+
           // Optionally, smoothly focus or highlight the form area
           const formName = document.getElementById('support-name');
           if (formName) {
@@ -1737,15 +2060,15 @@ class LuxApp {
         ripple.className = 'ripple-effect';
         ripple.style.left = `${x}px`;
         ripple.style.top = `${y}px`;
-        
+
         // Calculate max dimension to cover entire button
         const size = Math.max(rect.width, rect.height);
         ripple.style.width = `${size}px`;
         ripple.style.height = `${size}px`;
         ripple.style.transform = 'translate(-50%, -50%) scale(0)';
-        
+
         button.appendChild(ripple);
-        
+
         setTimeout(() => {
           ripple.remove();
         }, 600);
@@ -1799,7 +2122,7 @@ class LuxApp {
       particle.style.opacity = '0';
       particle.style.filter = 'blur(4px)';
       particle.style.animation = `floatParticle ${duration}s linear ${delay}s infinite`;
-      
+
       container.appendChild(particle);
     }
   }
@@ -1845,188 +2168,14 @@ class LuxApp {
   }
 }
 
-class Card3DMotionController {
-  constructor() {
-    this.modal = document.getElementById('login-modal');
-    this.stage = document.getElementById('login-nfc-stage');
-    this.wrapper = document.getElementById('login-nfc-wrapper');
-    this.shadow = document.getElementById('login-nfc-shadow');
-    this.toggleBtn = document.getElementById('nfc-motion-toggle');
-    this.toggleText = document.getElementById('nfc-motion-text');
-    this.toggleIcon = document.getElementById('nfc-motion-icon');
-    this.pwdToggle = document.getElementById('login-password-toggle');
-
-    if (!this.wrapper) return;
-
-    this.isPaused = false;
-    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (this.reducedMotion) {
-      this.isPaused = true;
-      this.updateToggleButtonState();
-    }
-
-    this.rotationY = -20;
-    this.initialPoseX = 8;
-    this.initialPoseZ = -6;
-    this.mouseTiltX = 0;
-    this.mouseTiltY = 0;
-    this.targetMouseTiltX = 0;
-    this.targetMouseTiltY = 0;
-    this.lastTime = null;
-    this.animFrameId = null;
-
-    this.initListeners();
-    this.initPasswordToggle();
-    this.checkModalState();
-  }
-
-  updateToggleButtonState() {
-    if (this.toggleText) {
-      this.toggleText.textContent = this.isPaused ? 'Resume Motion' : 'Pause Motion';
-    }
-    if (this.toggleIcon) {
-      if (this.isPaused) {
-        this.toggleIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
-      } else {
-        this.toggleIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
-      }
-    }
-    if (this.toggleBtn) {
-      this.toggleBtn.setAttribute('aria-pressed', this.isPaused ? 'true' : 'false');
-    }
-  }
-
-  initPasswordToggle() {
-    if (this.pwdToggle) {
-      this.pwdToggle.addEventListener('click', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('login-password');
-        if (!input) return;
-        const isShow = input.type === 'password';
-        input.type = isShow ? 'text' : 'password';
-        this.pwdToggle.textContent = isShow ? 'Hide' : 'Show';
-        this.pwdToggle.setAttribute('aria-pressed', isShow ? 'true' : 'false');
-      });
-    }
-  }
-
-  initListeners() {
-    if (this.toggleBtn) {
-      this.toggleBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.isPaused = !this.isPaused;
-        this.updateToggleButtonState();
-        if (!this.isPaused) this.startLoop();
-      });
-    }
-
-    if (this.stage) {
-      this.stage.addEventListener('mousemove', (e) => {
-        if (this.reducedMotion) return;
-        const rect = this.stage.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const mouseX = (e.clientX - centerX) / (rect.width / 2);
-        const mouseY = (e.clientY - centerY) / (rect.height / 2);
-
-        this.targetMouseTiltX = -mouseY * 4;
-        this.targetMouseTiltY = mouseX * 4;
-      });
-
-      this.stage.addEventListener('mouseleave', () => {
-        this.targetMouseTiltX = 0;
-        this.targetMouseTiltY = 0;
-      });
-    }
-
-    if (this.modal) {
-      const observer = new MutationObserver(() => this.checkModalState());
-      observer.observe(this.modal, { attributes: true, attributeFilter: ['class'] });
-    }
-
-    document.addEventListener('visibilitychange', () => this.checkModalState());
-
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', (e) => {
-        this.reducedMotion = e.matches;
-        if (this.reducedMotion) {
-          this.isPaused = true;
-          this.updateToggleButtonState();
-          this.renderFrame(0);
-        }
-      });
-    }
-  }
-
-  checkModalState() {
-    const isModalOpen = this.modal?.classList.contains('open');
-    const isVisible = document.visibilityState === 'visible';
-    if (isModalOpen && isVisible) {
-      this.startLoop();
-    } else {
-      this.stopLoop();
-    }
-  }
-
-  startLoop() {
-    if (this.animFrameId) return;
-    this.lastTime = performance.now();
-    const tick = (now) => {
-      const delta = now - (this.lastTime || now);
-      this.lastTime = now;
-      this.renderFrame(delta, now);
-      if (this.modal?.classList.contains('open') && document.visibilityState === 'visible') {
-        this.animFrameId = requestAnimationFrame(tick);
-      } else {
-        this.stopLoop();
-      }
-    };
-    this.animFrameId = requestAnimationFrame(tick);
-  }
-
-  stopLoop() {
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
-    }
-    this.lastTime = null;
-  }
-
-  renderFrame(delta, now = performance.now()) {
-    if (!this.isPaused) {
-      this.rotationY = (this.rotationY + (delta / 1000) * 18) % 360;
-    }
-
-    this.mouseTiltX += (this.targetMouseTiltX - this.mouseTiltX) * 0.1;
-    this.mouseTiltY += (this.targetMouseTiltY - this.mouseTiltY) * 0.1;
-
-    const floatY = Math.sin((now / 5000) * 2 * Math.PI) * 5;
-
-    const currentX = this.initialPoseX + this.mouseTiltX;
-    const currentY = this.rotationY + this.mouseTiltY;
-    const currentZ = this.initialPoseZ;
-
-    if (this.wrapper) {
-      this.wrapper.style.transform = `translateY(${floatY}px) rotateX(${currentX}deg) rotateY(${currentY}deg) rotateZ(${currentZ}deg)`;
-    }
-
-    if (this.shadow) {
-      const shadowScale = 1 - Math.abs(floatY) * 0.02;
-      const shadowOpacity = 0.45 - Math.abs(floatY) * 0.02;
-      this.shadow.style.transform = `translateX(-50%) scale(${shadowScale})`;
-      this.shadow.style.opacity = shadowOpacity;
-    }
-  }
-}
-
 // Instantiate App on DOM complete
 const initLuxApp = () => {
-  if (!window.app) window.app = new LuxApp();
-  if (window.app && !window.app.card3D) {
-    window.app.card3D = new Card3DMotionController();
+  const recoveryHash = new URLSearchParams(window.location.hash.slice(1));
+  if (recoveryHash.get('type') === 'recovery' && window.location.pathname !== '/reset-password') {
+    window.location.replace(`/reset-password${window.location.hash}`);
+    return;
   }
+  if (!window.app) window.app = new LuxApp();
 };
 
 if (document.readyState === 'loading') {
@@ -2034,4 +2183,3 @@ if (document.readyState === 'loading') {
 } else {
   initLuxApp();
 }
-

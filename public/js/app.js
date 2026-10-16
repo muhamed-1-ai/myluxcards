@@ -120,6 +120,16 @@ class LuxApp {
     nav.appendChild(item);
   }
 
+  async logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (_) {}
+    localStorage.removeItem('myluxcards_current_user');
+    window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: false, user: null } }));
+    this.updateAccountButton(null);
+    window.location.replace('/');
+  }
+
   async loginWithGoogle() {
     const googleBtns = document.querySelectorAll('.btn-google, .google-auth-button, #google-login, #google-login-btn, #google-signup-btn');
     googleBtns.forEach(btn => {
@@ -1795,43 +1805,29 @@ class LuxApp {
           if (error) error.textContent = data.message || data.msg || data.error_description || data.error || 'Unable to create your account. Please try again.';
           return;
         }
+        const user = {
+          id: data.user?.id,
+          name: data.user?.name || name,
+          email: data.user?.email || email,
+          role: data.role || 'CUSTOMER'
+        };
+        localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
+        this.updateAccountButton(user);
+        window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: true, user } }));
         form.reset();
         this.closeModal('signup-modal');
-        if (data.access_token) {
-          localStorage.setItem('myluxcards_current_user', JSON.stringify({ name, email }));
-          this.updateAccountButton({ name, email });
-          this.showToast(`Welcome to MyLuxCards, ${name}!`, 'success');
-        } else {
-          const loginResponse = await fetch('/api/auth/login', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-            cache: 'no-store',
-          });
-          const loginData = await loginResponse.json().catch(() => ({}));
-          if (loginResponse.ok && loginData.user) {
-            const user = {
-              name: loginData.user.user_metadata?.name || loginData.user.email?.split('@')[0] || email.split('@')[0],
-              email: loginData.user.email || email,
-            };
-            localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
-            this.updateAccountButton(user);
-            form.reset();
-            this.closeModal('signup-modal');
-            this.showToast(`Welcome to MyLuxCards, ${user.name}!`, 'success');
-            return;
-          }
-          if (loginData.code === 'EMAIL_NOT_CONFIRMED' && error) {
-            error.textContent = 'Please confirm your email before signing in. A confirmation email has been sent.';
-          } else {
-            this.showToast('Check your email to confirm your account.', 'success');
-          }
-        }
+        this.showToast(`Welcome to ZAPPIT, ${user.name}!`, 'success');
+
+        const nextUrl = new URLSearchParams(window.location.search).get('next') || sessionStorage.getItem('myluxcards_auth_next');
+        sessionStorage.removeItem('myluxcards_auth_next');
+        const targetUrl = (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//'))
+          ? nextUrl
+          : (data.redirectTo || '/dashboard');
+        window.location.href = targetUrl;
       } catch (_) {
         if (error) error.textContent = 'We could not reach the sign-up service. Check your connection and try again.';
       } finally {
-        if (submit) { submit.disabled = false; submit.textContent = 'Create account'; }
+        if (submit) { submit.disabled = false; submit.textContent = 'Create Account'; }
       }
     });
 
@@ -1869,6 +1865,7 @@ class LuxApp {
         };
         localStorage.setItem('myluxcards_current_user', JSON.stringify(user));
         this.updateAccountButton(user);
+        window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: true, user } }));
         form.reset();
         document.getElementById('login-password').type = 'password';
         const passwordToggle = document.getElementById('login-password-toggle');
@@ -1892,6 +1889,7 @@ class LuxApp {
         }
         this.closeModal('login-modal');
         this.showToast(`Welcome back, ${user.name}!`, 'success');
+        window.location.href = data.redirectTo || '/dashboard';
       } catch {
         const message = 'The login service could not be reached. Please try again.';
         if (error) error.textContent = message;

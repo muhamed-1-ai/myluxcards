@@ -8,6 +8,17 @@ export async function POST(request:Request){
   if(!await checkRateLimit("SIGNUP",request.headers.get("x-forwarded-for")||"unknown",5,3600))return Response.json({message:"Too many attempts. Please try again later."},{status:429});
   if(name.length<2||name.length>100||!validEmail(email))return Response.json({message:"Enter a valid name and email address."},{status:400});
   if(typeof body.password!=="string"||!validPassword(body.password))return Response.json({message:"Use 12–128 characters with uppercase, lowercase, number, and symbol."},{status:400});
-  try{const user=await createCredentialUser({name,email,password:body.password});return authenticatedResponse({...user,sessionVersion:user.session_version})}
-  catch(error){if((error as {code?:string}).code==="23505")return Response.json({message:"Unable to create an account with those details."},{status:409});throw error}
+  try {
+    const user = await createCredentialUser({ name, email, password: body.password });
+    return await authenticatedResponse({ ...user, sessionVersion: user.session_version }, request);
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      return Response.json({ message: "An account with that email already exists. Please log in." }, { status: 409 });
+    }
+    if (error instanceof Error && error.message === "INVALID_SIGNUP") {
+      return Response.json({ message: "Please check your name, email, and password." }, { status: 400 });
+    }
+    console.error("[Signup API Error]:", error);
+    return Response.json({ message: "Registration could not be completed. Please try again." }, { status: 500 });
+  }
 }

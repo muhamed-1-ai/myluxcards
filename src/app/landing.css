@@ -2336,6 +2336,18 @@ body:has(.landing-page) {
   outline: none !important;
 }
 
+/* Password requirement chips */
+.rule-chip {
+  transition: all 0.2s ease !important;
+}
+
+.rule-chip.met {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: #22C55E !important;
+  color: #16A34A !important;
+  font-weight: 600 !important;
+}
+
 .landing-page .payment-option,
 .payment-option {
   background: #F7F9FC !important;

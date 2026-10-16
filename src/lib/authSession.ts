@@ -11,7 +11,7 @@ export async function authenticatedResponse(
   const secret = getAuthSecret();
   const isHttps = request
     ? request.headers.get("x-forwarded-proto") === "https" || request.url.startsWith("https://")
-    : (process.env.APP_URL?.startsWith("https://") ?? true);
+    : Boolean(process.env.NEXTAUTH_URL?.startsWith("https://") || process.env.AUTH_URL?.startsWith("https://") || process.env.APP_URL?.startsWith("https://") || true);
   const secure = process.env.NODE_ENV === "production" && isHttps;
   const maxAge = 60 * 60 * 24 * 30;
   const token = await encode({

@@ -49,8 +49,8 @@ export async function createCredentialUser(input: { name: string; email: string;
   return withTransaction(async (db) => {
     const user = (
       await db.query<Pick<UserRow, "id" | "email" | "name" | "role" | "session_version">>(
-        `insert into users(email,name,password_hash,feature_permissions,role)
-      values($1,$2,$3,$4::jsonb,'CUSTOMER') returning id,email,name,role,session_version`,
+        `insert into users(email, normalized_email, name, password_hash, feature_permissions, role)
+      values($1, $1, $2, $3, $4::jsonb, 'CUSTOMER') returning id, email, name, role, session_version`,
         [email, name, passwordHash, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
       )
     ).rows[0];
@@ -86,8 +86,8 @@ export async function createAdminManagedUser(input: {
 
     const user = (
       await db.query<Pick<UserRow, "id" | "email" | "name" | "role" | "status" | "created_by_admin_id" | "feature_permissions" | "session_version">>(
-        `insert into users(email, name, password_hash, role, status, disabled, created_by_admin_id, feature_permissions)
-        values($1, $2, $3, 'CUSTOMER', $4, $5, $6, $7::jsonb)
+        `insert into users(email, normalized_email, name, password_hash, role, status, disabled, created_by_admin_id, feature_permissions)
+        values($1, $1, $2, $3, 'CUSTOMER', $4, $5, $6, $7::jsonb)
         returning id, email, name, role, status, created_by_admin_id, feature_permissions, session_version`,
         [email, name, passwordHash, status, disabled, input.adminId, JSON.stringify(permissions)]
       )
@@ -139,7 +139,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
 
     let user = (
       await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
-        "select id,email,name,session_version,role,disabled,status from users where LOWER(email)=$1 for update",
+        "select id,email,name,session_version,role,disabled,status from users where normalized_email=$1 for update",
         [email]
       )
     ).rows[0];
@@ -156,8 +156,8 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
       const assignedRole = isAdminEmail ? "ADMIN" : "CUSTOMER";
       user = (
         await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
-          `insert into users(email,name,role,feature_permissions)
-        values($1,$2,$3,$4::jsonb) returning id,email,name,session_version,role,disabled,status`,
+          `insert into users(email,normalized_email,name,role,feature_permissions)
+        values($1,$1,$2,$3,$4::jsonb) returning id,email,name,session_version,role,disabled,status`,
           [email, name, assignedRole, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
