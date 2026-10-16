@@ -77,17 +77,17 @@ export async function runProfileMigration(options: ProfileMigrationOptions): Pro
       const currentAccent = typeof rawProfile.profileAccent === "string" ? rawProfile.profileAccent.trim() : "";
       const currentText = typeof rawProfile.profileText === "string" ? rawProfile.profileText.trim() : "";
 
-      const isFormatMissingOrInvalid = !currentFormat || (currentFormat !== "modern" && currentFormat !== "standard");
+      const isFormatMissingOrInvalid = !currentFormat || (currentFormat !== "modern" && currentFormat !== "simple" && currentFormat !== "standard");
       const isOldStandard = currentFormat === "standard";
-      const isApprovedModern = currentFormat === "modern";
+      const isApprovedTemplate = currentFormat === "modern" || currentFormat === "simple";
 
-      if (isApprovedModern) {
+      if (isApprovedTemplate) {
         report.alreadyApproved++;
         report.records.push({
           id: row.id,
           slug: row.slug,
           status: "SKIPPED_APPROVED",
-          reason: "Profile is already using the approved modern design template.",
+          reason: `Profile is already using the approved ${currentFormat} design template.`,
           before: {
             format: currentFormat,
             background: currentBg,

@@ -16,6 +16,7 @@ import { LeadManagementDashboard } from "@/components/dashboard/LeadManagementDa
 import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { resolveThemeTokens, PROFILE_THEME_PRESETS, ProfileThemePreset } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
@@ -93,6 +94,7 @@ import {
   CreditCard,
   Bell,
   FileText,
+  Layout,
 } from "lucide-react";
 
 type Tab = "dashboard" | "leads" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons" | "config-dynamic";
@@ -278,7 +280,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     activatedAt: typeof card.activatedAt === "string" ? card.activatedAt : null,
     analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
     profileMode: card.profileMode || fallback.profileMode,
-    profileFormat: "modern",
+    profileFormat: card.profileFormat === "simple" ? "simple" : "modern",
     enabledFeatures: {
       digitalProfile: card.enabledFeatures?.digitalProfile !== false,
       vehicleConnect: card.enabledFeatures?.vehicleConnect !== false,
@@ -744,6 +746,58 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     const found = cards.find((card) => card.id === selectedId);
     if (found) setDraft(found);
   }, [selectedId]);
+
+  const [previewProfileFormat, setPreviewProfileFormat] = useState<"modern" | "simple" | null>(null);
+  const [applyingDesign, setApplyingDesign] = useState(false);
+  const [designFeedback, setDesignFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const appliedDesign: "modern" | "simple" = draft.profileFormat === "simple" ? "simple" : "modern";
+  const effectivePreviewDesign = previewProfileFormat ?? appliedDesign;
+
+  const handleApplyProfileDesign = async (chosenFormat: "modern" | "simple") => {
+    if (applyingDesign) return;
+    setApplyingDesign(true);
+    setDesignFeedback(null);
+    try {
+      const updatedDraft = {
+        ...draft,
+        profileFormat: chosenFormat,
+      };
+      const response = await fetchWithSessionRefresh("/api/cards", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedDraft),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || "Failed to apply profile design.");
+      }
+      const cloudCard = (payload.card || {}) as Card;
+      const finalCard: Card = {
+        ...updatedDraft,
+        ...cloudCard,
+        profileFormat: chosenFormat,
+      };
+      setDraft(finalCard);
+      setCards((prevCards) => prevCards.map((c) => (c.id === finalCard.id ? finalCard : c)));
+      if (currentUser) cacheCards(currentUser.id, [finalCard]);
+      lastSavedRef.current = JSON.stringify(finalCard);
+      setPreviewProfileFormat(null);
+      setDesignFeedback({
+        type: "success",
+        message: `${chosenFormat === "simple" ? "Simple" : "Modern"} design applied and published to your live card!`,
+      });
+      notify(`${chosenFormat === "simple" ? "Simple" : "Modern"} design applied!`);
+    } catch (err: any) {
+      setDesignFeedback({
+        type: "error",
+        message: err?.message || "Failed to save design. Previous design remains active.",
+      });
+      notify("Failed to apply design.");
+    } finally {
+      setApplyingDesign(false);
+    }
+  };
 
   const notify = (message: string) => {
     setToast(message); window.setTimeout(() => setToast(""), 2600);
@@ -1508,7 +1562,23 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
               {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
               {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
               {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
-              {tab === "appearance" && <AppearanceForm draft={draft} update={update} handleFile={handleFile} uploadingKind={uploadingKind} />}
+              {tab === "appearance" && (
+                <AppearanceForm
+                  draft={draft}
+                  update={update}
+                  handleFile={handleFile}
+                  uploadingKind={uploadingKind}
+                  appliedDesign={appliedDesign}
+                  previewDesign={effectivePreviewDesign}
+                  onSelectPreviewDesign={(fmt: "modern" | "simple") => {
+                    setPreviewProfileFormat(fmt);
+                    setDesignFeedback(null);
+                  }}
+                  onApplyDesign={handleApplyProfileDesign}
+                  applyingDesign={applyingDesign}
+                  designFeedback={designFeedback}
+                />
+              )}
               {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
               <div className="form-actions">
                 <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
@@ -1516,7 +1586,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
               </div>
             </div>
-            <PreviewPanel card={draft} onOpen={requestCardOpen} />
+            <PreviewPanel card={{ ...draft, profileFormat: effectivePreviewDesign }} onOpen={requestCardOpen} />
           </div>
         </section>}
 
@@ -4457,7 +4527,21 @@ function CustomColorField({
   );
 }
 
-function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
+function AppearanceForm({
+  draft,
+  update,
+  handleFile,
+  uploadingKind,
+  appliedDesign,
+  previewDesign,
+  onSelectPreviewDesign,
+  onApplyDesign,
+  applyingDesign,
+  designFeedback,
+}: any) {
+  const currentApplied = appliedDesign || (draft.profileFormat === "simple" ? "simple" : "modern");
+  const currentPreview = previewDesign || currentApplied;
+
   const handleCustomColorChange = (key: "profileBackground" | "profileAccent" | "profileText", nextHex: string) => {
     update(key, nextHex);
 
@@ -4486,7 +4570,153 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
     update("theme", "obsidian-luxe");
   };
 
-  return <><div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
+  return (
+    <>
+      {/* ── PROFILE DESIGN SELECTOR ── */}
+      <div className="profile-design-section" id="profile-design-section">
+        <div className="profile-design-header">
+          <h3>
+            <Layout className="w-4 h-4" style={{ color: "#0066FF" }} />
+            Profile Design
+          </h3>
+          <p>Choose a layout style for your public profile. Selecting a card previews it immediately; click Apply Design to save &amp; publish.</p>
+        </div>
+
+        <div className="profile-design-grid">
+          {/* MODERN DESIGN */}
+          <button
+            type="button"
+            className={`profile-design-card ${currentPreview === "modern" ? "is-selected" : ""}`}
+            onClick={() => onSelectPreviewDesign("modern")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelectPreviewDesign("modern");
+              }
+            }}
+            aria-pressed={currentPreview === "modern"}
+            aria-label="Modern profile design"
+          >
+            {currentApplied === "modern" && (
+              <span className="profile-design-applied-pill">ACTIVE DESIGN</span>
+            )}
+            <div className="profile-design-radio-badge">
+              {currentPreview === "modern" ? "✓" : ""}
+            </div>
+
+            <div className="profile-design-thumbnail">
+              <div className="mini-thumb-modern">
+                <div className="mini-mod-cover-bar" />
+                <div className="mini-mod-avatar-circle" />
+                <div className="mini-mod-name-line" />
+                <div className="mini-mod-btns-row">
+                  <div className="mini-mod-btn-item" />
+                  <div className="mini-mod-btn-item" />
+                  <div className="mini-mod-btn-item" />
+                </div>
+              </div>
+            </div>
+
+            <div className="profile-design-meta">
+              <span className="profile-design-title">Modern</span>
+              <span className="profile-design-tagline">Expansive &amp; dynamic digital profile</span>
+              <span className="profile-design-desc">
+                Rich showcase with prominent cover, overlapping avatar ring, and multi-action controls.
+              </span>
+            </div>
+          </button>
+
+          {/* SIMPLE DESIGN */}
+          <button
+            type="button"
+            className={`profile-design-card ${currentPreview === "simple" ? "is-selected" : ""}`}
+            onClick={() => onSelectPreviewDesign("simple")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelectPreviewDesign("simple");
+              }
+            }}
+            aria-pressed={currentPreview === "simple"}
+            aria-label="Simple profile design"
+          >
+            {currentApplied === "simple" && (
+              <span className="profile-design-applied-pill">ACTIVE DESIGN</span>
+            )}
+            <div className="profile-design-radio-badge">
+              {currentPreview === "simple" ? "✓" : ""}
+            </div>
+
+            <div className="profile-design-thumbnail">
+              <div className="mini-thumb-simple">
+                <div className="mini-simp-avatar" />
+                <div className="mini-simp-name" />
+                <div className="mini-simp-sub" />
+                <div className="mini-simp-primary-btn" />
+                <div className="mini-simp-pill-row">
+                  <div className="mini-simp-pill" />
+                  <div className="mini-simp-pill" />
+                  <div className="mini-simp-pill" />
+                </div>
+              </div>
+            </div>
+
+            <div className="profile-design-meta">
+              <span className="profile-design-title">Simple</span>
+              <span className="profile-design-tagline">Clean digital business card</span>
+              <span className="profile-design-desc">
+                Clean digital card with plain background, contained photo, clear typography, and focused primary contact action.
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* Action Bar */}
+        <div className="profile-design-actions-bar">
+          <div className="profile-design-status-text">
+            {currentPreview === currentApplied ? (
+              <span>
+                ✓ <strong>{currentApplied === "simple" ? "Simple" : "Modern"}</strong> is currently applied and live on your public profile.
+              </span>
+            ) : (
+              <span>
+                👁 Previewing <strong>{currentPreview === "simple" ? "Simple" : "Modern"}</strong>. Click <strong>Apply Design</strong> to save and publish.
+              </span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="profile-design-apply-btn"
+            disabled={applyingDesign || currentPreview === currentApplied}
+            onClick={() => onApplyDesign(currentPreview)}
+            aria-label="Apply and publish selected profile design"
+          >
+            {applyingDesign ? (
+              <>
+                <span className="spinner-sm" style={{ width: 14, height: 14, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                <span>Applying…</span>
+              </>
+            ) : currentPreview === currentApplied ? (
+              <>
+                <span>✓ Applied</span>
+              </>
+            ) : (
+              <>
+                <span>Apply Design</span>
+              </>
+            )}
+          </button>
+
+          {designFeedback && (
+            <div className={`profile-design-feedback ${designFeedback.type}`}>
+              {designFeedback.type === "success" ? "✓" : "⚠️"} {designFeedback.message}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
     <div className="profile-colours">
       <div>
         <span className="step">01</span>
@@ -4759,7 +4989,8 @@ function AppearanceForm({ draft, update, handleFile, uploadingKind }: any) {
         </button>
       </div>
     )}
-  </>;
+  </>
+);
 }
 
 
@@ -4981,14 +5212,25 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
     <div className="preview-card">
       <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
       <div style={{ padding: "8px 0" }}>
-        <ModernProfileLayout
-          card={card}
-          isDashboardPreview
-          onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
-          onShareDetails={() => setShareDetailsModalOpen(true)}
-          onShare={() => alert("Share demo: in live public profile this opens share options.")}
-          onOpenBrochure={card.brochure ? () => alert("Brochure demo: downloads your uploaded brochure file.") : undefined}
-        />
+        {card.profileFormat === "simple" ? (
+          <SimpleProfileLayout
+            card={card}
+            isDashboardPreview
+            onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
+            onShareDetails={() => setShareDetailsModalOpen(true)}
+            onShare={() => alert("Share demo: in live public profile this opens share options.")}
+            onOpenBrochure={card.brochure ? () => alert("Brochure demo: downloads your uploaded brochure file.") : undefined}
+          />
+        ) : (
+          <ModernProfileLayout
+            card={card}
+            isDashboardPreview
+            onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
+            onShareDetails={() => setShareDetailsModalOpen(true)}
+            onShare={() => alert("Share demo: in live public profile this opens share options.")}
+            onOpenBrochure={card.brochure ? () => alert("Brochure demo: downloads your uploaded brochure file.") : undefined}
+          />
+        )}
       </div>
       <ShareDetailsModal
         isOpen={shareDetailsModalOpen}

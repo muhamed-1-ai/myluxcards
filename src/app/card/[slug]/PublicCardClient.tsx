@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
+import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { ProfileActions } from "@/components/card/ProfileActions";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import LeadContactCardDrawer from "@/components/leads/LeadContactCardDrawer";
@@ -1213,22 +1214,41 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
       {/* ── VIEW 3: DIGITAL PROFILE ── */}
       {activeView === "profile" && (
-        <ModernProfileLayout
-          card={card}
-          profileProducts={profileProducts}
-          onSaveContact={saveContact}
-          onShareDetails={() => setLeadModalOpen(true)}
-          onShare={() => { track("SHARE"); void share(); }}
-          onEditProfile={handleEditProfileClick}
-          onOpenBrochure={card.brochure ? () => {
-            if (card.brochureData) {
-              const a = document.createElement("a");
-              a.href = card.brochureData;
-              a.download = card.brochure;
-              a.click();
-            }
-          } : undefined}
-        />
+        card.profileFormat === "simple" ? (
+          <SimpleProfileLayout
+            card={card}
+            profileProducts={profileProducts}
+            onSaveContact={saveContact}
+            onShareDetails={() => setLeadModalOpen(true)}
+            onShare={() => { track("SHARE"); void share(); }}
+            onEditProfile={handleEditProfileClick}
+            onOpenBrochure={card.brochure ? () => {
+              if (card.brochureData) {
+                const a = document.createElement("a");
+                a.href = card.brochureData;
+                a.download = card.brochure;
+                a.click();
+              }
+            } : undefined}
+          />
+        ) : (
+          <ModernProfileLayout
+            card={card}
+            profileProducts={profileProducts}
+            onSaveContact={saveContact}
+            onShareDetails={() => setLeadModalOpen(true)}
+            onShare={() => { track("SHARE"); void share(); }}
+            onEditProfile={handleEditProfileClick}
+            onOpenBrochure={card.brochure ? () => {
+              if (card.brochureData) {
+                const a = document.createElement("a");
+                a.href = card.brochureData;
+                a.download = card.brochure;
+                a.click();
+              }
+            } : undefined}
+          />
+        )
       )}
 
       {/* ── QR Code modal ── */}

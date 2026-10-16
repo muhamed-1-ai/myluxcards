@@ -1,0 +1,878 @@
+/* ==========================================================================
+   PUBLIC PROFILE DESIGNS: DESIGN SWITCHER & SIMPLE DESIGN SYSTEM
+   ========================================================================== */
+
+/* ── Profile Design Selector in Card Design Tab ── */
+.profile-design-section {
+  margin-bottom: 28px;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+}
+
+.profile-design-header {
+  margin-bottom: 16px;
+}
+
+.profile-design-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.profile-design-header p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.profile-design-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .profile-design-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-design-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid var(--border-color);
+  background-color: var(--surface-soft);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  text-align: left;
+}
+
+.profile-design-card:hover {
+  border-color: #0066FF;
+  transform: translateY(-2px);
+}
+
+.profile-design-card:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.35);
+}
+
+.profile-design-card.is-selected {
+  border-color: #0066FF;
+  background-color: rgba(0, 102, 255, 0.06);
+  box-shadow: 0 0 0 1px #0066FF;
+}
+
+.profile-design-radio-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  color: transparent;
+}
+
+.profile-design-card.is-selected .profile-design-radio-badge {
+  background-color: #0066FF;
+  border-color: #0066FF;
+  color: #FFFFFF;
+}
+
+.profile-design-applied-pill {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: #2ecc71;
+  color: #050B14;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(46, 204, 113, 0.3);
+  z-index: 2;
+}
+
+.profile-design-thumbnail {
+  width: 100%;
+  height: 120px;
+  border-radius: 10px;
+  background-color: #0B0F17;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 16px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* Miniature Modern Preview */
+.mini-thumb-modern {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.mini-mod-cover-bar {
+  height: 32px;
+  width: 100%;
+  background: linear-gradient(135deg, #004b99, #001f3f);
+  border-radius: 6px;
+}
+.mini-mod-avatar-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #0066FF;
+  border: 2px solid #0B0F17;
+  position: absolute;
+  top: 19px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.mini-mod-name-line {
+  width: 50%;
+  height: 6px;
+  background: #FFFFFF;
+  border-radius: 3px;
+  margin-top: 18px;
+}
+.mini-mod-btns-row {
+  display: flex;
+  gap: 4px;
+  width: 80%;
+  margin-top: 6px;
+}
+.mini-mod-btn-item {
+  flex: 1;
+  height: 9px;
+  background: #0066FF;
+  border-radius: 4px;
+}
+
+/* Miniature Simple Preview */
+.mini-thumb-simple {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #111827;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+.mini-simp-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1F2937;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 5px;
+}
+.mini-simp-name {
+  width: 45%;
+  height: 6px;
+  background: #F9FAFB;
+  border-radius: 3px;
+  margin-bottom: 3px;
+}
+.mini-simp-sub {
+  width: 30%;
+  height: 4px;
+  background: #6B7280;
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+.mini-simp-primary-btn {
+  width: 85%;
+  height: 11px;
+  background: #2563EB;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+.mini-simp-pill-row {
+  display: flex;
+  gap: 4px;
+  width: 85%;
+}
+.mini-simp-pill {
+  flex: 1;
+  height: 8px;
+  background: #1F2937;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.profile-design-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-design-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.profile-design-tagline {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.profile-design-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+/* Apply action bar */
+.profile-design-actions-bar {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.profile-design-status-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 200px;
+}
+
+.profile-design-status-text strong {
+  color: var(--text-primary);
+}
+
+.profile-design-apply-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #0066FF;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.profile-design-apply-btn:hover:not(:disabled) {
+  background-color: #0052CC;
+  transform: translateY(-1px);
+}
+
+.profile-design-apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.profile-design-feedback {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-design-feedback.success {
+  background-color: rgba(46, 204, 113, 0.12);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  color: #2ecc71;
+}
+
+.profile-design-feedback.error {
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ZAPPIT SIMPLE PUBLIC PROFILE DESIGN SYSTEM
+   Clean digital business card, plain background, contained photo,
+   restrained natural colors, clear typography & hierarchy
+   ═══════════════════════════════════════════════════════════════ */
+
+.zappit-simple-wrapper,
+.zappit-simple-wrapper * {
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.zappit-simple-wrapper {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Light & Dark Mode Tokens */
+.zappit-simple-theme-light {
+  --simple-bg: #FFFFFF;
+  --simple-card-bg: #FFFFFF;
+  --simple-surface: #F8FAFC;
+  --simple-surface-soft: #F1F5F9;
+  --simple-border: #E2E8F0;
+  --simple-border-subtle: #EDF2F7;
+  --simple-text-primary: #0F172A;
+  --simple-text-secondary: #475569;
+  --simple-text-muted: #64748B;
+  --simple-avatar-bg: #F1F5F9;
+  --simple-avatar-border: #CBD5E1;
+  --simple-primary-btn-bg: var(--simple-accent, #0066FF);
+  --simple-primary-btn-text: #FFFFFF;
+  --simple-primary-btn-hover: #0052CC;
+  --simple-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.zappit-simple-theme-dark {
+  --simple-bg: #0F141C;
+  --simple-card-bg: #0F141C;
+  --simple-surface: #161D2A;
+  --simple-surface-soft: #1E2738;
+  --simple-border: rgba(255, 255, 255, 0.08);
+  --simple-border-subtle: rgba(255, 255, 255, 0.05);
+  --simple-text-primary: #F9FAFB;
+  --simple-text-secondary: #CBD5E1;
+  --simple-text-muted: #94A3B8;
+  --simple-avatar-bg: #161D2A;
+  --simple-avatar-border: rgba(255, 255, 255, 0.12);
+  --simple-primary-btn-bg: var(--simple-accent, #2563EB);
+  --simple-primary-btn-text: #FFFFFF;
+  --simple-primary-btn-hover: #1D4ED8;
+  --simple-shadow: none;
+}
+
+.zappit-simple-card {
+  position: relative;
+  width: 100%;
+  background-color: var(--simple-card-bg);
+  border: 1px solid var(--simple-border);
+  border-radius: 20px;
+  padding: 32px 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  color: var(--simple-text-primary);
+  box-shadow: var(--simple-shadow);
+}
+
+@media (max-width: 480px) {
+  .zappit-simple-card {
+    padding: 24px 16px;
+    border-radius: 16px;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+/* Edit bar */
+.zappit-simple-edit-bar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+}
+
+.zappit-simple-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--simple-surface-soft);
+  border: 1px solid var(--simple-border);
+  color: var(--simple-text-secondary);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zappit-simple-edit-btn:hover {
+  color: var(--simple-text-primary);
+  border-color: var(--simple-accent);
+}
+
+/* 1. Contained Photo */
+.zappit-simple-photo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.zappit-simple-photo-ring {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--simple-avatar-bg);
+  border: 2px solid var(--simple-avatar-border);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.zappit-simple-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.zappit-simple-photo-fallback {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--simple-text-muted);
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+/* 2. Identity & Typography */
+.zappit-simple-identity {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.zappit-simple-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--simple-text-primary);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 0;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.zappit-simple-subtitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--simple-text-muted);
+  line-height: 1.4;
+  margin: 0;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.zappit-simple-bio {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--simple-text-secondary);
+  margin: 8px 0 0;
+  max-width: 420px;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* 3. Primary Contact Action (Save Contact) */
+.zappit-simple-primary-wrap {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.zappit-simple-btn-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: var(--simple-primary-btn-bg);
+  color: var(--simple-primary-btn-text);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-decoration: none;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.zappit-simple-btn-primary:hover {
+  opacity: 0.93;
+  transform: translateY(-1px);
+}
+
+.zappit-simple-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* 4. Grouped Secondary Actions (Call, WhatsApp, Email, Website) */
+.zappit-simple-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.zappit-simple-action-pill {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--simple-surface);
+  border: 1px solid var(--simple-border);
+  color: var(--simple-text-primary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.zappit-simple-action-pill:hover {
+  background-color: var(--simple-surface-soft);
+  border-color: var(--simple-accent);
+}
+
+/* 5. Contact List Details */
+.zappit-simple-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  background-color: var(--simple-surface);
+  border: 1px solid var(--simple-border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+}
+
+.zappit-simple-contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  gap: 12px;
+  border-bottom: 1px solid var(--simple-border-subtle);
+}
+
+.zappit-simple-contact-row:last-child {
+  border-bottom: none;
+}
+
+.zappit-simple-contact-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.zappit-simple-contact-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--simple-surface-soft);
+  color: var(--simple-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.zappit-simple-contact-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.zappit-simple-contact-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--simple-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.zappit-simple-contact-value {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--simple-text-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zappit-simple-contact-value:hover {
+  color: var(--simple-accent);
+}
+
+.zappit-simple-copy-btn {
+  background: transparent;
+  border: 1px solid var(--simple-border);
+  border-radius: 6px;
+  color: var(--simple-text-muted);
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.zappit-simple-copy-btn:hover {
+  color: var(--simple-text-primary);
+  background: var(--simple-surface-soft);
+}
+
+/* 6. Social Links Section */
+.zappit-simple-social-section {
+  width: 100%;
+}
+
+.zappit-simple-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--simple-text-muted);
+  margin: 0 0 10px;
+}
+
+.zappit-simple-social-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.zappit-simple-social-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background-color: var(--simple-surface);
+  border: 1px solid var(--simple-border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--simple-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.zappit-simple-social-card:hover {
+  border-color: var(--simple-accent);
+  background-color: var(--simple-surface-soft);
+}
+
+.zappit-simple-social-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--simple-text-primary);
+}
+
+.zappit-simple-social-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 7. Services Section */
+.zappit-simple-services-section {
+  width: 100%;
+}
+
+.zappit-simple-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.zappit-simple-service-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--simple-text-secondary);
+}
+
+.zappit-simple-service-dot {
+  color: var(--simple-accent);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 8. Products Section */
+.zappit-simple-products-section {
+  width: 100%;
+}
+
+.zappit-simple-products-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.zappit-simple-product-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background-color: var(--simple-surface);
+  border: 1px solid var(--simple-border);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.zappit-simple-product-image {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--simple-surface-soft);
+  flex-shrink: 0;
+}
+
+.zappit-simple-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.zappit-simple-product-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.zappit-simple-product-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--simple-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zappit-simple-product-desc {
+  font-size: 12px;
+  color: var(--simple-text-muted);
+  line-height: 1.4;
+  margin: 3px 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.zappit-simple-product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.zappit-simple-product-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--simple-text-primary);
+}
+
+.zappit-simple-product-cta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--simple-accent);
+  text-decoration: none;
+}
+
+/* 9. Utilities (Share, Brochure) */
+.zappit-simple-utilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--simple-border-subtle);
+}
+
+.zappit-simple-util-btn {
+  flex: 1 1 calc(33.333% - 6px);
+  min-width: 100px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: transparent;
+  border: 1px solid var(--simple-border);
+  color: var(--simple-text-muted);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.zappit-simple-util-btn:hover {
+  background-color: var(--simple-surface-soft);
+  color: var(--simple-text-primary);
+  border-color: var(--simple-border);
+}

@@ -19,6 +19,34 @@ export const CARD_FIELDS = [
 
 export type ProfileMode = "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
 
+export type ProfileDesignFormat = "modern" | "simple";
+
+export interface ProfileDesignDefinition {
+  id: ProfileDesignFormat;
+  name: string;
+  tagline: string;
+  description: string;
+}
+
+export const SUPPORTED_PROFILE_DESIGNS: readonly ProfileDesignDefinition[] = [
+  {
+    id: "modern",
+    name: "Modern",
+    tagline: "Expansive & dynamic digital profile",
+    description: "Rich showcase with prominent cover, badge accents, and expansive layout.",
+  },
+  {
+    id: "simple",
+    name: "Simple",
+    tagline: "Clean digital business card",
+    description: "Clean business profile with plain background, contained photo, and focused contact actions.",
+  },
+] as const;
+
+export function isSupportedProfileDesign(format: unknown): format is ProfileDesignFormat {
+  return typeof format === "string" && (format.toLowerCase().trim() === "modern" || format.toLowerCase().trim() === "simple");
+}
+
 export type ProfileFeatureKey =
   | "BASIC_PROFILE"
   | "CONTACT"
@@ -208,7 +236,8 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         ? String(value)
         : "DIGITAL_PROFILE";
     } else if (field === "profileFormat") {
-      output.profileFormat = "modern";
+      const fmt = String(value || "").toLowerCase().trim();
+      output.profileFormat = fmt === "simple" ? "simple" : "modern";
     } else if (field === "modernConfig" && value && typeof value === "object" && !Array.isArray(value)) {
       const mc = value as Record<string, unknown>;
       output.modernConfig = {
@@ -334,7 +363,7 @@ export function completeCardProfile(input: unknown) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const cleaned = cleanCardProfile(source);
   const rawFormat = String(source.profileFormat || "").toLowerCase().trim();
-  const isRetiredOrInvalidFormat = !rawFormat || rawFormat === "standard" || rawFormat !== "modern";
+  const isRetiredOrInvalidFormat = !rawFormat || rawFormat === "standard" || (rawFormat !== "modern" && rawFormat !== "simple");
   const isLegacyGold = cleaned.profileAccent === "#FFAE00" || cleaned.profileAccent === "#D4AF37" || cleaned.profileAccent === "#C5A059";
   const isLegacyGoldDefault = (!source.profileBackground && !source.profileAccent) || (isRetiredOrInvalidFormat && isLegacyGold);
 
@@ -344,7 +373,7 @@ export function completeCardProfile(input: unknown) {
   return {
     ...CARD_PROFILE_DEFAULTS,
     ...cleaned,
-    profileFormat: "modern",
+    profileFormat: cleaned.profileFormat === "simple" ? "simple" : "modern",
     profileBackground: resolvedBg,
     profileAccent: resolvedAccent,
     profileText: cleaned.profileText || "#ffffff",
