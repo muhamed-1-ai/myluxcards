@@ -2,7 +2,7 @@
 import BrandLogo from "@/components/BrandLogo";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
-import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
+import { buildPremiumQrSvg, buildAdminUserQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { FEATURE_CATALOGUE, FeatureKey, FeatureGroup, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
@@ -29,21 +29,43 @@ const labels: Record<Section,string> = {
 };
 const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
 
-export default function AdminApp({ identity }:{identity:AdminIdentity}) {
-  const [section,setSection]=useState<Section>("overview"), [mobile,setMobile]=useState(false);
-  const [data,setData]=useState<any>(null), [loading,setLoading]=useState(true), [error,setError]=useState(""), [search,setSearch]=useState("");
+export default function AdminApp({
+  identity,
+  initialSection,
+  mockData,
+}: {
+  identity: AdminIdentity;
+  initialSection?: Section;
+  mockData?: any;
+}) {
+  const [section, setSection] = useState<Section>(initialSection || "overview");
+  const [mobile, setMobile] = useState(false);
+  const [data, setData] = useState<any>(mockData || null);
+  const [loading, setLoading] = useState(!mockData);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const [shipOrderId, setShipOrderId] = useState<string | null>(null);
-  const loadVersion=useRef(0);
-  const load=useCallback(async()=>{
-    const version=++loadVersion.current;
-    setLoading(true);setError("");
+  const loadVersion = useRef(0);
+  const load = useCallback(async () => {
+    if (mockData) return;
+    const version = ++loadVersion.current;
+    setLoading(true);
+    setError("");
     let path: string = section;
     if (section === "overview") path = "dashboard";
     else if (section === "activations") path = "customers";
     else if (section === "managed_users") path = "managed-users";
     else if (section.startsWith("team_")) path = `team/${section.replace("team_", "").replace("_", "-")}`;
 
-    try { const response=await fetch(`/api/admin/${path}${search&&["orders","customers","managed_users","team_leads"].includes(section)?`?search=${encodeURIComponent(search)}`:""}`,{cache:"no-store"});
+    try {
+      const response = await fetch(
+        `/api/admin/${path}${
+          search && ["orders", "customers", "managed_users", "team_leads"].includes(section)
+            ? `?search=${encodeURIComponent(search)}`
+            : ""
+        }`,
+        { cache: "no-store" }
+      );
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
       const payload=await response.json();
@@ -381,12 +403,7 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
 
   const downloadUserQr = async (user: Row, format: "png" | "svg") => {
     const qrUrl = user.qrUrl || getCanonicalUserQrUrl({ slug: user.digital_card_slug, id: user.id });
-    const svgString = buildPremiumQrSvg(qrUrl, {
-      darkColor: "#000000",
-      lightColor: "#FFFFFF",
-      showLabel: false,
-      showFrame: false,
-    });
+    const svgString = buildAdminUserQrSvg(qrUrl);
     const filename = `zappit-qr-${user.name ? user.name.replace(/\s+/g, "-").toLowerCase() : user.id}.${format}`;
 
     if (format === "svg") {
@@ -561,12 +578,7 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
       {qrModalUser && (() => {
         const qrUrl = qrModalUser.qrUrl || getCanonicalUserQrUrl({ slug: qrModalUser.digital_card_slug, id: qrModalUser.id });
         const cardUrl = getPublicCardUrl(qrModalUser.digital_card_slug || qrModalUser.id);
-        const adminQrSvg = buildPremiumQrSvg(qrUrl, {
-          darkColor: "#000000",
-          lightColor: "#FFFFFF",
-          showLabel: false,
-          showFrame: false,
-        });
+        const adminQrSvg = buildAdminUserQrSvg(qrUrl);
 
         return (
           <div

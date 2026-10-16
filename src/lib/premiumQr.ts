@@ -6,6 +6,105 @@ export interface PremiumQrOptions {
   darkColor?: string;
   lightColor?: string;
   showFrame?: boolean;
+  variant?: "default" | "admin_framed";
+}
+
+/**
+ * Builds the Admin User QR code matching the reference design:
+ * - Solid white background (#FFFFFF)
+ * - Bold black heading "3G ZAPPIT" centered above the frame
+ * - Bold black outer frame with smoothly rounded corners
+ * - Centered square QR code with circular black dots
+ * - Three rounded-square black corner markers with white insets and black rounded-square centers
+ * - Unobstructed white quiet zone of at least four QR modules on every side
+ */
+export function buildAdminUserQrSvg(text: string): string {
+  const qr = QRCode.create(text || "https://3gzappit.com", { errorCorrectionLevel: "H" });
+  const size = qr.modules.size;
+  const moduleSize = 10;
+
+  // Matrix dimensions
+  const matrixSize = size * moduleSize;
+
+  // Frame padding around QR (54px = 5.4 modules, strictly > 4 modules quiet zone)
+  const framePadding = 54;
+  const frameWidth = matrixSize + framePadding * 2;
+  const frameHeight = frameWidth;
+
+  // Outer canvas margins and top heading space
+  const outerMargin = 20;
+  const topPadding = 24;
+  const headingHeight = 28;
+  const headingGap = 16;
+  const frameTop = topPadding + headingHeight + headingGap;
+
+  const totalWidth = frameWidth + outerMargin * 2;
+  const totalHeight = frameTop + frameHeight + outerMargin;
+
+  const frameX = outerMargin;
+  const frameY = frameTop;
+
+  const qrOriginX = frameX + framePadding;
+  const qrOriginY = frameY + framePadding;
+
+  const headingX = (totalWidth / 2).toFixed(2);
+  const headingY = (topPadding + 22).toFixed(2);
+
+  const isFinder = (x: number, y: number) => {
+    if (x < 7 && y < 7) return true;
+    if (x >= size - 7 && y < 7) return true;
+    if (x < 7 && y >= size - 7) return true;
+    return false;
+  };
+
+  const dots: string[] = [];
+  const dotRadius = moduleSize * 0.42;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (isFinder(x, y)) continue;
+      if (qr.modules.data[y * size + x]) {
+        const cx = (qrOriginX + x * moduleSize + moduleSize / 2).toFixed(2);
+        const cy = (qrOriginY + y * moduleSize + moduleSize / 2).toFixed(2);
+        dots.push(`<circle cx="${cx}" cy="${cy}" r="${dotRadius.toFixed(2)}" fill="#000000" />`);
+      }
+    }
+  }
+
+  const renderFinderEye = (fx: number, fy: number) => {
+    const x = qrOriginX + fx * moduleSize;
+    const y = qrOriginY + fy * moduleSize;
+    const outerSize = 7 * moduleSize;
+    const gapSize = 5 * moduleSize;
+    const gapOffset = 1 * moduleSize;
+    const innerSize = 3 * moduleSize;
+    const innerOffset = 2 * moduleSize;
+
+    return [
+      `<rect x="${x}" y="${y}" width="${outerSize}" height="${outerSize}" rx="16" fill="#000000" />`,
+      `<rect x="${x + gapOffset}" y="${y + gapOffset}" width="${gapSize}" height="${gapSize}" rx="10" fill="#FFFFFF" />`,
+      `<rect x="${x + innerOffset}" y="${y + innerOffset}" width="${innerSize}" height="${innerSize}" rx="6" fill="#000000" />`,
+    ].join("");
+  };
+
+  const finders = [
+    renderFinderEye(0, 0),
+    renderFinderEye(size - 7, 0),
+    renderFinderEye(0, size - 7),
+  ].join("");
+
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}">\n` +
+    `  <rect width="100%" height="100%" fill="#FFFFFF" />\n` +
+    `  <text x="${headingX}" y="${headingY}" fill="#000000" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="900" letter-spacing="2.5" text-anchor="middle">3G ZAPPIT</text>\n` +
+    `  <rect x="${frameX}" y="${frameY}" width="${frameWidth}" height="${frameHeight}" rx="36" fill="none" stroke="#000000" stroke-width="8" />\n` +
+    `  ${finders}\n` +
+    `  <g>\n` +
+    `    ${dots.join("\n    ")}\n` +
+    `  </g>\n` +
+    `</svg>`
+  );
 }
 
 /**
@@ -18,6 +117,9 @@ export interface PremiumQrOptions {
  * - High Error Correction (Level 'H')
  */
 export function buildPremiumQrSvg(text: string, options: PremiumQrOptions = {}): string {
+  if (options.variant === "admin_framed") {
+    return buildAdminUserQrSvg(text);
+  }
   const {
     showLabel = true,
     label = "SCAN ME",

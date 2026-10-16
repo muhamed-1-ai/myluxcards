@@ -294,13 +294,13 @@ body.dark-mode {
 }
 
 .admin-user-qr-preview-box {
-  width: 240px !important;
-  height: 240px !important;
-  max-width: 100% !important;
-  aspect-ratio: 1 / 1 !important;
+  width: min(260px, 100%) !important;
+  height: auto !important;
+  max-height: 320px !important;
+  aspect-ratio: auto !important;
   background: #FFFFFF !important;
   padding: 12px !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
   display: flex !important;
@@ -313,7 +313,7 @@ body.dark-mode {
 
 .admin-user-qr-svg-wrapper {
   width: 100% !important;
-  height: 100% !important;
+  height: auto !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -321,9 +321,9 @@ body.dark-mode {
 
 .admin-user-qr-svg-wrapper svg {
   width: 100% !important;
-  height: 100% !important;
+  height: auto !important;
   max-width: 100% !important;
-  max-height: 100% !important;
+  max-height: 290px !important;
   display: block !important;
   object-fit: contain !important;
 }
@@ -386,11 +386,16 @@ body.dark-mode {
     max-height: 96vh !important;
   }
   .admin-user-qr-preview-box {
-    width: 200px !important;
-    height: 200px !important;
+    width: min(220px, 100%) !important;
+    height: auto !important;
+    max-height: 270px !important;
+    padding: 8px !important;
+  }
+  .admin-user-qr-svg-wrapper svg {
+    max-height: 250px !important;
   }
   .admin-user-qr-actions-container {
-    margin-top: 18px !important;
+    margin-top: 20px !important;
     gap: 8px !important;
   }
   .admin-user-qr-btn-row {
@@ -411,11 +416,16 @@ body.dark-mode {
 
 @media (max-height: 600px) {
   .admin-user-qr-preview-box {
-    width: 160px !important;
-    height: 160px !important;
+    width: min(160px, 100%) !important;
+    height: auto !important;
+    max-height: 200px !important;
+    padding: 6px !important;
+  }
+  .admin-user-qr-svg-wrapper svg {
+    max-height: 180px !important;
   }
   .admin-user-qr-body {
-    padding-top: 12px !important;
+    padding-top: 10px !important;
   }
   .admin-user-qr-actions-container {
     margin-top: 14px !important;
