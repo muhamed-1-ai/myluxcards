@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cleanCardProfile, completeCardProfile, safePublicCard } from "../src/lib/cards";
-import { runProfileMigration } from "../scripts/migrate-profiles-to-modern";
+import { cleanCardProfile, completeCardProfile, safePublicCard } from "../src/lib/cards.ts";
+import { runProfileMigration } from "../scripts/migrate-profiles-to-modern.ts";
 
 // Unit Tests for Authoritative Approved Template Enforcement
 test("cleanCardProfile: retired 'standard' format always normalizes to canonical 'modern'", () => {

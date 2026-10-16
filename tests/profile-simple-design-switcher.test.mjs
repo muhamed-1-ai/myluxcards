@@ -9,7 +9,7 @@ import {
   safePublicCard,
   SUPPORTED_PROFILE_DESIGNS,
   isSupportedProfileDesign,
-} from "../src/lib/cards";
+} from "../src/lib/cards.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

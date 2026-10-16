@@ -14,8 +14,15 @@ export const CARD_FIELDS = [
   "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
-  "profileFeatures","featureOrder","profileFormat","modernConfig",
+  "profileFeatures","featureOrder","profileFormat","modernConfig","simpleConfig",
 ] as const;
+
+export interface SimpleConfig {
+  coverScale?: number;
+  coverRotation?: number;
+  coverX?: number;
+  coverY?: number;
+}
 
 export type ProfileMode = "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
 
@@ -210,6 +217,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   profileMode: "DIGITAL_PROFILE",
   profileFormat: "modern",
   modernConfig: {},
+  simpleConfig: {},
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
   profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
   featureOrder: [ ...DEFAULT_FEATURE_ORDER ],
@@ -260,6 +268,14 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         cardRadius: typeof mc.cardRadius === "number" ? Math.max(0, Math.min(40, mc.cardRadius)) : undefined,
         buttonRadius: typeof mc.buttonRadius === "number" ? Math.max(0, Math.min(40, mc.buttonRadius)) : undefined,
         spacingDensity: ["compact", "comfortable", "spacious"].includes(String(mc.spacingDensity)) ? String(mc.spacingDensity) : undefined,
+      };
+    } else if (field === "simpleConfig" && value && typeof value === "object" && !Array.isArray(value)) {
+      const sc = value as Record<string, unknown>;
+      output.simpleConfig = {
+        coverScale: typeof sc.coverScale === "number" ? clamp(sc.coverScale, 25, 300, 100) : undefined,
+        coverRotation: typeof sc.coverRotation === "number" ? clamp(sc.coverRotation, -180, 180, 0) : undefined,
+        coverX: typeof sc.coverX === "number" ? clamp(sc.coverX, 0, 100, 50) : undefined,
+        coverY: typeof sc.coverY === "number" ? clamp(sc.coverY, 0, 100, 50) : undefined,
       };
     } else if (field === "enabledFeatures" && value && typeof value === "object") {
       const v = value as Record<string, unknown>;
@@ -384,6 +400,7 @@ export function completeCardProfile(input: unknown) {
     ...CARD_PROFILE_DEFAULTS,
     ...cleaned,
     profileFormat: cleaned.profileFormat === "simple" ? "simple" : "modern",
+    simpleConfig: cleaned.simpleConfig && typeof cleaned.simpleConfig === "object" ? cleaned.simpleConfig : {},
     profileBackground: resolvedBg,
     profileAccent: resolvedAccent,
     profileText: cleaned.profileText || "#ffffff",

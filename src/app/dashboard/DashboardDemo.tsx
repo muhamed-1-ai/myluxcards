@@ -17,7 +17,7 @@ import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
-import { resolveThemeTokens, PROFILE_THEME_PRESETS, ProfileThemePreset } from "@/lib/themeTokens";
+import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
@@ -121,6 +121,7 @@ type Card = {
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
   profileFormat?: string;
   modernConfig?: Record<string, any>;
+  simpleConfig?: Record<string, any>;
   enabledFeatures?: { digitalProfile: boolean; vehicleConnect: boolean; lostAndFound: boolean };
   vehicleConnect?: VehicleConnectSettings;
   emergencyContact?: EmergencyContactSettings;
@@ -4649,6 +4650,7 @@ function AppearanceForm({
 
             <div className="profile-design-thumbnail">
               <div className="mini-thumb-simple">
+                <div className="mini-simp-cover-bar" />
                 <div className="mini-simp-avatar" />
                 <div className="mini-simp-name" />
                 <div className="mini-simp-sub" />
@@ -4665,7 +4667,7 @@ function AppearanceForm({
               <span className="profile-design-title">Simple</span>
               <span className="profile-design-tagline">Clean digital business card</span>
               <span className="profile-design-desc">
-                Clean digital card with plain background, contained photo, clear typography, and focused primary contact action.
+                Clean digital card with cover photo header, contained photo, clear typography, and focused primary contact action.
               </span>
             </div>
           </button>
@@ -4806,6 +4808,30 @@ function AppearanceForm({
         >
           Reset to Obsidian Luxe
         </button>
+        {currentPreview === "simple" && resolveSimpleProfileTokens(draft).textReadabilityAdjusted && (
+          <div
+            className="profile-readability-notice"
+            style={{
+              width: "100%",
+              marginTop: "12px",
+              padding: "10px 14px",
+              borderRadius: "8px",
+              background: "rgba(0, 102, 255, 0.08)",
+              border: "1px solid rgba(0, 102, 255, 0.25)",
+              color: "#93c5fd",
+              fontSize: "12.5px",
+              lineHeight: 1.45,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+            }}
+          >
+            <span style={{ fontSize: "14px" }}>ℹ️</span>
+            <span>
+              <strong>Readability safeguard active:</strong> Your card text foreground was automatically adjusted to ensure accessible 4.5:1 contrast against your chosen background. Your requested color remains saved.
+            </span>
+          </div>
+        )}
       </div>
     </div>
     <div className="upload-section">
@@ -4900,95 +4926,191 @@ function AppearanceForm({
       </div>
     )}
 
-    <div className="upload-section">
-      <div>
-        <span className="step">02</span>
-        <h3>Background / cover</h3>
-        <p>Wide images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p>
-        <label className="upload-btn">
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            disabled={uploadingKind === "cover"}
-            onChange={(e) => handleFile(e, "cover")}
-          />
-          {uploadingKind === "cover" ? "Uploading…" : "Select background image"}
-        </label>
-      </div>
-      <div className="cover-upload-preview">
-        {draft.cover ? (
-          <img
-            src={resolveMediaUrl(draft.cover)}
-            alt="Cover preview"
-            style={{
-              transform: `scale(${(draft.coverScale ?? 100) / 100}) rotate(${draft.coverRotation ?? 0}deg)`,
-              objectPosition: `${draft.coverX ?? 50}% ${draft.coverY ?? 50}%`,
-            }}
-          />
-        ) : (
-          <span>Cover image preview</span>
-        )}
-      </div>
-    </div>
-    {draft.cover && (
-      <div className="image-controls cover-image-controls">
-        <label>
-          Zoom / Scale
-          <input
-            type="range"
-            min="100"
-            max="200"
-            value={draft.coverScale ?? 100}
-            onChange={(event) => update("coverScale", Number(event.target.value))}
-          />
-          <output>{draft.coverScale ?? 100}%</output>
-        </label>
-        <label>
-          Rotation
-          <input
-            type="range"
-            min="-180"
-            max="180"
-            value={draft.coverRotation ?? 0}
-            onChange={(event) => update("coverRotation", Number(event.target.value))}
-          />
-          <output>{draft.coverRotation ?? 0}°</output>
-        </label>
-        <label>
-          Horizontal position
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={draft.coverX ?? 50}
-            onChange={(event) => update("coverX", Number(event.target.value))}
-          />
-          <output>{draft.coverX ?? 50}%</output>
-        </label>
-        <label>
-          Vertical position
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={draft.coverY ?? 50}
-            onChange={(event) => update("coverY", Number(event.target.value))}
-          />
-          <output>{draft.coverY ?? 50}%</output>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            update("coverScale", 100);
-            update("coverRotation", 0);
-            update("coverX", 50);
-            update("coverY", 50);
-          }}
-        >
-          Reset cover
-        </button>
-      </div>
-    )}
+    {/* Design-specific cover crop & controls */}
+    {(() => {
+      const isSimple = currentPreview === "simple";
+      const sc = draft.simpleConfig || {};
+      const activeCoverScale = isSimple ? (typeof sc.coverScale === "number" ? sc.coverScale : (draft.coverScale ?? 100)) : (draft.coverScale ?? 100);
+      const activeCoverRotation = isSimple ? (typeof sc.coverRotation === "number" ? sc.coverRotation : (draft.coverRotation ?? 0)) : (draft.coverRotation ?? 0);
+      const activeCoverX = isSimple ? (typeof sc.coverX === "number" ? sc.coverX : (draft.coverX ?? 50)) : (draft.coverX ?? 50);
+      const activeCoverY = isSimple ? (typeof sc.coverY === "number" ? sc.coverY : (draft.coverY ?? 50)) : (draft.coverY ?? 50);
+
+      const updateCrop = (prop: "coverScale" | "coverRotation" | "coverX" | "coverY", val: number) => {
+        if (isSimple) {
+          update("simpleConfig", {
+            ...(draft.simpleConfig || {}),
+            [prop]: val,
+          });
+        } else {
+          update(prop, val);
+        }
+      };
+
+      const resetCrop = () => {
+        if (isSimple) {
+          update("simpleConfig", {
+            ...(draft.simpleConfig || {}),
+            coverScale: 100,
+            coverRotation: 0,
+            coverX: 50,
+            coverY: 50,
+          });
+        } else {
+          update("coverScale", 100);
+          update("coverRotation", 0);
+          update("coverX", 50);
+          update("coverY", 50);
+        }
+      };
+
+      return (
+        <>
+          <div className="upload-section">
+            <div>
+              <span className="step">02</span>
+              <h3>Cover photo</h3>
+              <p>Wide landscape images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "12px" }}>
+                <label className="upload-btn" style={{ margin: 0 }}>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={uploadingKind === "cover"}
+                    onChange={(e) => handleFile(e, "cover")}
+                  />
+                  {uploadingKind === "cover" ? "Uploading…" : draft.cover ? "Replace cover photo" : "Select cover photo"}
+                </label>
+                {draft.cover && (
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      color: "#ef4444",
+                      padding: "8px 14px",
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                    onClick={() => update("cover", "")}
+                  >
+                    Remove cover
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="cover-upload-preview">
+              {draft.cover ? (
+                <img
+                  src={resolveMediaUrl(draft.cover)}
+                  alt="Cover preview"
+                  style={{
+                    transform: `scale(${activeCoverScale / 100}) rotate(${activeCoverRotation}deg)`,
+                    objectPosition: `${activeCoverX}% ${activeCoverY}%`,
+                  }}
+                />
+              ) : (
+                <span>Cover image preview</span>
+              )}
+            </div>
+          </div>
+          {draft.cover && (
+            <div className="image-controls cover-image-controls">
+              <label>
+                Zoom / Scale
+                <input
+                  type="range"
+                  min="100"
+                  max="200"
+                  step="1"
+                  aria-label="Cover zoom scale"
+                  value={activeCoverScale}
+                  onChange={(event) => updateCrop("coverScale", Number(event.target.value))}
+                  style={{ touchAction: "manipulation" }}
+                />
+                <output>{activeCoverScale}%</output>
+              </label>
+              <label>
+                Rotation
+                <input
+                  type="range"
+                  min="-180"
+                  max="180"
+                  step="1"
+                  aria-label="Cover rotation"
+                  value={activeCoverRotation}
+                  onChange={(event) => updateCrop("coverRotation", Number(event.target.value))}
+                  style={{ touchAction: "manipulation" }}
+                />
+                <output>{activeCoverRotation}°</output>
+              </label>
+              <label>
+                Horizontal position
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  aria-label="Cover horizontal position"
+                  value={activeCoverX}
+                  onChange={(event) => updateCrop("coverX", Number(event.target.value))}
+                  style={{ touchAction: "manipulation" }}
+                />
+                <output>{activeCoverX}%</output>
+              </label>
+              <label>
+                Vertical position
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  aria-label="Cover vertical position"
+                  value={activeCoverY}
+                  onChange={(event) => updateCrop("coverY", Number(event.target.value))}
+                  style={{ touchAction: "manipulation" }}
+                />
+                <output>{activeCoverY}%</output>
+              </label>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", width: "100%", marginTop: "4px" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Quick align:</span>
+                <button
+                  type="button"
+                  style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                  onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 0); }}
+                >
+                  Top
+                </button>
+                <button
+                  type="button"
+                  style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                  onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 50); }}
+                >
+                  Center
+                </button>
+                <button
+                  type="button"
+                  style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                  onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 100); }}
+                >
+                  Bottom
+                </button>
+                <button
+                  type="button"
+                  style={{ marginLeft: "auto" }}
+                  onClick={resetCrop}
+                >
+                  Reset cover crop
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    })()}
   </>
 );
 }

@@ -690,8 +690,11 @@ export interface SimpleProfileThemeTokens {
   borderSubtle: string;
   avatarBg: string;
   avatarBorder: string;
+  coverFallback: string;
   shadow: string;
   bgIsLight: boolean;
+  textReadabilityAdjusted: boolean;
+  buttonReadabilityAdjusted: boolean;
   styleObj: Record<string, string>;
 }
 
@@ -729,16 +732,23 @@ export function resolveSimpleProfileTokens(card: {
   const fallbackAccent = preset?.accent || (bgIsLight ? "#0066FF" : "#2563EB");
   const accent = sanitizeHexColor(card.profileAccent, fallbackAccent);
 
-  // 3. Resolve Primary Text: explicit selection > preset text > fallback
+  // 3. Resolve Primary Text with Readability / Contrast Protection
+  // Target at least 4.5:1 contrast for normal text and 3:1 for large text.
+  // Respect the user's chosen color whenever it is readable.
   const fallbackText = preset?.text || (bgIsLight ? "#0F172A" : "#F9FAFB");
-  const textPrimary = sanitizeHexColor(card.profileText, fallbackText);
+  const rawTextPrimary = sanitizeHexColor(card.profileText, fallbackText);
+  const rawTextRatio = getContrastRatio(rawTextPrimary, bg);
+  const textReadabilityAdjusted = rawTextRatio < 4.5;
+  const textPrimary = textReadabilityAdjusted
+    ? ensureReadableTextColor(bg, rawTextPrimary, 4.5)
+    : rawTextPrimary;
 
   // 4. Derive Secondary & Muted Text consistently from textPrimary & bg:
-  // Secondary text (bio, details, action items)
+  // Secondary text (bio, details, action items) - guaranteed >= 4.5:1
   const textSecondaryBase = mixHex(textPrimary, bg, bgIsLight ? 0.28 : 0.22);
   const textSecondary = ensureReadableTextColor(bg, textSecondaryBase, 4.5);
 
-  // Muted text (subtitles: job title • company, field labels)
+  // Muted text (subtitles: job title • company, field labels) - guaranteed >= 3.0:1
   const textMutedBase = mixHex(textPrimary, bg, bgIsLight ? 0.45 : 0.38);
   const textMuted = ensureReadableTextColor(bg, textMutedBase, 3.0);
 
@@ -747,14 +757,25 @@ export function resolveSimpleProfileTokens(card: {
   const primaryBtnBg = mc.primaryBtnBg || accent;
   const btnIsLight = isLightColor(primaryBtnBg);
 
-  // Calculate readable foreground for the button unless a dedicated setting exists
-  const primaryBtnText = mc.primaryBtnText || (
-    ensureReadableTextColor(
+  const requestedBtnText = mc.primaryBtnText;
+  let primaryBtnText: string;
+  let buttonReadabilityAdjusted = false;
+
+  if (requestedBtnText) {
+    if (getContrastRatio(requestedBtnText, primaryBtnBg) >= 4.5) {
+      primaryBtnText = requestedBtnText;
+    } else {
+      primaryBtnText = ensureReadableTextColor(primaryBtnBg, btnIsLight ? "#0F172A" : "#FFFFFF", 4.5);
+      buttonReadabilityAdjusted = true;
+    }
+  } else {
+    // Pale yellow buttons need dark labels & icons; dark buttons need light foreground
+    primaryBtnText = ensureReadableTextColor(
       primaryBtnBg,
       btnIsLight ? "#0F172A" : "#FFFFFF",
       4.5
-    )
-  );
+    );
+  }
 
   const primaryBtnHover = btnIsLight
     ? mixHex(primaryBtnBg, "#000000", 0.08)
@@ -787,6 +808,12 @@ export function resolveSimpleProfileTokens(card: {
     shadow = "none";
   }
 
+  // 7. Cover Fallback Header: Simple solid-color header suited to the selected palette
+  // Subtle blend of background and accent, free of neon effects or unnecessary gradients
+  const coverFallback = bgIsLight
+    ? mixHex(bg, accent, 0.08)
+    : mixHex(bg, accent, 0.14);
+
   const styleObj: Record<string, string> = {
     "--simple-bg": bg,
     "--simple-card-bg": cardBg,
@@ -803,6 +830,7 @@ export function resolveSimpleProfileTokens(card: {
     "--simple-border-subtle": borderSubtle,
     "--simple-avatar-bg": avatarBg,
     "--simple-avatar-border": avatarBorder,
+    "--simple-cover-fallback": coverFallback,
     "--simple-shadow": shadow,
   };
 
@@ -822,8 +850,11 @@ export function resolveSimpleProfileTokens(card: {
     borderSubtle,
     avatarBg,
     avatarBorder,
+    coverFallback,
     shadow,
     bgIsLight,
+    textReadabilityAdjusted,
+    buttonReadabilityAdjusted,
     styleObj,
   };
 }

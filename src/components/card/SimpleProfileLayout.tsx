@@ -42,6 +42,16 @@ export interface SimpleProfileLayoutProps {
     logoRotation?: number;
     logoX?: number;
     logoY?: number;
+    coverScale?: number;
+    coverRotation?: number;
+    coverX?: number;
+    coverY?: number;
+    simpleConfig?: {
+      coverScale?: number;
+      coverRotation?: number;
+      coverX?: number;
+      coverY?: number;
+    };
     profileBackground?: string;
     profileAccent?: string;
     profileText?: string;
@@ -132,6 +142,7 @@ export function SimpleProfileLayout({
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
   const [imgError, setImgError] = useState(false);
+  const [coverImgError, setCoverImgError] = useState(false);
 
   useEffect(() => {
     if (profileProducts !== undefined) return;
@@ -206,6 +217,13 @@ export function SimpleProfileLayout({
   const tokens = resolveSimpleProfileTokens(card);
   const themeClass = tokens.bgIsLight ? "zappit-simple-theme-light" : "zappit-simple-theme-dark";
 
+  // Design-specific crop coordinates for Simple cover header (falls back to card cover settings)
+  const simpleConfig = card.simpleConfig || {};
+  const coverScale = typeof simpleConfig.coverScale === "number" ? simpleConfig.coverScale : (card.coverScale ?? 100);
+  const coverRotation = typeof simpleConfig.coverRotation === "number" ? simpleConfig.coverRotation : (card.coverRotation ?? 0);
+  const coverX = typeof simpleConfig.coverX === "number" ? simpleConfig.coverX : (card.coverX ?? 50);
+  const coverY = typeof simpleConfig.coverY === "number" ? simpleConfig.coverY : (card.coverY ?? 50);
+
   return (
     <div
       className={`zappit-simple-wrapper ${themeClass}`}
@@ -213,42 +231,63 @@ export function SimpleProfileLayout({
     >
       <div className="zappit-simple-card">
 
-        {/* ── Top-right edit button (if provided) ── */}
-        {onEditProfile && (
-          <div className="zappit-simple-edit-bar">
-            <button
-              type="button"
-              onClick={onEditProfile}
-              aria-label="Edit profile"
-              className="zappit-simple-edit-btn"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </button>
-          </div>
-        )}
+        {/* ── Wide Cover Photo Header (Facebook-style) ── */}
+        <div className="zappit-simple-cover-wrap">
+          {card.cover && !coverImgError ? (
+            <img
+              src={resolveMediaUrl(card.cover)}
+              alt="Cover photo"
+              className="zappit-simple-cover-img"
+              onError={() => setCoverImgError(true)}
+              style={{
+                transform: `scale(${coverScale / 100}) rotate(${coverRotation}deg)`,
+                objectPosition: `${coverX}% ${coverY}%`,
+              }}
+            />
+          ) : (
+            <div className="zappit-simple-cover-fallback" />
+          )}
 
-        {/* ── 1. Contained Profile Photo (Plain background, no overlap) ── */}
-        <div className="zappit-simple-photo-wrap">
-          <div className="zappit-simple-photo-ring">
-            {card.logo && !imgError ? (
-              <img
-                src={resolveMediaUrl(card.logo)}
-                alt={name}
-                className="zappit-simple-photo-img"
-                onError={() => setImgError(true)}
-                style={{
-                  transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
-                  objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
-                }}
-              />
-            ) : (
-              <div className="zappit-simple-photo-fallback">
-                {initials}
-              </div>
-            )}
-          </div>
+          {/* Edit button in top-right corner if authorized (never shown to public visitors) */}
+          {onEditProfile && (
+            <div className="zappit-simple-edit-bar">
+              <button
+                type="button"
+                onClick={onEditProfile}
+                aria-label="Edit profile"
+                className="zappit-simple-edit-btn"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* ── Profile Content Body (Solid surface below cover) ── */}
+        <div className="zappit-simple-body">
+
+          {/* ── 1. Contained Profile Photo (Overlapping bottom edge of cover) ── */}
+          <div className="zappit-simple-photo-wrap">
+            <div className="zappit-simple-photo-ring">
+              {card.logo && !imgError ? (
+                <img
+                  src={resolveMediaUrl(card.logo)}
+                  alt={name}
+                  className="zappit-simple-photo-img"
+                  onError={() => setImgError(true)}
+                  style={{
+                    transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
+                    objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
+                  }}
+                />
+              ) : (
+                <div className="zappit-simple-photo-fallback">
+                  {initials}
+                </div>
+              )}
+            </div>
+          </div>
 
         {/* ── 2. Name Heading, Job Title & Company ── */}
         <div className="zappit-simple-identity">
@@ -542,7 +581,8 @@ export function SimpleProfileLayout({
           )}
         </div>
 
-      </div>
+        </div>{/* End zappit-simple-body */}
+      </div>{/* End zappit-simple-card */}
     </div>
   );
 }

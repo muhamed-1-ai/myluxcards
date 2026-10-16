@@ -183,16 +183,27 @@
   align-items: center;
   background: #111827;
   border-radius: 6px;
-  padding: 8px 10px;
+  overflow: hidden;
   box-sizing: border-box;
+  position: relative;
+}
+.mini-simp-cover-bar {
+  width: 100%;
+  height: 32px;
+  background: #1F2937;
+  flex-shrink: 0;
 }
 .mini-simp-avatar {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #1F2937;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  margin-bottom: 5px;
+  background: #374151;
+  border: 2px solid #111827;
+  margin-top: -12px;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
 }
 .mini-simp-name {
   width: 45%;
@@ -206,14 +217,14 @@
   height: 4px;
   background: #6B7280;
   border-radius: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .mini-simp-primary-btn {
   width: 85%;
-  height: 11px;
+  height: 10px;
   background: #2563EB;
   border-radius: 4px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 .mini-simp-pill-row {
   display: flex;
@@ -222,7 +233,7 @@
 }
 .mini-simp-pill {
   flex: 1;
-  height: 8px;
+  height: 7px;
   background: #1F2937;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 3px;
@@ -390,29 +401,74 @@
   background-color: var(--simple-card-bg);
   border: 1px solid var(--simple-border);
   border-radius: 20px;
-  padding: 32px 24px;
+  padding: 0;
+  overflow: hidden;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 22px;
   color: var(--simple-text-primary);
   box-shadow: var(--simple-shadow);
 }
 
 @media (max-width: 480px) {
   .zappit-simple-card {
-    padding: 24px 16px;
     border-radius: 16px;
     border-left: none;
     border-right: none;
   }
 }
 
-/* Edit bar */
+/* ── Wide Cover Photo Header (Facebook-style) ── */
+.zappit-simple-cover-wrap {
+  width: 100%;
+  height: 165px;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--simple-cover-fallback, var(--simple-surface));
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .zappit-simple-cover-wrap {
+    height: 150px;
+  }
+}
+
+.zappit-simple-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.zappit-simple-cover-fallback {
+  width: 100%;
+  height: 100%;
+  background-color: var(--simple-cover-fallback, var(--simple-surface));
+}
+
+/* ── Profile Content Body Below Cover ── */
+.zappit-simple-body {
+  width: 100%;
+  padding: 0 24px 28px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 480px) {
+  .zappit-simple-body {
+    padding: 0 16px 24px;
+    gap: 18px;
+  }
+}
+
+/* Edit bar on cover banner */
 .zappit-simple-edit-bar {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 14px;
+  right: 14px;
   z-index: 5;
 }
 
@@ -420,11 +476,12 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--simple-surface-soft);
-  border: 1px solid var(--simple-border);
-  color: var(--simple-text-secondary);
+  background: rgba(15, 20, 28, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
   border-radius: 8px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -432,31 +489,35 @@
 }
 
 .zappit-simple-edit-btn:hover {
-  color: var(--simple-text-primary);
-  border-color: var(--simple-accent);
+  background: rgba(15, 20, 28, 0.9);
+  border-color: #FFFFFF;
 }
 
-/* 1. Contained Photo */
+/* 1. Contained Photo Overlapping Cover Bottom Edge */
 .zappit-simple-photo-wrap {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin-top: 4px;
+  margin-top: -52px;
+  margin-bottom: 2px;
+  position: relative;
+  z-index: 2;
 }
 
 .zappit-simple-photo-ring {
-  width: 96px;
-  height: 96px;
+  width: 104px;
+  height: 104px;
   border-radius: 50%;
   overflow: hidden;
   background: var(--simple-avatar-bg);
-  border: 2px solid var(--simple-avatar-border);
+  border: 4px solid var(--simple-card-bg);
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 
 .zappit-simple-photo-img {
