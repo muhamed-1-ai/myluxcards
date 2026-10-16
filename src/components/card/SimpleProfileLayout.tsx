@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { CardProfileProduct } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
-import { isLightColor } from "@/lib/themeTokens";
+import { resolveSimpleProfileTokens, isLightColor } from "@/lib/themeTokens";
 import {
   Phone,
   Mail,
@@ -202,21 +202,14 @@ export function SimpleProfileLayout({
     .slice(0, 2)
     .toUpperCase() || "ZP";
 
-  // Color theme detection
-  const bg = card.profileBackground || "#0F141C";
-  const bgIsLight = isLightColor(bg);
-
-  const themeClass = bgIsLight ? "zappit-simple-theme-light" : "zappit-simple-theme-dark";
-
-  // Natural restrained accent: standard blue
-  const accentColor = card.profileAccent || (bgIsLight ? "#0066FF" : "#2563EB");
+  // Unified Simple profile color tokens (explicit user choice, preset, or fallback)
+  const tokens = resolveSimpleProfileTokens(card);
+  const themeClass = tokens.bgIsLight ? "zappit-simple-theme-light" : "zappit-simple-theme-dark";
 
   return (
     <div
       className={`zappit-simple-wrapper ${themeClass}`}
-      style={{
-        ["--simple-accent" as any]: accentColor,
-      }}
+      style={tokens.styleObj as React.CSSProperties}
     >
       <div className="zappit-simple-card">
 

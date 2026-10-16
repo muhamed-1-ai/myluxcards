@@ -29,6 +29,9 @@ async function main() {
       email: "alexander@example.com",
       website: "https://globaltech.example.com",
       profileFormat: "simple",
+      profileBackground: "#15110C",
+      profileAccent: "#FEF08A",
+      profileText: "#CECBC5",
       social: {
         LinkedIn: "https://linkedin.com/in/alexander-harrington",
         Twitter: "https://x.com/alex_harrington",

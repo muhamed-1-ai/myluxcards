@@ -628,6 +628,10 @@ export function resolveThemeTokens(card: {
     }px`,
   };
 
+  // Merge Simple profile design system variables
+  const simpleTokens = resolveSimpleProfileTokens(card);
+  Object.assign(cssVars, simpleTokens.styleObj);
+
   return {
     tokens: {
       background: bg,
@@ -666,6 +670,162 @@ export function resolveThemeTokens(card: {
     },
     cssVars,
     styleObj: cssVars as unknown as React.CSSProperties,
+    simpleTokens,
   };
 }
+
+export interface SimpleProfileThemeTokens {
+  bg: string;
+  cardBg: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  accent: string;
+  primaryBtnBg: string;
+  primaryBtnText: string;
+  primaryBtnHover: string;
+  surface: string;
+  surfaceSoft: string;
+  border: string;
+  borderSubtle: string;
+  avatarBg: string;
+  avatarBorder: string;
+  shadow: string;
+  bgIsLight: boolean;
+  styleObj: Record<string, string>;
+}
+
+export function sanitizeHexColor(val?: string, fallback: string = "#000000"): string {
+  if (!val || typeof val !== "string") return fallback;
+  const trimmed = val.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const [r, g, b] = trimmed.slice(1).split("");
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return fallback;
+}
+
+export function resolveSimpleProfileTokens(card: {
+  theme?: string;
+  profileTheme?: string;
+  profileBackground?: string;
+  profileAccent?: string;
+  profileText?: string;
+  modernConfig?: any;
+}): SimpleProfileThemeTokens {
+  const themeId = (card.theme || card.profileTheme || "").toLowerCase();
+  const preset = themeId && themeId !== "custom"
+    ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
+    : undefined;
+
+  // 1. Resolve Background: explicit selection > preset background > fallback
+  const fallbackBg = preset?.background || "#0F141C";
+  const bg = sanitizeHexColor(card.profileBackground, fallbackBg);
+  const cardBg = bg;
+  const bgIsLight = isLightColor(bg);
+
+  // 2. Resolve Accent: explicit selection > preset accent > fallback
+  const fallbackAccent = preset?.accent || (bgIsLight ? "#0066FF" : "#2563EB");
+  const accent = sanitizeHexColor(card.profileAccent, fallbackAccent);
+
+  // 3. Resolve Primary Text: explicit selection > preset text > fallback
+  const fallbackText = preset?.text || (bgIsLight ? "#0F172A" : "#F9FAFB");
+  const textPrimary = sanitizeHexColor(card.profileText, fallbackText);
+
+  // 4. Derive Secondary & Muted Text consistently from textPrimary & bg:
+  // Secondary text (bio, details, action items)
+  const textSecondaryBase = mixHex(textPrimary, bg, bgIsLight ? 0.28 : 0.22);
+  const textSecondary = ensureReadableTextColor(bg, textSecondaryBase, 4.5);
+
+  // Muted text (subtitles: job title • company, field labels)
+  const textMutedBase = mixHex(textPrimary, bg, bgIsLight ? 0.45 : 0.38);
+  const textMuted = ensureReadableTextColor(bg, textMutedBase, 3.0);
+
+  // 5. Button Colors & Accessible Foreground (Contrast-based selection):
+  const mc = card.modernConfig || {};
+  const primaryBtnBg = mc.primaryBtnBg || accent;
+  const btnIsLight = isLightColor(primaryBtnBg);
+
+  // Calculate readable foreground for the button unless a dedicated setting exists
+  const primaryBtnText = mc.primaryBtnText || (
+    ensureReadableTextColor(
+      primaryBtnBg,
+      btnIsLight ? "#0F172A" : "#FFFFFF",
+      4.5
+    )
+  );
+
+  const primaryBtnHover = btnIsLight
+    ? mixHex(primaryBtnBg, "#000000", 0.08)
+    : mixHex(primaryBtnBg, "#FFFFFF", 0.12);
+
+  // 6. Secondary Surfaces & Borders derived from background:
+  let surface: string;
+  let surfaceSoft: string;
+  let border: string;
+  let borderSubtle: string;
+  let avatarBg: string;
+  let avatarBorder: string;
+  let shadow: string;
+
+  if (bgIsLight) {
+    surface = mixHex(bg, "#000000", 0.03);
+    surfaceSoft = mixHex(bg, "#000000", 0.06);
+    border = mixHex(bg, "#000000", 0.12);
+    borderSubtle = mixHex(bg, "#000000", 0.06);
+    avatarBg = mixHex(bg, "#000000", 0.04);
+    avatarBorder = mixHex(bg, "#000000", 0.16);
+    shadow = "0 1px 3px rgba(0, 0, 0, 0.05)";
+  } else {
+    surface = mixHex(bg, "#FFFFFF", 0.06);
+    surfaceSoft = mixHex(bg, "#FFFFFF", 0.10);
+    border = mixHex(bg, "#FFFFFF", 0.12);
+    borderSubtle = mixHex(bg, "#FFFFFF", 0.06);
+    avatarBg = mixHex(bg, "#FFFFFF", 0.05);
+    avatarBorder = mixHex(bg, "#FFFFFF", 0.15);
+    shadow = "none";
+  }
+
+  const styleObj: Record<string, string> = {
+    "--simple-bg": bg,
+    "--simple-card-bg": cardBg,
+    "--simple-text-primary": textPrimary,
+    "--simple-text-secondary": textSecondary,
+    "--simple-text-muted": textMuted,
+    "--simple-accent": accent,
+    "--simple-primary-btn-bg": primaryBtnBg,
+    "--simple-primary-btn-text": primaryBtnText,
+    "--simple-primary-btn-hover": primaryBtnHover,
+    "--simple-surface": surface,
+    "--simple-surface-soft": surfaceSoft,
+    "--simple-border": border,
+    "--simple-border-subtle": borderSubtle,
+    "--simple-avatar-bg": avatarBg,
+    "--simple-avatar-border": avatarBorder,
+    "--simple-shadow": shadow,
+  };
+
+  return {
+    bg,
+    cardBg,
+    textPrimary,
+    textSecondary,
+    textMuted,
+    accent,
+    primaryBtnBg,
+    primaryBtnText,
+    primaryBtnHover,
+    surface,
+    surfaceSoft,
+    border,
+    borderSubtle,
+    avatarBg,
+    avatarBorder,
+    shadow,
+    bgIsLight,
+    styleObj,
+  };
+}
+
 

@@ -469,7 +469,7 @@
 .zappit-simple-photo-fallback {
   font-size: 32px;
   font-weight: 700;
-  color: var(--simple-text-muted);
+  color: var(--simple-text-primary);
   letter-spacing: 0.04em;
   user-select: none;
 }
@@ -508,7 +508,7 @@
 .zappit-simple-bio {
   font-size: 14px;
   line-height: 1.6;
-  color: var(--simple-text-secondary);
+  color: var(--simple-text-primary);
   margin: 8px 0 0;
   max-width: 420px;
   text-align: center;
@@ -537,12 +537,28 @@
   cursor: pointer;
   box-sizing: border-box;
   text-decoration: none;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+  transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+}
+
+.zappit-simple-btn-primary svg {
+  stroke: var(--simple-primary-btn-text) !important;
+  color: var(--simple-primary-btn-text) !important;
 }
 
 .zappit-simple-btn-primary:hover {
-  opacity: 0.93;
+  background-color: var(--simple-primary-btn-hover);
+  opacity: 0.95;
   transform: translateY(-1px);
+}
+
+.zappit-simple-btn-primary:focus-visible {
+  outline: 2px solid var(--simple-accent);
+  outline-offset: 2px;
+}
+
+.zappit-simple-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .zappit-simple-btn-primary:active {
@@ -684,7 +700,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--simple-text-muted);
+  color: var(--simple-text-primary);
   margin: 0 0 10px;
 }
 

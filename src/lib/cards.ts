@@ -350,7 +350,17 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       }
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
       else if (["theme","profileTheme"].includes(field)) output[field] = trimmed.slice(0, 50);
-      else if (["profileBackground","profileAccent","profileText"].includes(field)) output[field] = /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : field === "profileBackground" ? "#050B14" : field === "profileAccent" ? "#0066FF" : "#ffffff";
+      else if (["profileBackground","profileAccent","profileText"].includes(field)) {
+        const fallback = field === "profileBackground" ? "#050B14" : field === "profileAccent" ? "#0066FF" : "#ffffff";
+        if (/^#[0-9a-fA-F]{6}$/i.test(trimmed)) {
+          output[field] = trimmed;
+        } else if (/^#[0-9a-fA-F]{3}$/i.test(trimmed)) {
+          const [r, g, b] = trimmed.slice(1).split("");
+          output[field] = `#${r}${r}${g}${g}${b}${b}`;
+        } else {
+          output[field] = fallback;
+        }
+      }
       else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
       else if (field === "brochureData") output[field] = /^https?:\/\/[^\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
       else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
