@@ -862,7 +862,7 @@ function AdminPermissionsModal({
               <span className={`admin-perm-badge ${user.status?.toLowerCase() === "active" ? "active" : "suspended"}`}>
                 {user.status}
               </span>
-              <span className="admin-perm-count-pill">{enabledCount} / 17 Features Enabled</span>
+              <span className="admin-perm-count-pill">{enabledCount} / {FEATURE_CATALOGUE.length} Features Enabled</span>
             </div>
           </div>
           <button type="button" onClick={onClose} style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--admin-bg)", border: "1px solid var(--admin-border)", color: "var(--admin-text)", cursor: "pointer", fontSize: "18px" }}>

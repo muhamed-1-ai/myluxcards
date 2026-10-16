@@ -6,7 +6,6 @@ export type FeatureKey =
   // Dashboards
   | "overview"
   | "all_leads"
-  | "qr_activity"
   // Master Config
   | "lead_sources"
   | "config_products"
@@ -37,7 +36,6 @@ export const FEATURE_CATALOGUE: FeatureDefinition[] = [
   // Dashboards
   { key: "overview", label: "Overview", group: "Dashboards", description: "KPI overview and activity summary", dashboardTab: "dashboard" },
   { key: "all_leads", label: "All Leads", group: "Dashboards", description: "Leads workspace and management", dashboardTab: "leads" },
-  { key: "qr_activity", label: "QR Activity", group: "Dashboards", description: "QR analytics and scan tracking", dashboardTab: "analytics" },
 
   // Master Config
   { key: "lead_sources", label: "Lead Sources", group: "Master Config", description: "Manage lead acquisition sources", dashboardTab: "config-sources" },
@@ -63,7 +61,6 @@ export const FEATURE_CATALOGUE: FeatureDefinition[] = [
 export const ZERO_FEATURE_PERMISSIONS: Record<FeatureKey, boolean> = {
   overview: false,
   all_leads: false,
-  qr_activity: false,
   lead_sources: false,
   config_products: false,
   lead_stages: false,
@@ -90,22 +87,19 @@ export function normalizeFeaturePermissions(raw: unknown): Record<FeatureKey, bo
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
   const obj = raw as Record<string, unknown>;
 
-  // Direct 17 feature keys evaluate first
+  // Direct feature keys evaluate first
   FEATURE_CATALOGUE.forEach((f) => {
     if (typeof obj[f.key] === "boolean") {
       result[f.key] = obj[f.key] as boolean;
     }
   });
 
-  // Legacy mappings for backwards compatibility if 17 key not present
+  // Legacy mappings for backwards compatibility if canonical key not present
   if (typeof obj["dashboard"] === "boolean" && typeof obj["overview"] !== "boolean") {
     result.overview = Boolean(obj["dashboard"]);
   }
   if (typeof obj["leads"] === "boolean" && typeof obj["all_leads"] !== "boolean") {
     result.all_leads = Boolean(obj["leads"]);
-  }
-  if ((typeof obj["analytics"] === "boolean" || typeof obj["qr_profile"] === "boolean") && typeof obj["qr_activity"] !== "boolean") {
-    result.qr_activity = Boolean(obj["analytics"] ?? obj["qr_profile"]);
   }
 
   if (typeof obj["crm"] === "boolean") {

@@ -18,12 +18,12 @@ const adminAuth = readFileSync(new URL("../src/lib/adminAuth.ts", import.meta.ur
 const adminApp = readFileSync(new URL("../src/app/admin/AdminApp.tsx", import.meta.url), "utf8");
 const dashboardApp = readFileSync(new URL("../src/app/dashboard/DashboardDemo.tsx", import.meta.url), "utf8");
 
-test("Canonical features catalogue contains exact 17 features", () => {
-  assert.equal(FEATURE_CATALOGUE.length, 17);
+test("Canonical features catalogue contains exact 16 features", () => {
+  assert.equal(FEATURE_CATALOGUE.length, 16);
   
   const featureKeys = FEATURE_CATALOGUE.map(f => f.key);
   const expectedKeys = [
-    "overview", "all_leads", "qr_activity",
+    "overview", "all_leads",
     "lead_sources", "config_products", "lead_stages", "calendar", "lob_reasons", "dynamic_leads",
     "profile_features", "contact_info", "apps_links", "company", "card_design",
     "my_cards", "notifications", "my_orders"
@@ -125,8 +125,8 @@ test("Auth identity checks session_version and normalizes permissions", () => {
   assert.match(adminAuth, /requirePermission/);
 });
 
-test("Admin UI displays 17 features, enabled count, status filter, and suspend dialog", () => {
-  assert.match(adminApp, /17 Features Enabled/);
+test("Admin UI displays features count, enabled count, status filter, and suspend dialog", () => {
+  assert.match(adminApp, /Features Enabled/);
   assert.match(adminApp, /FEATURE_CATALOGUE/);
   assert.match(adminApp, /AdminPermissionsModal/);
   assert.match(adminApp, /AdminSuspendModal/);

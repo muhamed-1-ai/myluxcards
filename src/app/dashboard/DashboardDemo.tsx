@@ -95,7 +95,7 @@ import {
   FileText,
 } from "lucide-react";
 
-type Tab = "dashboard" | "leads" | "analytics" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons" | "config-dynamic";
+type Tab = "dashboard" | "leads" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons" | "config-dynamic";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -341,7 +341,9 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const [cards, setCards] = useState<Card[]>([]);
   const [selectedId, setSelectedId] = useState(emptyCard.id);
   const [draft, setDraft] = useState<Card>(emptyCard);
-  const [tab, setTab] = useState<Tab>(initialTab === "analytics" ? "leads" : (initialTab || "dashboard"));
+  const [tab, setTab] = useState<Tab>(
+    initialTab && (initialTab as string) !== "analytics" && (initialTab as string) !== "qr-activity" ? initialTab : "dashboard"
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -350,7 +352,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       const editCard = sp.get("editCard");
       const editSlug = sp.get("editSlug");
       if (qTab === "qr-activity" || qTab === "analytics") {
-        setTab("leads");
+        setTab("dashboard");
       } else if (qTab && ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
         setTab(qTab as Tab);
       } else if (editCard || editSlug) {
@@ -364,7 +366,6 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       const isTabAllowed = (t: Tab) => {
         if (t === "dashboard") return isFeatureAllowed(currentUser.featurePermissions, "overview", currentUser.role);
         if (t === "leads") return isFeatureAllowed(currentUser.featurePermissions, "all_leads", currentUser.role);
-        if (t === "analytics") return isFeatureAllowed(currentUser.featurePermissions, "qr_activity", currentUser.role);
         if (t === "config-sources") return isFeatureAllowed(currentUser.featurePermissions, "lead_sources", currentUser.role);
         if (t === "config-products") return isFeatureAllowed(currentUser.featurePermissions, "config_products", currentUser.role);
         if (t === "config-stages") return isFeatureAllowed(currentUser.featurePermissions, "lead_stages", currentUser.role);
@@ -1392,11 +1393,9 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                     ? "Dashboard"
                     : tab === "leads"
                       ? "All Leads"
-                      : tab === "analytics"
-                        ? "QR Activity"
-                        : tab.startsWith("config-")
-                          ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
-                          : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
+                      : tab.startsWith("config-")
+                        ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
+                        : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
               </span>
               <span className={`save-state ${saveStatus}`}>
                 {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
@@ -1531,8 +1530,6 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
-
-        {tab === "analytics" && <AnalyticsTab selectedCardId={selected?.id || ""} />}
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       <MyLuxModal
@@ -1640,295 +1637,6 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 }
 
 
-
-function AnalyticsTab({ selectedCardId }: { selectedCardId: string }) {
-  const [period, setPeriod] = useState<"today" | "7d" | "30d">("30d");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<{
-    summary: { totalOpens: number; nfcTaps: number; qrScans: number; otherOpens: number; profileViews: number; vehicleViews: number; lostFoundViews: number; contactTaps: number; locationsShared: number };
-    modes: { profile: number; vehicle: number; lostFound: number };
-    vehicles: Array<{ id: string; displayName: string; make: string; model: string; totalViews: number; ownerTaps: number; emergencyTaps: number }>;
-    lostItems: Array<{ id: string; name: string; category: string; totalViews: number; ownerTaps: number; locationsShared: number }>;
-    recentActivity: Array<{ id: string; createdAt: string; eventType: string; mode: "profile" | "vehicle" | "lost_found"; assetName?: string; context?: string; hasLocation: boolean; locationLabel?: string }>;
-  } | null>(null);
-
-  const fetchAnalytics = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/analytics?cardId=${encodeURIComponent(selectedCardId)}&period=${period}`, { cache: "no-store" });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setData(json);
-      } else {
-        setError(json.message || "Unable to load QR activity. Please try again.");
-      }
-    } catch {
-      setError("Unable to load QR activity due to a network connection issue.");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCardId, period]);
-
-  useEffect(() => {
-    void fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  const summary = data?.summary || { totalOpens: 0, nfcTaps: 0, qrScans: 0, otherOpens: 0, profileViews: 0, vehicleViews: 0, lostFoundViews: 0, contactTaps: 0, locationsShared: 0 };
-  const modes = data?.modes || { profile: 0, vehicle: 0, lostFound: 0 };
-  const vehicles = data?.vehicles || [];
-  const lostItems = data?.lostItems || [];
-
-  const maxModeViews = Math.max(modes.profile, modes.vehicle, modes.lostFound, 1);
-
-  return (
-    <section>
-      <div className="page-heading">
-        <div>
-          <p>QR ACTIVITY &amp; ANALYTICS</p>
-          <h1>Scan History &amp; Activity</h1>
-          <span>Privacy-safe activity analytics for your MyLux QR identity. No visitor personal data is collected.</span>
-        </div>
-        <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.06)", padding: 4, borderRadius: 10, border: "1px solid rgba(0, 229, 255,0.2)" }}>
-          {(["today", "7d", "30d"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              style={{
-                background: period === p ? "#0066FF" : "transparent",
-                color: period === p ? "#000" : "#fff",
-                border: "none",
-                padding: "6px 14px",
-                borderRadius: 8,
-                fontSize: 12.5,
-                fontWeight: 700,
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-              }}
-              onClick={() => setPeriod(p)}
-            >
-              {p === "today" ? "Today" : p === "7d" ? "7 Days" : "30 Days"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div>
-            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(0, 229, 255,0.9)", letterSpacing: "0.05em", margin: "0 0 10px" }}>Profile Entry Sources</h4>
-            <div className="stats">
-              {[1, 2, 3, 4].map((i) => (
-                <article key={i} className="blue" style={{ opacity: 0.6, animation: "pulse 1.5s infinite" }}>
-                  <div>
-                    <strong style={{ background: "rgba(255,255,255,0.15)", borderRadius: 4, display: "inline-block", width: 48, height: 28 }}>&nbsp;</strong>
-                    <span>LOADING METRIC…</span>
-                  </div>
-                  <i>⏳</i>
-                </article>
-              ))}
-            </div>
-          </div>
-          <div>
-            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,0.6)", letterSpacing: "0.05em", margin: "10px 0 10px" }}>Visitor Feature Interactions</h4>
-            <div className="stats">
-              {[1, 2, 3].map((i) => (
-                <article key={i} className="green" style={{ opacity: 0.6, animation: "pulse 1.5s infinite" }}>
-                  <div>
-                    <strong style={{ background: "rgba(255,255,255,0.15)", borderRadius: 4, display: "inline-block", width: 48, height: 28 }}>&nbsp;</strong>
-                    <span>LOADING METRIC…</span>
-                  </div>
-                  <i>⏳</i>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : error ? (
-        <div style={{ padding: 36, textAlign: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 16 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
-          <h3 style={{ color: "#e74c3c", fontSize: 18, margin: "0 0 6px" }}>Unable to load QR activity</h3>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, maxWidth: 420, margin: "0 auto 18px", lineHeight: 1.5 }}>
-            {error}
-          </p>
-          <button
-            type="button"
-            style={{ background: "#0066FF", color: "#000", border: "none", padding: "10px 22px", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-            onClick={() => void fetchAnalytics()}
-          >
-            Retry
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Row 1: Profile Entry Sources */}
-          <div>
-            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(0, 229, 255,0.9)", letterSpacing: "0.05em", margin: "0 0 10px" }}>Profile Entry Sources</h4>
-            <div className="stats">
-              <article className="orange">
-                <div>
-                  <strong>{summary.totalOpens}</strong>
-                  <span>TOTAL PROFILE OPENS</span>
-                </div>
-                <i>📊</i>
-              </article>
-              <article className="blue">
-                <div>
-                  <strong>{summary.nfcTaps}</strong>
-                  <span>NFC CARD TAPS</span>
-                </div>
-                <i>📱</i>
-              </article>
-              <article className="green">
-                <div>
-                  <strong>{summary.qrScans}</strong>
-                  <span>QR SCANS</span>
-                </div>
-                <i>📷</i>
-              </article>
-              <article className="orange">
-                <div>
-                  <strong>{summary.otherOpens}</strong>
-                  <span>OTHER / DIRECT OPENS</span>
-                </div>
-                <i>🔗</i>
-              </article>
-            </div>
-          </div>
-
-          {/* Row 2: Visitor Feature Interactions */}
-          <div>
-            <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,0.6)", letterSpacing: "0.05em", margin: "10px 0 10px" }}>Visitor Feature Interactions</h4>
-            <div className="stats">
-              <article className="green">
-                <div>
-                  <strong>{summary.vehicleViews}</strong>
-                  <span>VEHICLE CONNECT VIEWS</span>
-                </div>
-                <i>🚗</i>
-              </article>
-              <article className="orange">
-                <div>
-                  <strong>{summary.lostFoundViews}</strong>
-                  <span>LOST &amp; FOUND VIEWS</span>
-                </div>
-                <i>🏷️</i>
-              </article>
-              <article className="blue">
-                <div>
-                  <strong>{summary.contactTaps}</strong>
-                  <span>CONTACT TAPS</span>
-                </div>
-                <i>📞</i>
-              </article>
-            </div>
-          </div>
-
-          {/* Activity by Mode */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 16px" }}>Activity by Mode</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
-                  <span>Digital Profile</span>
-                  <strong>{modes.profile} views</strong>
-                </div>
-                <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(modes.profile / maxModeViews) * 100}%`, background: "#0066FF", borderRadius: 4 }} />
-                </div>
-              </div>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
-                  <span>Vehicle Connect</span>
-                  <strong>{modes.vehicle} views</strong>
-                </div>
-                <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(modes.vehicle / maxModeViews) * 100}%`, background: "#3498db", borderRadius: 4 }} />
-                </div>
-              </div>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
-                  <span>Lost &amp; Found</span>
-                  <strong>{modes.lostFound} views</strong>
-                </div>
-                <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${(modes.lostFound / maxModeViews) * 100}%`, background: "#e67e22", borderRadius: 4 }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Vehicle Activity Breakdown */}
-          {vehicles.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>🚗 Vehicle Activity</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {vehicles.map((v) => (
-                  <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 16px" }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{v.displayName || [v.make, v.model].filter(Boolean).join(" ") || "Vehicle"}</div>
-                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>{[v.make, v.model].filter(Boolean).join(" • ")}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 14, textAlign: "right" }}>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#0066FF" }}>{v.totalViews}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>views</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{v.ownerTaps}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>owner taps</div>
-                      </div>
-                      {v.emergencyTaps > 0 && (
-                        <div>
-                          <div style={{ fontSize: 16, fontWeight: 800, color: "#e74c3c" }}>{v.emergencyTaps}</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>emergency taps</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Lost & Found Activity Breakdown */}
-          {lostItems.length > 0 && (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0, 229, 255,0.2)", borderRadius: 16, padding: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 14px" }}>🏷️ Lost &amp; Found Activity</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {lostItems.map((item) => (
-                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 16px" }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{item.name || "Tagged Item"}</div>
-                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)" }}>Category: {item.category}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 14, textAlign: "right" }}>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#0066FF" }}>{item.totalViews}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>views</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{item.ownerTaps}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>owner taps</div>
-                      </div>
-                      {item.locationsShared > 0 && (
-                        <div>
-                          <div style={{ fontSize: 16, fontWeight: 800, color: "#2ecc71" }}>{item.locationsShared}</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>locations shared</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
 
 function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { draft: Card; update: (field: string, val: any) => void; onContactsRefresh: () => void }) {
   const [savingFeature, setSavingFeature] = useState<string | null>(null);

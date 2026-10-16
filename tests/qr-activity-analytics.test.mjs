@@ -54,15 +54,13 @@ test("PublicCardClient provides visitId session deduplication, preview suppressi
   assert.match(publicCardClient, /navigator\.geolocation/);
 });
 
-test("DashboardDemo renders authoritative server analytics for Overview and QR Activity with source cards", () => {
+test("DashboardDemo permanently removes AnalyticsTab, Scan History & Activity, and QR Activity UI from all users", () => {
   assert.match(dashboardDemo, /type Tab = "dashboard"/);
-  assert.match(dashboardDemo, /TOTAL PROFILE OPENS/i);
-  assert.match(dashboardDemo, /NFC CARD TAPS/);
-  assert.match(dashboardDemo, /QR SCANS/);
-  assert.match(dashboardDemo, /OTHER \/ DIRECT OPENS/);
-  assert.match(dashboardDemo, /VEHICLE CONNECT VIEWS/);
-  assert.match(dashboardDemo, /LOST &(?:amp;)? FOUND VIEWS/);
-  assert.match(dashboardDemo, /CONTACT TAPS/);
-  assert.match(dashboardDemo, /Privacy-Safe Recent Activity Log/);
-  assert.match(dashboardDemo, /Retry/);
+  assert.doesNotMatch(dashboardDemo, /AnalyticsTab/);
+  assert.doesNotMatch(dashboardDemo, /Scan History &(?:amp;)? Activity/);
+  assert.doesNotMatch(dashboardDemo, /QR ACTIVITY &(?:amp;)? ANALYTICS/);
+  assert.doesNotMatch(dashboardDemo, /Profile Entry Sources/);
+  assert.doesNotMatch(dashboardDemo, /Visitor Feature Interactions/);
+  assert.doesNotMatch(dashboardDemo, /qr_activity/);
+  assert.doesNotMatch(dashboardDemo, /tab === "analytics"/);
 });
