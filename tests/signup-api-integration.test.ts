@@ -17,7 +17,7 @@ try {
 } catch (_) {}
 
 let POST: any;
-let pool: any;
+let pool: import("pg").Pool;
 
 const testUsersToClean: string[] = [];
 

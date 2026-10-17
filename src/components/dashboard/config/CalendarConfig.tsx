@@ -579,10 +579,10 @@ export function CalendarConfig() {
           flexWrap: "wrap",
           gap: 16,
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           padding: "20px 24px",
           borderRadius: 18,
-          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+          boxShadow: "var(--card-shadow, 0 8px 24px rgba(0, 0, 0, 0.08))",
         }}
       >
         {/* Left: Title & Month Nav */}
@@ -778,7 +778,7 @@ export function CalendarConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 14,
             padding: "16px 20px",
             display: "flex",
@@ -804,7 +804,7 @@ export function CalendarConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 14,
             padding: "16px 20px",
             display: "flex",
@@ -830,7 +830,7 @@ export function CalendarConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 14,
             padding: "16px 20px",
             display: "flex",
@@ -856,7 +856,7 @@ export function CalendarConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 14,
             padding: "16px 20px",
             display: "flex",
@@ -883,10 +883,10 @@ export function CalendarConfig() {
       <div
         style={{
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           borderRadius: 18,
           padding: 20,
-          boxShadow: "0 8px 28px rgba(0, 0, 0, 0.35)",
+          boxShadow: "var(--card-shadow, 0 8px 28px rgba(0, 0, 0, 0.08))",
           position: "relative",
           minHeight: 500,
         }}
@@ -898,7 +898,7 @@ export function CalendarConfig() {
               position: "absolute",
               inset: 0,
               zIndex: 10,
-              background: "rgba(18, 19, 26, 0.6)",
+              background: "rgba(15, 23, 42, 0.4)",
               backdropFilter: "blur(2px)",
               display: "flex",
               alignItems: "center",
@@ -939,6 +939,7 @@ export function CalendarConfig() {
                       key={`cell-m-${dayItem.dateStr}-${gridIdx}`}
                       type="button"
                       aria-label={`${dayItem.date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}${isToday ? ", today" : ""}${dayEvents.length > 0 ? `, ${dayEvents.length} tasks` : ""}`}
+                      className={`cal-config-mobile-cell ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${!dayItem.isCurrentMonth ? "is-adjacent" : ""}`}
                       style={{
                         minHeight: 48,
                         minWidth: 40,
@@ -947,18 +948,15 @@ export function CalendarConfig() {
                         border: isSelected
                           ? "2px solid #0066FF"
                           : isToday
-                          ? "2px solid #00E5FF"
-                          : dayItem.isCurrentMonth
-                          ? "1px solid var(--border-color)"
-                          : "1px solid transparent",
+                          ? "2px solid #0066FF"
+                          : "1px solid var(--border-color)",
                         background: isSelected
-                          ? "rgba(0, 102, 255, 0.25)"
+                          ? "var(--calendar-cell-selected-bg, rgba(0, 102, 255, 0.2))"
                           : isToday
-                          ? "rgba(0, 229, 255, 0.12)"
+                          ? "var(--calendar-cell-today-bg, rgba(0, 102, 255, 0.08))"
                           : dayItem.isCurrentMonth
-                          ? "var(--bg-secondary)"
-                          : "rgba(18, 19, 26, 0.2)",
-                        opacity: dayItem.isCurrentMonth ? 1 : 0.45,
+                          ? "var(--calendar-cell-bg, var(--bg-secondary))"
+                          : "var(--calendar-cell-adjacent-bg, #F8FAFC)",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
@@ -969,16 +967,17 @@ export function CalendarConfig() {
                       onClick={() => setSelectedDate(dayItem.date)}
                     >
                       <span
+                        className={`cal-config-mobile-date ${isToday ? "is-today" : ""} ${!dayItem.isCurrentMonth ? "is-adjacent" : ""}`}
                         style={{
                           fontSize: 13,
                           fontWeight: isToday || isSelected ? 800 : 600,
-                          color: isSelected
-                            ? "#FFFFFF"
-                            : isToday
-                            ? "#00E5FF"
+                          color: isToday
+                            ? "#0066FF"
+                            : isSelected
+                            ? "#0066FF"
                             : dayItem.isCurrentMonth
-                            ? "var(--text-primary)"
-                            : "var(--text-muted)",
+                            ? "var(--calendar-date-primary, var(--text-primary))"
+                            : "var(--calendar-date-muted, var(--text-muted))",
                           marginTop: 2,
                         }}
                       >
@@ -1009,15 +1008,25 @@ export function CalendarConfig() {
                 return (
                   <div
                     key={`cell-${dayItem.dateStr}-${gridIdx}`}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${dayItem.date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}${isToday ? ", today" : ""}${dayEvents.length > 0 ? `, ${dayEvents.length} tasks` : ""}`}
+                    className={`cal-config-grid-cell ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${!dayItem.isCurrentMonth ? "is-adjacent" : ""}`}
                     style={{
                       minHeight: 140,
                       minWidth: 0,
-                      background: dayItem.isCurrentMonth ? "var(--bg-secondary)" : "rgba(18, 19, 26, 0.4)",
+                      background: isSelected
+                        ? "var(--calendar-cell-selected-bg, rgba(0, 102, 255, 0.08))"
+                        : isToday
+                        ? "var(--calendar-cell-today-bg, rgba(0, 102, 255, 0.04))"
+                        : dayItem.isCurrentMonth
+                        ? "var(--calendar-cell-bg, var(--bg-secondary))"
+                        : "var(--calendar-cell-adjacent-bg, #F8FAFC)",
                       border: isSelected
                         ? "2px solid #0066FF"
                         : isToday
-                        ? "2px solid #00E5FF"
-                        : "1px solid rgba(255, 255, 255, 0.06)",
+                        ? "2px solid #0066FF"
+                        : "1px solid var(--border-color)",
                       borderRadius: 12,
                       padding: 10,
                       display: "flex",
@@ -1033,15 +1042,29 @@ export function CalendarConfig() {
                         handleOpenScheduleModal(dayItem.dateStr);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedDate(dayItem.date);
+                        if (dayEvents.length === 0) {
+                          handleOpenScheduleModal(dayItem.dateStr);
+                        }
+                      }
+                    }}
                   >
                     {/* Date Cell Top Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
                       <span
+                        className={`cal-config-date-num ${isToday ? "is-today" : ""} ${!dayItem.isCurrentMonth ? "is-adjacent" : ""}`}
                         style={{
                           fontSize: 13,
                           fontWeight: isToday ? 900 : 700,
-                          color: isToday ? "#0066FF" : dayItem.isCurrentMonth ? "#FFFFFF" : "#64748B",
-                          background: isToday ? "rgba(0, 229, 255, 0.15)" : "transparent",
+                          color: isToday
+                            ? "#0066FF"
+                            : dayItem.isCurrentMonth
+                            ? "var(--calendar-date-primary, var(--text-primary))"
+                            : "var(--calendar-date-muted, var(--text-muted))",
+                          background: isToday ? "rgba(0, 102, 255, 0.12)" : "transparent",
                           width: 24,
                           height: 24,
                           borderRadius: "50%",
@@ -1055,7 +1078,7 @@ export function CalendarConfig() {
                       </span>
 
                       {dayEvents.length > 0 && (
-                        <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.15)", padding: "1px 6px", borderRadius: 10, flexShrink: 0 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 102, 255, 0.12)", padding: "1px 6px", borderRadius: 10, flexShrink: 0 }}>
                           {dayEvents.length}
                         </span>
                       )}
@@ -1077,7 +1100,7 @@ export function CalendarConfig() {
                               alignItems: "center",
                               justifyContent: "space-between",
                               gap: 6,
-                              background: ev.status === "COMPLETED" ? "rgba(16,185,129,0.15)" : isOverdue ? "rgba(239,68,68,0.15)" : "rgba(0, 229, 255,0.12)",
+                              background: ev.status === "COMPLETED" ? "rgba(16,185,129,0.15)" : isOverdue ? "rgba(239,68,68,0.15)" : "rgba(0, 102, 255, 0.1)",
                               border: `1px solid ${ev.stageColor || "#0066FF"}40`,
                               padding: "4px 8px",
                               borderRadius: 6,
@@ -1117,15 +1140,29 @@ export function CalendarConfig() {
                     </div>
 
                     {/* Date Cell Bottom Plus Hint */}
-                    <div
-                      style={{ fontSize: 10, color: "#64748B", textAlign: "right", opacity: 0.6 }}
+                    <button
+                      type="button"
+                      className="cal-config-add-task-btn"
+                      aria-label={`Add task for ${dayItem.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--calendar-add-task-text, var(--text-secondary))",
+                        textAlign: "right",
+                        background: "none",
+                        border: "none",
+                        padding: "2px 0",
+                        cursor: "pointer",
+                        width: "100%",
+                        display: "block",
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenScheduleModal(dayItem.dateStr);
                       }}
                     >
                       + Add task
-                    </div>
+                    </button>
                   </div>
                 );
               })}
@@ -1247,13 +1284,13 @@ export function CalendarConfig() {
                     {/* Header for Day in Week */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: 8 }}>
                       <div>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: wDay.isToday ? "#0066FF" : "#94A3B8" }}>{wDay.dayName}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: wDay.isToday ? "#0066FF" : "var(--text-muted)" }}>{wDay.dayName}</span>
                         <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>{wDay.date.getDate()}</div>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleOpenScheduleModal(wDay.dateStr)}
-                        style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(0, 229, 255, 0.15)", border: "none", color: "#0066FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(0, 102, 255, 0.12)", border: "none", color: "#0066FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                       >
                         <Plus style={{ width: 14, height: 14 }} />
                       </button>
@@ -1262,7 +1299,7 @@ export function CalendarConfig() {
                     {/* Events List for Day */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
                       {dayEvents.length === 0 ? (
-                        <div style={{ fontSize: 11, color: "#64748B", textAlign: "center", marginTop: 20 }}>No tasks scheduled</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", marginTop: 20 }}>No tasks scheduled</div>
                       ) : (
                         dayEvents.map((ev) => {
                           const isOverdue = ev.status === "SCHEDULED" && ev.scheduledAt < nowIso;
@@ -1271,7 +1308,7 @@ export function CalendarConfig() {
                               key={ev.id}
                               onClick={() => setActiveEventDetail(ev)}
                               style={{
-                                background: "rgba(18, 19, 26, 0.7)",
+                                background: "var(--surface)",
                                 border: `1px solid ${ev.stageColor || "#0066FF"}40`,
                                 borderRadius: 8,
                                 padding: 10,

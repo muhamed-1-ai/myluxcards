@@ -32,6 +32,7 @@ import {
   LeadStage,
   PipelineLeadCard,
   LostStageMetric,
+  LeadKpis,
 } from "@/lib/crm";
 import { LeadLivePipeline } from "./LeadLivePipeline";
 import { LeadGrowthChart } from "./LeadGrowthChart";
@@ -117,6 +118,13 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
   const [retryAttempt, setRetryAttempt] = useState(0);
   const inFlightRef = useRef(false);
+  const latestRequestIdRef = useRef(0);
+
+  // Clear private statistics when logging out or switching accounts
+  useEffect(() => {
+    setData(null);
+    setError("");
+  }, [identity?.id]);
 
   // Debounce search query input
   useEffect(() => {
@@ -184,7 +192,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
   const fetchDashboardData = useCallback(
     async (isRefresh = false, signal?: AbortSignal) => {
-      if (inFlightRef.current && !isRefresh) return;
+      const requestId = ++latestRequestIdRef.current;
       inFlightRef.current = true;
 
       if (isRefresh) setRefreshing(true);
@@ -213,16 +221,20 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         let success = false;
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-          if (signal?.aborted) break;
+          if (signal?.aborted || requestId !== latestRequestIdRef.current) break;
 
           if (attempt > 0) {
             setRetryAttempt(attempt);
             const delay = RETRY_DELAYS[attempt - 1] || 2000;
             await new Promise((resolve) => setTimeout(resolve, delay));
-            if (signal?.aborted) break;
+            if (signal?.aborted || requestId !== latestRequestIdRef.current) break;
           }
 
           const res = await apiFetch<DashboardSummaryPayload>(endpoint, { signal });
+          if (requestId !== latestRequestIdRef.current) {
+            return;
+          }
+
           if (res.ok && res.data) {
             setData(res.data);
             success = true;
@@ -234,17 +246,19 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           }
         }
 
-        if (!success && !signal?.aborted) {
+        if (!success && !signal?.aborted && requestId === latestRequestIdRef.current) {
           setError(lastError || "Network issue. Failed to load dashboard data.");
         }
       } catch (err: any) {
-        if (!signal?.aborted) {
+        if (!signal?.aborted && requestId === latestRequestIdRef.current) {
           setError(err?.message || "Network issue. Failed to load dashboard data.");
         }
       } finally {
-        inFlightRef.current = false;
-        setLoading(false);
-        setRefreshing(false);
+        if (requestId === latestRequestIdRef.current) {
+          inFlightRef.current = false;
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [
@@ -412,33 +426,35 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   // and interactive — even while dashboard data is still loading.
   // Loading/error states are shown inline below the top bar.
 
-  const kpis = data?.kpis || {
-    totalLeads: 811,
+  const DEFAULT_KPIS: LeadKpis = {
+    totalLeads: 0,
     newLeads: 0,
+    todaysLeads: 0,
     contactedLeads: 0,
     interestedLeads: 0,
     followUpLeads: 0,
-    wonLeads: 1,
+    wonLeads: 0,
+    closedLeads: 0,
     lostLeads: 0,
-    conversionRate: 0.1,
+    conversionRate: 0,
+    activeUsers: 1,
   };
+
+  const kpis = data?.kpis || DEFAULT_KPIS;
 
   const todaysFollowUps = data?.todaysFollowUps || [];
   const DEFAULT_PIPELINE_COUNTS: Record<LeadStage, number> = {
-    NEW: 13,
-    CONTACTED: 8,
-    INTERESTED: 5,
-    FOLLOW_UP: 4,
-    WON: 1,
+    NEW: 0,
+    CONTACTED: 0,
+    INTERESTED: 0,
+    FOLLOW_UP: 0,
+    WON: 0,
     LOST: 0,
   };
   const pipelineCounts = data?.pipelineCounts || DEFAULT_PIPELINE_COUNTS;
   const recentActivity = data?.recentActivity || [];
 
-  const expectedRevenueFormatted = "₹2,59,644";
-  const revenueFormatted = "₹2,223";
-  const totalAdvanceFormatted = "₹6,600";
-  const activeUsersVal = "6";
+  const activeUsersVal = String(kpis.activeUsers ?? data?.activeUsers ?? 1);
 
   const renderSectionItem = (secPref: ItemPreference) => {
     const title = secPref.displayName || secPref.defaultTitle;
@@ -708,7 +724,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           <div className="crm-loading-spinner" />
           <p className="crm-loading-text">
             {retryAttempt > 0
-              ? `Reconnecting to server (Attempt ${retryAttempt}/3)...`
+              ? `Initializing Lead Command Center... Retrying (Attempt ${retryAttempt}/3)...`
               : "Loading dashboard analytics..."}
           </p>
         </div>
@@ -802,7 +818,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                       <Flame style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{kpis.newLeads}</div>
+                    <div className="crm-kpi-value">{kpis.todaysLeads ?? kpis.newLeads ?? 0}</div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total leads
                     </div>
@@ -815,7 +831,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                       <Users style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{kpis.totalLeads || 811}</div>
+                    <div className="crm-kpi-value">{kpis.totalLeads ?? 0}</div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> All leads
                     </div>
@@ -828,7 +844,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                       <CheckCircle2 style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{kpis.wonLeads || 1}</div>
+                    <div className="crm-kpi-value">{kpis.closedLeads ?? kpis.wonLeads ?? 0}</div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total closed deals
                     </div>

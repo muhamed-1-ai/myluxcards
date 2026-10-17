@@ -801,7 +801,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--simple-text-primary);
+  width: 28px;
+  height: 28px;
+  background: transparent;
 }
 
 .zappit-simple-social-name {

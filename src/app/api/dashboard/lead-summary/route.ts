@@ -52,12 +52,20 @@ export async function GET(request: Request) {
       todaysFollowUpsCount: data.todaysFollowUps.length,
     });
 
-    return Response.json({
-      success: true,
-      accountId: identity.id,
-      userId: identity.id,
-      ...data,
-    });
+    return Response.json(
+      {
+        success: true,
+        accountId: identity.id,
+        userId: identity.id,
+        activeUsers: data.activeUsers ?? data.kpis.activeUsers ?? 1,
+        ...data,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (error) {
     console.error("[DASHBOARD_SUMMARY_ERROR]", error);
     return Response.json(

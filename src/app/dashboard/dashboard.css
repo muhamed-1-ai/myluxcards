@@ -96,25 +96,9 @@
   margin-right: 10px;
 }
 .dash-side {
-  position: fixed;
-  z-index: 25;
-  left: 0;
-  top: 72px;
-  bottom: 0;
-  height: calc(100vh - 72px);
-  max-height: calc(100vh - 72px);
-  width: 244px;
-  background: var(--bg-secondary);
   color: var(--text-primary);
-  border-right: 1px solid var(--border-color);
-  padding: 24px 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 229, 255, 0.3) rgba(7, 20, 38, 0.6);
 }
 .dash-side::-webkit-scrollbar {
   width: 5px;
@@ -6704,6 +6688,199 @@ body.dark-mode .crm-cal-day-num.is-today {
   color: #0066FF !important;
 }
 
+/* --- CALENDAR CONFIG (MAIN CALENDAR) LIGHT/DARK MODE STYLING --- */
+.cal-config-grid-cell {
+  background: var(--calendar-cell-bg, var(--bg-secondary));
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  overflow: hidden;
+  min-height: 140px;
+  min-width: 0;
+  outline: none;
+}
+
+.cal-config-grid-cell:hover {
+  border-color: #0066FF;
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.1);
+}
+
+.cal-config-grid-cell:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+.cal-config-grid-cell.is-today {
+  border: 2px solid var(--calendar-today-border, #0066FF) !important;
+  background: var(--calendar-cell-today-bg, rgba(0, 102, 255, 0.04));
+}
+
+.cal-config-grid-cell.is-selected {
+  border: 2px solid #0066FF !important;
+  background: var(--calendar-cell-selected-bg, rgba(0, 102, 255, 0.08));
+}
+
+.cal-config-grid-cell.is-adjacent {
+  background: var(--calendar-cell-adjacent-bg, #F8FAFC);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .cal-config-grid-cell.is-adjacent,
+body.dark-mode .cal-config-grid-cell.is-adjacent {
+  background: rgba(18, 19, 26, 0.35);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.cal-config-date-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--calendar-date-primary, var(--text-primary));
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.cal-config-date-num.is-today {
+  color: var(--calendar-today-text, #0066FF) !important;
+  font-weight: 900 !important;
+  background: rgba(0, 102, 255, 0.12) !important;
+}
+
+.cal-config-date-num.is-adjacent {
+  color: var(--calendar-date-muted, var(--text-muted)) !important;
+  font-weight: 600;
+}
+
+.cal-config-add-task-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--calendar-add-task-text, var(--text-secondary));
+  text-align: right;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: 0;
+  border-radius: 4px;
+  outline: none;
+  width: 100%;
+  display: block;
+}
+
+.cal-config-add-task-btn:hover {
+  color: #0066FF !important;
+  text-decoration: underline;
+}
+
+.cal-config-add-task-btn:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 1px;
+}
+
+/* Mobile Calendar Day Cells */
+.cal-config-mobile-cell {
+  min-height: 48px;
+  min-width: 40px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--calendar-cell-bg, var(--bg-secondary));
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.cal-config-mobile-cell:hover {
+  border-color: #0066FF;
+}
+
+.cal-config-mobile-cell:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+.cal-config-mobile-cell.is-today {
+  border: 2px solid var(--calendar-today-border, #0066FF) !important;
+  background: var(--calendar-cell-today-bg, rgba(0, 102, 255, 0.08));
+}
+
+.cal-config-mobile-cell.is-selected {
+  border: 2px solid #0066FF !important;
+  background: var(--calendar-cell-selected-bg, rgba(0, 102, 255, 0.2));
+}
+
+.cal-config-mobile-cell.is-adjacent {
+  background: var(--calendar-cell-adjacent-bg, #F8FAFC);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .cal-config-mobile-cell.is-adjacent,
+body.dark-mode .cal-config-mobile-cell.is-adjacent {
+  background: rgba(18, 19, 26, 0.35);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.cal-config-mobile-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--calendar-date-primary, var(--text-primary));
+  margin-top: 2px;
+}
+
+.cal-config-mobile-date.is-today {
+  color: var(--calendar-today-text, #0066FF) !important;
+  font-weight: 800 !important;
+}
+
+.cal-config-mobile-date.is-adjacent {
+  color: var(--calendar-date-muted, var(--text-muted)) !important;
+}
+
+/* Mini-Calendar Dashboard Widgets (CompactDashboardCalendar) */
+[data-theme="light"] .crm-cal-day-btn,
+body.light-mode .crm-cal-day-btn {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .crm-cal-day-btn:hover,
+body.light-mode .crm-cal-day-btn:hover {
+  background: rgba(0, 102, 255, 0.08) !important;
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .crm-cal-day-btn.is-today,
+body.light-mode .crm-cal-day-btn.is-today {
+  border-color: #0066FF !important;
+  color: #0066FF !important;
+  background: rgba(0, 102, 255, 0.06) !important;
+}
+
+[data-theme="light"] .crm-cal-weekday-cell,
+body.light-mode .crm-cal-weekday-cell {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .crm-cal-dot,
+body.light-mode .crm-cal-dot {
+  background: #0066FF !important;
+}
+
 
 /* --- PIPELINE STAGE ROWS LIGHT/DARK MODE STYLING --- */
 [data-theme="light"] .crm-pipeline-stage-row,
@@ -6834,14 +7011,19 @@ body.dark-mode .crm-followup-empty-title {
 
 .dash-shell {
   min-height: 100vh !important;
+  min-height: 100dvh !important;
   width: 100% !important;
   max-width: 100% !important;
   background: var(--background, #07080B) !important;
   color: var(--text-primary, #FFFFFF) !important;
   display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
   position: relative !important;
   box-sizing: border-box !important;
+  overflow: visible !important;
   overflow-x: visible !important;
+  overflow-y: visible !important;
 }
 
 .dash-top {
@@ -6858,9 +7040,11 @@ body.dark-mode .crm-followup-empty-title {
   top: 16px !important;
   align-self: flex-start !important;
   height: calc(100vh - 32px) !important;
+  height: calc(100dvh - 32px) !important;
   max-height: calc(100vh - 32px) !important;
+  max-height: calc(100dvh - 32px) !important;
   margin: 16px 0 16px 16px !important;
-  z-index: 45 !important;
+  z-index: 40 !important;
   background: var(--surface, #0D1726) !important;
   border: 1px solid var(--border-color, rgba(0, 229, 255, 0.16)) !important;
   border-radius: 24px !important;
@@ -6888,6 +7072,7 @@ body.dark-mode .dash-side,
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 16px;
   min-height: 60px;
+  flex-shrink: 0 !important;
 }
 
 [data-theme="light"] .side-logo-wrap,
@@ -6944,13 +7129,32 @@ body.light-mode .side-logo-wrap {
 }
 
 .side-nav-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-right: 4px;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  padding-right: 4px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 229, 255, 0.3) rgba(7, 20, 38, 0.6) !important;
+}
+
+.side-nav-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.side-nav-scroll::-webkit-scrollbar-track {
+  background: rgba(7, 20, 38, 0.6);
+  border-radius: 4px;
+}
+.side-nav-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.25);
+  border-radius: 4px;
+}
+.side-nav-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.5);
 }
 
 .side-nav-group {
@@ -7134,7 +7338,8 @@ body.dark-mode .side-nav-item.active,
 }
 
 .side-footer-badge {
-  margin-top: auto;
+  margin-top: auto !important;
+  flex-shrink: 0 !important;
   padding: 12px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -7341,6 +7546,7 @@ body.dark-mode .side-nav-item.active,
     top: 0 !important;
     bottom: 0 !important;
     left: -320px !important;
+    margin: 0 !important;
     width: 280px !important;
     max-width: 85vw !important;
     height: 100vh !important;

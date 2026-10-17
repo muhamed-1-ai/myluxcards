@@ -9,12 +9,15 @@ export * from "./follow-up-types";
 export interface LeadKpis {
   totalLeads: number;
   newLeads: number;
+  todaysLeads?: number;
   contactedLeads: number;
   interestedLeads: number;
   followUpLeads: number;
   wonLeads: number;
+  closedLeads?: number;
   lostLeads: number;
   conversionRate: number;
+  activeUsers?: number;
 }
 
 export interface NeedsAttentionItem {
@@ -131,6 +134,7 @@ export function normalizeLostStageId(rawStage: string | null | undefined): { sta
 
 export interface DashboardSummaryPayload {
   kpis: LeadKpis;
+  activeUsers?: number;
   attentionItems: NeedsAttentionItem[];
   pipeline: Record<LeadStage, PipelineLeadCard[]>;
   pipelineCounts: Record<LeadStage, number>;
@@ -158,13 +162,17 @@ export const DEFAULT_DASHBOARD_SUMMARY: DashboardSummaryPayload = {
   kpis: {
     totalLeads: 0,
     newLeads: 0,
+    todaysLeads: 0,
     contactedLeads: 0,
     interestedLeads: 0,
     followUpLeads: 0,
     wonLeads: 0,
+    closedLeads: 0,
     lostLeads: 0,
     conversionRate: 0,
+    activeUsers: 1,
   },
+  activeUsers: 1,
   attentionItems: [],
   pipeline: { NEW: [], CONTACTED: [], INTERESTED: [], FOLLOW_UP: [], WON: [], LOST: [] },
   pipelineCounts: { NEW: 0, CONTACTED: 0, INTERESTED: 0, FOLLOW_UP: 0, WON: 0, LOST: 0 },
@@ -217,6 +225,19 @@ export async function getDashboardSummaryData(
       paramIdx++;
     }
 
+    if (filters?.user && filters.user.trim()) {
+      const u = filters.user.trim();
+      if (u === "me") {
+        whereConditions.push(`(l.owner_user_id = $${paramIdx} OR l.assigned_user_id = $${paramIdx})`);
+        params.push(ownerUserId);
+        paramIdx++;
+      } else if (u !== "all") {
+        whereConditions.push(`(l.assigned_user_id = $${paramIdx} OR l.owner_user_id = $${paramIdx})`);
+        params.push(u);
+        paramIdx++;
+      }
+    }
+
     if (filters?.stage && filters.stage.trim()) {
       whereConditions.push(`l.status = $${paramIdx}`);
       params.push(filters.stage.trim());
@@ -232,9 +253,9 @@ export async function getDashboardSummaryData(
     if (filters?.status && filters.status.trim()) {
       const st = filters.status.trim().toLowerCase();
       if (st === "active") {
-        whereConditions.push(`l.status NOT IN ('WON', 'LOST')`);
+        whereConditions.push(`l.status NOT IN ('WON', 'LOST', 'CLOSED')`);
       } else if (st === "closed") {
-        whereConditions.push(`l.status IN ('WON', 'LOST')`);
+        whereConditions.push(`l.status IN ('WON', 'LOST', 'CLOSED')`);
       }
     }
 
@@ -259,8 +280,12 @@ export async function getDashboardSummaryData(
     const leadsWhereClause = whereConditions.join(" AND ");
 
     // Query 1: KPI Counts
-    const kpiRes = pool.query<{ status: string; count: string }>(
-      `SELECT l.status, COUNT(*) as count FROM leads l WHERE ${leadsWhereClause} GROUP BY l.status`,
+    const kpiRes = pool.query<{ status: string; count: string; todays_count: string }>(
+      `SELECT l.status, COUNT(*)::int as count,
+              COUNT(CASE WHEN DATE(l.created_at) = CURRENT_DATE THEN 1 END)::int as todays_count
+       FROM leads l 
+       WHERE ${leadsWhereClause} 
+       GROUP BY l.status`,
       params
     );
 
@@ -381,8 +406,55 @@ export async function getDashboardSummaryData(
       params
     );
 
+    // Query 8: Active Authorized Users
+    let activeUsersQuery = `
+      SELECT COUNT(*)::int as count 
+      FROM users 
+      WHERE (status = 'ACTIVE' OR status IS NULL) 
+        AND (disabled = false OR disabled IS NULL)
+    `;
+    let activeUsersParams: any[] = [];
+
+    if (userRole === "SUPER_ADMIN") {
+      activeUsersQuery = `
+        SELECT COUNT(*)::int as count 
+        FROM users 
+        WHERE (status = 'ACTIVE' OR status IS NULL) 
+          AND (disabled = false OR disabled IS NULL)
+      `;
+    } else if (userRole === "ADMIN") {
+      activeUsersQuery = `
+        SELECT COUNT(*)::int as count 
+        FROM users 
+        WHERE (id = $1 OR created_by_admin_id = $1) 
+          AND (status = 'ACTIVE' OR status IS NULL) 
+          AND (disabled = false OR disabled IS NULL)
+      `;
+      activeUsersParams = [ownerUserId];
+    } else {
+      activeUsersQuery = `
+        SELECT COUNT(*)::int as count 
+        FROM users 
+        WHERE (
+          id = $1 
+          OR (
+            created_by_admin_id IS NOT NULL 
+            AND created_by_admin_id = (SELECT created_by_admin_id FROM users WHERE id = $1 AND created_by_admin_id IS NOT NULL)
+          )
+        )
+        AND (status = 'ACTIVE' OR status IS NULL) 
+        AND (disabled = false OR disabled IS NULL)
+      `;
+      activeUsersParams = [ownerUserId];
+    }
+
+    const activeUsersRes = pool.query<{ count: string | number }>(
+      activeUsersQuery,
+      activeUsersParams
+    );
+
     // Await all parallel queries
-    const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData, lostStageData] = await Promise.all([
+    const [kpiData, pipelineData, followUpData, activityData, sourceData, growthData, lostStageData, activeUsersData] = await Promise.all([
       kpiRes,
       pipelineRes,
       followUpsRes,
@@ -390,6 +462,7 @@ export async function getDashboardSummaryData(
       sourceRes,
       growthRes,
       lostStageRes,
+      activeUsersRes,
     ]);
 
   // Process KPIs
@@ -403,24 +476,32 @@ export async function getDashboardSummaryData(
   };
 
   let totalLeads = 0;
+  let todaysLeads = 0;
   for (const row of kpiData.rows) {
     const c = parseInt(row.count, 10);
+    const tc = parseInt(row.todays_count || "0", 10);
     countsByStatus[row.status] = (countsByStatus[row.status] || 0) + c;
     totalLeads += c;
+    todaysLeads += tc;
   }
 
   const wonLeads = countsByStatus.WON || 0;
+  const closedLeads = wonLeads;
   const conversionRate = totalLeads > 0 ? parseFloat(((wonLeads / totalLeads) * 100).toFixed(1)) : 0;
+  const activeUsersCount = Math.max(1, parseInt(String(activeUsersData?.rows?.[0]?.count ?? "1"), 10));
 
   const kpis: LeadKpis = {
     totalLeads,
     newLeads: countsByStatus.NEW || 0,
+    todaysLeads,
     contactedLeads: countsByStatus.CONTACTED || 0,
     interestedLeads: countsByStatus.INTERESTED || 0,
     followUpLeads: countsByStatus.FOLLOW_UP || 0,
     wonLeads,
+    closedLeads,
     lostLeads: countsByStatus.LOST || 0,
     conversionRate,
+    activeUsers: activeUsersCount,
   };
 
   // Process Pipeline
@@ -602,6 +683,7 @@ export async function getDashboardSummaryData(
 
     return {
       kpis,
+      activeUsers: kpis.activeUsers,
       attentionItems,
       pipeline,
       pipelineCounts,

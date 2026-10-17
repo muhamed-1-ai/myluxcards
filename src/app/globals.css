@@ -47,6 +47,18 @@
   --border-glass-subtle: #1E293B;
   --border-card: #1E293B;
 
+  /* Calendar Semantic Tokens */
+  --calendar-bg: var(--surface);
+  --calendar-cell-bg: var(--bg-secondary);
+  --calendar-cell-adjacent-bg: rgba(18, 19, 26, 0.35);
+  --calendar-cell-today-bg: rgba(0, 102, 255, 0.08);
+  --calendar-cell-selected-bg: rgba(0, 102, 255, 0.2);
+  --calendar-today-border: #0066FF;
+  --calendar-today-text: #0066FF;
+  --calendar-date-primary: var(--text-primary);
+  --calendar-date-muted: var(--text-muted);
+  --calendar-add-task-text: var(--text-secondary);
+
   /* Brand & Accents */
   --primary: #0066FF;
   --primary-foreground: #FFFFFF;
@@ -138,6 +150,18 @@ body.light-mode,
   --border-glass: #E2E8F0;
   --border-glass-subtle: #F1F5F9;
   --border-card: #E2E8F0;
+
+  /* Calendar Semantic Tokens (Light Mode) */
+  --calendar-bg: #FFFFFF;
+  --calendar-cell-bg: #F1F5F9;
+  --calendar-cell-adjacent-bg: #F8FAFC;
+  --calendar-cell-today-bg: rgba(0, 102, 255, 0.04);
+  --calendar-cell-selected-bg: rgba(0, 102, 255, 0.08);
+  --calendar-today-border: #0066FF;
+  --calendar-today-text: #0066FF;
+  --calendar-date-primary: #0F172A;
+  --calendar-date-muted: #64748B;
+  --calendar-add-task-text: #475569;
 
   --primary: #0066FF;
   --primary-foreground: #FFFFFF;
@@ -284,6 +308,15 @@ body {
   overflow-x: hidden;
   line-height: 1.6;
   min-height: 100vh;
+}
+
+html:has(.dash-shell),
+body:has(.dash-shell) {
+  overflow: visible !important;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+  height: auto !important;
+  min-height: 100% !important;
 }
 
 
@@ -7082,19 +7115,28 @@ a.zappit-modern-val:hover {
 }
 
 .zappit-modern-app-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s ease;
+  background: transparent;
+  box-shadow: none;
+  flex-shrink: 0;
 }
 
 .zappit-modern-app-tile:hover .zappit-modern-app-icon {
   transform: scale(1.08);
+}
+
+.zappit-brand-logo-svg,
+.zappit-brand-logo-custom {
+  filter: none !important;
+  opacity: 1 !important;
+  pointer-events: none;
 }
 
 .zappit-modern-app-name {
