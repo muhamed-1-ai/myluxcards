@@ -17,7 +17,7 @@ import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
-import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset } from "@/lib/themeTokens";
+import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
@@ -114,7 +114,7 @@ type Card = {
   state: string; stateCode: string; city: string; address: string; brochure: string; brochureData?: string;
   social: Record<string, string>; about: string; services: string[];
   logo: string; cover: string; profileBackground: string; profileAccent: string; profileText: string;
-  logoScale: number; logoRotation: number; logoX: number; logoY: number;
+  logoScale: number; logoZoom?: number; logoRotation: number; logoX: number; logoY: number;
   coverScale: number; coverRotation: number; coverX: number; coverY: number;
   start: string; expiry: string; views: number; active: boolean; activatedAt?: string | null;
   analytics?: Record<string, number>;
@@ -254,7 +254,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: safeEmail, website: "",
     state: "", stateCode: "", city: "", address: "", brochure: "", social: { ...blankSocial }, about: "", services: [],
     logo: "", cover: "", profileBackground: "#050B14", profileAccent: "#0066FF", profileText: "#ffffff",
-    logoScale: 100, logoRotation: 0, logoX: 50, logoY: 50,
+    logoScale: 100, logoZoom: 100, logoRotation: 0, logoX: 50, logoY: 50,
     coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
     start: today.toISOString().slice(0, 10), expiry: expiry.toISOString().slice(0, 10),
     views: 0, active: false,
@@ -4855,7 +4855,7 @@ function AppearanceForm({
             src={resolveMediaUrl(draft.logo)}
             alt="Image preview"
             style={{
-              transform: `scale(${(draft.logoScale || 100) / 100}) rotate(${draft.logoRotation || 0}deg)`,
+              transform: `scale(${((draft.logoZoom || 100) / 100)}) rotate(${draft.logoRotation || 0}deg)`,
               objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%`,
             }}
           />
@@ -4867,17 +4867,29 @@ function AppearanceForm({
     {draft.logo && (
       <div className="image-controls">
         <label>
-          Size (70px – 150px)
+          Size (70px – 200px)
           <input
             type="range"
             min="65"
-            max="140"
+            max="185"
             value={draft.logoScale || 100}
             onChange={(event) => update("logoScale", Number(event.target.value))}
           />
           <output>
-            {Math.max(70, Math.min(150, Math.round(((draft.logoScale || 100) / 100) * 108)))}px
+            {resolveAvatarDiameter(draft.logoScale)}px
           </output>
+        </label>
+        <label>
+          Image zoom (100% – 200%)
+          <input
+            type="range"
+            min="100"
+            max="200"
+            step="1"
+            value={draft.logoZoom || 100}
+            onChange={(event) => update("logoZoom", Number(event.target.value))}
+          />
+          <output>{draft.logoZoom || 100}%</output>
         </label>
         <label>
           Rotation
@@ -4916,6 +4928,7 @@ function AppearanceForm({
           type="button"
           onClick={() => {
             update("logoScale", 100);
+            update("logoZoom", 100);
             update("logoRotation", 0);
             update("logoX", 50);
             update("logoY", 50);

@@ -196,7 +196,7 @@ type Card = {
   brochure: string; brochureData?: string; social: Record<string, string>; about: string;
   services: string[]; logo: string; cover: string; active: boolean;
   profileBackground?: string; profileAccent?: string; profileText?: string;
-  logoScale?: number; logoRotation?: number; logoX?: number; logoY?: number;
+  logoScale?: number; logoZoom?: number; logoRotation?: number; logoX?: number; logoY?: number;
   coverScale?: number; coverRotation?: number; coverX?: number; coverY?: number;
   previewAuthorized?: boolean;
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";

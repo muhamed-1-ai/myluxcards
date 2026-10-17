@@ -6627,7 +6627,8 @@ body.dark-mode {
   pointer-events: none;
 }
 
-.zappit-modern-avatar-circle {
+.zappit-modern-avatar-circle,
+.zappit-modern-avatar-ring {
   border-radius: 50%;
   background: var(--profile-surface, #080F1E);
   border: 3.5px solid var(--profile-surface, #080F1E);
@@ -6639,6 +6640,8 @@ body.dark-mode {
   justify-content: center;
   pointer-events: auto;
   flex-shrink: 0;
+  max-width: calc(100% - 32px);
+  aspect-ratio: 1 / 1;
 }
 
 .zappit-modern-avatar-img {
@@ -6647,6 +6650,7 @@ body.dark-mode {
   border-radius: 50%;
   object-fit: cover;
   transform-origin: center center;
+  display: block;
 }
 
 .zappit-modern-avatar-fallback {
@@ -6665,7 +6669,7 @@ body.dark-mode {
 
 /* 3. Profile Header Typography (Enforce clean sans-serif across name and headings) */
 .zappit-modern-header {
-  margin-top: 10px;
+  margin-top: 0;
   text-align: center;
   margin-bottom: 16px;
   display: flex;

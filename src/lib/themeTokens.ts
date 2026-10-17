@@ -859,4 +859,40 @@ export function resolveSimpleProfileTokens(card: {
   };
 }
 
+/**
+ * Resolves avatar diameter (70px – 200px) from logoScale setting.
+ * When logoScale is undefined/100, resolves to standard default 108px.
+ * Min slider value 65 -> 70px, Max 185 -> 200px.
+ */
+export function resolveAvatarDiameter(logoScale?: number): number {
+  if (logoScale === undefined || logoScale === null) return 108;
+  const num = Number(logoScale);
+  if (!Number.isFinite(num)) return 108;
+  const diameter = Math.round((num / 100) * 108);
+  return Math.max(70, Math.min(200, diameter));
+}
+
+/**
+ * Calculates spacing for the avatar and following content:
+ * - overlap: amount overlapping the cover (40% of avatar diameter when cover present)
+ * - spaceBelowCover: diameter - overlap (the physical footprint extending below the cover)
+ * - gapBeforeName: 20px (comfortable 16px–24px spacing before name)
+ * - marginTop: negative overlap on cover, or positive top margin when no cover
+ */
+export function calculateAvatarSpacing(avatarDiameter: number, hasCover: boolean) {
+  const overlap = hasCover ? Math.round(avatarDiameter * 0.40) : 0;
+  const spaceBelowCover = avatarDiameter - overlap;
+  const gapBeforeName = 20;
+  const marginTop = hasCover ? -overlap : 16;
+
+  return {
+    diameter: avatarDiameter,
+    overlap,
+    spaceBelowCover,
+    gapBeforeName,
+    marginTop,
+  };
+}
+
+
 

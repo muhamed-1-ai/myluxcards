@@ -500,14 +500,14 @@
   align-items: center;
   width: 100%;
   margin-top: -52px;
-  margin-bottom: 2px;
+  margin-bottom: 20px;
   position: relative;
   z-index: 2;
 }
 
 .zappit-simple-photo-ring {
-  width: 104px;
-  height: 104px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
   overflow: hidden;
   background: var(--simple-avatar-bg);
@@ -518,6 +518,8 @@
   justify-content: center;
   flex-shrink: 0;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  max-width: calc(100% - 32px);
+  aspect-ratio: 1 / 1;
 }
 
 .zappit-simple-photo-img {
@@ -537,6 +539,7 @@
 
 /* 2. Identity & Typography */
 .zappit-simple-identity {
+  margin-top: 0;
   text-align: center;
   display: flex;
   flex-direction: column;

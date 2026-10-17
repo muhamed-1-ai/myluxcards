@@ -5,7 +5,13 @@ import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardProfileProduct } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
-import { resolveThemeTokens, isLightColor, getLuminance } from "@/lib/themeTokens";
+import {
+  resolveThemeTokens,
+  isLightColor,
+  getLuminance,
+  resolveAvatarDiameter,
+  calculateAvatarSpacing,
+} from "@/lib/themeTokens";
 import {
   Phone,
   Mail,
@@ -69,6 +75,7 @@ export interface ModernProfileLayoutProps {
     logo?: string;
     cover?: string;
     logoScale?: number;
+    logoZoom?: number;
     logoRotation?: number;
     logoX?: number;
     logoY?: number;
@@ -242,10 +249,9 @@ export function ModernProfileLayout({
 
   const { styleVars } = resolveModernThemeTokens(card);
 
-  const logoScaleNum = card.logoScale !== undefined ? card.logoScale : 100;
-  const avatarSize = (logoScaleNum >= 70 && logoScaleNum <= 150 && card.logoScale !== undefined)
-    ? logoScaleNum
-    : Math.max(70, Math.min(150, Math.round((logoScaleNum / 100) * 108)));
+  const hasCover = card.cover !== "none";
+  const avatarDiameter = resolveAvatarDiameter(card.logoScale);
+  const spacing = calculateAvatarSpacing(avatarDiameter, hasCover);
 
   return (
     <div className="zappit-modern-wrapper" style={styleVars}>
@@ -267,7 +273,13 @@ export function ModernProfileLayout({
         )}
 
         {/* ── 1. COVER AREA (Fixed height, overflow hidden, safe zone gradient) ── */}
-        <div className="zappit-modern-cover">
+        <div
+          className="zappit-modern-cover"
+          style={{
+            height: card.modernConfig?.headerHeight ? `${card.modernConfig.headerHeight}px` : undefined,
+            minHeight: card.modernConfig?.headerHeight ? `${card.modernConfig.headerHeight}px` : undefined,
+          }}
+        >
           {card.cover ? (
             <img
               src={resolveMediaUrl(card.cover)}
@@ -288,14 +300,15 @@ export function ModernProfileLayout({
         <div
           className="zappit-modern-avatar-wrap"
           style={{
-            marginTop: `-${Math.round(avatarSize / 2)}px`,
+            marginTop: `${spacing.marginTop}px`,
+            marginBottom: `${spacing.gapBeforeName}px`,
           }}
         >
           <div
-            className="zappit-modern-avatar-ring"
+            className="zappit-modern-avatar-circle zappit-modern-avatar-ring"
             style={{
-              width: `${avatarSize}px`,
-              height: `${avatarSize}px`,
+              width: `${spacing.diameter}px`,
+              height: `${spacing.diameter}px`,
             }}
           >
             {card.logo ? (
@@ -304,7 +317,7 @@ export function ModernProfileLayout({
                 alt={name}
                 className="zappit-modern-avatar-img"
                 style={{
-                  transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
+                  transform: `scale(${((card.logoZoom || 100) / 100)}) rotate(${card.logoRotation || 0}deg)`,
                   objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
                 }}
               />

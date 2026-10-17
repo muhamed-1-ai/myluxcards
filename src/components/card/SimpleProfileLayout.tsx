@@ -4,7 +4,12 @@ import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { CardProfileProduct } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
-import { resolveSimpleProfileTokens, isLightColor } from "@/lib/themeTokens";
+import {
+  resolveSimpleProfileTokens,
+  isLightColor,
+  resolveAvatarDiameter,
+  calculateAvatarSpacing,
+} from "@/lib/themeTokens";
 import {
   Phone,
   Mail,
@@ -39,6 +44,7 @@ export interface SimpleProfileLayoutProps {
     logo?: string;
     cover?: string;
     logoScale?: number;
+    logoZoom?: number;
     logoRotation?: number;
     logoX?: number;
     logoY?: number;
@@ -223,6 +229,9 @@ export function SimpleProfileLayout({
   const coverRotation = typeof simpleConfig.coverRotation === "number" ? simpleConfig.coverRotation : (card.coverRotation ?? 0);
   const coverX = typeof simpleConfig.coverX === "number" ? simpleConfig.coverX : (card.coverX ?? 50);
   const coverY = typeof simpleConfig.coverY === "number" ? simpleConfig.coverY : (card.coverY ?? 50);
+  const hasCover = card.cover !== "none";
+  const avatarDiameter = resolveAvatarDiameter(card.logoScale);
+  const spacing = calculateAvatarSpacing(avatarDiameter, hasCover);
 
   return (
     <div
@@ -268,8 +277,20 @@ export function SimpleProfileLayout({
         <div className="zappit-simple-body">
 
           {/* ── 1. Contained Profile Photo (Overlapping bottom edge of cover) ── */}
-          <div className="zappit-simple-photo-wrap">
-            <div className="zappit-simple-photo-ring">
+          <div
+            className="zappit-simple-photo-wrap"
+            style={{
+              marginTop: `${spacing.marginTop}px`,
+              marginBottom: `${spacing.gapBeforeName}px`,
+            }}
+          >
+            <div
+              className="zappit-simple-photo-ring"
+              style={{
+                width: `${spacing.diameter}px`,
+                height: `${spacing.diameter}px`,
+              }}
+            >
               {card.logo && !imgError ? (
                 <img
                   src={resolveMediaUrl(card.logo)}
@@ -277,7 +298,7 @@ export function SimpleProfileLayout({
                   className="zappit-simple-photo-img"
                   onError={() => setImgError(true)}
                   style={{
-                    transform: `scale(${(card.logoScale || 100) / 100}) rotate(${card.logoRotation || 0}deg)`,
+                    transform: `scale(${((card.logoZoom || 100) / 100)}) rotate(${card.logoRotation || 0}deg)`,
                     objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
                   }}
                 />

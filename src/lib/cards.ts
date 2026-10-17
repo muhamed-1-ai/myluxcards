@@ -11,7 +11,7 @@ export const CARD_FIELDS = [
   "name","title","business","countryCode","countryIso","mobile","whatsapp","email","website",
   "state","stateCode","city","address","brochure","brochureData","social","about","services",
   "logo","cover","theme","profileTheme","profileBackground","profileAccent","profileText","start","expiry",
-  "logoScale","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
+  "logoScale","logoZoom","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
   "profileFeatures","featureOrder","profileFormat","modernConfig","simpleConfig",
@@ -213,7 +213,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
   state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
   logo:"", cover:"", profileBackground:"#050B14", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
-  logoScale:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
+  logoScale:100, logoZoom:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
   profileMode: "DIGITAL_PROFILE",
   profileFormat: "modern",
   modernConfig: {},
@@ -340,8 +340,8 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         returnInstructions: String(v.returnInstructions || DEFAULT_LOST_AND_FOUND.returnInstructions).trim().slice(0, 1000),
         allowAnonymousMessage: v.allowAnonymousMessage !== false,
       };
-    } else if (["logoScale","coverScale"].includes(field)) {
-      output[field] = clamp(value, 25, 300, 100);
+    } else if (["logoScale","logoZoom","coverScale"].includes(field)) {
+      output[field] = clamp(value, field === "logoZoom" ? 100 : 25, 300, 100);
     } else if (["logoRotation","coverRotation"].includes(field)) {
       output[field] = clamp(value, -180, 180, 0);
     } else if (["logoX","logoY","coverX","coverY"].includes(field)) {
