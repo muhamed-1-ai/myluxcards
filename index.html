@@ -1039,29 +1039,45 @@
         </button>
         <div class="auth-divider"><span>or continue with email</span></div>
       </div>
-      <form id="signup-form">
-        <div class="form-group">
-          <label for="signup-name">Full Name</label>
-          <input type="text" id="signup-name" required minlength="2" autocomplete="name" placeholder="Your full name">
+      <form id="signup-form" autocomplete="on">
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="signup-name" class="auth-field-label">Full Name</label>
+          <input type="text" id="signup-name" name="name" required minlength="2" maxlength="100" autocomplete="name" placeholder="Enter your full name">
         </div>
-        <div class="form-group">
-          <label for="signup-email">Email Address</label>
-          <input type="email" id="signup-email" required autocomplete="email" placeholder="name@domain.com">
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="signup-email" class="auth-field-label">Email Address</label>
+          <input type="email" id="signup-email" name="email" required autocomplete="email" placeholder="you@example.com">
         </div>
-        <div class="form-group">
-          <label for="signup-password">Password</label>
-          <input type="password" id="signup-password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="signup-phone" class="auth-field-label">Phone Number <span class="auth-optional-tag">(optional)</span></label>
+          <input type="tel" id="signup-phone" name="phone" autocomplete="tel" placeholder="Enter your phone number">
         </div>
-        <div class="form-group">
-          <label for="signup-confirm-password">Confirm Password</label>
-          <input type="password" id="signup-confirm-password" required minlength="8" autocomplete="new-password" placeholder="Enter your password again">
-          <small class="form-error" id="signup-error" role="alert"></small>
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="signup-password" class="auth-field-label">Password</label>
+          <div class="password-field" style="position: relative;">
+            <input type="password" id="signup-password" name="password" required autocomplete="new-password" placeholder="At least 12 characters" style="padding-right: 48px;">
+            <button type="button" class="password-toggle" id="signup-password-toggle" data-password-toggle="signup-password" aria-controls="signup-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748B; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px;">Show</button>
+          </div>
+          <div class="password-requirements" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 0.72rem; color: #64748B;">
+            <span class="rule-chip" data-rule="length" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">12+ chars</span>
+            <span class="rule-chip" data-rule="upper" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Uppercase</span>
+            <span class="rule-chip" data-rule="lower" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Lowercase</span>
+            <span class="rule-chip" data-rule="number" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Number</span>
+            <span class="rule-chip" data-rule="symbol" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Symbol</span>
+          </div>
         </div>
-        <label class="signup-terms"><input type="checkbox" id="signup-terms" required> <span>I agree to the <a href="/privacy">Privacy Policy</a> and Terms of Service.</span></label>
-        <button class="btn btn-primary" type="submit">Create account</button>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="signup-confirm-password" class="auth-field-label">Confirm Password</label>
+          <div class="password-field" style="position: relative;">
+            <input type="password" id="signup-confirm-password" name="confirmPassword" required autocomplete="new-password" placeholder="Re-enter your password" style="padding-right: 48px;">
+            <button type="button" class="password-toggle" id="signup-confirm-password-toggle" data-password-toggle="signup-confirm-password" aria-controls="signup-confirm-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748B; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px;">Show</button>
+          </div>
+        </div>
+        <small class="form-error" id="signup-error" role="alert" style="color: #EF4444; font-size: 0.825rem; margin-bottom: 14px; display: block; min-height: 18px;"></small>
+        <button class="btn btn-primary" type="submit" style="width: 100%; height: 46px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; background: var(--apple-blue, #0066FF); color: #FFFFFF; border: none; cursor: pointer;">Create Account</button>
       </form>
-      <div class="modal-footer">
-        <p>Already have an account? <a href="#" id="back-to-login">Log in</a></p>
+      <div class="modal-footer" style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: #64748B;">
+        <p>Already have an account? <a href="#" id="back-to-login" style="color: var(--apple-blue, #0066FF); font-weight: 600; text-decoration: none;">Log in</a></p>
       </div>
     </div>
   </div>

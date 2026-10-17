@@ -19,8 +19,8 @@ async function runTests() {
     // 1. Setup Test Users and Cards
     const emailA = `prod_user_a_${Date.now()}@test.com`;
     const userARes = await pool.query<{ id: string }>(
-      `insert into users (email, normalized_email, name, role) values ($1, $2, $3, $4) returning id`,
-      [emailA, emailA.toLowerCase(), "User A", "CUSTOMER"]
+      `insert into users (email, name, role) values ($1, $2, $3) returning id`,
+      [emailA, "User A", "CUSTOMER"]
     );
     testUserIdA = userARes.rows[0].id;
 
@@ -32,8 +32,8 @@ async function runTests() {
 
     const emailB = `prod_user_b_${Date.now()}@test.com`;
     const userBRes = await pool.query<{ id: string }>(
-      `insert into users (email, normalized_email, name, role) values ($1, $2, $3, $4) returning id`,
-      [emailB, emailB.toLowerCase(), "User B", "CUSTOMER"]
+      `insert into users (email, name, role) values ($1, $2, $3) returning id`,
+      [emailB, "User B", "CUSTOMER"]
     );
     testUserIdB = userBRes.rows[0].id;
 

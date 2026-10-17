@@ -20,7 +20,7 @@ test("TEST 2 & 3: NEW AND EXISTING GOOGLE USER (Database columns)", () => {
   assert.match(authService, /provider='google'/);
   
   // New Google user insert
-  assert.match(authService, /insert into users\(email,normalized_email,name,role,feature_permissions\)/);
+  assert.match(authService, /insert into users\(email,name,role,feature_permissions\)/);
   
   // Must specifically protect against previous schema mismatch
   assert.doesNotMatch(authService, /insert into users\([^)]*email_verified_at/);

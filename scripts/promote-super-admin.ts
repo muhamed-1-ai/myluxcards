@@ -47,7 +47,7 @@ async function main() {
     const outcome = await withTransaction(async (db) => {
       const existing = (
         await db.query<UserRow>(
-          "select id, email, role, session_version from users where normalized_email = $1 for update",
+          "select id, email, role, session_version from users where LOWER(email) = $1 for update",
           [normalized]
         )
       ).rows[0];

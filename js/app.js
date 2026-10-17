@@ -131,6 +131,11 @@ class LuxApp {
   }
 
   async loginWithGoogle() {
+    const loginError = document.getElementById('login-error');
+    if (loginError) loginError.textContent = '';
+    const signupError = document.getElementById('signup-error');
+    if (signupError) signupError.textContent = '';
+
     const googleBtns = document.querySelectorAll('.btn-google, .google-auth-button, #google-login, #google-login-btn, #google-signup-btn');
     googleBtns.forEach(btn => {
       btn.disabled = true;
@@ -194,6 +199,8 @@ class LuxApp {
         const textSpan = btn.querySelector('.btn-google-text, span');
         if (textSpan) textSpan.textContent = 'Continue with Google';
       });
+      const error = document.getElementById('login-error');
+      if (error) error.textContent = 'Google sign-in could not be initiated. Please try again.';
     }
   }
 
@@ -1774,11 +1781,22 @@ class LuxApp {
       const form = e.currentTarget;
       const name = document.getElementById('signup-name')?.value.trim();
       const email = document.getElementById('signup-email')?.value.trim().toLowerCase();
+      const phoneInput = document.getElementById('signup-phone');
+      const rawPhone = phoneInput ? phoneInput.value.trim() : '';
       const password = document.getElementById('signup-password')?.value || '';
       const confirmation = document.getElementById('signup-confirm-password')?.value || '';
       const error = document.getElementById('signup-error');
       const submit = form.querySelector('button[type="submit"]');
       if (error) error.textContent = '';
+
+      if (rawPhone) {
+        const digitsOnly = rawPhone.replace(/\D/g, '');
+        if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+          if (error) error.textContent = 'Please enter a valid phone number (7–15 digits) or leave it blank.';
+          phoneInput?.focus();
+          return;
+        }
+      }
 
       if (!Object.values(passwordRules).every(rule => rule(password))) {
         if (error) error.textContent = 'Use 12+ characters with upper, lower, number, and symbol.';
@@ -1798,7 +1816,7 @@ class LuxApp {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password })
+          body: JSON.stringify({ name, email, password, phone: rawPhone || null })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -1973,9 +1991,21 @@ class LuxApp {
 
     if (oauthError) {
       const error = document.getElementById('login-error');
-      if (error) error.textContent = oauthError === 'AccessDenied'
-        ? 'Google sign-in was cancelled or this account cannot be used.'
-        : 'Google sign-in could not be completed. Please try again.';
+      if (error) {
+        if (oauthError === 'AccessDenied') {
+          error.textContent = 'Google sign-in was cancelled. Please try again.';
+        } else if (oauthError === 'AccountDisabled') {
+          error.textContent = 'This account has been disabled or suspended. Please contact support.';
+        } else if (oauthError === 'IdentityConflict') {
+          error.textContent = 'This Google account is already linked to another user. Please log in with your primary email or contact support.';
+        } else if (oauthError === 'EmailNotVerified') {
+          error.textContent = 'Your Google account email is not verified. Please verify your email with Google and try again.';
+        } else if (oauthError === 'Configuration') {
+          error.textContent = 'A configuration error occurred with Google authentication. Please try again or contact support.';
+        } else {
+          error.textContent = 'Google sign-in could not be completed. Please try again.';
+        }
+      }
       document.getElementById('login-modal')?.classList.add('open');
     } else if (loginFlag) {
       fetch('/api/auth/me', { cache: 'no-store' })

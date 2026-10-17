@@ -719,29 +719,29 @@ const redesignedMarkup = `
           <div class="auth-divider"><span>OR</span></div>
 
           <form id="login-form" autocomplete="on">
-            <div class="form-group" style="margin-bottom: 16px;">
-              <label for="login-email" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Email Address</label>
-              <input type="email" id="login-email" required placeholder="name@domain.com" autocomplete="email" style="width: 100%; height: 42px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border); background: rgba(255,255,255,0.04); color: inherit;">
+            <div class="form-group" style="margin-bottom: 18px;">
+              <label for="login-email" class="auth-field-label" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 7px; color: var(--apple-text-primary, #1E293B);">Email Address</label>
+              <input type="email" id="login-email" required placeholder="name@domain.com" autocomplete="email" style="width: 100%; height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
             </div>
 
             <div class="form-group" style="margin-bottom: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label for="login-password" style="font-size: 0.85rem; font-weight: 600; margin: 0;">Password</label>
-                <a href="/reset-password" class="forgot-password-link" style="font-size: 0.8rem; color: var(--apple-sky); text-decoration: none;">Forgot password?</a>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;">
+                <label for="login-password" class="auth-field-label" style="font-size: 0.85rem; font-weight: 600; margin: 0; color: var(--apple-text-primary, #1E293B);">Password</label>
+                <a href="/reset-password" class="forgot-password-link" style="font-size: 0.8rem; color: var(--apple-blue, #0066FF); text-decoration: none; font-weight: 500;">Forgot password?</a>
               </div>
               <div class="password-field" style="position: relative;">
-                <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••" style="width: 100%; height: 42px; padding: 0 45px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border); background: rgba(255,255,255,0.04); color: inherit;">
-                <button type="button" class="password-toggle" id="login-password-toggle" data-password-toggle="login-password" aria-controls="login-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--apple-text-tertiary); font-size: 0.75rem; cursor: pointer;">Show</button>
+                <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••" style="width: 100%; height: 44px; padding: 0 48px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
+                <button type="button" class="password-toggle" id="login-password-toggle" data-password-toggle="login-password" aria-controls="login-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748B; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px;">Show</button>
               </div>
             </div>
 
-            <small class="form-error" id="login-error" role="alert" style="color: #EF4444; margin-bottom: 12px; display: block;"></small>
+            <small class="form-error" id="login-error" role="alert" style="color: #EF4444; font-size: 0.825rem; margin-bottom: 14px; display: block; min-height: 18px;"></small>
 
-            <button class="apple-btn apple-btn-primary" type="submit" style="width: 100%; padding: 13px;">Login Securely</button>
+            <button class="apple-btn apple-btn-primary" type="submit" style="width: 100%; height: 46px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; background: var(--apple-blue, #0066FF); color: #FFFFFF; border: none; cursor: pointer; transition: all 0.2s ease;">Login Securely</button>
           </form>
 
-          <div class="zappit-login-footer" style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: var(--apple-text-secondary);">
-            <p>Don't have an account? <a href="#" id="signup-trigger" style="color: var(--apple-blue); font-weight: 600;">Sign up</a></p>
+          <div class="zappit-login-footer" style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: #64748B;">
+            <p>Don't have an account? <a href="#" id="signup-trigger" style="color: var(--apple-blue, #0066FF); font-weight: 600; text-decoration: none;">Sign up</a></p>
           </div>
         </div>
       </div>
@@ -779,45 +779,50 @@ const redesignedMarkup = `
 
           <form id="signup-form" autocomplete="on">
             <div class="form-group" style="margin-bottom: 14px;">
-              <label for="signup-name" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Full Name</label>
-              <input type="text" id="signup-name" required minlength="2" maxlength="100" placeholder="John Doe" autocomplete="name" style="width: 100%; height: 42px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border); background: rgba(255,255,255,0.04); color: inherit;">
+              <label for="signup-name" class="auth-field-label" style="display: block; font-size: 0.825rem; font-weight: 600; margin-bottom: 6px; color: var(--apple-text-primary, #1E293B);">Full Name</label>
+              <input type="text" id="signup-name" name="name" required minlength="2" maxlength="100" placeholder="Enter your full name" autocomplete="name" style="width: 100%; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
             </div>
 
             <div class="form-group" style="margin-bottom: 14px;">
-              <label for="signup-email" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Email Address</label>
-              <input type="email" id="signup-email" required placeholder="name@domain.com" autocomplete="email" style="width: 100%; height: 42px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border); background: rgba(255,255,255,0.04); color: inherit;">
+              <label for="signup-email" class="auth-field-label" style="display: block; font-size: 0.825rem; font-weight: 600; margin-bottom: 6px; color: var(--apple-text-primary, #1E293B);">Email Address</label>
+              <input type="email" id="signup-email" name="email" required placeholder="you@example.com" autocomplete="email" style="width: 100%; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
             </div>
 
             <div class="form-group" style="margin-bottom: 14px;">
-              <label for="signup-password" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Password</label>
+              <label for="signup-phone" class="auth-field-label" style="display: block; font-size: 0.825rem; font-weight: 600; margin-bottom: 6px; color: var(--apple-text-primary, #1E293B);">Phone Number <span class="auth-optional-tag" style="font-weight: 400; color: #64748B; font-size: 0.8rem; margin-left: 4px;">(optional)</span></label>
+              <input type="tel" id="signup-phone" name="phone" placeholder="Enter your phone number" autocomplete="tel" style="width: 100%; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label for="signup-password" class="auth-field-label" style="display: block; font-size: 0.825rem; font-weight: 600; margin-bottom: 6px; color: var(--apple-text-primary, #1E293B);">Password</label>
               <div class="password-field" style="position: relative;">
-                <input type="password" id="signup-password" required autocomplete="new-password" placeholder="At least 12 characters" style="width: 100%; height: 42px; padding: 0 45px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border); background: rgba(255,255,255,0.04); color: inherit;">
-                <button type="button" class="password-toggle" id="signup-password-toggle" data-password-toggle="signup-password" aria-controls="signup-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--apple-text-tertiary); font-size: 0.75rem; cursor: pointer;">Show</button>
+                <input type="password" id="signup-password" name="password" required autocomplete="new-password" placeholder="At least 12 characters" style="width: 100%; height: 40px; padding: 0 48px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
+                <button type="button" class="password-toggle" id="signup-password-toggle" data-password-toggle="signup-password" aria-controls="signup-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748B; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px;">Show</button>
               </div>
-              <div class="password-requirements" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 0.72rem; color: var(--apple-text-tertiary);">
-                <span class="rule-chip" data-rule="length" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid var(--apple-border);">12+ chars</span>
-                <span class="rule-chip" data-rule="upper" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid var(--apple-border);">Uppercase</span>
-                <span class="rule-chip" data-rule="lower" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid var(--apple-border);">Lowercase</span>
-                <span class="rule-chip" data-rule="number" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid var(--apple-border);">Number</span>
-                <span class="rule-chip" data-rule="symbol" style="padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.04); border: 1px solid var(--apple-border);">Symbol</span>
+              <div class="password-requirements" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; font-size: 0.7rem; color: #64748B;">
+                <span class="rule-chip" data-rule="length" style="padding: 2px 7px; border-radius: 10px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">12+ chars</span>
+                <span class="rule-chip" data-rule="upper" style="padding: 2px 7px; border-radius: 10px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Uppercase</span>
+                <span class="rule-chip" data-rule="lower" style="padding: 2px 7px; border-radius: 10px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Lowercase</span>
+                <span class="rule-chip" data-rule="number" style="padding: 2px 7px; border-radius: 10px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Number</span>
+                <span class="rule-chip" data-rule="symbol" style="padding: 2px 7px; border-radius: 10px; background: rgba(0,0,0,0.04); border: 1px solid #E2E8F0;">Symbol</span>
               </div>
             </div>
 
             <div class="form-group" style="margin-bottom: 16px;">
-              <label for="signup-confirm-password" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">Confirm Password</label>
+              <label for="signup-confirm-password" class="auth-field-label" style="display: block; font-size: 0.825rem; font-weight: 600; margin-bottom: 6px; color: var(--apple-text-primary, #1E293B);">Confirm Password</label>
               <div class="password-field" style="position: relative;">
-                <input type="password" id="signup-confirm-password" required autocomplete="new-password" placeholder="Re-enter password" style="width: 100%; height: 42px; padding: 0 45px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border); background: rgba(255,255,255,0.04); color: inherit;">
-                <button type="button" class="password-toggle" id="signup-confirm-password-toggle" data-password-toggle="signup-confirm-password" aria-controls="signup-confirm-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--apple-text-tertiary); font-size: 0.75rem; cursor: pointer;">Show</button>
+                <input type="password" id="signup-confirm-password" name="confirmPassword" required autocomplete="new-password" placeholder="Re-enter your password" style="width: 100%; height: 40px; padding: 0 48px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
+                <button type="button" class="password-toggle" id="signup-confirm-password-toggle" data-password-toggle="signup-confirm-password" aria-controls="signup-confirm-password" aria-pressed="false" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748B; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px;">Show</button>
               </div>
             </div>
 
-            <small class="form-error" id="signup-error" role="alert" style="color: #EF4444; margin-bottom: 12px; display: block;"></small>
+            <small class="form-error" id="signup-error" role="alert" style="color: #EF4444; font-size: 0.825rem; margin-bottom: 12px; display: block; min-height: 16px;"></small>
 
-            <button class="apple-btn apple-btn-primary" type="submit" style="width: 100%; padding: 13px;">Create Account</button>
+            <button class="apple-btn apple-btn-primary" type="submit" style="width: 100%; height: 44px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; background: var(--apple-blue, #0066FF); color: #FFFFFF; border: none; cursor: pointer; transition: all 0.2s ease;">Create Account</button>
           </form>
 
-          <div class="zappit-login-footer" style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: var(--apple-text-secondary);">
-            <p>Already have an account? <a href="#" id="back-to-login" style="color: var(--apple-blue); font-weight: 600;">Log in</a></p>
+          <div class="zappit-login-footer" style="margin-top: 14px; text-align: center; font-size: 0.85rem; color: #64748B;">
+            <p>Already have an account? <a href="#" id="back-to-login" style="color: var(--apple-blue, #0066FF); font-weight: 600; text-decoration: none;">Log in</a></p>
           </div>
         </div>
       </div>

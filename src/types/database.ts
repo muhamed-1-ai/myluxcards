@@ -12,7 +12,7 @@ export const DEFAULT_FEATURE_PERMISSIONS: FeaturePermissions = {
 export interface UserRow {
   id: string;
   email: string;
-  normalized_email: string;
+  normalized_email?: string;
   name: string;
   password_hash: string | null;
   email_verified_at: Date | null;

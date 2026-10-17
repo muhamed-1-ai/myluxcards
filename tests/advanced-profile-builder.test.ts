@@ -20,8 +20,8 @@ async function runTests() {
     // 2. Setup Test User and Digital Card
     const email = `profile_builder_test_${Date.now()}@test.com`;
     const userRes = await pool.query<{ id: string }>(
-      `insert into users (email, normalized_email, name, role) values ($1, $2, $3, $4) returning id`,
-      [email, email.toLowerCase(), "Builder Tester", "CUSTOMER"]
+      `insert into users (email, name, role) values ($1, $2, $3) returning id`,
+      [email, "Builder Tester", "CUSTOMER"]
     );
     testUserId = userRes.rows[0].id;
 

@@ -2284,6 +2284,11 @@ body:has(.landing-page) {
   border-radius: var(--apple-radius-xl) !important;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12) !important;
   color: #111827 !important;
+  max-height: 90vh !important;
+  max-height: 90dvh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
 }
 
 .landing-page .modal-close,
@@ -2311,6 +2316,61 @@ body:has(.landing-page) {
   color: #526176 !important;
 }
 
+.zappit-login-form-col {
+  padding: 28px 28px 24px 28px !important;
+}
+
+.zappit-login-header {
+  margin-bottom: 16px !important;
+}
+
+.google-auth-container {
+  margin-bottom: 14px !important;
+}
+
+.zappit-login-panel .btn-google,
+.modal-card .btn-google {
+  height: 44px !important;
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+  font-size: 0.92rem !important;
+}
+
+.auth-divider {
+  margin-bottom: 14px !important;
+}
+
+/* Modal Form Groups & Spacing */
+.zappit-login-panel .form-group,
+.landing-page .modal-card .form-group,
+.modal-card .form-group {
+  margin-bottom: 15px !important;
+}
+
+/* Permanent Visible Labels (Light Mode) */
+.zappit-login-panel label,
+.landing-page .modal-card label,
+.modal-card label,
+.zappit-login-panel .auth-field-label,
+.modal-card .auth-field-label {
+  display: block !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 6px !important;
+  color: #1E293B !important;
+  line-height: 1.3 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.zappit-login-panel .auth-optional-tag,
+.modal-card .auth-optional-tag {
+  font-weight: 400 !important;
+  color: #64748B !important;
+  font-size: 0.8rem !important;
+  margin-left: 4px !important;
+}
+
 /* Modal Inputs & Forms */
 .landing-page .modal-card input,
 .landing-page .modal-card select,
@@ -2319,10 +2379,22 @@ body:has(.landing-page) {
 .modal-card select,
 .zappit-login-panel input {
   background: #FFFFFF !important;
-  border: 1px solid #E5EAF2 !important;
-  color: #111827 !important;
-  border-radius: var(--apple-radius-sm) !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  height: 42px !important;
+  border-radius: var(--apple-radius-sm, 8px) !important;
+  font-size: 0.92rem !important;
+  padding: 0 14px !important;
+  box-sizing: border-box !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.landing-page .modal-card input::placeholder,
+.landing-page .zappit-login-panel input::placeholder,
+.modal-card input::placeholder,
+.zappit-login-panel input::placeholder {
+  color: #94A3B8 !important;
+  opacity: 1 !important;
 }
 
 .landing-page .modal-card input:focus,
@@ -2331,9 +2403,26 @@ body:has(.landing-page) {
 .modal-card input:focus,
 .modal-card select:focus,
 .zappit-login-panel input:focus {
-  border-color: var(--apple-blue) !important;
+  border-color: var(--apple-blue, #0066FF) !important;
   box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15) !important;
   outline: none !important;
+}
+
+.zappit-login-panel .password-toggle,
+.modal-card .password-toggle {
+  background: none !important;
+  border: none !important;
+  color: #64748B !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  padding: 4px 8px !important;
+  transition: color 0.15s ease !important;
+}
+
+.zappit-login-panel .password-toggle:hover,
+.modal-card .password-toggle:hover {
+  color: var(--apple-blue, #0066FF) !important;
 }
 
 /* Password requirement chips */
@@ -2406,6 +2495,106 @@ body:has(.landing-page) {
 .auth-divider::before,
 .auth-divider::after {
   background: #E5EAF2 !important;
+}
+
+/* Modal Dark Theme Overrides */
+html.dark .landing-page .modal-card,
+body.dark-mode .landing-page .modal-card,
+html.dark .zappit-login-panel,
+body.dark-mode .zappit-login-panel {
+  background: #0B132B !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .zappit-login-title,
+body.dark-mode .zappit-login-title,
+html.dark .modal-header h3,
+body.dark-mode .modal-header h3 {
+  color: #FFFFFF !important;
+}
+
+html.dark .zappit-login-subtitle,
+body.dark-mode .zappit-login-subtitle,
+html.dark .modal-header p,
+body.dark-mode .modal-header p {
+  color: #94A3B8 !important;
+}
+
+html.dark .zappit-login-panel label,
+body.dark-mode .zappit-login-panel label,
+html.dark .modal-card label,
+body.dark-mode .modal-card label,
+html.dark .auth-field-label,
+body.dark-mode .auth-field-label {
+  color: #F1F5F9 !important;
+}
+
+html.dark .zappit-login-panel .auth-optional-tag,
+body.dark-mode .zappit-login-panel .auth-optional-tag {
+  color: #94A3B8 !important;
+}
+
+html.dark .zappit-login-panel input,
+body.dark-mode .zappit-login-panel input,
+html.dark .modal-card input,
+body.dark-mode .modal-card input {
+  background: #070E1A !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .zappit-login-panel input::placeholder,
+body.dark-mode .zappit-login-panel input::placeholder,
+html.dark .modal-card input::placeholder,
+body.dark-mode .modal-card input::placeholder {
+  color: #64748B !important;
+}
+
+html.dark .landing-page .btn-google,
+body.dark-mode .landing-page .btn-google,
+html.dark .btn-google,
+body.dark-mode .btn-google {
+  background: #111E33 !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .landing-page .auth-divider,
+body.dark-mode .landing-page .auth-divider,
+html.dark .auth-divider,
+body.dark-mode .auth-divider {
+  color: #64748B !important;
+}
+
+html.dark .landing-page .auth-divider::before,
+html.dark .landing-page .auth-divider::after,
+body.dark-mode .landing-page .auth-divider::before,
+body.dark-mode .landing-page .auth-divider::after,
+html.dark .auth-divider::before,
+html.dark .auth-divider::after,
+body.dark-mode .auth-divider::before,
+body.dark-mode .auth-divider::after {
+  background: #1E293B !important;
+}
+
+html.dark .rule-chip,
+body.dark-mode .rule-chip {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: #1E293B !important;
+  color: #94A3B8 !important;
+}
+
+html.dark .rule-chip.met,
+body.dark-mode .rule-chip.met {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: #22C55E !important;
+  color: #4ADE80 !important;
+}
+
+html.dark .zappit-login-footer,
+body.dark-mode .zappit-login-footer {
+  color: #94A3B8 !important;
 }
 
 /* ==========================================================================

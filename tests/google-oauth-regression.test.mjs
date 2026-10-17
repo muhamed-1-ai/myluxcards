@@ -8,13 +8,13 @@ const authOptionsContent = readFileSync("src/lib/auth.ts", "utf8");
 
 test("TEST 1: New Google user creation logic in authService", () => {
   // Verify INSERT into users sets role to CUSTOMER by default or ADMIN if in ADMIN_GOOGLE_EMAILS
-  assert.match(authServiceContent, /insert into users\(email,normalized_email,name,role,feature_permissions\)/);
+  assert.match(authServiceContent, /insert into users\(email,name,role,feature_permissions\)/);
   assert.match(authServiceContent, /insert into profiles\(id\)/);
   assert.match(authServiceContent, /insert into accounts\(user_id,type,provider,provider_account_id\)/);
 });
 
 test("TEST 2: Existing user linking preserves user role and avoids duplicate user insertion", () => {
-  assert.match(authServiceContent, /select id,email,name,session_version,role,disabled,status from users where normalized_email=\$1 for update/);
+  assert.match(authServiceContent, /select id,email,name,session_version,role,disabled,status from users where LOWER\(email\)=\$1 for update/);
 });
 
 test("TEST 3: Existing Google account lookup returns linked user", () => {
@@ -26,6 +26,7 @@ test("TEST 4: Account linking checks ownership and throws error on conflict", ()
 });
 
 test("TEST 5: Database queries in auth files MUST NOT reference non-existent columns", () => {
+  assert.strictEqual(authServiceContent.includes("normalized_email"), false, "authService.ts must not contain normalized_email");
   assert.strictEqual(authServiceContent.includes("last_login_at"), false, "authService.ts must not contain last_login_at");
   assert.strictEqual(authServiceContent.includes("email_verified_at"), false, "authService.ts must not contain email_verified_at");
 });

@@ -22,9 +22,9 @@ async function main() {
     await pool.query('BEGIN');
     try {
       const userRes = await pool.query(
-        `insert into users(email,normalized_email,name,role,feature_permissions)
-         values($1,$2,$3,$4,$5::jsonb) returning id,email,name,session_version,role`,
-        [displayEmail, email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
+        `insert into users(email,name,role,feature_permissions)
+         values($1,$2,$3,$4::jsonb) returning id,email,name,session_version,role`,
+        [email, name, assignedRole, JSON.stringify(DEFAULT_FEATURE_PERMISSIONS)]
       );
       console.log("Insert success:", userRes.rows[0]);
       await pool.query('ROLLBACK'); // rollback test

@@ -7443,7 +7443,11 @@ body.light-mode .zappit-modern-footer {
     0 32px 80px -16px rgba(0, 0, 0, 0.75),
     0 0 60px -10px rgba(8, 124, 255, 0.15),
     inset 0 1px 1px rgba(255, 255, 255, 0.08);
-  overflow: hidden;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   z-index: 100000;
   transform: scale(0.94) translateY(12px);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -7491,7 +7495,7 @@ body.light-mode .zappit-modern-footer {
 
 /* LOGIN FORM */
 .zappit-login-form-col {
-  padding: 40px 36px 36px 36px;
+  padding: 28px 28px 24px 28px;
   display: flex;
   flex-direction: column;
   justify-content: center;

@@ -107,7 +107,7 @@ export const authOptions: NextAuthOptions = {
         const reason = !user.email ? "EMAIL_MISSING" : "EMAIL_NOT_VERIFIED";
         console.warn("[OAuth][TRACE][SIGNIN_RETURN_FALSE]", { reason });
         console.warn("[OAuth][signIn][REJECT]", { reason });
-        return false;
+        return "/?error=EmailNotVerified";
       }
 
       try {
@@ -129,6 +129,12 @@ export const authOptions: NextAuthOptions = {
         const reason = rawReason === "USER_ACCOUNT_DISABLED" ? "ACCOUNT_DISABLED" : rawReason;
         console.error("[OAuth][TRACE][SIGNIN_RETURN_FALSE]", { reason, rawError: e instanceof Error ? e.message : String(e) });
         console.error("[OAuth][signIn][REJECT]", { reason, error: e instanceof Error ? e.message : String(e) });
+        if (reason === "ACCOUNT_DISABLED") {
+          return "/?error=AccountDisabled";
+        }
+        if (reason === "GOOGLE_IDENTITY_CONFLICT") {
+          return "/?error=IdentityConflict";
+        }
         return false;
       }
     },
