@@ -5,7 +5,7 @@ import { authOptions } from "./auth";
 import { pool } from "./db";
 import { findUserById, findManagedUserById } from "./repositories/users";
 import { AppRole, AccountStatus, FeaturePermissions } from "@/types/database";
-import { FeatureKey, isFeatureAllowed, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
+import { FeatureKey, isFeatureAllowed, isAccountingEntitled, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 
 export type AdminRole = AppRole;
 
@@ -93,6 +93,15 @@ export async function requirePermission(permission: FeatureKey, req?: Request): 
     return identity;
   }
   if (!isFeatureAllowed(identity.featurePermissions, permission, identity.role)) {
+    return null;
+  }
+  return identity;
+}
+
+export async function requireAccountingAccess(req?: Request): Promise<AdminIdentity | null> {
+  const identity = await currentIdentity(req);
+  if (!identity) return null;
+  if (!isAccountingEntitled(identity.featurePermissions, identity.role)) {
     return null;
   }
   return identity;

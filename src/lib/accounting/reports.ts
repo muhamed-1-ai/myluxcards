@@ -1,0 +1,408 @@
+import "server-only";
+import { pool } from "@/lib/db";
+import * as XLSX from "xlsx";
+import type { FinancialAccountRow, UserTransactionRow } from "./types";
+import { listFinancialAccounts } from "./accounts";
+
+export interface PeriodFilter {
+  period?: "today" | "week" | "month" | "year" | "all" | "custom";
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+}
+
+function resolveDateRange(filter: PeriodFilter): { start: string; end: string } {
+  const now = new Date();
+  const end = filter.endDate || now.toISOString().slice(0, 10);
+
+  if (filter.startDate) {
+    return { start: filter.startDate, end };
+  }
+
+  const p = filter.period || "month";
+  const start = new Date(now);
+
+  if (p === "today") {
+    // start is today
+  } else if (p === "week") {
+    start.setDate(now.getDate() - 7);
+  } else if (p === "month") {
+    start.setDate(1); // 1st of current month
+  } else if (p === "year") {
+    start.setMonth(0, 1); // Jan 1st of current year
+  } else if (p === "all") {
+    start.setFullYear(2020, 0, 1);
+  }
+
+  return { start: start.toISOString().slice(0, 10), end };
+}
+
+export interface DashboardMetrics {
+  asOfDate: string;
+  periodStart: string;
+  periodEnd: string;
+  availableBalanceMinor: number;
+  moneyReceivedMinor: number;
+  moneyPaidMinor: number;
+  owedToMeMinor: number;
+  iOweMinor: number;
+  earnedIncomeMinor: number;
+  earnedRevenueMinor?: number;
+  incurredExpenseMinor: number;
+  netSurplusMinor: number;
+  monthlyTrend: Array<{ month: string; cashInMinor: number; cashOutMinor: number }>;
+  cashFlowTrend?: Array<{ label: string; inflow_minor: number; outflow_minor: number }>;
+  categoryBreakdown: Array<{ categoryName: string; amountMinor: number; percent: number }>;
+  categorySpending?: Array<{ category_id: string; category_name: string; spent_minor: number; percentage: number }>;
+  recentTransactions: UserTransactionRow[];
+  upcomingCommitments?: Array<{ id: string; title: string; due_date: string; amount_minor: number; type: string; is_overdue: boolean }>;
+}
+
+export async function getDashboardMetrics(
+  workspaceId: string,
+  filter: PeriodFilter = {}
+): Promise<DashboardMetrics> {
+  const { start, end } = resolveDateRange(filter);
+  const asOfDate = new Date().toISOString().slice(0, 10);
+
+  // 1. Available Balance from Cash & Bank accounts (1010, 1020, 1030)
+  const cashAccountsRes = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(current_balance_minor), 0) as total
+     FROM accounting_financial_accounts
+     WHERE workspace_id = $1
+       AND is_active = true
+       AND subtype IN ('CASH', 'BANK', 'UPI')`,
+    [workspaceId]
+  );
+  const availableBalanceMinor = parseInt(cashAccountsRes.rows[0]?.total || "0", 10);
+
+  // 2. Owed to Me (Accounts Receivable 1200 balance)
+  const arRes = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(current_balance_minor), 0) as total
+     FROM accounting_financial_accounts
+     WHERE workspace_id = $1 AND code = '1200'`,
+    [workspaceId]
+  );
+  const owedToMeMinor = parseInt(arRes.rows[0]?.total || "0", 10);
+
+  // 3. I Owe (Accounts Payable 2000 + Loans 2500 balance)
+  const apRes = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(current_balance_minor), 0) as total
+     FROM accounting_financial_accounts
+     WHERE workspace_id = $1 AND code IN ('2000', '2500')`,
+    [workspaceId]
+  );
+  const iOweMinor = parseInt(apRes.rows[0]?.total || "0", 10);
+
+  // 4. Period Cash Flows: Money Received (Debits to Cash/Bank) and Money Paid (Credits to Cash/Bank)
+  const cashFlowRes = await pool.query<{ cash_in: string; cash_out: string }>(
+    `SELECT
+       COALESCE(SUM(jl.debit_minor), 0) as cash_in,
+       COALESCE(SUM(jl.credit_minor), 0) as cash_out
+     FROM accounting_journal_lines jl
+     JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+     JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+     WHERE je.workspace_id = $1
+       AND je.status = 'POSTED'
+       AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+       AND je.entry_date >= $2
+       AND je.entry_date <= $3
+       AND je.entry_type != 'OPENING_BALANCE'`,
+    [workspaceId, start, end]
+  );
+  const moneyReceivedMinor = parseInt(cashFlowRes.rows[0]?.cash_in || "0", 10);
+  const moneyPaidMinor = parseInt(cashFlowRes.rows[0]?.cash_out || "0", 10);
+
+  // 5. Accrual Income & Expenses for the period
+  const accrualRes = await pool.query<{ revenue: string; expense: string }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN fa.type = 'REVENUE' THEN (jl.credit_minor - jl.debit_minor) ELSE 0 END), 0) as revenue,
+       COALESCE(SUM(CASE WHEN fa.type = 'EXPENSE' THEN (jl.debit_minor - jl.credit_minor) ELSE 0 END), 0) as expense
+     FROM accounting_journal_lines jl
+     JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+     JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+     WHERE je.workspace_id = $1
+       AND je.status = 'POSTED'
+       AND je.entry_date >= $2
+       AND je.entry_date <= $3`,
+    [workspaceId, start, end]
+  );
+  const earnedIncomeMinor = parseInt(accrualRes.rows[0]?.revenue || "0", 10);
+  const incurredExpenseMinor = parseInt(accrualRes.rows[0]?.expense || "0", 10);
+  const netSurplusMinor = earnedIncomeMinor - incurredExpenseMinor;
+
+  // 6. Monthly Cash In vs Out Trend for the last 6 months
+  const trendRes = await pool.query<{ month_str: string; cash_in: string; cash_out: string }>(
+    `SELECT
+       TO_CHAR(je.entry_date, 'Mon YYYY') as month_str,
+       COALESCE(SUM(jl.debit_minor), 0) as cash_in,
+       COALESCE(SUM(jl.credit_minor), 0) as cash_out
+     FROM accounting_journal_lines jl
+     JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+     JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+     WHERE je.workspace_id = $1
+       AND je.status = 'POSTED'
+       AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+       AND je.entry_date >= (CURRENT_DATE - INTERVAL '6 months')
+       AND je.entry_type != 'OPENING_BALANCE'
+     GROUP BY TO_CHAR(je.entry_date, 'Mon YYYY'), DATE_TRUNC('month', je.entry_date)
+     ORDER BY DATE_TRUNC('month', je.entry_date) ASC`,
+    [workspaceId]
+  );
+  const monthlyTrend = trendRes.rows.map((r) => ({
+    month: r.month_str,
+    cashInMinor: parseInt(r.cash_in || "0", 10),
+    cashOutMinor: parseInt(r.cash_out || "0", 10),
+  }));
+
+  // 7. Category Breakdown for Expenses in the period
+  const catRes = await pool.query<{ category_name: string; total: string }>(
+    `SELECT
+       COALESCE(c.name, 'Uncategorized') as category_name,
+       COALESCE(SUM(t.amount_minor), 0) as total
+     FROM accounting_transactions t
+     LEFT JOIN accounting_categories c ON c.id = t.category_id
+     WHERE t.workspace_id = $1
+       AND t.type = 'EXPENSE'
+       AND t.status = 'POSTED'
+       AND t.date >= $2
+       AND t.date <= $3
+     GROUP BY c.name
+     ORDER BY total DESC
+     LIMIT 8`,
+    [workspaceId, start, end]
+  );
+  const totalCatExpenses = catRes.rows.reduce((sum, r) => sum + parseInt(r.total || "0", 10), 0);
+  const categoryBreakdown = catRes.rows.map((r) => {
+    const amt = parseInt(r.total || "0", 10);
+    return {
+      categoryName: r.category_name,
+      amountMinor: amt,
+      percent: totalCatExpenses > 0 ? Math.round((amt / totalCatExpenses) * 100) : 0,
+    };
+  });
+
+  // 8. Recent 5 Transactions
+  const recentRes = await pool.query<UserTransactionRow>(
+    `SELECT t.*, c.name as contact_name, cat.name as category_name, fa.name as account_name
+     FROM accounting_transactions t
+     LEFT JOIN accounting_contacts c ON c.id = t.contact_id
+     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+     LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
+     WHERE t.workspace_id = $1
+     ORDER BY t.date DESC, t.created_at DESC
+     LIMIT 5`,
+    [workspaceId]
+  );
+
+  // 9. Upcoming Commitments (Pending Reminders + Unpaid Invoices)
+  const remindersRes = await pool.query<{
+    id: string;
+    title: string;
+    due_date: string;
+    amount_minor: string;
+    type: string;
+    is_overdue: boolean;
+  }>(
+    `SELECT
+       r.id,
+       r.title,
+       TO_CHAR(r.due_date, 'YYYY-MM-DD') as due_date,
+       COALESCE(inv.amount_due_minor, 0) as amount_minor,
+       r.type,
+       (r.due_date < CURRENT_DATE) as is_overdue
+     FROM accounting_reminders r
+     LEFT JOIN accounting_invoices inv ON r.entity_type = 'INVOICE' AND r.entity_id = inv.id
+     WHERE r.workspace_id = $1 AND r.status = 'PENDING'
+     ORDER BY r.due_date ASC
+     LIMIT 5`,
+    [workspaceId]
+  );
+
+  const invoicesRes = await pool.query<{
+    id: string;
+    title: string;
+    due_date: string;
+    amount_minor: string;
+    type: string;
+    is_overdue: boolean;
+  }>(
+    `SELECT
+       id,
+       ('Invoice ' || invoice_number || ' - ' || COALESCE(contact_name, 'Client')) as title,
+       TO_CHAR(due_date, 'YYYY-MM-DD') as due_date,
+       amount_due_minor as amount_minor,
+       'INVOICE' as type,
+       (due_date < CURRENT_DATE) as is_overdue
+     FROM accounting_invoices
+     WHERE workspace_id = $1
+       AND status IN ('ISSUED', 'PARTIALLY_PAID')
+       AND amount_due_minor > 0
+     ORDER BY due_date ASC
+     LIMIT 5`,
+    [workspaceId]
+  );
+
+  const commitmentsMap = new Map<string, { id: string; title: string; due_date: string; amount_minor: number; type: string; is_overdue: boolean }>();
+  for (const inv of invoicesRes.rows) {
+    commitmentsMap.set(`inv_${inv.id}`, {
+      id: inv.id,
+      title: inv.title,
+      due_date: inv.due_date,
+      amount_minor: parseInt(inv.amount_minor || "0", 10),
+      type: inv.type,
+      is_overdue: Boolean(inv.is_overdue),
+    });
+  }
+  for (const rem of remindersRes.rows) {
+    commitmentsMap.set(`rem_${rem.id}`, {
+      id: rem.id,
+      title: rem.title,
+      due_date: rem.due_date,
+      amount_minor: parseInt(rem.amount_minor || "0", 10),
+      type: rem.type,
+      is_overdue: Boolean(rem.is_overdue),
+    });
+  }
+  const upcomingCommitments = Array.from(commitmentsMap.values())
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+    .slice(0, 5);
+
+  const cashFlowTrend = monthlyTrend.map((t) => ({
+    label: t.month,
+    inflow_minor: t.cashInMinor,
+    outflow_minor: t.cashOutMinor,
+  }));
+
+  const categorySpending = categoryBreakdown.map((c) => ({
+    category_id: c.categoryName,
+    category_name: c.categoryName,
+    spent_minor: c.amountMinor,
+    percentage: c.percent,
+  }));
+
+  return {
+    asOfDate,
+    periodStart: start,
+    periodEnd: end,
+    availableBalanceMinor,
+    moneyReceivedMinor,
+    moneyPaidMinor,
+    owedToMeMinor,
+    iOweMinor,
+    earnedIncomeMinor,
+    earnedRevenueMinor: earnedIncomeMinor,
+    incurredExpenseMinor,
+    netSurplusMinor,
+    monthlyTrend,
+    cashFlowTrend,
+    categoryBreakdown,
+    categorySpending,
+    recentTransactions: recentRes.rows,
+    upcomingCommitments,
+  };
+}
+
+export interface ReceivablesAgingRow {
+  contactId: string;
+  contactName: string;
+  phone: string | null;
+  currentMinor: number;
+  days1to30Minor: number;
+  days31to60Minor: number;
+  days61to90Minor: number;
+  daysOver90Minor: number;
+  totalDueMinor: number;
+}
+
+export async function getReceivablesAging(workspaceId: string): Promise<ReceivablesAgingRow[]> {
+  const query = `
+    SELECT
+      c.id as contact_id,
+      c.name as contact_name,
+      c.phone,
+      COALESCE(SUM(CASE WHEN inv.due_date >= CURRENT_DATE THEN inv.amount_due_minor ELSE 0 END), 0) as current_minor,
+      COALESCE(SUM(CASE WHEN inv.due_date < CURRENT_DATE AND inv.due_date >= CURRENT_DATE - 30 THEN inv.amount_due_minor ELSE 0 END), 0) as days_1_30,
+      COALESCE(SUM(CASE WHEN inv.due_date < CURRENT_DATE - 30 AND inv.due_date >= CURRENT_DATE - 60 THEN inv.amount_due_minor ELSE 0 END), 0) as days_31_60,
+      COALESCE(SUM(CASE WHEN inv.due_date < CURRENT_DATE - 60 AND inv.due_date >= CURRENT_DATE - 90 THEN inv.amount_due_minor ELSE 0 END), 0) as days_61_90,
+      COALESCE(SUM(CASE WHEN inv.due_date < CURRENT_DATE - 90 THEN inv.amount_due_minor ELSE 0 END), 0) as days_over_90,
+      COALESCE(SUM(inv.amount_due_minor), 0) as total_due
+    FROM accounting_contacts c
+    JOIN accounting_invoices inv ON inv.contact_id = c.id
+    WHERE inv.workspace_id = $1
+      AND inv.amount_due_minor > 0
+      AND inv.status IN ('ISSUED', 'PARTIALLY_PAID')
+    GROUP BY c.id, c.name, c.phone
+    ORDER BY total_due DESC
+  `;
+  const res = await pool.query<{
+    contact_id: string;
+    contact_name: string;
+    phone: string | null;
+    current_minor: string;
+    days_1_30: string;
+    days_31_60: string;
+    days_61_90: string;
+    days_over_90: string;
+    total_due: string;
+  }>(query, [workspaceId]);
+
+  return res.rows.map((r) => ({
+    contactId: r.contact_id,
+    contactName: r.contact_name,
+    phone: r.phone,
+    currentMinor: parseInt(r.current_minor || "0", 10),
+    days1to30Minor: parseInt(r.days_1_30 || "0", 10),
+    days31to60Minor: parseInt(r.days_31_60 || "0", 10),
+    days61to90Minor: parseInt(r.days_61_90 || "0", 10),
+    daysOver90Minor: parseInt(r.days_over_90 || "0", 10),
+    totalDueMinor: parseInt(r.total_due || "0", 10),
+  }));
+}
+
+/**
+ * Generate Excel / CSV export buffer for transactions or financial reports.
+ */
+export async function generateTransactionsExport(
+  workspaceId: string,
+  format: "xlsx" | "csv" = "xlsx"
+): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+  const query = `
+    SELECT
+      t.date as "Date",
+      t.type as "Type",
+      COALESCE(c.name, '') as "Contact / Person",
+      COALESCE(cat.name, '') as "Category",
+      fa.name as "Financial Account",
+      (t.amount_minor::numeric / 100.0) as "Amount (INR)",
+      t.status as "Status",
+      COALESCE(t.notes, '') as "Notes"
+    FROM accounting_transactions t
+    LEFT JOIN accounting_contacts c ON c.id = t.contact_id
+    LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+    LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
+    WHERE t.workspace_id = $1
+    ORDER BY t.date DESC, t.created_at DESC
+  `;
+  const res = await pool.query(query, [workspaceId]);
+
+  const worksheet = XLSX.utils.json_to_sheet(res.rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  if (format === "csv") {
+    const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+    return {
+      buffer: Buffer.from(csvContent, "utf8"),
+      filename: `zappit_transactions_${dateStr}.csv`,
+      contentType: "text/csv; charset=utf-8",
+    };
+  }
+
+  const xlsxBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+  return {
+    buffer: Buffer.from(xlsxBuffer),
+    filename: `zappit_transactions_${dateStr}.xlsx`,
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  };
+}

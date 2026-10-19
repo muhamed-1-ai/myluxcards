@@ -133,7 +133,27 @@ export function normalizeFeaturePermissions(raw: unknown): Record<FeatureKey, bo
     result.notifications = Boolean(obj["notifications"]);
   }
 
+  // Module Entitlement: Zappit Accounts (OFF by default for ordinary users)
+  const accVal = obj["accounting_access"] ?? obj["accounting.access"] ?? obj["accounting"];
+  (result as any)["accounting_access"] = typeof accVal === "boolean" ? accVal : false;
+
   return result;
+}
+
+export const ACCOUNTING_MODULE_ENTITLEMENT = {
+  key: "accounting_access",
+  label: "Zappit Accounts",
+  description: "Allows this user to access the Accounting module.",
+  dashboardTab: "accounting-overview",
+} as const;
+
+export function isAccountingEntitled(
+  permissions: Record<string, boolean> | undefined,
+  userRole?: string
+): boolean {
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return true;
+  if (!permissions) return false;
+  return permissions["accounting_access"] === true || permissions["accounting.access"] === true || permissions["accounting"] === true;
 }
 
 export function isGroupAllowed(group: FeatureGroup, permissions: Record<string, boolean> | undefined, userRole?: string): boolean {

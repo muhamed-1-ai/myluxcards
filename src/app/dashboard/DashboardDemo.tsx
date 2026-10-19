@@ -21,7 +21,12 @@ import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, 
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
-import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab } from "@/lib/permissionsRegistry";
+import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
+
+const AccountingApp = dynamic(
+  () => import("@/components/accounting/AccountingApp"),
+  { ssr: false }
+);
 
 const DashboardLayoutSelectorModal = dynamic(
   () => import("@/components/dashboard/DashboardLayoutSelector").then((mod) => mod.DashboardLayoutSelectorModal),
@@ -93,11 +98,39 @@ import {
   ChevronDown,
   CreditCard,
   Bell,
-  FileText,
   Layout,
+  Landmark,
 } from "lucide-react";
 
-type Tab = "dashboard" | "leads" | "modes" | "contact" | "social" | "company" | "appearance" | "cards" | "config-sources" | "config-products" | "config-stages" | "config-calendar" | "config-reasons" | "config-dynamic";
+type Tab =
+  | "dashboard"
+  | "leads"
+  | "modes"
+  | "contact"
+  | "social"
+  | "company"
+  | "appearance"
+  | "cards"
+  | "config-sources"
+  | "config-products"
+  | "config-stages"
+  | "config-calendar"
+  | "config-reasons"
+  | "config-dynamic"
+  | "accounting-overview"
+  | "accounting-home"
+  | "accounting-transactions"
+  | "accounting-people"
+  | "accounting-sales-invoices"
+  | "accounting-invoices"
+  | "accounting-accounts-transfers"
+  | "accounting-more"
+  | "accounting-budgets"
+  | "accounting-loans"
+  | "accounting-recurring"
+  | "accounting-reports"
+  | "accounting-reminders"
+  | "accounting-settings";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -356,8 +389,11 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       const editSlug = sp.get("editSlug");
       if (qTab === "qr-activity" || qTab === "analytics") {
         setTab("dashboard");
-      } else if (qTab && ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab)) {
+      } else if (qTab && (qTab.startsWith("accounting-") || ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab))) {
         setTab(qTab as Tab);
+        if (qTab.startsWith("accounting-")) {
+          setAccountingOpen(true);
+        }
       } else if (editCard || editSlug) {
         setTab("contact");
       }
@@ -367,6 +403,9 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   useEffect(() => {
     if (currentUser && currentUser.role !== "SUPER_ADMIN" && currentUser.role !== "ADMIN") {
       const isTabAllowed = (t: Tab) => {
+        if (t.startsWith("accounting-")) {
+          return isAccountingEntitled(currentUser.featurePermissions, currentUser.role);
+        }
         if (t === "dashboard") return isFeatureAllowed(currentUser.featurePermissions, "overview", currentUser.role);
         if (t === "leads") return isFeatureAllowed(currentUser.featurePermissions, "all_leads", currentUser.role);
         if (t === "config-sources") return isFeatureAllowed(currentUser.featurePermissions, "lead_sources", currentUser.role);
@@ -993,6 +1032,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const [analyticsPeriod, setAnalyticsPeriod] = useState<"7d" | "30d" | "90d">("30d");
   const [whatsappConnected, setWhatsappConnected] = useState(true);
   const [masterConfigOpen, setMasterConfigOpen] = useState(true);
+  const [accountingOpen, setAccountingOpen] = useState(true);
 
 
 
@@ -1326,6 +1366,122 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             </div>
           )}
 
+          {/* Section: Management (Accounting - One Expandable Sidebar Group) */}
+          {isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) && (
+            <div className="side-nav-group">
+              <span className="side-group-title">Accounting</span>
+              <div className="side-config-group">
+                <button
+                  type="button"
+                  className={`side-nav-item side-parent-btn ${tab.startsWith("accounting-") ? "active" : ""}`}
+                  onClick={() => setAccountingOpen((prev) => !prev)}
+                >
+                  <span className="side-nav-item-left">
+                    <Landmark className="side-nav-icon" />
+                    <span>Accounting</span>
+                  </span>
+                  <ChevronDown className={`side-chevron ${accountingOpen ? "expanded" : ""}`} />
+                </button>
+
+                {accountingOpen && (
+                  <div className="side-subnav-list">
+                    {/* 1. Home */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-overview" || tab === "accounting-home" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-overview" as Tab); setSidebar(false); }}
+                    >
+                      <span>Home</span>
+                      {(tab === "accounting-overview" || tab === "accounting-home") && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* 2. Transactions */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-transactions" || tab === "accounting-accounts-transfers" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-transactions" as Tab); setSidebar(false); }}
+                    >
+                      <span>Transactions</span>
+                      {(tab === "accounting-transactions" || tab === "accounting-accounts-transfers") && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* 3. People */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-people" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-people" as Tab); setSidebar(false); }}
+                    >
+                      <span>People</span>
+                      {tab === "accounting-people" && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* 4. Invoices */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-sales-invoices" || tab === "accounting-invoices" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-sales-invoices" as Tab); setSidebar(false); }}
+                    >
+                      <span>Invoices</span>
+                      {(tab === "accounting-sales-invoices" || tab === "accounting-invoices") && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* 5. Reports */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-reports" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-reports" as Tab); setSidebar(false); }}
+                    >
+                      <span>Reports</span>
+                      {tab === "accounting-reports" && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* Secondary: More Tools */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${[
+                        "accounting-more",
+                        "accounting-budgets",
+                        "accounting-loans",
+                        "accounting-recurring",
+                        "accounting-reminders",
+                      ].includes(tab) ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-more" as Tab); setSidebar(false); }}
+                    >
+                      <span>More</span>
+                      {[
+                        "accounting-more",
+                        "accounting-budgets",
+                        "accounting-loans",
+                        "accounting-recurring",
+                        "accounting-reminders",
+                      ].includes(tab) && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* Visual Divider separating everyday actions from Accounting Settings */}
+                    <div
+                      className="side-subnav-divider"
+                      style={{
+                        margin: "0.5rem 0.5rem",
+                        borderTop: "1px solid var(--border-color, rgba(255, 255, 255, 0.08))",
+                        opacity: 0.6,
+                      }}
+                    />
+
+                    {/* Accounting Settings at the bottom */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-settings" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-settings" as Tab); setSidebar(false); }}
+                    >
+                      <span>Settings</span>
+                      {tab === "accounting-settings" && <span className="side-subnav-dot" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Section: Card & Profile */}
           {isGroupAllowed("Card & Profile", currentUser?.featurePermissions) && (
             <div className="side-nav-group">
@@ -1448,9 +1604,23 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                     ? "Dashboard"
                     : tab === "leads"
                       ? "All Leads"
-                      : tab.startsWith("config-")
-                        ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
-                        : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
+                      : tab.startsWith("accounting-")
+                        ? `Zappit Accounts · ${
+                            tab === "accounting-overview" || tab === "accounting-home"
+                              ? "HOME"
+                              : tab === "accounting-sales-invoices" || tab === "accounting-invoices"
+                              ? "INVOICES"
+                              : tab === "accounting-accounts-transfers"
+                              ? "TRANSACTIONS & BALANCES"
+                              : tab === "accounting-more"
+                              ? "MORE TOOLS"
+                              : ["accounting-budgets", "accounting-loans", "accounting-recurring", "accounting-reminders"].includes(tab)
+                              ? `MORE · ${tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()}`
+                              : tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()
+                          }`
+                        : tab.startsWith("config-")
+                          ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
+                          : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
               </span>
               <span className={`save-state ${saveStatus}`}>
                 {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
@@ -1547,6 +1717,55 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         {tab === "config-calendar" && <section><CalendarConfig /></section>}
         {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
         {tab === "config-dynamic" && <section><LeadDynamicsConfig /></section>}
+
+        {/* Zappit Accounts Financial Management Page Views */}
+        {tab.startsWith("accounting-") && (
+          <section>
+            {!isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "4rem 2rem",
+                  margin: "2rem auto",
+                  maxWidth: "560px",
+                  borderRadius: "12px",
+                  backgroundColor: "var(--acc-surface, #121A26)",
+                  border: "1px solid var(--acc-border, #293548)",
+                }}
+              >
+                <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>🔒</div>
+                <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--acc-text-main, #F1F5F9)", margin: 0 }}>
+                  Zappit Accounts · Access Restricted
+                </h2>
+                <p style={{ color: "var(--acc-text-muted, #A8B5C7)", marginTop: "0.75rem", fontSize: "0.875rem", lineHeight: 1.5 }}>
+                  You do not have entitlement to access the Accounting module. Contact a platform administrator to grant you access in the Admin Portal.
+                </p>
+                <button
+                  type="button"
+                  style={{
+                    marginTop: "1.5rem",
+                    padding: "0.625rem 1.25rem",
+                    borderRadius: "8px",
+                    backgroundColor: "var(--acc-blue, #3B82F6)",
+                    color: "#FFFFFF",
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => selectTab("dashboard")}
+                >
+                  Return to Leads Dashboard
+                </button>
+              </div>
+            ) : (
+              <AccountingApp
+                currentTab={tab}
+                onSelectTab={(t) => selectTab(t as Tab)}
+                onReturnToDashboard={() => selectTab("dashboard")}
+              />
+            )}
+          </section>
+        )}
 
         <DashboardLayoutSelectorModal
           currentLayout={dashboardLayout}

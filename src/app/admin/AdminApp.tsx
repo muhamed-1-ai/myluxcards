@@ -790,7 +790,9 @@ function AdminPermissionsModal({
   }, [fetchLatestPermissions, onClose]);
 
   const isDirty = useMemo(() => {
-    return FEATURE_CATALOGUE.some((f) => Boolean(permissions[f.key]) !== Boolean(savedPermissions[f.key]));
+    const featuresDirty = FEATURE_CATALOGUE.some((f) => Boolean(permissions[f.key]) !== Boolean(savedPermissions[f.key]));
+    const accountingDirty = Boolean(permissions["accounting_access"]) !== Boolean(savedPermissions["accounting_access"]);
+    return featuresDirty || accountingDirty;
   }, [permissions, savedPermissions]);
 
   const handleToggle = (key: string) => {
@@ -805,6 +807,8 @@ function AdminPermissionsModal({
     FEATURE_CATALOGUE.forEach((f) => {
       allTrue[f.key] = true;
     });
+    // Preserve accounting module toggle during bulk feature select
+    allTrue["accounting_access"] = Boolean(permissions["accounting_access"]);
     setPermissions(allTrue);
   };
 
@@ -813,6 +817,8 @@ function AdminPermissionsModal({
     FEATURE_CATALOGUE.forEach((f) => {
       allFalse[f.key] = false;
     });
+    // Preserve accounting module toggle during bulk feature deselect
+    allFalse["accounting_access"] = Boolean(permissions["accounting_access"]);
     setPermissions(allFalse);
   };
 
@@ -890,8 +896,35 @@ function AdminPermissionsModal({
             <p style={{ padding: "40px 0", textAlign: "center", color: "var(--admin-muted)" }}>Loading feature permissions...</p>
           ) : (
             <>
+              {/* Platform Module Entitlement: Zappit Accounts */}
+              <div className="admin-perm-group-card" style={{ border: Boolean(permissions["accounting_access"]) ? "1px solid rgba(37, 99, 235, 0.5)" : undefined, background: Boolean(permissions["accounting_access"]) ? "rgba(37, 99, 235, 0.04)" : undefined }}>
+                <div className="admin-perm-group-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Platform Module Entitlement</span>
+                  <span className={`admin-perm-badge ${Boolean(permissions["accounting_access"]) ? "active" : "suspended"}`} style={{ fontSize: "10px", padding: "2px 8px" }}>
+                    {Boolean(permissions["accounting_access"]) ? "ACCESS GRANTED" : "DISABLED"}
+                  </span>
+                </div>
+                <div className="admin-perm-grid">
+                  <div className="admin-perm-item" style={{ gridColumn: "1 / -1" }}>
+                    <div className="admin-perm-item-info">
+                      <strong style={{ fontSize: "14px", color: "var(--admin-text)" }}>Zappit Accounts</strong>
+                      <small style={{ color: "var(--admin-muted)", display: "block", marginTop: "2px" }}>Allows this user to access the Accounting module.</small>
+                    </div>
+                    <label className="admin-switch" aria-label="Toggle Zappit Accounts Entitlement">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(permissions["accounting_access"])}
+                        onChange={() => handleToggle("accounting_access")}
+                        disabled={saving}
+                      />
+                      <span className="admin-switch-slider" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div className="admin-perm-actions-bar">
-                <span className="admin-perm-count-pill">17 Feature Access Controls</span>
+                <span className="admin-perm-count-pill">16 Feature Access Controls</span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button type="button" className="small" onClick={handleSelectAll} disabled={saving}>
                     Select All
