@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useId } from "react";
+import { createPortal } from "react-dom";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, RotateCcw, ChevronDown } from "lucide-react";
 import { parseSafeDate, toISODateString, formatDate } from "@/lib/dateTime";
 
@@ -43,8 +44,31 @@ export function DatePicker({
   error = false,
   label,
 }: DatePickerProps) {
+  const pickerId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
+
+  // Parse currently selected date
+  const selectedDate = parseSafeDate(value);
+
+  // Internal state for currently viewed month & year in calendar popover
+  const [viewDate, setViewDate] = useState<Date>(() => {
+    return selectedDate || new Date();
+  });
+
+  // Positioning coordinates for fixed portaled popover
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number; maxHeight: number }>({
+    top: 0,
+    left: 0,
+    width: 336,
+    maxHeight: 400,
+  });
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Sync theme with document element and body
   useEffect(() => {
@@ -58,7 +82,6 @@ export function DatePicker({
     };
 
     checkTheme();
-
     const observer = new MutationObserver(checkTheme);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
     observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
@@ -66,18 +89,18 @@ export function DatePicker({
     return () => observer.disconnect();
   }, []);
 
-  // Parse currently selected date
-  const selectedDate = parseSafeDate(value);
+  // Mount tracking for portal and responsive sheet
+  useEffect(() => {
+    setMounted(true);
+    const checkViewport = () => {
+      setIsMobile(window.innerWidth < 480);
+    };
+    checkViewport();
+    window.addEventListener("resize", checkViewport);
+    return () => window.removeEventListener("resize", checkViewport);
+  }, []);
 
-  // Internal state for currently viewed month & year in calendar popover
-  const [viewDate, setViewDate] = useState<Date>(() => {
-    return selectedDate || new Date();
-  });
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  // Sync viewDate to selected value when reopening popover or when value changes
+  // Sync viewDate to selected value when value changes
   useEffect(() => {
     const parsed = parseSafeDate(value);
     if (parsed) {
@@ -85,31 +108,120 @@ export function DatePicker({
     }
   }, [value]);
 
-  // When opening popover, ensure viewDate shows month/year of selected value (or current date if empty)
+  // Compute position with intelligent collision detection
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || isMobile) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const popoverWidth = Math.min(336, window.innerWidth - 32);
+    const popoverHeight = 370; // Standard calendar popover height
+    const gap = 8;
+    const padding = 16;
+
+    // Vertical placement & flip logic
+    const spaceBelow = window.innerHeight - rect.bottom - gap - padding;
+    const spaceAbove = rect.top - gap - padding;
+
+    let top: number;
+    let availableHeight: number;
+
+    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+      // Flip ABOVE trigger
+      availableHeight = Math.min(popoverHeight, spaceAbove);
+      top = Math.max(padding, rect.top - availableHeight - gap);
+    } else {
+      // Place BELOW trigger
+      availableHeight = Math.min(popoverHeight, spaceBelow);
+      top = rect.bottom + gap;
+    }
+
+    // Horizontal placement: Prefer aligning left edge to trigger's left edge
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth - padding) {
+      left = window.innerWidth - popoverWidth - padding;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    setCoords({
+      top: Math.round(top),
+      left: Math.round(left),
+      width: popoverWidth,
+      maxHeight: Math.max(280, Math.round(availableHeight)),
+    });
+  }, [isMobile]);
+
+  // When opening popover, ensure viewDate shows month/year of selected value
   const handleToggleOpen = () => {
     if (disabled) return;
     if (!isOpen) {
       const parsed = parseSafeDate(value);
       setViewDate(parsed || new Date());
+      updatePosition();
+      // Announce picker open to automatically close other open pickers
+      window.dispatchEvent(new CustomEvent("zappit-picker-opened", { detail: { id: pickerId } }));
     }
     setIsOpen(!isOpen);
   };
 
-  // Close on outside click
+  // Close when another picker opens
   useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    const handleOtherPickerOpened = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id && customEvent.detail.id !== pickerId) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
+    window.addEventListener("zappit-picker-opened", handleOtherPickerOpened);
+    return () => window.removeEventListener("zappit-picker-opened", handleOtherPickerOpened);
+  }, [pickerId]);
+
+  // Recalculate position on scroll or resize while open
+  useEffect(() => {
+    if (!isOpen || isMobile) return;
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", updatePosition);
+      window.visualViewport.addEventListener("scroll", updatePosition);
+    }
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", updatePosition);
+        window.visualViewport.removeEventListener("scroll", updatePosition);
+      }
+    };
+  }, [isOpen, isMobile, updatePosition]);
+
+  // Outside click handling (checks both trigger and portaled popover)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
     };
   }, [isOpen]);
 
@@ -170,7 +282,7 @@ export function DatePicker({
     triggerRef.current?.focus();
   };
 
-  // Calculate days matrix for viewDate (336px to 360px wide 7-column grid)
+  // Calculate days matrix for viewDate
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
@@ -255,15 +367,376 @@ export function DatePicker({
     yearOptions.push(y);
   }
 
+  // Calendar popover body
+  const popoverContent = (
+    <div
+      ref={popoverRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Calendar date picker"
+      className="crm-datepicker-popover"
+      onClick={(e) => e.stopPropagation()}
+      style={
+        isMobile
+          ? {
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 100000,
+              maxHeight: "85dvh",
+              colorScheme: isLightMode ? "light" : "dark",
+              backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
+              borderTop: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+              borderRadius: "20px 20px 0 0",
+              boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              padding: "16px 20px calc(16px + env(safe-area-inset-bottom, 0px))",
+              color: isLightMode ? "#0F172A" : "#FFFFFF",
+              fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+            }
+          : {
+              position: "fixed",
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              width: `${coords.width}px`,
+              maxHeight: `${coords.maxHeight}px`,
+              zIndex: 100000,
+              colorScheme: isLightMode ? "light" : "dark",
+              backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
+              borderColor: isLightMode ? "#E2E8F0" : "#1E293B",
+              borderWidth: "1px",
+              borderStyle: "solid",
+              borderRadius: "16px",
+              boxShadow: isLightMode
+                ? "0 18px 40px -4px rgba(0, 0, 0, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.06)"
+                : "0 24px 50px -8px rgba(0, 0, 0, 0.8), 0 0 1px 1px #1E293B",
+              display: "flex",
+              flexDirection: "column",
+              padding: "16px",
+              color: isLightMode ? "#0F172A" : "#FFFFFF",
+              overflow: "hidden",
+              fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+            }
+      }
+    >
+      {/* Mobile Handle */}
+      {isMobile && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <div
+            style={{
+              width: 38,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: isLightMode ? "#CBD5E1" : "#4A4D57",
+            }}
+          />
+        </div>
+      )}
+
+      {/* Header: Month & Year Controls */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingBottom: 12,
+          marginBottom: 12,
+          borderBottom: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+          flexShrink: 0,
+          gap: 8,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handlePrevMonth}
+          style={{
+            padding: "8px",
+            borderRadius: 10,
+            border: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+            backgroundColor: isLightMode ? "#F8FAFC" : "#142033",
+            color: isLightMode ? "#475569" : "#B5B8C2",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          title="Previous month"
+        >
+          <ChevronLeft style={{ width: 16, height: 16 }} />
+        </button>
+
+        {/* Quick Month & Year Selectors */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <select
+            value={month}
+            onChange={handleMonthChange}
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "6px 10px",
+              borderRadius: 8,
+              outline: "none",
+              cursor: "pointer",
+              border: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+              backgroundColor: isLightMode ? "#F8FAFC" : "#142033",
+              color: isLightMode ? "#0F172A" : "#FFFFFF",
+              fontFamily: "inherit",
+            }}
+          >
+            {MONTH_NAMES.map((mName, idx) => (
+              <option
+                key={mName}
+                value={idx}
+                style={{
+                  backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
+                  color: isLightMode ? "#0F172A" : "#FFFFFF",
+                }}
+              >
+                {mName}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={year}
+            onChange={handleYearChange}
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "6px 10px",
+              borderRadius: 8,
+              outline: "none",
+              cursor: "pointer",
+              border: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+              backgroundColor: isLightMode ? "#F8FAFC" : "#142033",
+              color: isLightMode ? "#0F172A" : "#FFFFFF",
+              fontFamily: "inherit",
+            }}
+          >
+            {yearOptions.map((y) => (
+              <option
+                key={y}
+                value={y}
+                style={{
+                  backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
+                  color: isLightMode ? "#0F172A" : "#FFFFFF",
+                }}
+              >
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleNextMonth}
+          style={{
+            padding: "8px",
+            borderRadius: 10,
+            border: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+            backgroundColor: isLightMode ? "#F8FAFC" : "#142033",
+            color: isLightMode ? "#475569" : "#B5B8C2",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          title="Next month"
+        >
+          <ChevronRight style={{ width: 16, height: 16 }} />
+        </button>
+      </div>
+
+      {/* 7 Equal Weekday Columns: Sun, Mon, Tue, Wed, Thu, Fri, Sat */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+          textAlign: "center",
+          marginBottom: 8,
+        }}
+      >
+        {WEEKDAYS.map((dayName) => (
+          <div
+            key={dayName}
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              padding: "4px 0",
+              color: isLightMode ? "#64748B" : "#94A3B8",
+            }}
+          >
+            {dayName}
+          </div>
+        ))}
+      </div>
+
+      {/* Date Grid (42 Cells) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+          textAlign: "center",
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        {calendarCells.map((cell, idx) => {
+          const isSelected = value === cell.dateStr;
+          const isToday = cell.dateStr === todayStr;
+
+          let isDisabled = false;
+          const cellDate = new Date(cell.year, cell.month, cell.day);
+          if (parsedMin && cellDate < new Date(parsedMin.getFullYear(), parsedMin.getMonth(), parsedMin.getDate())) {
+            isDisabled = true;
+          }
+          if (parsedMax && cellDate > new Date(parsedMax.getFullYear(), parsedMax.getMonth(), parsedMax.getDate())) {
+            isDisabled = true;
+          }
+
+          let cellStyle: React.CSSProperties = {
+            height: 36,
+            width: "100%",
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: isSelected ? 800 : isToday ? 700 : 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: isDisabled ? "not-allowed" : "pointer",
+            position: "relative",
+            border: "none",
+            outline: "none",
+            transition: "all 0.15s ease",
+          };
+
+          if (isSelected) {
+            cellStyle.backgroundColor = "#0967D2";
+            cellStyle.color = "#FFFFFF";
+            cellStyle.boxShadow = "0 2px 8px rgba(9, 103, 210, 0.4)";
+          } else if (isToday) {
+            cellStyle.border = isLightMode ? "1px solid #0066FF" : "1px solid #38BDF8";
+            cellStyle.color = isLightMode ? "#0066FF" : "#38BDF8";
+            cellStyle.backgroundColor = isLightMode ? "rgba(0, 102, 255, 0.08)" : "#14263A";
+          } else if (!cell.isCurrentMonth) {
+            cellStyle.color = isLightMode ? "#94A3B8" : "#969CA8";
+            cellStyle.opacity = 0.4;
+            cellStyle.backgroundColor = "transparent";
+          } else if (isDisabled) {
+            cellStyle.color = isLightMode ? "#CBD5E1" : "#4A4D57";
+            cellStyle.opacity = 0.3;
+            cellStyle.backgroundColor = "transparent";
+          } else {
+            cellStyle.color = isLightMode ? "#0F172A" : "#FFFFFF";
+            cellStyle.backgroundColor = isLightMode ? "#F8FAFC" : "#142033";
+          }
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => handleCellClick(cell)}
+              style={cellStyle}
+            >
+              {cell.day}
+              {isToday && !isSelected && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 3,
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    backgroundColor: isLightMode ? "#0066FF" : "#38BDF8",
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Footer Actions */}
+      <div
+        style={{
+          marginTop: 12,
+          paddingTop: 12,
+          borderTop: isLightMode ? "1px solid #E2E8F0" : "1px solid #1E293B",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: 12,
+          flexShrink: 0,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleSelectToday}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 14px",
+            borderRadius: 8,
+            fontWeight: 700,
+            fontSize: 12,
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.1)" : "#14263A",
+            color: isLightMode ? "#0066FF" : "#38BDF8",
+          }}
+        >
+          <RotateCcw style={{ width: 14, height: 14 }} />
+          Today
+        </button>
+
+        {value && (
+          <button
+            type="button"
+            onClick={handleClear}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              fontWeight: 600,
+              fontSize: 12,
+              border: "none",
+              cursor: "pointer",
+              background: "transparent",
+              color: isLightMode ? "#64748B" : "#94A3B8",
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div ref={containerRef} className={`relative inline-block w-full min-w-[200px] ${className}`}>
+    <div ref={containerRef} className={`relative inline-block w-full min-w-[180px] ${className}`}>
       {label && (
-        <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+        <label
+          style={{
+            display: "block",
+            fontSize: 12,
+            fontWeight: 700,
+            color: isLightMode ? "#475569" : "#CBD5E1",
+            marginBottom: 8,
+          }}
+        >
           {label}
         </label>
       )}
 
-      {/* Trigger Button / Input (Standard 42px height matching adjacent filters) */}
+      {/* Trigger Button / Input (Standard 44px-48px height matching adjacent inputs) */}
       <button
         ref={triggerRef}
         type="button"
@@ -277,26 +750,36 @@ export function DatePicker({
             : error
             ? "border-rose-500/60 bg-rose-50 dark:bg-rose-500/5 text-rose-600 dark:text-rose-300 ring-1 ring-rose-500/30"
             : isOpen
-            ? "border-[#168BFF] ring-2 ring-[#168BFF]/20 bg-white dark:bg-[#111216] text-[#0F172A] dark:text-[#F5F6F8]"
-            : "border-[#CBD5E1] dark:border-[#343740] bg-white dark:bg-[#111216] text-[#0F172A] dark:text-[#F5F6F8] hover:border-slate-400 dark:hover:border-[#168BFF]/60 hover:bg-slate-50 dark:hover:bg-[#1B1C21]"
+            ? "border-[#168BFF] ring-2 ring-[#168BFF]/20"
+            : "border-[#CBD5E1] dark:border-[#343740]"
         }`}
         style={{
-          backgroundColor: isLightMode ? "#FFFFFF" : "#111216",
+          height: 46,
+          backgroundColor: isLightMode ? "#FFFFFF" : "#071426",
           borderColor: isOpen ? "#168BFF" : isLightMode ? "#CBD5E1" : "#343740",
-          color: isLightMode ? "#0F172A" : "#F5F6F8",
+          color: isLightMode ? "#0F172A" : "#FFFFFF",
+          boxShadow: isOpen
+            ? isLightMode
+              ? "0 0 0 2px rgba(0, 102, 255, 0.15)"
+              : "0 0 0 2px rgba(22, 139, 255, 0.25)"
+            : "none",
         }}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
           <CalendarIcon
             className="w-4 h-4 flex-shrink-0 transition-colors"
-            style={{ color: isLightMode ? "#0066FF" : "#168BFF" }}
+            style={{ color: isLightMode ? "#0066FF" : "#38BDF8" }}
           />
           <span
             className="truncate font-semibold text-xs"
             style={{
               color: displayFormatted
-                ? (isLightMode ? "#0F172A" : "#F5F6F8")
-                : (isLightMode ? "#94A3B8" : "#969CA8"),
+                ? isLightMode
+                  ? "#0F172A"
+                  : "#FFFFFF"
+                : isLightMode
+                ? "#94A3B8"
+                : "#969CA8",
             }}
           >
             {displayFormatted || placeholder}
@@ -320,235 +803,44 @@ export function DatePicker({
           )}
           <ChevronDown
             className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-            style={{ color: isOpen ? (isLightMode ? "#0066FF" : "#168BFF") : (isLightMode ? "#64748B" : "#969CA8") }}
+            style={{
+              color: isOpen
+                ? isLightMode
+                  ? "#0066FF"
+                  : "#38BDF8"
+                : isLightMode
+                ? "#64748B"
+                : "#969CA8",
+            }}
           />
         </div>
       </button>
 
-      {/* Redesigned Calendar Dropdown Popover (336px-350px Desktop Width) */}
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-label="Calendar date picker"
-          className="crm-datepicker-popover absolute left-0 mt-2 z-50 w-[336px] sm:w-[350px] p-4 rounded-2xl border shadow-xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
-          style={{
-            transformOrigin: "top left",
-            colorScheme: isLightMode ? "light" : "dark",
-            backgroundColor: isLightMode ? "#FFFFFF" : "#23252C",
-            borderColor: isLightMode ? "#E2E8F0" : "#343740",
-            color: isLightMode ? "#0F172A" : "#F5F6F8",
-            boxShadow: isLightMode
-              ? "0 16px 36px -4px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05)"
-              : "0 20px 48px -8px rgba(0, 0, 0, 0.75)",
-          }}
-        >
-          {/* Header: Month & Year Controls */}
-          <div
-            className="flex items-center justify-between mb-3 pb-3 border-b gap-2"
-            style={{ borderColor: isLightMode ? "#E2E8F0" : "#343740" }}
-          >
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-2 rounded-xl border transition-all cursor-pointer"
-              style={{
-                backgroundColor: isLightMode ? "#F8FAFC" : "#1B1C21",
-                borderColor: isLightMode ? "#E2E8F0" : "#343740",
-                color: isLightMode ? "#475569" : "#B5B8C2",
-              }}
-              title="Previous month"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Quick Month & Year Selectors */}
-            <div className="flex items-center gap-1.5">
-              <select
-                value={month}
-                onChange={handleMonthChange}
-                className="text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors border"
-                style={{
-                  backgroundColor: isLightMode ? "#F8FAFC" : "#111216",
-                  borderColor: isLightMode ? "#E2E8F0" : "#343740",
-                  color: isLightMode ? "#0F172A" : "#F5F6F8",
-                }}
-              >
-                {MONTH_NAMES.map((mName, idx) => (
-                  <option
-                    key={mName}
-                    value={idx}
-                    style={{
-                      backgroundColor: isLightMode ? "#FFFFFF" : "#23252C",
-                      color: isLightMode ? "#0F172A" : "#F5F6F8",
-                    }}
-                  >
-                    {mName}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={year}
-                onChange={handleYearChange}
-                className="text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors border"
-                style={{
-                  backgroundColor: isLightMode ? "#F8FAFC" : "#111216",
-                  borderColor: isLightMode ? "#E2E8F0" : "#343740",
-                  color: isLightMode ? "#0F172A" : "#F5F6F8",
-                }}
-              >
-                {yearOptions.map((y) => (
-                  <option
-                    key={y}
-                    value={y}
-                    style={{
-                      backgroundColor: isLightMode ? "#FFFFFF" : "#23252C",
-                      color: isLightMode ? "#0F172A" : "#F5F6F8",
-                    }}
-                  >
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-2 rounded-xl border transition-all cursor-pointer"
-              style={{
-                backgroundColor: isLightMode ? "#F8FAFC" : "#1B1C21",
-                borderColor: isLightMode ? "#E2E8F0" : "#343740",
-                color: isLightMode ? "#475569" : "#B5B8C2",
-              }}
-              title="Next month"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* 7 Equal Weekday Columns: Sun, Mon, Tue, Wed, Thu, Fri, Sat */}
-          <div className="grid grid-cols-7 gap-1 text-center mb-2">
-            {WEEKDAYS.map((dayName) => (
+      {/* Render via Portal to body to prevent ANY container clipping */}
+      {isOpen &&
+        mounted &&
+        createPortal(
+          isMobile ? (
+            <>
+              {/* Dimmed mobile backdrop */}
               <div
-                key={dayName}
-                className="text-[11px] font-bold py-1 uppercase tracking-wider"
-                style={{ color: isLightMode ? "#64748B" : "#969CA8" }}
-              >
-                {dayName}
-              </div>
-            ))}
-          </div>
-
-          {/* Date Grid (42 Cells) */}
-          <div className="grid grid-cols-7 gap-1 text-center">
-            {calendarCells.map((cell, idx) => {
-              const isSelected = value === cell.dateStr;
-              const isToday = cell.dateStr === todayStr;
-
-              let isDisabled = false;
-              const cellDate = new Date(cell.year, cell.month, cell.day);
-              if (parsedMin && cellDate < new Date(parsedMin.getFullYear(), parsedMin.getMonth(), parsedMin.getDate())) {
-                isDisabled = true;
-              }
-              if (parsedMax && cellDate > new Date(parsedMax.getFullYear(), parsedMax.getMonth(), parsedMax.getDate())) {
-                isDisabled = true;
-              }
-
-              let cellStyle: React.CSSProperties = {};
-              if (isSelected) {
-                cellStyle = {
-                  backgroundColor: "#0967D2",
-                  color: "#FFFFFF",
-                  boxShadow: "0 2px 8px rgba(9, 103, 210, 0.4)",
-                };
-              } else if (isToday) {
-                cellStyle = {
-                  border: isLightMode ? "1px solid #0066FF" : "1px solid #168BFF",
-                  color: isLightMode ? "#0066FF" : "#168BFF",
-                  backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.08)" : "#14263A",
-                };
-              } else if (!cell.isCurrentMonth) {
-                cellStyle = {
-                  color: isLightMode ? "#94A3B8" : "#969CA8",
-                  opacity: 0.4,
-                };
-              } else if (isDisabled) {
-                cellStyle = {
-                  color: isLightMode ? "#CBD5E1" : "#4A4D57",
-                  opacity: 0.3,
-                  cursor: "not-allowed",
-                };
-              } else {
-                cellStyle = {
-                  color: isLightMode ? "#0F172A" : "#F5F6F8",
-                };
-              }
-
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  disabled={isDisabled}
-                  onClick={() => handleCellClick(cell)}
-                  style={cellStyle}
-                  className={`h-9 w-full rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer relative outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF] ${
-                    isSelected
-                      ? "font-black scale-105"
-                      : isToday
-                      ? "font-bold"
-                      : !cell.isCurrentMonth
-                      ? "hover:bg-slate-100 dark:hover:bg-[#141519]/50"
-                      : isDisabled
-                      ? "cursor-not-allowed"
-                      : "hover:bg-slate-100 dark:hover:bg-[#14263A] hover:text-[#0066FF] dark:hover:text-[#168BFF]"
-                  }`}
-                >
-                  {cell.day}
-                  {isToday && !isSelected && (
-                    <span
-                      className="absolute bottom-1 w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: isLightMode ? "#0066FF" : "#168BFF" }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Footer Actions */}
-          <div
-            className="mt-3 pt-3 border-t flex items-center justify-between text-xs"
-            style={{ borderColor: isLightMode ? "#E2E8F0" : "#343740" }}
-          >
-            <button
-              type="button"
-              onClick={handleSelectToday}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer"
-              style={{
-                backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.08)" : "#14263A",
-                color: isLightMode ? "#0066FF" : "#168BFF",
-              }}
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Today
-            </button>
-
-            {value && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="px-2.5 py-1.5 rounded-xl font-semibold transition-all cursor-pointer"
                 style={{
-                  color: isLightMode ? "#64748B" : "#94A3B8",
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 99999,
+                  backgroundColor: "rgba(0, 0, 0, 0.65)",
+                  backdropFilter: "blur(4px)",
                 }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+              />
+              {popoverContent}
+            </>
+          ) : (
+            popoverContent
+          ),
+          document.body
+        )}
     </div>
   );
 }

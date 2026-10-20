@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Clock, ChevronDown, X, Check } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback, useId } from "react";
+import { createPortal } from "react-dom";
+import { Clock, ChevronDown, Check, X } from "lucide-react";
 
 export interface TimePickerProps {
   value?: string; // "HH:mm" 24-hour format e.g. "10:00" or "14:30"
@@ -14,48 +15,20 @@ export interface TimePickerProps {
 }
 
 const HOURS_12 = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
-const COMMON_MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
 
-// Convert 24-hr "HH:mm" string -> 12-hr { hour, minute, period }
-function parse24to12(time24Str?: string): { hour: string; minute: string; period: "AM" | "PM" } {
-  if (!time24Str || !/^\d{1,2}:\d{2}(:\d{2})?$/.test(time24Str.trim())) {
-    return { hour: "10", minute: "00", period: "AM" };
-  }
+// All 60 minutes supported so any arbitrary minute can be selected or viewed
+const ALL_MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
-  const [hStr, mStr] = time24Str.trim().split(":");
-  let h24 = parseInt(hStr, 10);
-  if (isNaN(h24)) h24 = 10;
+// Quick time presets
+const TIME_PRESETS = [
+  { label: "09:00 AM", value: "09:00" },
+  { label: "10:00 AM", value: "10:00" },
+  { label: "02:00 PM", value: "14:00" },
+  { label: "05:00 PM", value: "17:00" },
+];
 
-  const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
-  let h12 = h24 % 12;
-  if (h12 === 0) h12 = 12;
-
-  let mVal = parseInt(mStr, 10);
-  if (isNaN(mVal)) mVal = 0;
-  const minutePadded = String(mVal).padStart(2, "0");
-
-  return {
-    hour: String(h12).padStart(2, "0"),
-    minute: minutePadded,
-    period,
-  };
-}
-
-// Convert 12-hr { hour, minute, period } -> 24-hr "HH:mm" string
-function format12to24(hour: string, minute: string, period: "AM" | "PM"): string {
-  let h12 = parseInt(hour, 10);
-  if (isNaN(h12)) h12 = 12;
-
-  let h24 = h12;
-  if (period === "PM" && h12 < 12) {
-    h24 += 12;
-  } else if (period === "AM" && h12 === 12) {
-    h24 = 0;
-  }
-
-  const mClean = String(parseInt(minute, 10) || 0).padStart(2, "0");
-  return `${String(h24).padStart(2, "0")}:${mClean}`;
-}
+import { parse24to12, format12to24 } from "@/lib/dateTime";
+export { parse24to12, format12to24 };
 
 export function TimePicker({
   value = "10:00",
@@ -66,7 +39,11 @@ export function TimePicker({
   error = false,
   label,
 }: TimePickerProps) {
+  const pickerId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(false);
 
   // Parse internal 12-hr states
   const { hour: initHour, minute: initMinute, period: initPeriod } = parse24to12(value);
@@ -74,10 +51,21 @@ export function TimePicker({
   const [selectedMinute, setSelectedMinute] = useState(initMinute);
   const [selectedPeriod, setSelectedPeriod] = useState<"AM" | "PM">(initPeriod);
 
+  // Positioning coordinates for fixed portaled popover
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number; maxHeight: number }>({
+    top: 0,
+    left: 0,
+    width: 320,
+    maxHeight: 380,
+  });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const hourListRef = useRef<HTMLDivElement>(null);
+  const minuteListRef = useRef<HTMLDivElement>(null);
 
-  // Sync internal states whenever external `value` changes (NEVER silently round exact minutes like 10:03!)
+  // Sync internal states whenever external `value` changes
   useEffect(() => {
     const parsed = parse24to12(value);
     setSelectedHour(parsed.hour);
@@ -85,25 +73,151 @@ export function TimePicker({
     setSelectedPeriod(parsed.period);
   }, [value]);
 
-  // Close on outside click
+  // Mount tracking for portal
   useEffect(() => {
-    if (!isOpen) return;
+    setMounted(true);
+    const checkViewport = () => {
+      setIsMobile(window.innerWidth < 480);
+    };
+    checkViewport();
+    window.addEventListener("resize", checkViewport);
+    return () => window.removeEventListener("resize", checkViewport);
+  }, []);
 
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+  // Sync theme with document element and body
+  useEffect(() => {
+    const checkTheme = () => {
+      const rootTheme = document.documentElement.getAttribute("data-theme");
+      const hasLightClass =
+        document.documentElement.classList.contains("light") ||
+        document.documentElement.classList.contains("light-mode") ||
+        document.body.classList.contains("light-mode");
+      setIsLightMode(rootTheme === "light" || hasLightClass);
+    };
+
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Compute position with intelligent collision detection
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || isMobile) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const popoverWidth = Math.min(320, window.innerWidth - 32);
+    const popoverHeight = 360; // Estimated height for collision checks
+    const gap = 8;
+    const padding = 16;
+
+    // Vertical placement & flip logic
+    const spaceBelow = window.innerHeight - rect.bottom - gap - padding;
+    const spaceAbove = rect.top - gap - padding;
+
+    let top: number;
+    let availableHeight: number;
+
+    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+      // Flip ABOVE trigger
+      availableHeight = Math.min(popoverHeight, spaceAbove);
+      top = Math.max(padding, rect.top - availableHeight - gap);
+    } else {
+      // Place BELOW trigger
+      availableHeight = Math.min(popoverHeight, spaceBelow);
+      top = rect.bottom + gap;
+    }
+
+    // Horizontal placement: Prefer aligning right edge to trigger's right edge
+    let left = rect.right - popoverWidth;
+    if (left + popoverWidth > window.innerWidth - padding) {
+      left = window.innerWidth - popoverWidth - padding;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    setCoords({
+      top: Math.round(top),
+      left: Math.round(left),
+      width: popoverWidth,
+      maxHeight: Math.max(260, Math.round(availableHeight)),
+    });
+  }, [isMobile]);
+
+  // Handle open toggle and mutual exclusivity
+  const handleToggle = () => {
+    if (disabled) return;
+    if (!isOpen) {
+      updatePosition();
+      // Announce picker open to automatically close other open pickers
+      window.dispatchEvent(new CustomEvent("zappit-picker-opened", { detail: { id: pickerId } }));
+    }
+    setIsOpen(!isOpen);
+  };
+
+  // Close when another picker opens
+  useEffect(() => {
+    const handleOtherPickerOpened = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id && customEvent.detail.id !== pickerId) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
+    window.addEventListener("zappit-picker-opened", handleOtherPickerOpened);
+    return () => window.removeEventListener("zappit-picker-opened", handleOtherPickerOpened);
+  }, [pickerId]);
+
+  // Recalculate position on scroll or resize while open
+  useEffect(() => {
+    if (!isOpen || isMobile) return;
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", updatePosition);
+      window.visualViewport.addEventListener("scroll", updatePosition);
+    }
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", updatePosition);
+        window.visualViewport.removeEventListener("scroll", updatePosition);
+      }
+    };
+  }, [isOpen, isMobile, updatePosition]);
+
+  // Outside click handling (checks both trigger and portaled popover)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
     };
   }, [isOpen]);
 
-  // Keyboard navigation for Escape
+  // Escape key handling
   useEffect(() => {
     if (!isOpen) return;
 
@@ -120,6 +234,30 @@ export function TimePicker({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [isOpen]);
 
+  // Scroll active hour and minute into view when popover opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const scrollSelected = () => {
+      if (hourListRef.current) {
+        const activeHourBtn = hourListRef.current.querySelector('[data-selected="true"]');
+        if (activeHourBtn) {
+          (activeHourBtn as HTMLElement).scrollIntoView({ block: "nearest" });
+        }
+      }
+      if (minuteListRef.current) {
+        const activeMinuteBtn = minuteListRef.current.querySelector('[data-selected="true"]');
+        if (activeMinuteBtn) {
+          (activeMinuteBtn as HTMLElement).scrollIntoView({ block: "nearest" });
+        }
+      }
+    };
+
+    // Timeout ensures DOM layout is computed
+    const t = setTimeout(scrollSelected, 30);
+    return () => clearTimeout(t);
+  }, [isOpen]);
+
   const handleHourSelect = (h: string) => {
     setSelectedHour(h);
     const new24 = format12to24(h, selectedMinute, selectedPeriod);
@@ -129,18 +267,6 @@ export function TimePicker({
   const handleMinuteSelect = (m: string) => {
     setSelectedMinute(m);
     const new24 = format12to24(selectedHour, m, selectedPeriod);
-    onChange(new24);
-  };
-
-  const handleCustomMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value.replace(/\D/g, "");
-    if (raw.length > 2) raw = raw.slice(0, 2);
-    let val = parseInt(raw, 10);
-    if (isNaN(val)) val = 0;
-    if (val > 59) val = 59;
-    const mStr = String(val).padStart(2, "0");
-    setSelectedMinute(mStr);
-    const new24 = format12to24(selectedHour, mStr, selectedPeriod);
     onChange(new24);
   };
 
@@ -156,182 +282,507 @@ export function TimePicker({
     setSelectedMinute(parsed.minute);
     setSelectedPeriod(parsed.period);
     onChange(preset24);
+  };
+
+  const handleDone = () => {
     setIsOpen(false);
     triggerRef.current?.focus();
   };
 
-  // Formatted display e.g. "10:00 AM" (No double colons or truncation)
   const displayFormatted = `${selectedHour}:${selectedMinute} ${selectedPeriod}`;
 
+  // Popover panel content
+  const popoverContent = (
+    <div
+      ref={popoverRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Time picker"
+      onClick={(e) => e.stopPropagation()}
+      style={
+        isMobile
+          ? {
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 100000,
+              maxHeight: "85dvh",
+              backgroundColor: isLightMode ? "#FFFFFF" : "#1B1C21",
+              borderTop: isLightMode ? "1px solid #CBD5E1" : "1px solid #343740",
+              borderRadius: "20px 20px 0 0",
+              boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              padding: "16px 20px calc(16px + env(safe-area-inset-bottom, 0px))",
+              color: isLightMode ? "#0F172A" : "#F5F6F8",
+              fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+            }
+          : {
+              position: "fixed",
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              width: `${coords.width}px`,
+              maxHeight: `${coords.maxHeight}px`,
+              zIndex: 100000,
+              backgroundColor: isLightMode ? "#FFFFFF" : "#1B1C21",
+              border: isLightMode ? "1px solid #CBD5E1" : "1px solid #343740",
+              borderRadius: "16px",
+              boxShadow: isLightMode
+                ? "0 18px 40px -4px rgba(0, 0, 0, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.06)"
+                : "0 24px 50px -8px rgba(0, 0, 0, 0.8), 0 0 1px 1px #343740",
+              display: "flex",
+              flexDirection: "column",
+              padding: "16px",
+              color: isLightMode ? "#0F172A" : "#F5F6F8",
+              overflow: "hidden",
+              fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+            }
+      }
+    >
+      {/* Mobile Handle */}
+      {isMobile && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <div
+            style={{
+              width: 38,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: isLightMode ? "#CBD5E1" : "#4A4D57",
+            }}
+          />
+        </div>
+      )}
+
+      {/* 1. Header: Subtitle, Large Formatted Time, and Prominent Done Button */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingBottom: 12,
+          marginBottom: 12,
+          borderBottom: isLightMode ? "1px solid #E2E8F0" : "1px solid #343740",
+          flexShrink: 0,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: isLightMode ? "#0066FF" : "#168BFF",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            SELECT TIME
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: isLightMode ? "#0F172A" : "#F5F6F8",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 2,
+            }}
+          >
+            <Clock style={{ width: 17, height: 17, color: isLightMode ? "#0066FF" : "#168BFF" }} />
+            <span>{displayFormatted}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleDone}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 18px",
+            borderRadius: 10,
+            background: isLightMode ? "#0066FF" : "#0967D2",
+            color: "#FFFFFF",
+            fontSize: 13,
+            fontWeight: 700,
+            border: "none",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0, 102, 255, 0.3)",
+          }}
+        >
+          <Check style={{ width: 15, height: 15 }} />
+          <span>Done</span>
+        </button>
+      </div>
+
+      {/* 2. Quick-Time Presets in a Wrapping Grid (never overflows) */}
+      <div style={{ marginBottom: 14, flexShrink: 0 }}>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: isLightMode ? "#64748B" : "#969CA8",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 6,
+          }}
+        >
+          Quick Presets
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 6,
+          }}
+        >
+          {TIME_PRESETS.map((preset) => {
+            const isPresetActive = value === preset.value;
+            return (
+              <button
+                key={preset.value}
+                type="button"
+                onClick={() => handlePresetSelect(preset.value)}
+                style={{
+                  padding: "6px 2px",
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  border: isPresetActive
+                    ? isLightMode
+                      ? "1px solid #0066FF"
+                      : "1px solid #168BFF"
+                    : isLightMode
+                    ? "1px solid #E2E8F0"
+                    : "1px solid #343740",
+                  backgroundColor: isPresetActive
+                    ? isLightMode
+                      ? "rgba(0, 102, 255, 0.1)"
+                      : "#14263A"
+                    : isLightMode
+                    ? "#F8FAFC"
+                    : "#141519",
+                  color: isPresetActive
+                    ? isLightMode
+                      ? "#0066FF"
+                      : "#168BFF"
+                    : isLightMode
+                    ? "#475569"
+                    : "#B5B8C2",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Labeled Hour, Minute, and AM/PM Controls */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 64px",
+          gap: 8,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        {/* Hour Column */}
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: isLightMode ? "#64748B" : "#969CA8",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              textAlign: "center",
+              marginBottom: 6,
+            }}
+          >
+            Hour
+          </div>
+          <div
+            ref={hourListRef}
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              paddingRight: 4,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              maxHeight: isMobile ? 180 : 150,
+            }}
+          >
+            {HOURS_12.map((h) => {
+              const isSelected = selectedHour === h;
+              return (
+                <button
+                  key={h}
+                  type="button"
+                  data-selected={isSelected}
+                  onClick={() => handleHourSelect(h)}
+                  style={{
+                    padding: "7px 4px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: isSelected ? 800 : 600,
+                    backgroundColor: isSelected
+                      ? isLightMode
+                        ? "#0066FF"
+                        : "#0967D2"
+                      : isLightMode
+                      ? "#F8FAFC"
+                      : "#141519",
+                    color: isSelected ? "#FFFFFF" : isLightMode ? "#0F172A" : "#F5F6F8",
+                    border: isSelected
+                      ? "none"
+                      : isLightMode
+                      ? "1px solid #E2E8F0"
+                      : "1px solid #343740",
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  {h}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Minute Column (All 60 minutes supported) */}
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: isLightMode ? "#64748B" : "#969CA8",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              textAlign: "center",
+              marginBottom: 6,
+            }}
+          >
+            Minute
+          </div>
+          <div
+            ref={minuteListRef}
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              paddingRight: 4,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              maxHeight: isMobile ? 180 : 150,
+            }}
+          >
+            {ALL_MINUTES.map((m) => {
+              const isSelected = selectedMinute === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  data-selected={isSelected}
+                  onClick={() => handleMinuteSelect(m)}
+                  style={{
+                    padding: "7px 4px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: isSelected ? 800 : 600,
+                    backgroundColor: isSelected
+                      ? isLightMode
+                        ? "#0066FF"
+                        : "#0967D2"
+                      : isLightMode
+                      ? "#F8FAFC"
+                      : "#141519",
+                    color: isSelected ? "#FFFFFF" : isLightMode ? "#0F172A" : "#F5F6F8",
+                    border: isSelected
+                      ? "none"
+                      : isLightMode
+                      ? "1px solid #E2E8F0"
+                      : "1px solid #343740",
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* AM / PM Segmented Controls */}
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              color: isLightMode ? "#64748B" : "#969CA8",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              textAlign: "center",
+              marginBottom: 6,
+            }}
+          >
+            AM/PM
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(["AM", "PM"] as const).map((p) => {
+              const isSelected = selectedPeriod === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => handlePeriodSelect(p)}
+                  style={{
+                    padding: "10px 4px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: isSelected ? 800 : 700,
+                    backgroundColor: isSelected
+                      ? isLightMode
+                        ? "#0066FF"
+                        : "#0967D2"
+                      : isLightMode
+                      ? "#F8FAFC"
+                      : "#141519",
+                    color: isSelected ? "#FFFFFF" : isLightMode ? "#64748B" : "#969CA8",
+                    border: isSelected
+                      ? "none"
+                      : isLightMode
+                      ? "1px solid #E2E8F0"
+                      : "1px solid #343740",
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div ref={containerRef} className={`relative inline-block w-full min-w-[160px] ${className}`}>
+    <div ref={containerRef} className={`relative inline-block w-full min-w-[150px] ${className}`}>
       {label && (
-        <label className="block text-xs font-bold text-slate-300 dark:text-slate-200 mb-1.5">
+        <label
+          style={{
+            display: "block",
+            fontSize: 12,
+            fontWeight: 700,
+            color: isLightMode ? "#475569" : "#CBD5E1",
+            marginBottom: 8,
+          }}
+        >
           {label}
         </label>
       )}
 
-      {/* Trigger Button / Input (Standard 44px height, full time display, dedicated arrow space) */}
+      {/* Trigger Button (Standard 44px-48px height matching adjacent inputs) */}
       <button
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={handleToggle}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        className={`w-full h-11 px-3.5 rounded-xl flex items-center justify-between gap-2 border text-left transition-all duration-150 text-sm cursor-pointer select-none outline-none ${
-          disabled
-            ? "opacity-50 cursor-not-allowed bg-slate-900/20 border-[#343740] text-slate-500"
+        style={{
+          width: "100%",
+          height: 46,
+          padding: "0 14px",
+          borderRadius: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          border: isOpen
+            ? isLightMode
+              ? "1px solid #0066FF"
+              : "1px solid #168BFF"
             : error
-            ? "border-rose-500/60 bg-rose-500/5 text-rose-300 ring-1 ring-rose-500/30"
-            : isOpen
-            ? "border-[#168BFF] ring-2 ring-[#168BFF]/25 bg-[#111216] text-[#F5F6F8]"
-            : "border-[#343740] bg-[#111216] text-[#F5F6F8] hover:border-[#168BFF]/50 hover:bg-[#1B1C21]"
-        }`}
+            ? "1px solid rgba(239, 68, 68, 0.6)"
+            : isLightMode
+            ? "1px solid #CBD5E1"
+            : "1px solid #343740",
+          backgroundColor: isLightMode ? "#FFFFFF" : "#111216",
+          color: isLightMode ? "#0F172A" : "#F5F6F8",
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: disabled ? "not-allowed" : "pointer",
+          outline: "none",
+          boxShadow: isOpen
+            ? isLightMode
+              ? "0 0 0 2px rgba(0, 102, 255, 0.15)"
+              : "0 0 0 2px rgba(22, 139, 255, 0.25)"
+            : "none",
+          transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+        }}
       >
-        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-          <Clock className="w-4 h-4 text-[#168BFF] flex-shrink-0" />
-          <span className="truncate font-semibold text-[#F5F6F8] tracking-wide">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+          <Clock
+            style={{
+              width: 16,
+              height: 16,
+              color: isLightMode ? "#0066FF" : "#168BFF",
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {displayFormatted || placeholder}
           </span>
         </div>
 
         <ChevronDown
-          className={`w-4 h-4 text-[#969CA8] transition-transform duration-200 flex-shrink-0 ${
-            isOpen ? "rotate-180 text-[#168BFF]" : ""
-          }`}
+          style={{
+            width: 16,
+            height: 16,
+            color: isLightMode ? "#64748B" : "#969CA8",
+            transform: isOpen ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s ease",
+            flexShrink: 0,
+          }}
         />
       </button>
 
-      {/* Redesigned Time Picker Dropdown Popover */}
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-label="Time picker"
-          className="absolute right-0 sm:right-auto sm:left-0 mt-2 z-50 w-72 sm:w-80 p-4 rounded-2xl border border-[#343740] bg-[#23252C] shadow-2xl shadow-black/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
-          style={{ transformOrigin: "top left" }}
-        >
-          {/* Header: Title & Selected Preview */}
-          <div className="flex items-center justify-between mb-3 pb-3 border-b border-[#343740]">
-            <div>
-              <div className="text-[11px] font-bold text-[#969CA8] uppercase tracking-wider">Select Time</div>
-              <div className="text-base font-black text-[#F5F6F8] tracking-wide flex items-center gap-1.5 mt-0.5">
-                <Clock className="w-4 h-4 text-[#168BFF]" />
-                {displayFormatted}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="px-3 py-1.5 rounded-xl bg-[#0967D2] hover:bg-[#075BBE] text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-            >
-              <Check className="w-3.5 h-3.5" />
-              Done
-            </button>
-          </div>
-
-          {/* Quick Presets Row */}
-          <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-none">
-            {[
-              { label: "09:00 AM", value: "09:00" },
-              { label: "10:00 AM", value: "10:00" },
-              { label: "02:00 PM", value: "14:00" },
-              { label: "05:00 PM", value: "17:00" },
-            ].map((preset) => (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => handlePresetSelect(preset.value)}
-                className="px-2.5 py-1 rounded-lg border border-[#343740] bg-[#141519] hover:border-[#168BFF] hover:bg-[#14263A] text-[#B5B8C2] hover:text-[#168BFF] text-[11px] font-semibold flex-shrink-0 transition-all cursor-pointer"
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 2 Main Columns: Hour & Minute */}
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            {/* Hour Column */}
-            <div>
-              <div className="text-[10px] font-bold text-[#969CA8] uppercase tracking-wider text-center mb-1.5">
-                Hour
-              </div>
-              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-[#343740]">
-                {HOURS_12.map((h) => {
-                  const isSelected = selectedHour === h;
-                  return (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => handleHourSelect(h)}
-                      className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-[#0967D2] text-white shadow-sm scale-[1.02]"
-                          : "bg-[#141519] text-[#B5B8C2] hover:bg-[#1B1C21] hover:text-[#F5F6F8] border border-[#343740]"
-                      }`}
-                    >
-                      {h}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Minute Column */}
-            <div>
-              <div className="text-[10px] font-bold text-[#969CA8] uppercase tracking-wider text-center mb-1.5">
-                Minute
-              </div>
-              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-[#343740]">
-                {COMMON_MINUTES.map((m) => {
-                  const isSelected = selectedMinute === m;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => handleMinuteSelect(m)}
-                      className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-[#0967D2] text-white shadow-sm scale-[1.02]"
-                          : "bg-[#141519] text-[#B5B8C2] hover:bg-[#1B1C21] hover:text-[#F5F6F8] border border-[#343740]"
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Horizontal AM / PM Segmented Control Below Hour/Minute Columns */}
-          <div className="pt-2 border-t border-[#343740]">
-            <div className="text-[10px] font-bold text-[#969CA8] uppercase tracking-wider mb-1.5 text-center">
-              Period
-            </div>
-            <div className="grid grid-cols-2 gap-2 bg-[#141519] p-1 rounded-xl border border-[#343740]">
-              {(["AM", "PM"] as const).map((p) => {
-                const isSelected = selectedPeriod === p;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => handlePeriodSelect(p)}
-                    className={`py-2 rounded-lg text-xs font-black tracking-wider transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-[#0967D2] text-white shadow-sm"
-                        : "text-[#969CA8] hover:text-[#F5F6F8]"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Render via Portal to body to prevent ANY container clipping */}
+      {isOpen &&
+        mounted &&
+        createPortal(
+          isMobile ? (
+            <>
+              {/* Dimmed mobile backdrop */}
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 99999,
+                  backgroundColor: "rgba(0, 0, 0, 0.65)",
+                  backdropFilter: "blur(4px)",
+                }}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+              />
+              {popoverContent}
+            </>
+          ) : (
+            popoverContent
+          ),
+          document.body
+        )}
     </div>
   );
 }

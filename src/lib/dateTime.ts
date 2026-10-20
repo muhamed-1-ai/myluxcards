@@ -154,3 +154,48 @@ export function toISOTimeString(input?: Date | string | null): string {
   const minutes = String(d.getMinutes()).padStart(2, "0");
   return `${hours}:${minutes}`;
 }
+
+/**
+ * Convert 24-hr "HH:mm" string -> 12-hr { hour, minute, period }
+ */
+export function parse24to12(time24Str?: string): { hour: string; minute: string; period: "AM" | "PM" } {
+  if (!time24Str || !/^\d{1,2}:\d{2}(:\d{2})?$/.test(time24Str.trim())) {
+    return { hour: "10", minute: "00", period: "AM" };
+  }
+
+  const [hStr, mStr] = time24Str.trim().split(":");
+  let h24 = parseInt(hStr, 10);
+  if (isNaN(h24)) h24 = 10;
+
+  const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  let h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+
+  let mVal = parseInt(mStr, 10);
+  if (isNaN(mVal) || mVal < 0 || mVal > 59) mVal = 0;
+  const minutePadded = String(mVal).padStart(2, "0");
+
+  return {
+    hour: String(h12).padStart(2, "0"),
+    minute: minutePadded,
+    period,
+  };
+}
+
+/**
+ * Convert 12-hr { hour, minute, period } -> 24-hr "HH:mm" string
+ */
+export function format12to24(hour: string, minute: string, period: "AM" | "PM"): string {
+  let h12 = parseInt(hour, 10);
+  if (isNaN(h12) || h12 < 1 || h12 > 12) h12 = 12;
+
+  let h24 = h12;
+  if (period === "PM" && h12 < 12) {
+    h24 += 12;
+  } else if (period === "AM" && h12 === 12) {
+    h24 = 0; // Midnight = 12:00 AM = 00:00
+  }
+
+  const mClean = String(Math.min(59, Math.max(0, parseInt(minute, 10) || 0))).padStart(2, "0");
+  return `${String(h24).padStart(2, "0")}:${mClean}`;
+}

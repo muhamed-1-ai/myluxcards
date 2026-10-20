@@ -4307,7 +4307,7 @@ th {
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   width: 100%;
-  align-items: stretch;
+  align-items: start;
 }
 
 .crm-lob-calendar-row {
@@ -4315,7 +4315,7 @@ th {
   grid-template-columns: minmax(0, 1.4fr) minmax(340px, 1fr);
   gap: 24px;
   width: 100%;
-  align-items: stretch;
+  align-items: start;
 }
 
 /* Vertical Bar Chart for LOB Analysis (Reference 3) */
@@ -4329,12 +4329,13 @@ th {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
   width: 100%;
+  height: auto;
 }
 
 .crm-lob-vertical-chart-container {
   display: flex;
   gap: 12px;
-  height: 240px;
+  height: 280px;
   width: 100%;
   position: relative;
   padding-top: 10px;
@@ -4344,7 +4345,7 @@ th {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 190px;
+  height: 230px;
   width: 32px;
   flex-shrink: 0;
 }
@@ -4378,7 +4379,7 @@ th {
   flex: 1;
   align-items: flex-end;
   justify-content: space-around;
-  height: 190px;
+  height: 230px;
   gap: 12px;
   padding-bottom: 2px;
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
@@ -4804,8 +4805,8 @@ th {
 }
 
 .crm-cal-day-btn.is-today {
-  border-color: rgba(22, 139, 255, 0.45);
-  color: #168BFF;
+  border: 2px solid #0066FF !important;
+  color: #0066FF;
   font-weight: 800;
 }
 
@@ -4816,17 +4817,56 @@ th {
   box-shadow: none;
 }
 
-.crm-cal-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #168BFF;
-  position: absolute;
-  bottom: 3px;
+.crm-cal-day-btn.is-today.is-selected {
+  border: 2px solid #FFFFFF !important;
+  box-shadow: 0 0 0 2px #0066FF !important;
 }
 
-.crm-cal-day-btn.is-selected .crm-cal-dot {
+/* Numeric Count Badges for Dates with Pending Items */
+.crm-cal-cell-badge {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(0, 102, 255, 0.2);
+  color: #0066FF;
+  font-size: 9.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: auto;
+  transition: all 0.15s ease;
+}
+
+.crm-cal-cell-badge:hover {
+  transform: scale(1.1);
+  background: rgba(0, 102, 255, 0.35);
+}
+
+.crm-cal-day-btn.is-selected .crm-cal-cell-badge {
   background: #FFFFFF;
+  color: #0967D2;
+}
+
+[data-theme="light"] .crm-cal-cell-badge,
+body.light-mode .crm-cal-cell-badge {
+  background: rgba(0, 102, 255, 0.12);
+  color: #0052CC;
+}
+
+[data-theme="light"] .crm-cal-day-btn.is-selected .crm-cal-cell-badge,
+body.light-mode .crm-cal-day-btn.is-selected .crm-cal-cell-badge {
+  background: #FFFFFF;
+  color: #0967D2;
+}
+
+.crm-cal-dot {
+  display: none !important;
 }
 
 /* RESPONSIVE MOBILE CALENDAR BREAKPOINTS */
@@ -4867,98 +4907,116 @@ th {
   }
 }
 
-.crm-cal-agenda-section {
+/* Compact Selected Day Summary */
+.crm-cal-summary-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, #343740);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-height: 50px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.crm-cal-agenda-header {
+[data-theme="light"] .crm-cal-summary-card,
+body.light-mode .crm-cal-summary-card {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+.crm-cal-summary-populated {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11.5px;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.crm-cal-agenda-title {
-  font-weight: 700;
-  color: var(--text-muted, #969CA8);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.crm-cal-summary-populated:hover .crm-cal-summary-arrow {
+  transform: translate(2px, -2px);
 }
 
-.crm-cal-agenda-badge {
-  font-weight: 700;
-  color: #168BFF;
-  background: #14263A;
-  border: 1px solid rgba(22, 139, 255, 0.3);
-  padding: 2px 7px;
-  border-radius: 50px;
-  font-size: 10.5px;
-}
-
-.crm-cal-agenda-list {
+.crm-cal-summary-details {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 80px;
+  align-items: center;
+  gap: 10px;
 }
 
-.crm-cal-agenda-item {
-  padding: 8px 10px;
+.crm-cal-summary-count-badge {
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
-  background: #141519;
-  border: 1px solid #343740;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.crm-cal-agenda-item-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.crm-cal-agenda-time {
+  background: rgba(0, 102, 255, 0.16);
+  color: #0066FF;
+  font-size: 13px;
+  font-weight: 800;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.crm-cal-summary-text-wrap {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
   gap: 4px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #168BFF;
 }
 
-.crm-cal-agenda-lead {
-  font-size: 12px;
+.crm-cal-summary-main-text {
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary, #F5F6F8);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.crm-cal-agenda-note {
+.crm-cal-summary-date-sub {
   font-size: 11px;
-  color: var(--text-muted, #B5B8C2);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
+  color: var(--text-muted, #94A3B8);
 }
 
-.crm-cal-empty-state {
-  text-align: center;
-  padding: 16px 0;
-  font-size: 12px;
-  color: var(--text-muted, #969CA8);
+.crm-cal-summary-arrow {
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.crm-cal-summary-state {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted, #94A3B8);
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+.crm-cal-summary-state.is-empty {
+  color: var(--text-secondary, #94A3B8);
+}
+
+.crm-cal-summary-empty-text {
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
+.crm-cal-summary-state.is-error {
+  color: #EF4444;
+}
+
+.crm-cal-summary-retry-btn {
+  background: rgba(0, 102, 255, 0.12);
+  border: 1px solid rgba(0, 102, 255, 0.3);
+  color: #0066FF;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 8px;
 }
 
 .crm-cal-view-full-btn {
@@ -5030,7 +5088,7 @@ th {
   .crm-chart-row,
   .crm-lob-calendar-row {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
   .crm-filter-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -5498,7 +5556,7 @@ th {
   grid-template-columns: 2fr 1fr;
   gap: 24px;
   width: 100%;
-  align-items: stretch;
+  align-items: start;
   box-sizing: border-box;
 }
 
@@ -5513,7 +5571,8 @@ th {
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  height: auto;
 }
 
 /* 6. LOWER SECTIONS (LOB Analysis & Calendar Row, Product Analytics) */
@@ -5522,7 +5581,7 @@ th {
   grid-template-columns: 1.4fr 1fr;
   gap: 24px;
   width: 100%;
-  align-items: stretch;
+  align-items: start;
   box-sizing: border-box;
 }
 
@@ -5538,6 +5597,7 @@ th {
   flex-direction: column;
   box-sizing: border-box;
   width: 100%;
+  height: auto;
 }
 
 .crm-card-header-row {

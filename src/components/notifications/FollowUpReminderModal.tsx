@@ -301,6 +301,9 @@ export function FollowUpReminderModal({ onOpenLead }: FollowUpReminderModalProps
         });
       }
       localStorage.setItem("zappit_last_reminder_action", `${action}:${followUpId}:${reminderVersion}:${Date.now()}`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("zappit-calendar-updated"));
+      }
     } catch {
       // ignore
     }

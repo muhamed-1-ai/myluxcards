@@ -356,6 +356,32 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     return max > 0 ? max : 1;
   }, [lobAnalysisData]);
 
+  // Generates clean, non-repeating integer tick marks for integer lead counts
+  const lobYAxisTicks = useMemo(() => {
+    if (maxLobCount <= 1) {
+      return [1, 0];
+    }
+    if (maxLobCount <= 4) {
+      const ticks: number[] = [];
+      for (let i = maxLobCount; i >= 0; i--) {
+        ticks.push(i);
+      }
+      return ticks;
+    }
+    const stepCount = 4;
+    const roughStep = maxLobCount / stepCount;
+    const niceStep = Math.max(1, Math.ceil(roughStep));
+    const ticks: number[] = [];
+    for (let i = stepCount; i >= 0; i--) {
+      ticks.push(i * niceStep);
+    }
+    return ticks;
+  }, [maxLobCount]);
+
+  const lobTopVal = useMemo(() => {
+    return Math.max(lobYAxisTicks[0] || 1, 1);
+  }, [lobYAxisTicks]);
+
 
   // Individual Widget Feature Permission Evaluator
   const isWidgetFeatureAllowed = useCallback(
@@ -948,21 +974,18 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                       <div className="crm-lob-desktop-chart">
                         <div className="crm-lob-vertical-chart-container">
                           <div className="crm-lob-y-axis">
-                            {[4, 3, 2, 1, 0].map((step) => {
-                              const val = Math.round((step / 4) * maxLobCount);
-                              return (
-                                <div key={step} className="crm-lob-y-step">
-                                  <span className="crm-lob-y-label">{val}</span>
-                                  <div className="crm-lob-y-line" />
-                                </div>
-                              );
-                            })}
+                            {lobYAxisTicks.map((val, idx) => (
+                              <div key={`lob-step-${val}-${idx}`} className="crm-lob-y-step">
+                                <span className="crm-lob-y-label">{val}</span>
+                                <div className="crm-lob-y-line" />
+                              </div>
+                            ))}
                           </div>
 
                           <div className="crm-lob-bars-area">
                             {lobAnalysisData.map((item) => {
                               const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
-                              const heightPct = maxLobCount > 0 && item.count > 0 ? Math.min(100, Math.max(6, (item.count / maxLobCount) * 100)) : 0;
+                              const heightPct = lobTopVal > 0 && item.count > 0 ? Math.min(100, Math.max(6, (item.count / lobTopVal) * 100)) : 0;
                               return (
                                 <div key={item.stageId} className="crm-lob-bar-col">
                                   <div className="crm-lob-bar-wrapper">
@@ -989,7 +1012,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                         <div className="crm-lob-horizontal-chart-container">
                           {lobAnalysisData.map((item) => {
                             const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
-                            const widthPct = maxLobCount > 0 && item.count > 0 ? Math.min(100, Math.max(2, (item.count / maxLobCount) * 100)) : 0;
+                            const widthPct = lobTopVal > 0 && item.count > 0 ? Math.min(100, Math.max(2, (item.count / lobTopVal) * 100)) : 0;
                             return (
                               <div
                                 key={item.stageId}
@@ -1028,6 +1051,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                   <CompactDashboardCalendar
                     onNavigateTab={onNavigateTab}
                     todaysFollowUps={todaysFollowUps}
+                    refreshTrigger={refreshing}
                   />
                 </div>
               )}

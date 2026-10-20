@@ -124,9 +124,29 @@ const createISOFromLocal = (dateStr: string, timeStr: string): string => {
   return localDate.toISOString();
 };
 
-export function CalendarConfig() {
+export function CalendarConfig({ initialDate }: { initialDate?: Date | string } = {}) {
   // Navigation & Date State
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (initialDate) {
+      const d = typeof initialDate === "string" ? new Date(initialDate) : initialDate;
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("crm_calendar_initial_date");
+      if (saved) {
+        sessionStorage.removeItem("crm_calendar_initial_date");
+        const d = new Date(saved);
+        if (!isNaN(d.getTime())) return d;
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramDate = urlParams.get("calDate") || urlParams.get("date");
+      if (paramDate) {
+        const d = new Date(paramDate);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+    return new Date();
+  });
   const [activeView, setActiveView] = useState<"MONTH" | "WEEK" | "DAY" | "LIST">("MONTH");
   const [eventTypeFilter, setEventTypeFilter] = useState<"ALL" | "SCHEDULED" | "COMPLETED" | "OVERDUE" | "CALL" | "VISIT" | "MEETING">("ALL");
   const [ownershipFilter, setOwnershipFilter] = useState<"MY" | "ALL">("MY");
@@ -232,6 +252,16 @@ export function CalendarConfig() {
 
   useEffect(() => {
     void fetchCalendarEvents();
+  }, [fetchCalendarEvents]);
+
+  useEffect(() => {
+    const handleCalendarUpdated = () => {
+      void fetchCalendarEvents();
+    };
+    window.addEventListener("zappit-calendar-updated", handleCalendarUpdated);
+    return () => {
+      window.removeEventListener("zappit-calendar-updated", handleCalendarUpdated);
+    };
   }, [fetchCalendarEvents]);
 
   // Live Lead Search for Schedule Follow-Up Modal
@@ -491,6 +521,9 @@ export function CalendarConfig() {
       if (res.ok && data.ok) {
         setIsScheduleModalOpen(false);
         await fetchCalendarEvents();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("zappit-calendar-updated"));
+        }
       } else {
         setFormError(data.message || "Failed to schedule follow-up.");
       }
@@ -513,6 +546,9 @@ export function CalendarConfig() {
       if (res.ok) {
         setActiveEventDetail(null);
         await fetchCalendarEvents();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("zappit-calendar-updated"));
+        }
       }
     } catch (err) {
       console.error("Failed to complete event:", err);
@@ -530,6 +566,9 @@ export function CalendarConfig() {
       if (res.ok) {
         setActiveEventDetail(null);
         await fetchCalendarEvents();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("zappit-calendar-updated"));
+        }
       }
     } catch (err) {
       console.error("Failed to cancel event:", err);
@@ -550,6 +589,9 @@ export function CalendarConfig() {
         setIsRescheduling(false);
         setActiveEventDetail(null);
         await fetchCalendarEvents();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("zappit-calendar-updated"));
+        }
       }
     } catch (err) {
       console.error("Failed to reschedule event:", err);
@@ -1565,6 +1607,7 @@ export function CalendarConfig() {
             alignItems: "center",
             justifyContent: "center",
             padding: 16,
+            overflowY: "auto",
           }}
           onClick={() => setIsScheduleModalOpen(false)}
         >
@@ -1572,17 +1615,18 @@ export function CalendarConfig() {
             style={{
               width: "100%",
               maxWidth: 640,
+              maxHeight: "calc(100dvh - 32px)",
               background: "var(--surface)",
               border: "1px solid var(--border-color)",
               borderRadius: 18,
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
+              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.75)",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
+            {/* Modal Header (Fixed at top) */}
             <div
               style={{
                 display: "flex",
@@ -1590,7 +1634,8 @@ export function CalendarConfig() {
                 alignItems: "center",
                 padding: "20px 24px",
                 borderBottom: "1px solid var(--border-color)",
-                background: "#161722",
+                background: "var(--surface-header, #161722)",
+                flexShrink: 0,
               }}
             >
               <div>
@@ -1604,13 +1649,26 @@ export function CalendarConfig() {
               <button
                 type="button"
                 onClick={() => setIsScheduleModalOpen(false)}
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 8, width: 32, height: 32, color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                aria-label="Close dialog"
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 8,
+                  width: 34,
+                  height: 34,
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.15s ease",
+                }}
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
             </div>
 
-            {/* Modal Form */}
+            {/* Modal Form Body (Scrollable with fixed 20-24px spacing) */}
             <form
               id="createFollowUpForm"
               onSubmit={handleSaveFollowUp}
@@ -1618,18 +1676,20 @@ export function CalendarConfig() {
                 padding: "24px",
                 display: "flex",
                 flexDirection: "column",
-                gap: 18,
+                gap: 22,
+                overflowY: "auto",
+                flex: 1,
               }}
             >
               {formError && (
-                <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#F87171", fontSize: 12, fontWeight: 600 }}>
+                <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#F87171", fontSize: 12, fontWeight: 600 }}>
                   {formError}
                 </div>
               )}
 
               {/* FIELD 1: LEAD SELECTOR */}
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 8 }}>
                   LEAD *
                 </label>
                 {selectedLead ? (
@@ -1638,20 +1698,24 @@ export function CalendarConfig() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      padding: "10px 16px",
+                      padding: "12px 16px",
                       background: "var(--bg-secondary)",
                       border: "1px solid #0066FF",
                       borderRadius: 10,
+                      minHeight: 46,
                     }}
                   >
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{selectedLead.name}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{selectedLead.companyName || selectedLead.email || selectedLead.contactNumber}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                        {selectedLead.companyName || selectedLead.email || selectedLead.contactNumber}
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedLead(null)}
-                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 4 }}
+                      aria-label="Remove selected lead"
                     >
                       <X style={{ width: 16, height: 16 }} />
                     </button>
@@ -1667,7 +1731,7 @@ export function CalendarConfig() {
                         onChange={(e) => setLeadSearchQuery(e.target.value)}
                         style={{
                           width: "100%",
-                          height: 44,
+                          height: 46,
                           paddingLeft: 42,
                           paddingRight: 16,
                           background: "var(--bg-secondary)",
@@ -1676,6 +1740,7 @@ export function CalendarConfig() {
                           color: "var(--text-primary)",
                           fontSize: 13,
                           outline: "none",
+                          fontFamily: "inherit",
                         }}
                       />
                       {isSearchingLeads && (
@@ -1683,9 +1748,9 @@ export function CalendarConfig() {
                       )}
                     </div>
 
-                    <div style={{ maxHeight: 160, overflowY: "auto", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, padding: 4 }}>
+                    <div style={{ maxHeight: 180, overflowY: "auto", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: 10, padding: 6 }}>
                       {leadOptions.length === 0 ? (
-                        <div style={{ padding: 12, fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
+                        <div style={{ padding: 14, fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
                           {isSearchingLeads ? "Searching leads..." : "No leads found. Type a name to search."}
                         </div>
                       ) : (
@@ -1694,21 +1759,25 @@ export function CalendarConfig() {
                             key={l.id}
                             onClick={() => setSelectedLead(l)}
                             style={{
-                              padding: "8px 12px",
-                              borderRadius: 6,
+                              padding: "10px 14px",
+                              borderRadius: 8,
                               cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
+                              gap: 12,
+                              transition: "background 0.15s ease",
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.background = "#14263A")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
-                            <div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
                               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{l.name}</span>
-                              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>{l.companyName}</span>
+                              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
+                                {l.companyName || l.contactNumber || l.email}
+                              </span>
                             </div>
-                            <span style={{ fontSize: 10, fontWeight: 800, color: l.stageColor, background: `${l.stageColor}20`, padding: "2px 6px", borderRadius: 4 }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: l.stageColor, background: `${l.stageColor}20`, padding: "3px 8px", borderRadius: 4, whiteSpace: "nowrap" }}>
                               {l.stageKey}
                             </span>
                           </div>
@@ -1721,7 +1790,7 @@ export function CalendarConfig() {
 
               {/* FIELD 2: TYPE */}
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 8 }}>
                   FOLLOW-UP TYPE *
                 </label>
                 <select
@@ -1729,14 +1798,16 @@ export function CalendarConfig() {
                   onChange={(e) => setFollowUpType(normalizeFollowUpType(e.target.value))}
                   style={{
                     width: "100%",
-                    height: 44,
+                    height: 46,
                     padding: "0 14px",
                     background: "var(--bg-secondary)",
                     border: "1px solid var(--border-color)",
                     borderRadius: 10,
                     color: "var(--text-primary)",
                     fontSize: 13,
+                    fontWeight: 600,
                     outline: "none",
+                    fontFamily: "inherit",
                   }}
                 >
                   <option value="CALL">Call</option>
@@ -1747,10 +1818,10 @@ export function CalendarConfig() {
                 </select>
               </div>
 
-              {/* FIELD 3: SCHEDULED DATE & TIME */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-                <div style={{ flex: "1 1 180px" }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
+              {/* FIELD 3: SCHEDULED DATE & TIME (Side by side with 16px gap, stacked on narrow screens) */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                <div style={{ flex: "1 1 240px", minWidth: 200 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 8 }}>
                     SCHEDULED DATE *
                   </label>
                   <DatePicker
@@ -1760,8 +1831,8 @@ export function CalendarConfig() {
                   />
                 </div>
 
-                <div style={{ flex: "1 1 150px" }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
+                <div style={{ flex: "1 1 180px", minWidth: 160 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 8 }}>
                     SCHEDULED TIME *
                   </label>
                   <TimePicker
@@ -1774,7 +1845,7 @@ export function CalendarConfig() {
 
               {/* FIELD 4: DESCRIPTION */}
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 8 }}>
                   REMARKS / NOTES
                 </label>
                 <textarea
@@ -1784,6 +1855,7 @@ export function CalendarConfig() {
                   onChange={(e) => setDescriptionText(e.target.value)}
                   style={{
                     width: "100%",
+                    minHeight: 88,
                     padding: "12px 14px",
                     background: "var(--bg-secondary)",
                     border: "1px solid var(--border-color)",
@@ -1792,12 +1864,13 @@ export function CalendarConfig() {
                     fontSize: 13,
                     outline: "none",
                     resize: "vertical",
+                    fontFamily: "inherit",
                   }}
                 />
               </div>
             </form>
 
-            {/* Modal Footer */}
+            {/* Modal Footer (Fixed at bottom) */}
             <div
               style={{
                 display: "flex",
@@ -1805,7 +1878,8 @@ export function CalendarConfig() {
                 gap: 12,
                 padding: "16px 24px",
                 borderTop: "1px solid var(--border-color)",
-                background: "#141519",
+                background: "var(--surface-footer, #141519)",
+                flexShrink: 0,
               }}
             >
               <button
@@ -1820,6 +1894,7 @@ export function CalendarConfig() {
                   color: "#CBD5E1",
                   border: "1px solid var(--border-color)",
                   cursor: "pointer",
+                  fontFamily: "inherit",
                 }}
               >
                 Cancel
@@ -1841,6 +1916,7 @@ export function CalendarConfig() {
                   border: "none",
                   cursor: isSavingFollowUp ? "not-allowed" : "pointer",
                   boxShadow: "none",
+                  fontFamily: "inherit",
                 }}
               >
                 {isSavingFollowUp ? (
