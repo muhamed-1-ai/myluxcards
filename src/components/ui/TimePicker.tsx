@@ -181,24 +181,24 @@ export function TimePicker({
         aria-expanded={isOpen}
         className={`w-full h-11 px-3.5 rounded-xl flex items-center justify-between gap-2 border text-left transition-all duration-150 text-sm cursor-pointer select-none outline-none ${
           disabled
-            ? "opacity-50 cursor-not-allowed bg-slate-900/20 border-slate-800 text-slate-500"
+            ? "opacity-50 cursor-not-allowed bg-slate-900/20 border-[#343740] text-slate-500"
             : error
             ? "border-rose-500/60 bg-rose-500/5 text-rose-300 ring-1 ring-rose-500/30"
             : isOpen
-            ? "border-emerald-500 ring-2 ring-emerald-500/25 bg-[#071426] text-white"
-            : "border-slate-800 dark:border-slate-700 bg-[#071426] text-white hover:border-slate-700 hover:bg-slate-900/80"
+            ? "border-[#168BFF] ring-2 ring-[#168BFF]/25 bg-[#111216] text-[#F5F6F8]"
+            : "border-[#343740] bg-[#111216] text-[#F5F6F8] hover:border-[#168BFF]/50 hover:bg-[#1B1C21]"
         }`}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-          <Clock className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span className="truncate font-semibold text-white tracking-wide">
+          <Clock className="w-4 h-4 text-[#168BFF] flex-shrink-0" />
+          <span className="truncate font-semibold text-[#F5F6F8] tracking-wide">
             {displayFormatted || placeholder}
           </span>
         </div>
 
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
-            isOpen ? "rotate-180 text-emerald-400" : ""
+          className={`w-4 h-4 text-[#969CA8] transition-transform duration-200 flex-shrink-0 ${
+            isOpen ? "rotate-180 text-[#168BFF]" : ""
           }`}
         />
       </button>
@@ -208,15 +208,15 @@ export function TimePicker({
         <div
           role="dialog"
           aria-label="Time picker"
-          className="absolute right-0 sm:right-auto sm:left-0 mt-2 z-50 w-72 sm:w-80 p-4 rounded-2xl border border-slate-800 bg-[#0B172A] shadow-2xl shadow-black/90 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+          className="absolute right-0 sm:right-auto sm:left-0 mt-2 z-50 w-72 sm:w-80 p-4 rounded-2xl border border-[#343740] bg-[#23252C] shadow-2xl shadow-black/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
           style={{ transformOrigin: "top left" }}
         >
           {/* Header: Title & Selected Preview */}
-          <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-800/80">
+          <div className="flex items-center justify-between mb-3 pb-3 border-b border-[#343740]">
             <div>
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Select Time</div>
-              <div className="text-base font-black text-white tracking-wide flex items-center gap-1.5 mt-0.5">
-                <Clock className="w-4 h-4 text-emerald-400" />
+              <div className="text-[11px] font-bold text-[#969CA8] uppercase tracking-wider">Select Time</div>
+              <div className="text-base font-black text-[#F5F6F8] tracking-wide flex items-center gap-1.5 mt-0.5">
+                <Clock className="w-4 h-4 text-[#168BFF]" />
                 {displayFormatted}
               </div>
             </div>
@@ -224,7 +224,7 @@ export function TimePicker({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/30 flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-[#0967D2] hover:bg-[#075BBE] text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
               Done
@@ -243,7 +243,7 @@ export function TimePicker({
                 key={preset.value}
                 type="button"
                 onClick={() => handlePresetSelect(preset.value)}
-                className="px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-900/80 hover:border-emerald-500/40 hover:bg-emerald-500/10 text-slate-300 hover:text-emerald-400 text-[11px] font-semibold flex-shrink-0 transition-all cursor-pointer"
+                className="px-2.5 py-1 rounded-lg border border-[#343740] bg-[#141519] hover:border-[#168BFF] hover:bg-[#14263A] text-[#B5B8C2] hover:text-[#168BFF] text-[11px] font-semibold flex-shrink-0 transition-all cursor-pointer"
               >
                 {preset.label}
               </button>
@@ -254,10 +254,10 @@ export function TimePicker({
           <div className="grid grid-cols-2 gap-3 mb-3">
             {/* Hour Column */}
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1.5">
+              <div className="text-[10px] font-bold text-[#969CA8] uppercase tracking-wider text-center mb-1.5">
                 Hour
               </div>
-              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-[#343740]">
                 {HOURS_12.map((h) => {
                   const isSelected = selectedHour === h;
                   return (
@@ -267,8 +267,8 @@ export function TimePicker({
                       onClick={() => handleHourSelect(h)}
                       className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/25 scale-[1.02]"
-                          : "bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800/80"
+                          ? "bg-[#0967D2] text-white shadow-sm scale-[1.02]"
+                          : "bg-[#141519] text-[#B5B8C2] hover:bg-[#1B1C21] hover:text-[#F5F6F8] border border-[#343740]"
                       }`}
                     >
                       {h}
@@ -280,10 +280,10 @@ export function TimePicker({
 
             {/* Minute Column */}
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1.5">
+              <div className="text-[10px] font-bold text-[#969CA8] uppercase tracking-wider text-center mb-1.5">
                 Minute
               </div>
-              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-[#343740]">
                 {COMMON_MINUTES.map((m) => {
                   const isSelected = selectedMinute === m;
                   return (
@@ -293,8 +293,8 @@ export function TimePicker({
                       onClick={() => handleMinuteSelect(m)}
                       className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/25 scale-[1.02]"
-                          : "bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800/80"
+                          ? "bg-[#0967D2] text-white shadow-sm scale-[1.02]"
+                          : "bg-[#141519] text-[#B5B8C2] hover:bg-[#1B1C21] hover:text-[#F5F6F8] border border-[#343740]"
                       }`}
                     >
                       {m}
@@ -306,11 +306,11 @@ export function TimePicker({
           </div>
 
           {/* Horizontal AM / PM Segmented Control Below Hour/Minute Columns */}
-          <div className="pt-2 border-t border-slate-800/80">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 text-center">
+          <div className="pt-2 border-t border-[#343740]">
+            <div className="text-[10px] font-bold text-[#969CA8] uppercase tracking-wider mb-1.5 text-center">
               Period
             </div>
-            <div className="grid grid-cols-2 gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+            <div className="grid grid-cols-2 gap-2 bg-[#141519] p-1 rounded-xl border border-[#343740]">
               {(["AM", "PM"] as const).map((p) => {
                 const isSelected = selectedPeriod === p;
                 return (
@@ -320,8 +320,8 @@ export function TimePicker({
                     onClick={() => handlePeriodSelect(p)}
                     className={`py-2 rounded-lg text-xs font-black tracking-wider transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
-                        : "text-slate-400 hover:text-white"
+                        ? "bg-[#0967D2] text-white shadow-sm"
+                        : "text-[#969CA8] hover:text-[#F5F6F8]"
                     }`}
                   >
                     {p}

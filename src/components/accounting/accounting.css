@@ -29,27 +29,30 @@
   --acc-radius-lg: 14px;
 }
 
-[data-theme="dark"], .dark, [data-theme="dark"] .accounting-root {
-  --acc-page: #0B1018;
-  --acc-surface: #121A26;
-  --acc-raised: #182231;
-  --acc-text-main: #F1F5F9;
-  --acc-text-muted: #A8B5C7;
-  --acc-border: #293548;
-  --acc-border-light: #1E293B;
-  --acc-blue: #3B82F6;
-  --acc-blue-hover: #60A5FA;
-  --acc-blue-soft: #142B4F;
-  --acc-blue-border: #1E3A8A;
-  --acc-success: #22C55E;
-  --acc-success-soft: #052E16;
+[data-theme="dark"],
+.dark,
+[data-theme="dark"] .accounting-root {
+  --acc-page: #050505;
+  --acc-surface: #1B1C21;
+  --acc-raised: #23252C;
+  --acc-text-main: #F5F6F8;
+  --acc-text-muted: #B5B8C2;
+  --acc-border: #343740;
+  --acc-border-light: #343740;
+  --acc-blue: #0967D2;
+  --acc-blue-hover: #075BBE;
+  --acc-blue-soft: #14263A;
+  --acc-blue-border: rgba(22, 139, 255, 0.3);
+  --acc-input-bg: #111216;
+  --acc-success: #10B981;
+  --acc-success-soft: rgba(16, 185, 129, 0.15);
   --acc-warning: #F59E0B;
-  --acc-warning-soft: #451A03;
+  --acc-warning-soft: rgba(245, 158, 11, 0.15);
   --acc-danger: #EF4444;
-  --acc-danger-soft: #450A0A;
-  --acc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --acc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --acc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --acc-danger-soft: rgba(239, 68, 68, 0.15);
+  --acc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --acc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --acc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
 }
 
 /* ==========================================================================
@@ -468,7 +471,7 @@
 .acc-form-textarea {
   width: 100%;
   padding: 0.625rem 0.875rem;
-  background-color: var(--acc-raised);
+  background-color: var(--acc-input-bg, var(--acc-raised));
   border: 1px solid var(--acc-border);
   border-radius: var(--acc-radius-md);
   color: var(--acc-text-main);
@@ -550,7 +553,10 @@
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

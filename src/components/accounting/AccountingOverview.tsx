@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAccounting } from "./AccountingContext";
 
 interface DashboardMetrics {
@@ -60,34 +60,84 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
+
+  // Cache partitioned strictly by workspace ID and period to avoid state bleeding across workspaces
+  const cacheRef = useRef<Map<string, { metrics: DashboardMetrics; timestamp: Date }>>(new Map());
+
+  // Invalidate cache for the active workspace when global refresh is triggered (e.g., new transaction posted)
+  useEffect(() => {
+    if (refreshKey > 0 && activeWorkspace?.id) {
+      for (const key of cacheRef.current.keys()) {
+        if (key.startsWith(`${activeWorkspace.id}:`)) {
+          cacheRef.current.delete(key);
+        }
+      }
+    }
+  }, [refreshKey, activeWorkspace?.id]);
 
   useEffect(() => {
     if (!activeWorkspace) return;
-    let isMounted = true;
+
+    const cacheKey = `${activeWorkspace.id}:${period}`;
+    const cached = cacheRef.current.get(cacheKey);
+
+    // If cached data exists for this specific workspace and period, display it immediately
+    if (cached) {
+      setMetrics(cached.metrics);
+      setLastUpdated(cached.timestamp);
+      setLoading(false);
+      setError("");
+    } else {
+      setMetrics(null);
+      setLastUpdated(null);
+      setLoading(true);
+      setError("");
+    }
+
+    const controller = new AbortController();
 
     async function fetchDashboard() {
       try {
         setLoading(true);
         setError("");
         const res = await fetch(
-          `/api/accounting/reports/dashboard?workspaceId=${activeWorkspace?.id}&period=${period}`
+          `/api/accounting/reports/dashboard?workspaceId=${activeWorkspace?.id}&period=${period}`,
+          { signal: controller.signal }
         );
+
         if (res.ok) {
-          const data = await res.json();
-          if (isMounted) setMetrics(data);
+          const data: DashboardMetrics = await res.json();
+          const now = new Date();
+          cacheRef.current.set(cacheKey, { metrics: data, timestamp: now });
+          setMetrics(data);
+          setLastUpdated(now);
+          setError("");
         } else {
-          if (isMounted) setError("Failed to load dashboard metrics. Please try again.");
+          const errData = await res.json().catch(() => null);
+          const errorMsg =
+            errData?.message || "Failed to load dashboard metrics. Please try again.";
+          setError(errorMsg);
         }
       } catch (err: unknown) {
-        if (isMounted) setError(err instanceof Error ? err.message : "Network error");
+        if ((err as Error)?.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Network error");
       } finally {
-        if (isMounted) setLoading(false);
+        setLoading(false);
       }
     }
 
     fetchDashboard();
-    return () => { isMounted = false; };
-  }, [activeWorkspace, period, refreshKey]);
+
+    return () => {
+      controller.abort();
+    };
+  }, [activeWorkspace?.id, period, refreshKey, retryTrigger]);
+
+  const handleRetry = () => {
+    setRetryTrigger((prev) => prev + 1);
+  };
 
   if (!activeWorkspace) {
     return (
@@ -103,15 +153,23 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
 
   const isBusiness = activeWorkspace.type === "BUSINESS";
   const profitLabel = isBusiness ? "Net Business Profit" : "Personal Surplus";
+
+  const hasData = metrics !== null;
+  const isStale = Boolean(error && hasData);
+  const isUnavailable = Boolean(error && !hasData);
+  const isLoadingInitial = Boolean(loading && !hasData);
+
   const earnedRevenue = metrics?.earnedRevenueMinor ?? metrics?.earnedIncomeMinor ?? 0;
   const incurredExpense = metrics?.incurredExpenseMinor ?? 0;
   const netSurplus = metrics?.netSurplusMinor ?? (earnedRevenue - incurredExpense);
 
-  const trendBars = metrics?.cashFlowTrend || (metrics?.monthlyTrend || []).map((m) => ({
-    label: m.month,
-    inflow_minor: m.cashInMinor,
-    outflow_minor: m.cashOutMinor,
-  }));
+  const trendBars =
+    metrics?.cashFlowTrend ||
+    (metrics?.monthlyTrend || []).map((m) => ({
+      label: m.month,
+      inflow_minor: m.cashInMinor,
+      outflow_minor: m.cashOutMinor,
+    }));
 
   return (
     <div>
@@ -154,7 +212,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             aria-label="Select Period"
             style={{ width: "auto", minHeight: "38px", fontSize: "0.8125rem", fontWeight: 500 }}
             value={period}
-            onChange={(e) => setPeriod(e.target.value as any)}
+            onChange={(e) => setPeriod(e.target.value as "today" | "week" | "month" | "year")}
           >
             <option value="today">Today</option>
             <option value="week">This Week</option>
@@ -189,6 +247,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         </div>
       </div>
 
+      {/* Error / Offline Alert Banner */}
       {error && (
         <div
           style={{
@@ -197,18 +256,33 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             borderRadius: "8px",
             backgroundColor: "var(--acc-danger-soft)",
             color: "var(--acc-danger)",
+            border: "1px solid var(--acc-danger)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.75rem",
           }}
         >
-          <span>⚠️ {error}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "1.125rem" }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 600 }}>{error}</div>
+              {isStale && lastUpdated && (
+                <div style={{ fontSize: "0.75rem", opacity: 0.9, marginTop: "0.15rem" }}>
+                  Displaying cached figures from {lastUpdated.toLocaleTimeString()}.
+                </div>
+              )}
+            </div>
+          </div>
           <button
             type="button"
             className="acc-btn acc-btn-sm acc-btn-outline"
-            onClick={() => setPeriod((p) => p)}
+            style={{ minHeight: "34px", padding: "0.25rem 0.75rem", borderColor: "currentColor" }}
+            onClick={handleRetry}
+            disabled={loading}
           >
-            Retry
+            {loading ? "Retrying…" : "Retry"}
           </button>
         </div>
       )}
@@ -220,10 +294,24 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             Available Liquid Balance
           </span>
           <div className="acc-hero-amount tabular-nums">
-            {loading ? "…" : formatMoney(metrics?.availableBalanceMinor || 0, activeWorkspace.currency)}
+            {isLoadingInitial ? (
+              <span style={{ opacity: 0.6 }}>…</span>
+            ) : isUnavailable ? (
+              <span style={{ fontSize: "1.625rem", color: "var(--acc-text-muted)", fontWeight: 600, letterSpacing: "normal" }}>
+                Unavailable
+              </span>
+            ) : (
+              formatMoney(metrics?.availableBalanceMinor ?? 0, activeWorkspace.currency)
+            )}
           </div>
           <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-            Liquid funds in Cash, Bank & UPI settlement accounts ready to spend right now · As of {metrics?.asOfDate || "Today"}
+            {isUnavailable ? (
+              "Liquid funds data could not be retrieved. Click Retry to reload."
+            ) : isStale && lastUpdated ? (
+              `⚠️ Showing cached balance as of ${lastUpdated.toLocaleTimeString()} · Click Retry to refresh`
+            ) : (
+              `Liquid funds in Cash, Bank & UPI settlement accounts ready to spend right now · As of ${metrics?.asOfDate || "Today"}`
+            )}
           </span>
         </div>
 
@@ -231,15 +319,41 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ textAlign: "right" }}>
             <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", display: "block" }}>Earned Revenue</span>
-            <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--acc-success)" }} className="tabular-nums">
-              {loading ? "…" : formatMoney(earnedRevenue, activeWorkspace.currency)}
+            <div
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: 700,
+                color: isUnavailable ? "var(--acc-text-muted)" : "var(--acc-success)",
+              }}
+              className="tabular-nums"
+            >
+              {isLoadingInitial ? (
+                "…"
+              ) : isUnavailable ? (
+                "Unavailable"
+              ) : (
+                formatMoney(earnedRevenue, activeWorkspace.currency)
+              )}
             </div>
             <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>Sales delivered</span>
           </div>
           <div style={{ textAlign: "right" }}>
             <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", display: "block" }}>Incurred Expense</span>
-            <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--acc-danger)" }} className="tabular-nums">
-              {loading ? "…" : formatMoney(incurredExpense, activeWorkspace.currency)}
+            <div
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: 700,
+                color: isUnavailable ? "var(--acc-text-muted)" : "var(--acc-danger)",
+              }}
+              className="tabular-nums"
+            >
+              {isLoadingInitial ? (
+                "…"
+              ) : isUnavailable ? (
+                "Unavailable"
+              ) : (
+                formatMoney(incurredExpense, activeWorkspace.currency)
+              )}
             </div>
             <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>Bills & costs</span>
           </div>
@@ -249,11 +363,21 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               style={{
                 fontSize: "1.125rem",
                 fontWeight: 700,
-                color: netSurplus >= 0 ? "var(--acc-blue)" : "var(--acc-danger)",
+                color: isUnavailable
+                  ? "var(--acc-text-muted)"
+                  : netSurplus >= 0
+                  ? "var(--acc-blue)"
+                  : "var(--acc-danger)",
               }}
               className="tabular-nums"
             >
-              {loading ? "…" : formatMoney(netSurplus, activeWorkspace.currency)}
+              {isLoadingInitial ? (
+                "…"
+              ) : isUnavailable ? (
+                "Unavailable"
+              ) : (
+                formatMoney(netSurplus, activeWorkspace.currency)
+              )}
             </div>
             <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>Period margin</span>
           </div>
@@ -270,8 +394,17 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               ↓
             </div>
           </div>
-          <div className="acc-metric-val tabular-nums" style={{ color: "var(--acc-success)" }}>
-            {loading ? "…" : formatMoney(metrics?.moneyReceivedMinor || 0, activeWorkspace.currency)}
+          <div
+            className="acc-metric-val tabular-nums"
+            style={{ color: isUnavailable ? "var(--acc-text-muted)" : "var(--acc-success)" }}
+          >
+            {isLoadingInitial ? (
+              "…"
+            ) : isUnavailable ? (
+              <span style={{ fontSize: "1.125rem", fontWeight: 600 }}>Unavailable</span>
+            ) : (
+              formatMoney(metrics?.moneyReceivedMinor ?? 0, activeWorkspace.currency)
+            )}
           </div>
           <span className="acc-metric-sub">Actual cash collected in selected period</span>
         </div>
@@ -284,8 +417,17 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               ↑
             </div>
           </div>
-          <div className="acc-metric-val tabular-nums" style={{ color: "var(--acc-danger)" }}>
-            {loading ? "…" : formatMoney(metrics?.moneyPaidMinor || 0, activeWorkspace.currency)}
+          <div
+            className="acc-metric-val tabular-nums"
+            style={{ color: isUnavailable ? "var(--acc-text-muted)" : "var(--acc-danger)" }}
+          >
+            {isLoadingInitial ? (
+              "…"
+            ) : isUnavailable ? (
+              <span style={{ fontSize: "1.125rem", fontWeight: 600 }}>Unavailable</span>
+            ) : (
+              formatMoney(metrics?.moneyPaidMinor ?? 0, activeWorkspace.currency)
+            )}
           </div>
           <span className="acc-metric-sub">Actual cash spent in selected period</span>
         </div>
@@ -299,7 +441,15 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             </div>
           </div>
           <div className="acc-metric-val tabular-nums">
-            {loading ? "…" : formatMoney(metrics?.owedToMeMinor || 0, activeWorkspace.currency)}
+            {isLoadingInitial ? (
+              "…"
+            ) : isUnavailable ? (
+              <span style={{ fontSize: "1.125rem", fontWeight: 600, color: "var(--acc-text-muted)" }}>
+                Unavailable
+              </span>
+            ) : (
+              formatMoney(metrics?.owedToMeMinor ?? 0, activeWorkspace.currency)
+            )}
           </div>
           <span className="acc-metric-sub">Customer credit & unpaid invoices</span>
         </div>
@@ -313,7 +463,15 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             </div>
           </div>
           <div className="acc-metric-val tabular-nums">
-            {loading ? "…" : formatMoney(metrics?.iOweMinor || 0, activeWorkspace.currency)}
+            {isLoadingInitial ? (
+              "…"
+            ) : isUnavailable ? (
+              <span style={{ fontSize: "1.125rem", fontWeight: 600, color: "var(--acc-text-muted)" }}>
+                Unavailable
+              </span>
+            ) : (
+              formatMoney(metrics?.iOweMinor ?? 0, activeWorkspace.currency)
+            )}
           </div>
           <span className="acc-metric-sub">Pending supplier bills & loan obligations</span>
         </div>
@@ -342,7 +500,23 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
 
           {/* SVG Bar Trend Chart */}
           <div style={{ height: "220px", display: "flex", alignItems: "flex-end", gap: "1rem", padding: "1rem 0" }}>
-            {trendBars.length === 0 ? (
+            {isLoadingInitial ? (
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                Loading cash flow trend…
+              </div>
+            ) : isUnavailable ? (
+              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                <span>⚠️ Cash flow trend unavailable</span>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-sm acc-btn-outline"
+                  style={{ minHeight: "30px", padding: "0.2rem 0.65rem", fontSize: "0.75rem" }}
+                  onClick={handleRetry}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : trendBars.length === 0 ? (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
                 No cash flow records yet in this period
               </div>
@@ -407,7 +581,25 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             )}
           </div>
 
-          {(metrics?.upcomingCommitments || []).length === 0 ? (
+          {isLoadingInitial ? (
+            <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+              Loading upcoming commitments…
+            </div>
+          ) : isUnavailable ? (
+            <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+              <div style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>⚠️</div>
+              <strong style={{ color: "var(--acc-text-main)" }}>Commitments data unavailable</strong>
+              <p style={{ fontSize: "0.75rem", margin: "0.25rem 0 0.75rem 0" }}>Could not load pending bills, customer invoices, or loan EMIs.</p>
+              <button
+                type="button"
+                className="acc-btn acc-btn-sm acc-btn-outline"
+                style={{ minHeight: "30px", padding: "0.2rem 0.65rem", fontSize: "0.75rem" }}
+                onClick={handleRetry}
+              >
+                Retry
+              </button>
+            </div>
+          ) : (metrics?.upcomingCommitments || []).length === 0 ? (
             <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
               <div style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>✓</div>
               <strong>All payments are up to date!</strong>
@@ -466,7 +658,25 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
           )}
         </div>
 
-        {(metrics?.recentTransactions || []).length === 0 ? (
+        {isLoadingInitial ? (
+          <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+            Loading recent transactions…
+          </div>
+        ) : isUnavailable ? (
+          <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+            <div style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>⚠️</div>
+            <strong style={{ color: "var(--acc-text-main)" }}>Transactions history unavailable</strong>
+            <p style={{ fontSize: "0.75rem", margin: "0.25rem 0 0.75rem 0" }}>Could not load recent account movements and journal posts.</p>
+            <button
+              type="button"
+              className="acc-btn acc-btn-sm acc-btn-outline"
+              style={{ minHeight: "30px", padding: "0.2rem 0.65rem", fontSize: "0.75rem" }}
+              onClick={handleRetry}
+            >
+              Retry
+            </button>
+          </div>
+        ) : (metrics?.recentTransactions || []).length === 0 ? (
           <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
             <div style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>💳</div>
             No transactions recorded yet in this workspace.

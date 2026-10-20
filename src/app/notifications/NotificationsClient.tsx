@@ -409,18 +409,18 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
           <div className="page-heading" style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: "100%" }}>
               <div>
-                <p style={{ color: "#0066FF", fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                <p style={{ color: "var(--primary, #168BFF)", fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
                   NOTIFICATIONS
                 </p>
                 <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 4px", display: "flex", alignItems: "center", gap: 10 }}>
                   Notification Center
                   {unreadCount > 0 && (
-                    <span style={{ fontSize: 11, background: "rgba(0, 229, 255, 0.18)", color: "#0066FF", border: "1px solid rgba(0, 229, 255, 0.35)", padding: "2px 10px", borderRadius: 12, fontWeight: 800 }}>
+                    <span style={{ fontSize: 11, background: "#14263A", color: "#168BFF", border: "1px solid rgba(22, 139, 255, 0.35)", padding: "2px 10px", borderRadius: 12, fontWeight: 800 }}>
                       {unreadCount} UNREAD
                     </span>
                   )}
                 </h1>
-                <span style={{ color: "#B7B7B7", fontSize: 13.5 }}>
+                <span style={{ color: "var(--text-secondary, #B5B8C2)", fontSize: 13.5 }}>
                   Stay updated with leads, WhatsApp messages, follow-ups and important account activity.
                 </span>
               </div>

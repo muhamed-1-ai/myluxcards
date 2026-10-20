@@ -2502,23 +2502,23 @@ html.dark .landing-page .modal-card,
 body.dark-mode .landing-page .modal-card,
 html.dark .zappit-login-panel,
 body.dark-mode .zappit-login-panel {
-  background: #0B132B !important;
-  border-color: #1E293B !important;
-  color: #F8FAFC !important;
+  background: #1B1C21 !important;
+  border-color: #343740 !important;
+  color: #F5F6F8 !important;
 }
 
 html.dark .zappit-login-title,
 body.dark-mode .zappit-login-title,
 html.dark .modal-header h3,
 body.dark-mode .modal-header h3 {
-  color: #FFFFFF !important;
+  color: #F5F6F8 !important;
 }
 
 html.dark .zappit-login-subtitle,
 body.dark-mode .zappit-login-subtitle,
 html.dark .modal-header p,
 body.dark-mode .modal-header p {
-  color: #94A3B8 !important;
+  color: #B5B8C2 !important;
 }
 
 html.dark .zappit-login-panel label,
@@ -2527,44 +2527,44 @@ html.dark .modal-card label,
 body.dark-mode .modal-card label,
 html.dark .auth-field-label,
 body.dark-mode .auth-field-label {
-  color: #F1F5F9 !important;
+  color: #F5F6F8 !important;
 }
 
 html.dark .zappit-login-panel .auth-optional-tag,
 body.dark-mode .zappit-login-panel .auth-optional-tag {
-  color: #94A3B8 !important;
+  color: #969CA8 !important;
 }
 
 html.dark .zappit-login-panel input,
 body.dark-mode .zappit-login-panel input,
 html.dark .modal-card input,
 body.dark-mode .modal-card input {
-  background: #070E1A !important;
-  border-color: #1E293B !important;
-  color: #F8FAFC !important;
+  background: #111216 !important;
+  border-color: #343740 !important;
+  color: #F5F6F8 !important;
 }
 
 html.dark .zappit-login-panel input::placeholder,
 body.dark-mode .zappit-login-panel input::placeholder,
 html.dark .modal-card input::placeholder,
 body.dark-mode .modal-card input::placeholder {
-  color: #64748B !important;
+  color: #969CA8 !important;
 }
 
 html.dark .landing-page .btn-google,
 body.dark-mode .landing-page .btn-google,
 html.dark .btn-google,
 body.dark-mode .btn-google {
-  background: #111E33 !important;
-  border-color: #1E293B !important;
-  color: #F8FAFC !important;
+  background: #23252C !important;
+  border-color: #343740 !important;
+  color: #F5F6F8 !important;
 }
 
 html.dark .landing-page .auth-divider,
 body.dark-mode .landing-page .auth-divider,
 html.dark .auth-divider,
 body.dark-mode .auth-divider {
-  color: #64748B !important;
+  color: #969CA8 !important;
 }
 
 html.dark .landing-page .auth-divider::before,
@@ -2575,7 +2575,7 @@ html.dark .auth-divider::before,
 html.dark .auth-divider::after,
 body.dark-mode .auth-divider::before,
 body.dark-mode .auth-divider::after {
-  background: #1E293B !important;
+  background: #343740 !important;
 }
 
 html.dark .rule-chip,

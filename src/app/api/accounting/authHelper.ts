@@ -51,7 +51,20 @@ export async function requireAccountingApi(
 
   let workspace: (WorkspaceRow & { role: WorkspaceRole }) | null = null;
 
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
   if (workspaceId) {
+    if (!UUID_REGEX.test(workspaceId)) {
+      return {
+        errorResponse: NextResponse.json(
+          {
+            error: "INVALID_WORKSPACE_ID",
+            message: "Invalid workspace identifier format.",
+          },
+          { status: 400 }
+        ),
+      };
+    }
     workspace = await getAuthorizedWorkspace(identity.id, workspaceId, requiredRole);
   } else {
     // If no workspaceId provided, get or provision default workspace

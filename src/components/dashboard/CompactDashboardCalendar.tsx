@@ -223,7 +223,7 @@ export function CompactDashboardCalendar({
             <div className="crm-cal-empty-state">Loading agenda...</div>
           ) : dayAgenda.length === 0 ? (
             <div className="crm-cal-empty-state">
-              <CheckCircle2 style={{ width: 22, height: 22, color: "#00E5FF", margin: "0 auto 4px" }} />
+              <CheckCircle2 style={{ width: 22, height: 22, color: "#168BFF", margin: "0 auto 4px" }} />
               <span>No follow-ups for {selectedFormatted}</span>
             </div>
           ) : (
@@ -231,7 +231,7 @@ export function CompactDashboardCalendar({
               <div key={item.id} className="crm-cal-agenda-item">
                 <div className="crm-cal-agenda-item-left">
                   <div className="crm-cal-agenda-time">
-                    <Clock style={{ width: 12, height: 12, color: "#00E5FF" }} />
+                    <Clock style={{ width: 12, height: 12, color: "#168BFF" }} />
                     <span>
                       {new Date(item.scheduledAt).toLocaleTimeString("en-US", {
                         hour: "2-digit",

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireManagedUserOwnership, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
+import { isOwnerAccount, isAuthoritativeOwner } from "@/lib/ownerAuth";
 import { updateUserPermissions, updateUserStatus, updateUserNickname } from "@/lib/repositories/users";
 import { pool } from "@/lib/db";
 import { getCanonicalUserQrUrl, getPublicCardUrl } from "@/lib/url";
@@ -161,15 +162,25 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const body = await request.json();
     const { name, status, featurePermissions } = body;
 
+    // Reject modifications to owner account by other admins
+    if (isOwnerAccount(managedUser.id, managedUser.email) && !isAuthoritativeOwner(identity)) {
+      return NextResponse.json({ message: "The primary owner account is protected and cannot be modified by other administrators." }, { status: 403 });
+    }
+
     let updatedUser = managedUser;
 
     if (status && typeof status === "string" && ["ACTIVE", "PENDING_PAYMENT", "SUSPENDED", "DISABLED"].includes(status)) {
-      // 1. Self-suspension check
+      // 1. Owner protection check
+      if (isOwnerAccount(managedUser.id, managedUser.email) && (status === "SUSPENDED" || status === "DISABLED")) {
+        return NextResponse.json({ message: "The primary owner account is protected and cannot be suspended or disabled." }, { status: 403 });
+      }
+
+      // 2. Self-suspension check
       if ((status === "SUSPENDED" || status === "DISABLED") && identity.id === managedUser.id) {
         return NextResponse.json({ message: "Self-suspension is not permitted. You cannot suspend your own account." }, { status: 400 });
       }
 
-      // 2. Target user is SUPER_ADMIN check
+      // 3. Target user is SUPER_ADMIN check
       if (managedUser.role === "SUPER_ADMIN") {
         if (identity.role !== "SUPER_ADMIN") {
           return NextResponse.json({ message: "Only Super Admins can alter a Super Admin account." }, { status: 403 });
@@ -224,6 +235,11 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
     }
 
     const { identity, managedUser } = authResult;
+
+    if (isOwnerAccount(managedUser.id, managedUser.email)) {
+      return NextResponse.json({ message: "The primary owner account is protected and cannot be deleted or disabled." }, { status: 403 });
+    }
+
     const updatedUser = await updateUserStatus(managedUser.id, "DISABLED");
 
     await audit(identity, "USER_DISABLED", "users", managedUser.id, { status: managedUser.status }, { status: "DISABLED" });

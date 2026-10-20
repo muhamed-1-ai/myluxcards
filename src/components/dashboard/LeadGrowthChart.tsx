@@ -306,10 +306,10 @@ export function LeadGrowthChart({
           alignItems: "center",
           gap: 6,
           fontSize: 12,
-          color: "var(--text-muted)",
+          color: "var(--text-muted, #969CA8)",
           fontWeight: 500
         }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0066FF" }} />
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#168BFF" }} />
           New Leads
         </span>
       </div>
@@ -334,12 +334,12 @@ export function LeadGrowthChart({
         >
           <defs>
             <linearGradient id="leadSmoothGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0066FF" stopOpacity="0.22" />
-              <stop offset="60%" stopColor="#0066FF" stopOpacity="0.08" />
-              <stop offset="100%" stopColor="#0066FF" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="#168BFF" stopOpacity="0.22" />
+              <stop offset="60%" stopColor="#168BFF" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#168BFF" stopOpacity="0.0" />
             </linearGradient>
             <filter id="pointGlow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#0066FF" floodOpacity="0.6" />
+              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#168BFF" floodOpacity="0.6" />
             </filter>
           </defs>
 
@@ -358,7 +358,7 @@ export function LeadGrowthChart({
                     y1={y}
                     x2={measuredWidth - paddingRight}
                     y2={y}
-                    stroke="rgba(0, 102, 255, 0.3)"
+                    stroke="rgba(22, 139, 255, 0.4)"
                     strokeWidth="1.5"
                     strokeLinecap="round"
                   />
@@ -369,7 +369,7 @@ export function LeadGrowthChart({
                     y1={y}
                     x2={measuredWidth - paddingRight}
                     y2={y}
-                    stroke="var(--border-color)"
+                    stroke="var(--border-color, #343740)"
                     strokeDasharray="4 4"
                     strokeWidth="1"
                   />
@@ -378,7 +378,7 @@ export function LeadGrowthChart({
                 <text
                   x={paddingLeft - 10}
                   y={y + 4}
-                  fill="#64748B"
+                  fill="var(--text-muted, #969CA8)"
                   fontSize="11"
                   fontWeight="500"
                   fontFamily="Inter, system-ui, sans-serif"
@@ -397,7 +397,7 @@ export function LeadGrowthChart({
           <path
             d={linePath}
             fill="none"
-            stroke="#0066FF"
+            stroke="#168BFF"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -420,7 +420,7 @@ export function LeadGrowthChart({
                 key={`xlabel-${idx}`}
                 x={pt.x}
                 y={zeroY + 18}
-                fill="#64748B"
+                fill="var(--text-muted, #969CA8)"
                 fontSize={isMobile ? "10" : "11"}
                 fontWeight="500"
                 fontFamily="Inter, system-ui, sans-serif"
@@ -439,7 +439,7 @@ export function LeadGrowthChart({
                 y1={paddingTop}
                 x2={hoveredPoint.x}
                 y2={zeroY}
-                stroke="rgba(0, 102, 255, 0.35)"
+                stroke="rgba(22, 139, 255, 0.4)"
                 strokeDasharray="3 3"
                 strokeWidth="1"
               />
@@ -447,14 +447,14 @@ export function LeadGrowthChart({
                 cx={hoveredPoint.x}
                 cy={hoveredPoint.y}
                 r="9"
-                fill="rgba(0, 102, 255, 0.2)"
+                fill="rgba(22, 139, 255, 0.2)"
               />
               <circle
                 cx={hoveredPoint.x}
                 cy={hoveredPoint.y}
                 r="4.5"
-                fill="#0066FF"
-                stroke="#080A12"
+                fill="#168BFF"
+                stroke="var(--surface, #1B1C21)"
                 strokeWidth="2"
                 filter="url(#pointGlow)"
               />
@@ -485,12 +485,12 @@ export function LeadGrowthChart({
               position: "absolute",
               zIndex: 30,
               pointerEvents: "none",
-              background: "#121420",
-              border: "1px solid rgba(0, 102, 255, 0.4)",
-              color: "var(--text-primary)",
+              background: "var(--surface-elevated, #23252C)",
+              border: "1px solid var(--border-color, #343740)",
+              color: "var(--text-primary, #F5F6F8)",
               padding: "8px 14px",
               borderRadius: 10,
-              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.5)",
+              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.6)",
               fontSize: 12,
               fontFamily: "Inter, system-ui, sans-serif",
               transform: "translate(-50%, -120%)",
@@ -499,12 +499,12 @@ export function LeadGrowthChart({
               whiteSpace: "nowrap",
             }}
           >
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 3 }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted, #969CA8)", marginBottom: 3 }}>
               {hoveredPoint.dateStr || hoveredPoint.label}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0066FF" }} />
-              <span style={{ color: "var(--text-primary)" }}>{hoveredPoint.count} New Leads</span>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#168BFF" }} />
+              <span style={{ color: "var(--text-primary, #F5F6F8)" }}>{hoveredPoint.count} New Leads</span>
             </div>
           </div>
         )}

@@ -464,7 +464,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           <div key="daily_capacity" className="crm-capacity-card">
             <div className="crm-capacity-header">
               <div className="crm-capacity-icon-wrap">
-                <Calendar style={{ width: 20, height: 20, color: "#00E5FF" }} />
+                <Calendar style={{ width: 20, height: 20, color: "var(--accent-blue, #168BFF)" }} />
               </div>
               <div>
                 <h3 className="crm-capacity-title">{title}</h3>
@@ -820,7 +820,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">{kpis.todaysLeads ?? kpis.newLeads ?? 0}</div>
                     <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total leads
+                      <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total leads
                     </div>
                   </div>
                 );
@@ -833,7 +833,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">{kpis.totalLeads ?? 0}</div>
                     <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> All leads
+                      <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> All leads
                     </div>
                   </div>
                 );
@@ -846,7 +846,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">{kpis.closedLeads ?? kpis.wonLeads ?? 0}</div>
                     <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total closed deals
+                      <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total closed deals
                     </div>
                   </div>
                 );
@@ -860,7 +860,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">{activeUsersVal}</div>
                     <div className="crm-kpi-sub-link">
-                      <TrendingUp style={{ width: 14, height: 14, color: "#00E5FF" }} /> Total active users
+                      <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total active users
                     </div>
                   </div>
                 );

@@ -262,14 +262,14 @@ export function LeadSourcesConfig() {
           flexWrap: "wrap",
           gap: 16,
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           padding: "24px 28px",
           borderRadius: 18,
           boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
             <span>MASTER CONFIGURATION</span>
             <span style={{ opacity: 0.5 }}>→</span>
             <span>LEAD SOURCES</span>
@@ -293,20 +293,20 @@ export function LeadSourcesConfig() {
             padding: "0 22px",
             fontSize: 13,
             fontWeight: 800,
-            color: "#FFFFFF",
-            background: "#0066FF",
+            color: "var(--primary-foreground, #FFFFFF)",
+            background: "var(--primary)",
             border: "none",
             borderRadius: 10,
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+            boxShadow: "none",
             transition: "all 0.2s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#E6C200";
+            e.currentTarget.style.background = "var(--primary-dark, #075BBE)";
             e.currentTarget.style.transform = "translateY(-1px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#0066FF";
+            e.currentTarget.style.background = "var(--primary)";
             e.currentTarget.style.transform = "translateY(0)";
           }}
         >
@@ -327,7 +327,7 @@ export function LeadSourcesConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 16,
             padding: "20px 24px",
             display: "flex",
@@ -350,9 +350,9 @@ export function LeadSourcesConfig() {
               width: 48,
               height: 48,
               borderRadius: 12,
-              background: "rgba(0, 229, 255, 0.12)",
-              border: "1px solid rgba(0, 229, 255, 0.25)",
-              color: "#0066FF",
+              background: "#14263A",
+              border: "1px solid rgba(22, 139, 255, 0.3)",
+              color: "var(--primary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -366,7 +366,7 @@ export function LeadSourcesConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 16,
             padding: "20px 24px",
             display: "flex",
@@ -380,7 +380,7 @@ export function LeadSourcesConfig() {
             <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               ACTIVE SOURCES
             </span>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#0066FF", marginTop: 4, fontFamily: "Inter, system-ui, sans-serif" }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "var(--primary)", marginTop: 4, fontFamily: "Inter, system-ui, sans-serif" }}>
               {activeCount}
             </div>
           </div>
@@ -405,7 +405,7 @@ export function LeadSourcesConfig() {
         <div
           style={{
             background: "var(--surface)",
-            border: "1px solid rgba(0, 229, 255, 0.18)",
+            border: "1px solid var(--border-color)",
             borderRadius: 16,
             padding: "20px 24px",
             display: "flex",
@@ -445,7 +445,7 @@ export function LeadSourcesConfig() {
       <div
         style={{
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           borderRadius: 18,
           padding: 24,
           boxShadow: "0 8px 28px rgba(0, 0, 0, 0.35)",
@@ -493,7 +493,7 @@ export function LeadSourcesConfig() {
                 outline: "none",
                 transition: "all 0.2s ease",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(0, 229, 255, 0.6)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border-color)")}
             />
           </div>
@@ -600,9 +600,9 @@ export function LeadSourcesConfig() {
                               style={{
                                 fontSize: 9,
                                 fontWeight: 800,
-                                color: "#0066FF",
-                                background: "rgba(0, 229, 255, 0.12)",
-                                border: "1px solid rgba(0, 229, 255, 0.25)",
+                                color: "var(--primary)",
+                                background: "#14263A",
+                                border: "1px solid rgba(22, 139, 255, 0.3)",
                                 padding: "2px 6px",
                                 borderRadius: 4,
                                 textTransform: "uppercase",
@@ -621,9 +621,9 @@ export function LeadSourcesConfig() {
                           style={{
                             fontSize: 11,
                             fontWeight: 800,
-                            color: "#0066FF",
-                            background: "rgba(0, 229, 255, 0.1)",
-                            border: "1px solid rgba(0, 229, 255, 0.25)",
+                            color: "var(--primary)",
+                            background: "#14263A",
+                            border: "1px solid rgba(22, 139, 255, 0.3)",
                             padding: "3px 9px",
                             borderRadius: 6,
                             fontFamily: "monospace",
@@ -714,10 +714,10 @@ export function LeadSourcesConfig() {
                               cursor: "pointer",
                               transition: "all 0.15s ease",
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
                             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
                           >
-                            <Edit2 style={{ width: 13, height: 13, color: "#0066FF" }} />
+                            <Edit2 style={{ width: 13, height: 13, color: "var(--primary)" }} />
                             Edit
                           </button>
 
@@ -800,7 +800,7 @@ export function LeadSourcesConfig() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{src.name}</div>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.1)", padding: "2px 6px", borderRadius: 4, marginTop: 4, display: "inline-block" }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "var(--primary)", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", padding: "2px 6px", borderRadius: 4, marginTop: 4, display: "inline-block" }}>
                         CODE: {src.code}
                       </span>
                     </div>
@@ -907,7 +907,7 @@ export function LeadSourcesConfig() {
         ) : sources.length === 0 ? (
           /* NO SOURCES CONFIGURED EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <GitBranch style={{ width: 24, height: 24 }} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -924,10 +924,10 @@ export function LeadSourcesConfig() {
                 padding: "10px 22px",
                 fontSize: 13,
                 fontWeight: 700,
-                background: "#0066FF",
+                background: "var(--primary)",
                 border: "none",
                 borderRadius: 8,
-                color: "#FFFFFF",
+                color: "var(--primary-foreground, #FFFFFF)",
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
@@ -941,7 +941,7 @@ export function LeadSourcesConfig() {
         ) : (
           /* SEARCH / FILTER EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Filter style={{ width: 24, height: 24 }} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -962,9 +962,9 @@ export function LeadSourcesConfig() {
                 fontSize: 12,
                 fontWeight: 700,
                 background: "var(--bg-secondary)",
-                border: "1px solid rgba(0, 229, 255, 0.3)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 8,
-                color: "#0066FF",
+                color: "var(--primary)",
                 cursor: "pointer",
               }}
             >
@@ -981,12 +981,12 @@ export function LeadSourcesConfig() {
           onClick={() => setIsCreateOpen(false)}
         >
           <div
-            style={{ width: "100%", maxWidth: 460, background: "var(--surface)", border: "1px solid rgba(0, 229, 255,0.3)", padding: 26, borderRadius: 18, boxShadow: "0 20px 50px rgba(0,0,0,0.6)" }}
+            style={{ width: "100%", maxWidth: 460, background: "var(--surface)", border: "1px solid var(--border-color)", padding: 26, borderRadius: 18, boxShadow: "0 20px 50px rgba(0,0,0,0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
-                <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>MASTER CONFIGURATION</span>
+                <span style={{ fontSize: 10, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>MASTER CONFIGURATION</span>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>Create Lead Source</h2>
               </div>
               <button type="button" onClick={() => setIsCreateOpen(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
@@ -996,7 +996,7 @@ export function LeadSourcesConfig() {
 
             <form onSubmit={handleSaveCreate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>Lead Source Name *</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary, #B5B8C2)", marginBottom: 6 }}>Lead Source Name *</label>
                 <input
                   type="text"
                   placeholder="e.g. Instagram Campaign"
@@ -1008,7 +1008,7 @@ export function LeadSourcesConfig() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>Code (Optional)</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary, #B5B8C2)", marginBottom: 6 }}>Code (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. INSTA"
@@ -1019,7 +1019,7 @@ export function LeadSourcesConfig() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>Description (Optional)</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary, #B5B8C2)", marginBottom: 6 }}>Description (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. Leads coming from bio link click"
@@ -1030,7 +1030,7 @@ export function LeadSourcesConfig() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#CBD5E1", marginBottom: 6 }}>Initial Status</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary, #B5B8C2)", marginBottom: 6 }}>Initial Status</label>
                 <select
                   value={formData.active ? "active" : "inactive"}
                   onChange={(e) => setFormData({ ...formData, active: e.target.value === "active" })}
@@ -1045,7 +1045,7 @@ export function LeadSourcesConfig() {
                 <button type="button" onClick={() => setIsCreateOpen(false)} style={{ padding: "10px 18px", fontSize: 12, fontWeight: 600, borderRadius: 9, background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ padding: "10px 22px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "#0066FF", color: "#FFFFFF", border: "none", cursor: "pointer" }}>
+                <button type="submit" style={{ padding: "10px 22px", fontSize: 12, fontWeight: 800, borderRadius: 9, background: "var(--primary)", color: "var(--primary-foreground, #FFFFFF)", border: "none", cursor: "pointer" }}>
                   Create Lead Source
                 </button>
               </div>
@@ -1061,12 +1061,12 @@ export function LeadSourcesConfig() {
           onClick={() => setEditingSource(null)}
         >
           <div
-            style={{ width: "100%", maxWidth: 460, background: "var(--surface)", border: "1px solid rgba(0, 229, 255,0.3)", padding: 26, borderRadius: 18, boxShadow: "0 20px 50px rgba(0,0,0,0.6)" }}
+            style={{ width: "100%", maxWidth: 460, background: "var(--surface)", border: "1px solid var(--border-color)", padding: 26, borderRadius: 18, boxShadow: "0 20px 50px rgba(0,0,0,0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
-                <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>MASTER CONFIGURATION</span>
+                <span style={{ fontSize: 10, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>MASTER CONFIGURATION</span>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: "2px 0 0" }}>Edit Lead Source</h2>
               </div>
               <button type="button" onClick={() => setEditingSource(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>

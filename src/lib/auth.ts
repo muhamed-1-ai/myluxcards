@@ -146,6 +146,10 @@ export const authOptions: NextAuthOptions = {
         token.sessionVersion = (user as typeof user & { sessionVersion?: number }).sessionVersion;
       }
       if (token.userId && !token.role) {
+        const dbUser = await findUserById(token.userId as string);
+        if (dbUser) token.role = dbUser.role;
+      }
+      if (token.userId) {
         try {
           const dbUser = await findUserById(token.userId as string);
           if (dbUser) {

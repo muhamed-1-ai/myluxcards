@@ -97,7 +97,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const getActivityIcon = (type: string) => {
-    if (type === "LEAD_CREATED") return <UserPlus style={{ width: 16, height: 16, color: "#0066FF" }} />;
+    if (type === "LEAD_CREATED") return <UserPlus style={{ width: 16, height: 16, color: "var(--primary, #168BFF)" }} />;
     if (type === "LEAD_WON") return <Trophy style={{ width: 16, height: 16, color: "#10B981" }} />;
     if (type === "LEAD_LOST") return <AlertTriangle style={{ width: 16, height: 16, color: "#EF4444" }} />;
     if (type.includes("FOLLOW_UP")) return <Clock style={{ width: 16, height: 16, color: "#F59E0B" }} />;
@@ -192,7 +192,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
                 <span className={`crm-cal-day-num ${isToday ? "is-today" : ""}`} style={{ fontSize: 12, fontWeight: 700 }}>{dayNum}</span>
                 {totalEvents > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", padding: "1px 5px", borderRadius: 50, border: "1px solid rgba(0, 102, 255, 0.25)" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, background: "#14263A", color: "#168BFF", padding: "1px 5px", borderRadius: 50, border: "1px solid rgba(22, 139, 255, 0.3)" }}>
                     {totalEvents}
                   </span>
                 )}
@@ -208,7 +208,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
                       height: 6,
                       borderRadius: "50%",
                       background: type === "LEAD_CREATED"
-                        ? "#0066FF"
+                        ? "#168BFF"
                         : type === "LEAD_WON"
                         ? "#10B981"
                         : type === "LEAD_LOST"
@@ -235,7 +235,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 16, borderBottom: "1px solid var(--border-color)" }}>
               <div>
-                <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>DAY TIMELINE ACTIVITY</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--primary, #168BFF)", textTransform: "uppercase", letterSpacing: "0.08em" }}>DAY TIMELINE ACTIVITY</span>
                 <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "4px 0 0" }}>
                   {new Date(selectedDateStr).toLocaleDateString("en-US", {
                     weekday: "long",
@@ -271,7 +271,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
                       <div style={{ padding: 8, borderRadius: 8, background: "var(--surface)", height: "fit-content" }}>{getActivityIcon(evt.type)}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: "rgba(0, 102, 255, 0.08)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.2)" }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: "#14263A", color: "#168BFF", border: "1px solid rgba(22, 139, 255, 0.3)" }}>
                             {evt.type.replace(/_/g, " ")}
                           </span>
                           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -286,7 +286,7 @@ export function CrmActivityCalendar({ onSelectLead }: CrmActivityCalendarProps) 
                             <button
                               type="button"
                               onClick={() => onSelectLead(evt.leadId)}
-                              style={{ background: "none", border: "none", color: "#0066FF", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                              style={{ background: "none", border: "none", color: "#168BFF", cursor: "pointer", textDecoration: "underline", padding: 0 }}
                             >
                               {evt.leadName}
                             </button>

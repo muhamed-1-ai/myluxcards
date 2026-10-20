@@ -19,18 +19,23 @@ function resolveDateRange(filter: PeriodFilter): { start: string; end: string } 
   }
 
   const p = filter.period || "month";
-  const start = new Date(now);
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const day = now.getUTCDate();
 
+  let start: Date;
   if (p === "today") {
-    // start is today
+    start = new Date(Date.UTC(year, month, day));
   } else if (p === "week") {
-    start.setDate(now.getDate() - 7);
+    start = new Date(Date.UTC(year, month, day - 7));
   } else if (p === "month") {
-    start.setDate(1); // 1st of current month
+    start = new Date(Date.UTC(year, month, 1));
   } else if (p === "year") {
-    start.setMonth(0, 1); // Jan 1st of current year
+    start = new Date(Date.UTC(year, 0, 1));
   } else if (p === "all") {
-    start.setFullYear(2020, 0, 1);
+    start = new Date(Date.UTC(2020, 0, 1));
+  } else {
+    start = new Date(Date.UTC(year, month, 1));
   }
 
   return { start: start.toISOString().slice(0, 10), end };
@@ -227,17 +232,18 @@ export async function getDashboardMetrics(
     is_overdue: boolean;
   }>(
     `SELECT
-       id,
-       ('Invoice ' || invoice_number || ' - ' || COALESCE(contact_name, 'Client')) as title,
-       TO_CHAR(due_date, 'YYYY-MM-DD') as due_date,
-       amount_due_minor as amount_minor,
+       inv.id,
+       ('Invoice ' || inv.invoice_number || ' - ' || COALESCE(c.name, 'Client')) as title,
+       TO_CHAR(inv.due_date, 'YYYY-MM-DD') as due_date,
+       inv.amount_due_minor as amount_minor,
        'INVOICE' as type,
-       (due_date < CURRENT_DATE) as is_overdue
-     FROM accounting_invoices
-     WHERE workspace_id = $1
-       AND status IN ('ISSUED', 'PARTIALLY_PAID')
-       AND amount_due_minor > 0
-     ORDER BY due_date ASC
+       (inv.due_date < CURRENT_DATE) as is_overdue
+     FROM accounting_invoices inv
+     LEFT JOIN accounting_contacts c ON c.id = inv.contact_id
+     WHERE inv.workspace_id = $1
+       AND inv.status IN ('ISSUED', 'PARTIALLY_PAID')
+       AND inv.amount_due_minor > 0
+     ORDER BY inv.due_date ASC
      LIMIT 5`,
     [workspaceId]
   );
@@ -254,6 +260,9 @@ export async function getDashboardMetrics(
     });
   }
   for (const rem of remindersRes.rows) {
+    if (rem.type === "INVOICE_DUE" && rem.id && commitmentsMap.has(`inv_${rem.id}`)) {
+      continue;
+    }
     commitmentsMap.set(`rem_${rem.id}`, {
       id: rem.id,
       title: rem.title,
@@ -297,7 +306,10 @@ export async function getDashboardMetrics(
     cashFlowTrend,
     categoryBreakdown,
     categorySpending,
-    recentTransactions: recentRes.rows,
+    recentTransactions: recentRes.rows.map((tx) => ({
+      ...tx,
+      amount_minor: Number(tx.amount_minor) || 0,
+    })),
     upcomingCommitments,
   };
 }

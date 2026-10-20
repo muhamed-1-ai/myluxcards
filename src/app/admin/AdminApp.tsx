@@ -129,7 +129,7 @@ export default function AdminApp({
 
 function Content({section,payload,identity,mutate,navigate,reload,openShipOrder}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
   if(section==="overview") return <Overview data={payload}/>;
-  if(section==="managed_users") return <ManagedUsers rows={payload?.users||[]} mutate={mutate} reload={reload} openShipOrder={openShipOrder}/>;
+  if(section==="managed_users") return <ManagedUsers rows={payload?.users||[]} identity={identity} mutate={mutate} reload={reload} openShipOrder={openShipOrder}/>;
   if(section==="team_calendar") return <TeamCalendar data={payload}/>;
   if(section==="team_leads") return <TeamLeads rows={payload?.leads||[]}/>;
   if(section==="team_analytics") return <TeamAnalytics data={payload}/>;
@@ -142,7 +142,7 @@ function Content({section,payload,identity,mutate,navigate,reload,openShipOrder}
   if(section==="payments") return rows.length?<Table heads={["Provider","Transaction","Amount","Status","Refunded","Date"]} rows={rows.map(r=>[r.provider,r.provider_transaction_id,money(r.amount_minor,r.currency),r.status,money(r.refunded_minor,r.currency),new Date(r.provider_created_at||r.created_at).toLocaleString()])}/>:<Empty title="Payment provider not connected" text="Payment rows will appear after a trusted server webhook writes verified transactions. Refund controls remain disabled until a provider is configured."/>;
   if(section==="support") return <SupportTickets rows={rows} mutate={mutate}/>;
   if(section==="notifications") return <Notifications rows={rows} mutate={mutate} navigate={navigate}/>;
-  if(section==="admins") return <Admins rows={rows} identity={identity} mutate={mutate}/>;
+  if(section==="admins") return <Admins rows={rows} identity={identity} mutate={mutate} navigate={navigate}/>;
   if(section==="audit") return <Table heads={["When","Actor role","Action","Entity","IP"]} rows={rows.map(r=>[new Date(r.created_at).toLocaleString(),r.actor_role,r.action,`${r.entity_type} ${r.entity_id||""}`,r.ip_address||"—"])}/>;
   if(section==="settings") return <Settings value={payload?.data||{}} mutate={mutate}/>;
   return null;
@@ -339,11 +339,133 @@ function Products({rows,mutate}:{rows:Row[],mutate:any}) {
   const create=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);await mutate("products","POST",{name:f.get("name"),productType:f.get("type"),priceMinor:Math.round(Number(f.get("price"))*100),stock:Number(f.get("stock"))});e.currentTarget.reset()};
   return <><form className="quick-form" onSubmit={create}><h2>Add product</h2><input name="name" required placeholder="Product name"/><select name="type"><option value="NFC_CARD">NFC card</option><option value="QR_LOST_FOUND">QR lost & found</option><option value="ACCESSORY">Accessory</option><option value="OTHER">Other</option></select><input name="price" required type="number" min="0" step=".01" placeholder="Price"/><input name="stock" required type="number" min="0" placeholder="Stock"/><button>Add product</button></form>{rows.length?<Table heads={["Product","Type","SKU","Price","Stock","Status","Action"]} rows={rows.map(r=>[r.name,r.product_type,r.sku||"—",money(r.price_minor,r.currency),r.stock,r.archived_at?"Archived":r.active?"Active":"Inactive",<button className="small" onClick={()=>mutate("products","PATCH",{id:r.id,archived:!r.archived_at})}>{r.archived_at?"Restore":"Archive"}</button>])}/>:<Empty title="No products" text="Create your first database-backed product above."/>}</>;
 }
-function Admins({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate:any}) {
-  const invite=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);const result=await mutate("admins","POST",{email:f.get("email")});alert(result.message);e.currentTarget.reset()};
-  return <><form className="quick-form" onSubmit={invite}><h2>Invite an administrator</h2><input name="email" type="email" required placeholder="admin@example.com"/><button>Record invite</button></form><Table heads={["Administrator","Role","Created","Status","Action"]} rows={rows.map(r=>[<><b>{r.name}</b><small>{r.email}</small></>,r.role,new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",r.id===identity.id||r.role==="SUPER_ADMIN"?"Protected":<div className="row-actions"><button className="small danger" onClick={()=>confirm(`Change access for ${r.email}?`)&&mutate("admins","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button><button className="small" onClick={()=>confirm(`Remove ADMIN role from ${r.email}?`)&&mutate("admins","PATCH",{id:r.id,role:"CUSTOMER"})}>Remove role</button></div>])}/></>;
+function Admins({rows,identity,mutate,navigate}:{rows:Row[],identity:AdminIdentity,mutate:any,navigate?:(s:Section)=>void}) {
+  const OWNER_EMAIL = "muhammedfebincholayil@gmail.com";
+  const OWNER_USER_ID = "b8c2491d-3769-4850-86d9-1ff17eef2257";
+  const isActorOwner = identity.id === OWNER_USER_ID && identity.email?.toLowerCase() === OWNER_EMAIL;
+
+  return <>
+    <div style={{
+      background: "var(--admin-panel)",
+      border: "1px solid var(--admin-border)",
+      borderRadius: "12px",
+      padding: "20px 24px",
+      marginBottom: "20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "16px",
+      flexWrap: "wrap",
+    }}>
+      <div>
+        <h2 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 800, color: "var(--admin-text)" }}>
+          Administrator Management
+        </h2>
+        <p style={{ margin: 0, fontSize: "13px", color: "var(--admin-muted)" }}>
+          Direct 1-click administrator promotion and removal is managed on existing registered accounts under <strong>Users</strong>.
+        </p>
+      </div>
+      {navigate && (
+        <button
+          type="button"
+          onClick={() => navigate("managed_users")}
+          style={{
+            background: "var(--primary-btn-bg, #0967D2)",
+            color: "#FFFFFF",
+            border: "none",
+            borderRadius: "8px",
+            padding: "9px 18px",
+            fontSize: "13px",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Go to Users →
+        </button>
+      )}
+    </div>
+    <Table
+      heads={["Administrator", "Role", "Created", "Status", "Action"]}
+      rows={rows.map((r) => {
+        const isTargetOwner = r.id === OWNER_USER_ID || r.email?.toLowerCase() === OWNER_EMAIL;
+        let actionContent: any = <span className="pill">Protected</span>;
+
+        if (isTargetOwner) {
+          actionContent = <span className="admin-owner-badge" title="Protected Owner Account">👑 Owner</span>;
+        } else if (isActorOwner && r.role === "ADMIN") {
+          actionContent = (
+            <div className="row-actions">
+              <button
+                type="button"
+                className="small admin-action-demote"
+                onClick={() =>
+                  confirm(`Remove ADMIN privileges from ${r.email}?`) &&
+                  mutate("admins", "PATCH", { id: r.id, role: "CUSTOMER", action: "DEMOTE" })
+                }
+              >
+                Remove admin
+              </button>
+            </div>
+          );
+        }
+
+        return [
+          <>
+            <b>{r.name || "Unnamed"}</b>
+            <small>{r.email}</small>
+          </>,
+          <span className={`pill ${isTargetOwner ? "gold" : ""}`}>{isTargetOwner ? "OWNER" : r.role}</span>,
+          new Date(r.created_at).toLocaleDateString(),
+          <span className={`pill ${r.disabled ? "disabled" : "active"}`}>{r.disabled ? "Disabled" : "Active"}</span>,
+          actionContent,
+        ];
+      })}
+    />
+  </>;
 }
-function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
+function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],identity:AdminIdentity,mutate:any,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
+  const OWNER_EMAIL = "muhammedfebincholayil@gmail.com";
+  const OWNER_USER_ID = "b8c2491d-3769-4850-86d9-1ff17eef2257";
+  const isActorOwner = identity.id === OWNER_USER_ID && identity.email?.toLowerCase() === OWNER_EMAIL;
+  const [savingRoleUserId, setSavingRoleUserId] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const handleToggleAdminRole = async (targetUser: Row, action: "PROMOTE" | "DEMOTE") => {
+    if (savingRoleUserId) return;
+    setSavingRoleUserId(targetUser.id);
+    setActionNotice(null);
+
+    const targetRole = action === "PROMOTE" ? "ADMIN" : "CUSTOMER";
+    try {
+      const res = await fetch("/api/admin/admins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: targetUser.id, role: targetRole, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || `Failed to ${action === "PROMOTE" ? "promote" : "remove"} admin.`);
+      }
+
+      targetUser.role = targetRole;
+
+      setActionNotice({
+        type: "success",
+        message: data.message || (action === "PROMOTE" ? `Promoted ${targetUser.email} to Administrator.` : `Removed Administrator privileges from ${targetUser.email}.`),
+      });
+
+      setTimeout(() => setActionNotice((cur) => cur?.type === "success" ? null : cur), 4000);
+      await reload();
+    } catch (err: any) {
+      setActionNotice({
+        type: "error",
+        message: err.message || "Failed to update administrator role.",
+      });
+    } finally {
+      setSavingRoleUserId(null);
+    }
+  };
+
   const [showCreate,setShowCreate]=useState(false);
   const [permissionUser,setPermissionUser]=useState<Row|null>(null);
   const [suspendModal,setSuspendModal]=useState<{user: Row; action: "SUSPEND" | "REACTIVATE"} | null>(null);
@@ -460,6 +582,13 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
         </div>
       )}
 
+      {actionNotice && (
+        <div className={`admin-toast-notice ${actionNotice.type}`} role="status">
+          <span>{actionNotice.type === "success" ? "✓" : "⚠"} {actionNotice.message}</span>
+          <button type="button" onClick={() => setActionNotice(null)} aria-label="Dismiss notice">×</button>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h2>Managed Users ({filteredUsers.length})</h2>
@@ -493,38 +622,70 @@ function ManagedUsers({rows,mutate,reload,openShipOrder}:{rows:Row[],mutate:any,
       ) : (
         <Table
           heads={["User", "Role", "Status", "Created", "Actions"]}
-          rows={filteredUsers.map((user) => [
-            <>
-              <b>{user.name || "Unnamed"}</b>
-              <small>{user.email}</small>
-            </>,
-            <span className="pill">{user.role === "CUSTOMER" ? "USER" : user.role}</span>,
-            <span className={`pill ${user.status?.toLowerCase()}`}>{user.status}</span>,
-            new Date(user.created_at).toLocaleDateString(),
-            <div className="row-actions">
-              <button className="small gold" onClick={() => setQrModalUser(user)}>
-                QR
-              </button>
-              <button className="small gold" onClick={() => openDetailsModal(user)}>
-                Details
-              </button>
-              <button className="small gold" onClick={() => openOrdersModal(user)}>
-                Orders
-              </button>
-              <button className="small" onClick={() => setPermissionUser(user)}>
-                Permissions
-              </button>
-              {user.status === "ACTIVE" ? (
-                <button className="small danger" onClick={() => setSuspendModal({ user, action: "SUSPEND" })}>
-                  Suspend
+          rows={filteredUsers.map((user) => {
+            const isTargetOwner =
+              user.id === OWNER_USER_ID ||
+              user.email?.toLowerCase() === OWNER_EMAIL;
+            const isTargetAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+
+            return [
+              <>
+                <b>{user.name || "Unnamed"}</b>
+                <small>{user.email}</small>
+              </>,
+              <span className={`pill ${isTargetOwner || isTargetAdmin ? "gold" : ""}`}>
+                {isTargetOwner ? "OWNER" : isTargetAdmin ? "ADMIN" : "USER"}
+              </span>,
+              <span className={`pill ${user.status?.toLowerCase()}`}>{user.status}</span>,
+              new Date(user.created_at).toLocaleDateString(),
+              <div className="row-actions">
+                <button className="small gold" onClick={() => setQrModalUser(user)}>
+                  QR
                 </button>
-              ) : (
-                <button className="small gold" onClick={() => setSuspendModal({ user, action: "REACTIVATE" })}>
-                  Reactivate
+                <button className="small gold" onClick={() => openDetailsModal(user)}>
+                  Details
                 </button>
-              )}
-            </div>,
-          ])}
+                <button className="small gold" onClick={() => openOrdersModal(user)}>
+                  Orders
+                </button>
+                <button className="small" onClick={() => setPermissionUser(user)}>
+                  Permissions
+                </button>
+                {isTargetOwner ? (
+                  <span className="admin-owner-badge" title="Protected Owner Account">👑 Owner</span>
+                ) : isActorOwner ? (
+                  isTargetAdmin ? (
+                    <button
+                      className="small admin-action-demote"
+                      disabled={savingRoleUserId === user.id}
+                      onClick={() => handleToggleAdminRole(user, "DEMOTE")}
+                      title="Revoke administrator privileges and return to regular user"
+                    >
+                      {savingRoleUserId === user.id ? "Removing..." : "Remove admin"}
+                    </button>
+                  ) : (
+                    <button
+                      className="small admin-action-promote"
+                      disabled={savingRoleUserId === user.id}
+                      onClick={() => handleToggleAdminRole(user, "PROMOTE")}
+                      title="Promote user to administrator"
+                    >
+                      {savingRoleUserId === user.id ? "Promoting..." : "Make admin"}
+                    </button>
+                  )
+                ) : null}
+                {isTargetOwner ? null : user.status === "ACTIVE" ? (
+                  <button className="small danger" onClick={() => setSuspendModal({ user, action: "SUSPEND" })}>
+                    Suspend
+                  </button>
+                ) : (
+                  <button className="small gold" onClick={() => setSuspendModal({ user, action: "REACTIVATE" })}>
+                    Reactivate
+                  </button>
+                )}
+              </div>,
+            ];
+          })}
         />
       )}
 

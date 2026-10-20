@@ -21,20 +21,20 @@
 html.dark .zappit-import-shell,
 body.dark-mode .zappit-import-shell,
 :root[data-theme="dark"] .zappit-import-shell {
-  --import-shell-bg: #0F172A;
-  --import-shell-border: #1E293B;
-  --import-header-bg: #1E293B;
-  --import-toolbar-bg: #0F172A;
-  --import-body-bg: #0F172A;
-  --import-footer-bg: #1E293B;
-  --import-card-bg: #1E293B;
-  --import-card-border: #334155;
-  --import-text-primary: #F8FAFC;
-  --import-text-secondary: #94A3B8;
-  --import-input-bg: #1E293B;
-  --import-input-border: #334155;
-  --import-drop-bg: rgba(30, 41, 59, 0.6);
-  --import-drop-border: #334155;
+  --import-shell-bg: #1B1C21;
+  --import-shell-border: #343740;
+  --import-header-bg: #141519;
+  --import-toolbar-bg: #1B1C21;
+  --import-body-bg: #1B1C21;
+  --import-footer-bg: #141519;
+  --import-card-bg: #141519;
+  --import-card-border: #343740;
+  --import-text-primary: #F5F6F8;
+  --import-text-secondary: #B5B8C2;
+  --import-input-bg: #111216;
+  --import-input-border: #343740;
+  --import-drop-bg: #111216;
+  --import-drop-border: #343740;
 }
 
 .zappit-import-overlay {

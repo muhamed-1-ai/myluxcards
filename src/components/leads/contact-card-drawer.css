@@ -20,19 +20,19 @@
 body.dark-mode,
 .dark,
 :root[data-theme="dark"] {
-  --zappit-sheet-bg: #0B1426;
-  --zappit-sheet-border: #1E293B;
-  --zappit-sheet-text-primary: #F8FAFC;
-  --zappit-sheet-text-secondary: #CBD5E1;
-  --zappit-sheet-text-muted: #94A3B8;
-  --zappit-sheet-card-bg: #0F1A30;
-  --zappit-sheet-card-border: #1E293B;
-  --zappit-sheet-separator: #1E293B;
-  --zappit-sheet-handle: #334155;
-  --zappit-sheet-btn-secondary-bg: #132038;
-  --zappit-sheet-btn-secondary-border: #1E293B;
-  --zappit-sheet-btn-secondary-text: #E2E8F0;
-  --zappit-sheet-btn-secondary-hover: #1E2D4D;
+  --zappit-sheet-bg: #1B1C21;
+  --zappit-sheet-border: #343740;
+  --zappit-sheet-text-primary: #F5F6F8;
+  --zappit-sheet-text-secondary: #B5B8C2;
+  --zappit-sheet-text-muted: #969CA8;
+  --zappit-sheet-card-bg: #141519;
+  --zappit-sheet-card-border: #343740;
+  --zappit-sheet-separator: #343740;
+  --zappit-sheet-handle: #343740;
+  --zappit-sheet-btn-secondary-bg: #23252C;
+  --zappit-sheet-btn-secondary-border: #343740;
+  --zappit-sheet-btn-secondary-text: #F5F6F8;
+  --zappit-sheet-btn-secondary-hover: #14263A;
 }
 
 /* Backdrop */

@@ -410,7 +410,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-xs font-semibold text-[#0066FF] hover:text-blue-700 dark:hover:text-[#00E5FF] flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-blue-500/10 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                className="text-xs font-semibold text-[#0066FF] hover:text-blue-700 dark:hover:text-[#168BFF] flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-blue-500/10 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark all as read

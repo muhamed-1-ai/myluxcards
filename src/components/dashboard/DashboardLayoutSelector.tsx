@@ -126,9 +126,9 @@ export function DashboardLayoutSelectorModal({
                 key={opt.id}
                 onClick={() => handleSelect(opt.id)}
                 style={{
-                  background: isSelected ? "rgba(0, 229, 255, 0.05)" : "var(--surface)",
-                  border: isSelected ? "2px solid #0066FF" : "1px solid var(--border-color)",
-                  boxShadow: isSelected ? "0 0 20px rgba(0, 229, 255, 0.18)" : "none",
+                  background: isSelected ? "#14263A" : "var(--surface, #1B1C21)",
+                  border: isSelected ? "1px solid #168BFF" : "1px solid var(--border-color, #343740)",
+                  boxShadow: "none",
                   borderRadius: 16,
                   padding: 18,
                   cursor: "pointer",
@@ -141,31 +141,31 @@ export function DashboardLayoutSelectorModal({
               >
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: "#0B0C10", border: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--bg-secondary, #111216)", border: "1px solid var(--border-color, #343740)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {opt.icon}
                     </div>
 
                     {isSelected && (
-                      <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.18)", border: "1px solid rgba(0, 229, 255,0.35)", padding: "3px 10px", borderRadius: 10, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#168BFF", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.35)", padding: "3px 10px", borderRadius: 10, display: "flex", alignItems: "center", gap: 4 }}>
                         <Check className="w-3 h-3" /> Current
                       </span>
                     )}
                   </div>
 
-                  <h3 style={{ fontSize: 15, fontWeight: 700, color: isSelected ? "#F5E6A3" : "#FFF", margin: "0 0 2px" }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary, #F5F6F8)", margin: "0 0 2px" }}>
                     {opt.title}
                   </h3>
-                  <div style={{ fontSize: 11.5, color: "#888", fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted, #969CA8)", fontWeight: 600, marginBottom: 8 }}>
                     {opt.subtitle}
                   </div>
-                  <p style={{ fontSize: 12, color: "#AAA", lineHeight: 1.45, margin: 0 }}>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary, #B5B8C2)", lineHeight: 1.45, margin: 0 }}>
                     {opt.description}
                   </p>
                 </div>
 
-                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border-color, #343740)", display: "flex", justifyContent: "flex-end" }}>
                   {isSelected ? (
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#0066FF" }}>Active Layout ✓</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: "#168BFF" }}>Active Layout ✓</span>
                   ) : (
                     <button
                       type="button"
@@ -175,9 +175,9 @@ export function DashboardLayoutSelectorModal({
                         borderRadius: 10,
                         fontSize: 12,
                         fontWeight: 700,
-                        background: "#0D0E15",
-                        color: "#0066FF",
-                        border: "1px solid rgba(0, 229, 255,0.35)",
+                        background: "var(--surface-elevated, #23252C)",
+                        color: "#168BFF",
+                        border: "1px solid var(--border-color, #343740)",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
                       }}
@@ -212,9 +212,9 @@ export function CompactDashboardLayoutDropdown({
         style={{
           fontSize: 12,
           padding: "6px 14px",
-          background: "#0D0E15",
-          color: "#0066FF",
-          borderColor: "rgba(0, 229, 255,0.35)",
+          background: "var(--surface-elevated, #23252C)",
+          color: "var(--text-primary, #F5F6F8)",
+          borderColor: "var(--border-color, #343740)",
           display: "flex",
           alignItems: "center",
           gap: 6,
@@ -232,8 +232,8 @@ export function CompactDashboardLayoutDropdown({
             top: "calc(100% + 6px)",
             right: 0,
             width: 240,
-            background: "#0B0C10",
-            border: "1px solid rgba(0, 229, 255, 0.35)",
+            background: "var(--surface-elevated, #23252C)",
+            border: "1px solid var(--border-color, #343740)",
             borderRadius: 14,
             boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
             zIndex: 90,
@@ -257,8 +257,8 @@ export function CompactDashboardLayoutDropdown({
                 borderRadius: 10,
                 fontSize: 12,
                 fontWeight: opt.id === currentLayout ? 700 : 500,
-                background: opt.id === currentLayout ? "rgba(0, 229, 255,0.15)" : "transparent",
-                color: opt.id === currentLayout ? "#0066FF" : "#FFF",
+                background: opt.id === currentLayout ? "#14263A" : "transparent",
+                color: opt.id === currentLayout ? "#168BFF" : "var(--text-primary, #F5F6F8)",
                 border: "none",
                 textAlign: "left",
                 cursor: "pointer",
@@ -268,7 +268,7 @@ export function CompactDashboardLayoutDropdown({
               }}
             >
               <span>{opt.title}</span>
-              {opt.id === currentLayout && <Check className="w-3.5 h-3.5 text-[#0066FF]" />}
+              {opt.id === currentLayout && <Check className="w-3.5 h-3.5 text-[#168BFF]" />}
             </button>
           ))}
         </div>

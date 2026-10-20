@@ -2435,20 +2435,20 @@ th {
   top: 50px;
   width: 250px;
   padding: 17px;
-  background: #090909;
-  border: 1px solid #0066FF70;
-  border-radius: 10px;
-  box-shadow: 0 18px 45px #000c;
+  background: #23252C;
+  border: 1px solid #343740;
+  border-radius: 12px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
   display: grid;
   gap: 6px;
   z-index: 80;
 }
 .account-popover strong {
-  color: #fff;
+  color: #F5F6F8;
   font-size: 14px;
 }
 .account-popover span {
-  color: #b8ae98;
+  color: #B5B8C2;
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2456,23 +2456,24 @@ th {
 .account-popover button {
   margin-top: 10px;
   padding: 10px;
-  border: 1px solid #0066FF;
+  border: 1px solid #0967D2;
   border-radius: 7px;
-  background: #0066FF;
-  color: #050505;
+  background: #0967D2;
+  color: #FFFFFF;
   font-weight: 800;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 .account-popover button:hover {
-  background: #f0ce63;
+  background: #075BBE;
 }
 .account-popover .btn-change-nickname {
   margin-top: 8px;
   padding: 8px 12px;
-  border: 1px solid rgba(0, 102, 255, 0.4);
+  border: 1px solid rgba(22, 139, 255, 0.3);
   border-radius: 7px;
-  background: rgba(0, 102, 255, 0.12);
-  color: #0066FF;
+  background: #14263A;
+  color: #168BFF;
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
@@ -2483,9 +2484,9 @@ th {
   transition: all 0.2s ease;
 }
 .account-popover .btn-change-nickname:hover {
-  background: rgba(0, 102, 255, 0.22);
-  border-color: #0066FF;
-  color: #3385ff;
+  background: #1b3350;
+  border-color: #168BFF;
+  color: #168BFF;
 }
 
 .phone-preview {
@@ -3920,8 +3921,8 @@ th {
 .crm-loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid rgba(0, 229, 255, 0.15);
-  border-top-color: #00E5FF;
+  border: 3px solid rgba(22, 139, 255, 0.2);
+  border-top-color: #168BFF;
   border-radius: 50%;
   animation: crm-spin 0.75s linear infinite;
 }
@@ -3983,8 +3984,8 @@ th {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #1B1C21;
+  border: 1px solid #343740;
   padding: 14px 22px;
   border-radius: 18px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -4003,7 +4004,7 @@ th {
   left: 14px;
   width: 18px;
   height: 18px;
-  color: #0066FF;
+  color: #168BFF;
   pointer-events: none;
 }
 
@@ -4094,8 +4095,8 @@ th {
 
 /* 2. FILTER CONTROLS TOOLBAR */
 .crm-filter-toolbar {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 18px;
   padding: 14px 18px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
@@ -4118,10 +4119,10 @@ th {
   width: 100%;
   height: 42px;
   padding: 0 32px 0 12px;
-  background: #181924 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: #111216 !important;
+  border: 1px solid #343740 !important;
   border-radius: 10px !important;
-  color: #FFFFFF !important;
+  color: #F5F6F8 !important;
   font-size: 12px !important;
   font-weight: 600 !important;
   outline: none !important;
@@ -4133,12 +4134,12 @@ th {
 
 .crm-filter-select:focus,
 .crm-filter-date:focus {
-  border-color: #0066FF !important;
+  border-color: #168BFF !important;
 }
 
 .crm-filter-select option {
-  background: #181924;
-  color: #FFFFFF;
+  background: #23252C;
+  color: #F5F6F8;
 }
 
 .crm-filter-arrow {
@@ -4161,8 +4162,8 @@ th {
 }
 
 .crm-kpi-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 20px;
   padding: 24px 26px;
   min-height: 160px;
@@ -4258,7 +4259,7 @@ th {
 
 .crm-kpi-featured-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0066FF 0%, #00E5FF 100%);
+  background: #168BFF;
   border-radius: 999px;
   transition: width 0.4s ease;
 }
@@ -4274,7 +4275,7 @@ th {
 
 /* Capacity Card in 4x2 Grid */
 .crm-kpi-card-capacity {
-  background: #12131A;
+  background: #1B1C21;
 }
 
 .crm-kpi-capacity-btn {
@@ -4284,9 +4285,9 @@ th {
   gap: 6px;
   padding: 8px 12px;
   border-radius: 50px;
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.3);
-  color: #00E5FF;
+  background: #14263A;
+  border: 1px solid rgba(22, 139, 255, 0.3);
+  color: #168BFF;
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
@@ -4296,8 +4297,8 @@ th {
 }
 
 .crm-kpi-capacity-btn:hover {
-  background: rgba(0, 229, 255, 0.22);
-  border-color: rgba(0, 229, 255, 0.5);
+  background: rgba(22, 139, 255, 0.22);
+  border-color: rgba(22, 139, 255, 0.5);
 }
 
 /* 5. MAIN ANALYTICS 2-COLUMN ROW (Reference 2) */
@@ -4319,8 +4320,8 @@ th {
 
 /* Vertical Bar Chart for LOB Analysis (Reference 3) */
 .crm-lob-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 20px;
   padding: 24px;
   display: flex;
@@ -4406,16 +4407,16 @@ th {
 .crm-lob-bar-fill {
   width: 100%;
   max-width: 44px;
-  background: linear-gradient(180deg, #00E5FF 0%, #0066FF 100%);
+  background: #168BFF;
   border-radius: 8px 8px 0 0;
   transition: height 0.4s ease, filter 0.2s ease;
   position: relative;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.3);
+  box-shadow: none;
 }
 
 .crm-lob-bar-fill:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.15);
   transform: translateY(-1px);
 }
 
@@ -4543,8 +4544,8 @@ th {
 .crm-lob-hbar-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #0066FF 0%, #00E5FF 100%);
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+  background: #168BFF;
+  box-shadow: none;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -4655,8 +4656,8 @@ th {
 
 /* COMPACT DASHBOARD CALENDAR WIDGET */
 .crm-calendar-widget-card {
-  background: var(--surface, #12131A);
-  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  background: var(--surface, #1B1C21);
+  border: 1px solid var(--border-color, #343740);
   border-radius: 20px;
   padding: 22px;
   display: flex;
@@ -4690,20 +4691,20 @@ th {
 .crm-cal-header-icon {
   width: 18px;
   height: 18px;
-  color: #00E5FF;
+  color: #168BFF;
 }
 
 .crm-cal-card-title {
   font-size: 16px;
   font-weight: 800;
-  color: var(--text-primary, #FFFFFF);
+  color: var(--text-primary, #F5F6F8);
   margin: 0;
   line-height: 1.2;
 }
 
 .crm-cal-card-month {
   font-size: 11.5px;
-  color: var(--text-muted, #94A3B8);
+  color: var(--text-muted, #969CA8);
   font-weight: 600;
 }
 
@@ -4717,9 +4718,9 @@ th {
   height: 28px;
   padding: 0 10px;
   border-radius: 7px;
-  background: rgba(0, 102, 255, 0.12);
-  border: 1px solid rgba(0, 102, 255, 0.25);
-  color: #0066FF;
+  background: #14263A;
+  border: 1px solid rgba(22, 139, 255, 0.3);
+  color: #168BFF;
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
@@ -4727,7 +4728,7 @@ th {
 }
 
 .crm-cal-today-btn:hover {
-  background: rgba(0, 102, 255, 0.22);
+  background: rgba(22, 139, 255, 0.22);
 }
 
 .crm-cal-arrows {
@@ -4740,9 +4741,9 @@ th {
   width: 28px;
   height: 28px;
   border-radius: 7px;
-  background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary, #FFFFFF);
+  background: #141519;
+  border: 1px solid #343740;
+  color: var(--text-primary, #F5F6F8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4751,9 +4752,9 @@ th {
 }
 
 .crm-cal-arrow-btn:hover {
-  background: rgba(0, 102, 255, 0.15);
-  border-color: rgba(0, 102, 255, 0.3);
-  color: #00E5FF;
+  background: #14263A;
+  border-color: rgba(22, 139, 255, 0.4);
+  color: #168BFF;
 }
 
 .crm-cal-weekdays-grid {
@@ -4766,7 +4767,7 @@ th {
 .crm-cal-weekday-cell {
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted, #64748B);
+  color: var(--text-muted, #969CA8);
   padding: 4px 0;
 }
 
@@ -4785,7 +4786,7 @@ th {
   border-radius: 8px;
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-primary, #E2E8F0);
+  color: var(--text-primary, #F5F6F8);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4798,28 +4799,28 @@ th {
 }
 
 .crm-cal-day-btn:hover {
-  background: rgba(0, 102, 255, 0.12);
-  color: #00E5FF;
+  background: #14263A;
+  color: #168BFF;
 }
 
 .crm-cal-day-btn.is-today {
-  border-color: rgba(0, 229, 255, 0.4);
-  color: #00E5FF;
+  border-color: rgba(22, 139, 255, 0.45);
+  color: #168BFF;
   font-weight: 800;
 }
 
 .crm-cal-day-btn.is-selected {
-  background: #0066FF !important;
+  background: #0967D2 !important;
   color: #FFFFFF !important;
   font-weight: 800 !important;
-  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.4);
+  box-shadow: none;
 }
 
 .crm-cal-dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #00E5FF;
+  background: #168BFF;
   position: absolute;
   bottom: 3px;
 }
@@ -4882,15 +4883,16 @@ th {
 
 .crm-cal-agenda-title {
   font-weight: 700;
-  color: var(--text-muted, #94A3B8);
+  color: var(--text-muted, #969CA8);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .crm-cal-agenda-badge {
   font-weight: 700;
-  color: #00E5FF;
-  background: rgba(0, 229, 255, 0.1);
+  color: #168BFF;
+  background: #14263A;
+  border: 1px solid rgba(22, 139, 255, 0.3);
   padding: 2px 7px;
   border-radius: 50px;
   font-size: 10.5px;
@@ -4906,8 +4908,8 @@ th {
 .crm-cal-agenda-item {
   padding: 8px 10px;
   border-radius: 8px;
-  background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  background: #141519;
+  border: 1px solid #343740;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -4926,13 +4928,13 @@ th {
   gap: 4px;
   font-size: 10.5px;
   font-weight: 700;
-  color: #00E5FF;
+  color: #168BFF;
 }
 
 .crm-cal-agenda-lead {
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-primary, #FFFFFF);
+  color: var(--text-primary, #F5F6F8);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -4941,7 +4943,7 @@ th {
 
 .crm-cal-agenda-note {
   font-size: 11px;
-  color: var(--text-muted, #94A3B8);
+  color: var(--text-muted, #B5B8C2);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -4952,7 +4954,7 @@ th {
   text-align: center;
   padding: 16px 0;
   font-size: 12px;
-  color: var(--text-muted, #94A3B8);
+  color: var(--text-muted, #969CA8);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4964,9 +4966,9 @@ th {
   height: 38px;
   width: 100%;
   border-radius: 10px;
-  background: rgba(0, 102, 255, 0.1);
-  border: 1px solid rgba(0, 102, 255, 0.25);
-  color: #0066FF;
+  background: #14263A;
+  border: 1px solid rgba(22, 139, 255, 0.3);
+  color: #168BFF;
   font-size: 12.5px;
   font-weight: 700;
   display: flex;
@@ -4978,14 +4980,14 @@ th {
 }
 
 .crm-cal-view-full-btn:hover {
-  background: rgba(0, 102, 255, 0.2);
-  border-color: rgba(0, 102, 255, 0.4);
-  color: #00E5FF;
+  background: #0967D2;
+  border-color: #075BBE;
+  color: #FFFFFF;
 }
 
 .crm-chart-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 20px;
   padding: 24px;
   display: flex;
@@ -4997,8 +4999,8 @@ th {
 }
 
 .crm-pipeline-card {
-  background: #12131A;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 20px;
   padding: 24px;
   display: flex;
@@ -5206,8 +5208,8 @@ th {
 
 /* 2. DASHBOARD FILTERS CARD */
 .crm-filter-card {
-  background: var(--surface, #12131A);
-  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  background: var(--surface, #1B1C21);
+  border: 1px solid var(--border-color, #343740);
   border-radius: 16px;
   padding: 24px;
   display: flex;
@@ -5231,7 +5233,7 @@ th {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #00E5FF;
+  color: #168BFF;
 }
 
 .crm-filter-subtitle {
@@ -5256,19 +5258,19 @@ th {
   justify-content: center;
   gap: 8px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #0066FF 0%, #00E5FF 100%);
+  background: #0967D2;
   color: #FFFFFF;
   font-weight: 700;
   font-size: 13.5px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.3);
+  box-shadow: none;
   transition: all 0.2s ease;
 }
 
 .crm-btn-customize-primary:hover {
+  background: #075BBE;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 102, 255, 0.4);
 }
 
 .crm-filter-btn-secondary-row {
@@ -5376,8 +5378,8 @@ th {
 }
 
 .crm-kpi-card {
-  background: var(--surface, #12131A);
-  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  background: var(--surface, #1B1C21);
+  border: 1px solid var(--border-color, #343740);
   border-radius: 16px;
   padding: 24px;
   min-height: 160px;
@@ -5390,7 +5392,7 @@ th {
 }
 
 .crm-kpi-card:hover {
-  border-color: rgba(0, 229, 255, 0.45);
+  border-color: rgba(22, 139, 255, 0.4);
   transform: translateY(-2px);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
@@ -5410,7 +5412,7 @@ th {
 .crm-kpi-sub-link {
   font-size: 13px;
   font-weight: 600;
-  color: #00E5FF;
+  color: #168BFF;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -5419,8 +5421,8 @@ th {
 
 /* 4. DAILY FOLLOW-UP CAPACITY STRIP */
 .crm-capacity-card {
-  background: var(--surface, #12131A);
-  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  background: var(--surface, #1B1C21);
+  border: 1px solid var(--border-color, #343740);
   border-radius: 16px;
   padding: 20px 24px;
   display: flex;
@@ -5445,8 +5447,9 @@ th {
   min-width: 40px;
   min-height: 40px;
   border-radius: 10px;
-  background: rgba(0, 102, 255, 0.12);
-  border: 1px solid rgba(0, 102, 255, 0.25);
+  background: #14263A;
+  border: 1px solid rgba(22, 139, 255, 0.3);
+  color: #168BFF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5455,13 +5458,13 @@ th {
 .crm-capacity-title {
   font-size: 16px;
   font-weight: 700;
-  color: var(--text-primary, #FFFFFF);
+  color: var(--text-primary, #F5F6F8);
   margin: 0;
 }
 
 .crm-capacity-status {
   font-size: 13px;
-  color: var(--text-muted, #94A3B8);
+  color: var(--text-muted, #969CA8);
   margin: 2px 0 0;
 }
 
@@ -5470,9 +5473,9 @@ th {
   min-height: 42px;
   padding: 0 20px;
   border-radius: 10px;
-  background: rgba(0, 102, 255, 0.12);
-  border: 1px solid rgba(0, 102, 255, 0.3);
-  color: #0066FF;
+  background: #14263A;
+  border: 1px solid rgba(22, 139, 255, 0.3);
+  color: #168BFF;
   font-size: 13.5px;
   font-weight: 700;
   display: inline-flex;
@@ -5484,8 +5487,9 @@ th {
 }
 
 .crm-capacity-badge-btn:hover {
-  background: rgba(0, 102, 255, 0.22);
-  border-color: rgba(0, 102, 255, 0.5);
+  background: #0967D2;
+  border-color: #075BBE;
+  color: #FFFFFF;
 }
 
 /* 5. MAIN CHARTS ROW (Growth Velocity & Pipeline Stages) */
@@ -5500,8 +5504,8 @@ th {
 
 .crm-chart-card,
 .crm-pipeline-card {
-  background: var(--surface, #12131A);
-  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  background: var(--surface, #1B1C21);
+  border: 1px solid var(--border-color, #343740);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -5525,8 +5529,8 @@ th {
 .crm-lob-card,
 .crm-calendar-widget-card,
 .crm-product-analytics-card {
-  background: var(--surface, #12131A);
-  border: 1px solid var(--border-color, rgba(0, 229, 255, 0.18));
+  background: var(--surface, #1B1C21);
+  border: 1px solid var(--border-color, #343740);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -5578,7 +5582,7 @@ th {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: #00E5FF;
+  color: #168BFF;
   text-transform: uppercase;
 }
 
@@ -5729,20 +5733,24 @@ th {
   justify-content: space-between;
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(0, 229, 255, 0.15);
-  color: #FFFFFF;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #B5B8C2;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.side-parent-btn:hover,
+.side-parent-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #F5F6F8;
+}
+
 .side-parent-btn.active {
-  background: rgba(0, 229, 255, 0.12);
-  border-color: rgba(0, 229, 255, 0.4);
-  color: #0066FF;
+  background: #14263A;
+  border-color: rgba(22, 139, 255, 0.35);
+  color: #168BFF;
 }
 
 .side-config-subnav {
@@ -5750,7 +5758,7 @@ th {
   flex-direction: column;
   gap: 4px;
   padding: 6px 0 6px 16px;
-  border-left: 2px solid rgba(0, 229, 255, 0.2);
+  border-left: 2px solid #343740;
   margin: 6px 0 6px 12px;
 }
 
@@ -5763,7 +5771,7 @@ th {
   border-radius: 8px;
   background: transparent;
   border: 1px solid transparent;
-  color: #94A3B8;
+  color: #B5B8C2;
   font-size: 12.5px;
   font-weight: 600;
   text-align: left;
@@ -5772,23 +5780,23 @@ th {
 }
 
 .side-config-subitem:hover {
-  color: #FFFFFF;
+  color: #F5F6F8;
   background: rgba(255, 255, 255, 0.04);
 }
 
 .side-config-subitem.active {
-  background: linear-gradient(135deg, #0066FF 0%, #F5D77F 100%);
-  color: #07080B !important;
+  background: #14263A;
+  color: #168BFF !important;
   font-weight: 800;
-  border-color: transparent;
-  box-shadow: 0 4px 14px rgba(0, 229, 255, 0.3);
+  border-color: rgba(22, 139, 255, 0.35);
+  box-shadow: none;
 }
 
 .side-config-subitem-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #07080B;
+  background: #168BFF;
 }
 
 /* ============================================================
@@ -5814,8 +5822,8 @@ th {
 
 /* Top Header Bar */
 .ps-top-header {
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.12), rgba(0, 229, 255, 0.06));
-  border: 1px solid rgba(0, 229, 255, 0.3);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 16px;
   padding: 18px 22px;
   margin-bottom: 24px;
@@ -5917,8 +5925,8 @@ th {
 /* Mobile Stacked Section Card */
 .ps-mobile-card {
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(0, 229, 255, 0.22);
+  background: #1B1C21;
+  border: 1px solid #343740;
   border-radius: 14px;
   padding: 14px 16px;
   transition: all 0.15s ease;
@@ -6152,7 +6160,7 @@ body.light-mode select option {
   color: #0F172A !important;
 }
 
-/* DARK MODE SYSTEM OVERRIDES (DARK NAVY + WHITE TEXT) */
+/* DARK MODE SYSTEM OVERRIDES (CHARCOAL & PURE BLACK) */
 [data-theme="dark"] body,
 [data-theme="dark"] .dash-shell,
 [data-theme="dark"] .dash-main,
@@ -6161,8 +6169,8 @@ body.dark-mode,
 body.dark-mode .dash-shell,
 body.dark-mode .dash-main,
 body.dark-mode .crm-dashboard-root {
-  background: #070D19 !important;
-  color: #FFFFFF !important;
+  background: #050505 !important;
+  color: #F5F6F8 !important;
 }
 
 [data-theme="dark"] .form-card,
@@ -6193,9 +6201,9 @@ body.dark-mode .crm-lob-card,
 body.dark-mode .crm-calendar-widget-card,
 body.dark-mode .crm-product-analytics-card,
 body.dark-mode .mode-settings-block {
-  background: #0D1726 !important;
-  border-color: #1E293B !important;
-  color: #FFFFFF !important;
+  background: #1B1C21 !important;
+  border-color: #343740 !important;
+  color: #F5F6F8 !important;
 }
 
 [data-theme="dark"] h1,
@@ -6210,7 +6218,7 @@ body.dark-mode h3,
 body.dark-mode h4,
 body.dark-mode h5,
 body.dark-mode h6 {
-  color: #FFFFFF !important;
+  color: #F5F6F8 !important;
 }
 
 [data-theme="dark"] input,
@@ -6231,10 +6239,10 @@ body.dark-mode .crm-datepicker-trigger,
 body.dark-mode .crm-filter-control-wrap input,
 body.dark-mode .crm-filter-control-wrap select,
 body.dark-mode .crm-filter-control-wrap button.crm-datepicker-trigger {
-  background-color: #070E1A !important;
-  border: 1px solid #1E293B !important;
-  color: #FFFFFF !important;
-  -webkit-text-fill-color: #FFFFFF !important;
+  background-color: #111216 !important;
+  border: 1px solid #343740 !important;
+  color: #F5F6F8 !important;
+  -webkit-text-fill-color: #F5F6F8 !important;
   color-scheme: dark !important;
 }
 
@@ -6242,14 +6250,44 @@ body.dark-mode .crm-filter-control-wrap button.crm-datepicker-trigger {
 [data-theme="dark"] textarea::placeholder,
 body.dark-mode input::placeholder,
 body.dark-mode textarea::placeholder {
-  color: #64748B !important;
-  -webkit-text-fill-color: #64748B !important;
+  color: #969CA8 !important;
+  -webkit-text-fill-color: #969CA8 !important;
 }
 
 [data-theme="dark"] select option,
 body.dark-mode select option {
-  background-color: #070E1A !important;
+  background-color: #23252C !important;
+  color: #F5F6F8 !important;
+}
+
+[data-theme="dark"] .account-popover,
+body.dark-mode .account-popover {
+  background: #23252C !important;
+  border: 1px solid #343740 !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6) !important;
+  color: #F5F6F8 !important;
+}
+
+[data-theme="dark"] .account-popover strong,
+body.dark-mode .account-popover strong {
+  color: #F5F6F8 !important;
+}
+
+[data-theme="dark"] .account-popover span,
+body.dark-mode .account-popover span {
+  color: #B5B8C2 !important;
+}
+
+[data-theme="dark"] .account-popover button,
+body.dark-mode .account-popover button {
+  background: #0967D2 !important;
   color: #FFFFFF !important;
+  border: 1px solid #0967D2 !important;
+}
+
+[data-theme="dark"] .account-popover button:hover,
+body.dark-mode .account-popover button:hover {
+  background: #075BBE !important;
 }
 
 [data-theme="light"] .crm-btn-refresh,
@@ -7060,8 +7098,8 @@ body.dark-mode .crm-followup-empty-title {
 [data-theme="dark"] .dash-side,
 body.dark-mode .dash-side,
 :root:not([data-theme="light"]) .dash-side {
-  background: linear-gradient(180deg, #13172E 0%, #0B0E1E 100%) !important;
-  border: 1px solid rgba(0, 229, 255, 0.16) !important;
+  background: #141519 !important;
+  border: 1px solid #343740 !important;
 }
 
 .side-logo-wrap {
@@ -7139,22 +7177,22 @@ body.light-mode .side-logo-wrap {
   gap: 20px !important;
   padding-right: 4px !important;
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(0, 229, 255, 0.3) rgba(7, 20, 38, 0.6) !important;
+  scrollbar-color: #343740 #141519 !important;
 }
 
 .side-nav-scroll::-webkit-scrollbar {
   width: 5px;
 }
 .side-nav-scroll::-webkit-scrollbar-track {
-  background: rgba(7, 20, 38, 0.6);
+  background: #141519;
   border-radius: 4px;
 }
 .side-nav-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 229, 255, 0.25);
+  background: #343740;
   border-radius: 4px;
 }
 .side-nav-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 229, 255, 0.5);
+  background: #969CA8;
 }
 
 .side-nav-group {
@@ -7168,7 +7206,7 @@ body.light-mode .side-logo-wrap {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-muted, #64748B);
+  color: var(--text-muted, #969CA8);
   padding: 0 12px 2px 12px;
 }
 
@@ -7179,7 +7217,7 @@ body.light-mode .side-logo-wrap {
   border-radius: 14px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-secondary, #94A3B8);
+  color: var(--text-secondary, #B5B8C2);
   font-size: 13.5px;
   font-weight: 600;
   display: flex;
@@ -7207,11 +7245,11 @@ body.light-mode .side-logo-wrap {
 [data-theme="dark"] .side-nav-item.active,
 body.dark-mode .side-nav-item.active,
 :root:not([data-theme="light"]) .side-nav-item.active {
-  background: #080A12 !important;
-  color: #FFFFFF !important;
+  background: #14263A !important;
+  color: #168BFF !important;
   font-weight: 700 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 102, 255, 0.15) !important;
+  border: 1px solid rgba(22, 139, 255, 0.35) !important;
+  box-shadow: none !important;
 }
 
 .side-nav-item-left {
@@ -7231,12 +7269,12 @@ body.dark-mode .side-nav-item.active,
   width: 15px;
   height: 15px;
   transition: transform 0.2s ease;
-  color: #64748B;
+  color: #969CA8;
 }
 
 .side-chevron.expanded {
   transform: rotate(180deg);
-  color: #0066FF;
+  color: #168BFF;
 }
 
 .side-subnav-list {
@@ -7244,7 +7282,7 @@ body.dark-mode .side-nav-item.active,
   flex-direction: column;
   gap: 5px;
   padding: 4px 0 4px 4px;
-  border-left: 2px solid rgba(0, 229, 255, 0.18);
+  border-left: 2px solid #343740;
   margin: 4px 0 4px 12px;
 }
 
@@ -7259,7 +7297,7 @@ body.dark-mode .side-nav-item.active,
   border-radius: 10px;
   background: transparent;
   border: 1px solid transparent;
-  color: #8A909A;
+  color: #B5B8C2;
   font-size: 14px;
   line-height: 20px;
   font-weight: 500;
@@ -7284,10 +7322,10 @@ body.dark-mode .side-nav-item.active,
 }
 
 .side-subnav-item.active {
-  background: rgba(0, 102, 255, 0.14) !important;
-  color: #0066FF !important;
+  background: #14263A !important;
+  color: #168BFF !important;
   font-weight: 600 !important;
-  border-color: rgba(0, 102, 255, 0.25) !important;
+  border-color: rgba(22, 139, 255, 0.3) !important;
 }
 
 .side-subnav-dot {
@@ -7298,8 +7336,8 @@ body.dark-mode .side-nav-item.active,
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #0066FF;
-  box-shadow: 0 0 6px #0066FF;
+  background: #168BFF;
+  box-shadow: 0 0 6px #168BFF;
   flex-shrink: 0;
   pointer-events: none;
 }
@@ -7349,9 +7387,9 @@ body.dark-mode .side-nav-item.active,
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 20px;
-  background: rgba(0, 229, 255, 0.1);
-  color: #00E5FF;
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: rgba(22, 139, 255, 0.12);
+  color: #168BFF;
+  border: 1px solid rgba(22, 139, 255, 0.3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -7425,14 +7463,21 @@ body.dark-mode .side-nav-item.active,
   justify-content: space-between !important;
   gap: 16px !important;
   padding: 14px 20px !important;
-  background: var(--header-background, var(--surface, #0B1528)) !important;
-  border: 1px solid var(--border, var(--border-color, #1E293B)) !important;
-  color: var(--foreground, var(--text-primary, #FFFFFF)) !important;
+  background: var(--header-background, #141519) !important;
+  border: 1px solid var(--border-color, #343740) !important;
+  color: var(--foreground, #F5F6F8) !important;
   border-radius: 18px !important;
-  box-shadow: var(--card-shadow, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
+  box-shadow: var(--card-shadow, 0 8px 24px rgba(0, 0, 0, 0.4)) !important;
   position: relative !important;
   top: auto !important;
   z-index: 30 !important;
+}
+
+[data-theme="dark"] .dash-main-header,
+body.dark-mode .dash-main-header,
+:root:not([data-theme="light"]) .dash-main-header {
+  background: #141519 !important;
+  border: 1px solid #343740 !important;
 }
 
 .dash-header-left {
@@ -7460,6 +7505,14 @@ body.dark-mode .side-nav-item.active,
   flex-shrink: 0;
 }
 
+[data-theme="dark"] .hamb-toggle,
+body.dark-mode .hamb-toggle,
+:root:not([data-theme="light"]) .hamb-toggle {
+  background: #23252C !important;
+  border: 1px solid #343740 !important;
+  color: #F5F6F8 !important;
+}
+
 .dash-breadcrumbs {
   display: flex !important;
   align-items: center !important;
@@ -7473,20 +7526,20 @@ body.dark-mode .side-nav-item.active,
 
 .crumb-brand {
   font-weight: 800 !important;
-  color: #0066FF !important;
+  color: #168BFF !important;
   letter-spacing: 0.02em !important;
   flex-shrink: 0 !important;
 }
 
 .crumb-slash {
-  color: var(--text-secondary, #64748B) !important;
+  color: var(--text-muted, #969CA8) !important;
   font-weight: 500 !important;
   flex-shrink: 0 !important;
 }
 
 .crumb-target {
   font-weight: 700 !important;
-  color: var(--text-primary, #0F172A) !important;
+  color: var(--text-primary, #F5F6F8) !important;
   min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -7524,9 +7577,25 @@ body.dark-mode .side-nav-item.active,
   white-space: nowrap;
 }
 
+[data-theme="dark"] .dash-theme-btn,
+body.dark-mode .dash-theme-btn,
+:root:not([data-theme="light"]) .dash-theme-btn {
+  background: #23252C !important;
+  border: 1px solid #343740 !important;
+  color: #F5F6F8 !important;
+}
+
 .dash-theme-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(0, 102, 255, 0.3);
+  border-color: rgba(22, 139, 255, 0.3);
+}
+
+[data-theme="dark"] .dash-theme-btn:hover,
+body.dark-mode .dash-theme-btn:hover,
+:root:not([data-theme="light"]) .dash-theme-btn:hover {
+  background: #14263A !important;
+  border-color: #168BFF !important;
+  color: #168BFF !important;
 }
 
 .theme-btn-icon {

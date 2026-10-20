@@ -281,7 +281,7 @@ export function LobReasonsConfig() {
           flexWrap: "wrap",
           gap: 16,
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           padding: "24px 28px",
           borderRadius: 18,
           boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
@@ -309,7 +309,7 @@ export function LobReasonsConfig() {
           flexWrap: "wrap",
           gap: 16,
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           padding: "16px 24px",
           borderRadius: 16,
         }}
@@ -346,7 +346,7 @@ export function LobReasonsConfig() {
                 outline: "none",
                 transition: "all 0.2s ease",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(0, 229, 255, 0.6)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border-color)")}
             />
           </div>
@@ -386,9 +386,9 @@ export function LobReasonsConfig() {
               style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#0066FF",
-                background: "rgba(0, 229, 255, 0.1)",
-                border: "1px solid rgba(0, 229, 255, 0.25)",
+                color: "var(--primary)",
+                background: "#14263A",
+                border: "1px solid rgba(22, 139, 255, 0.3)",
                 padding: "8px 14px",
                 borderRadius: 8,
                 cursor: "pointer",
@@ -411,20 +411,20 @@ export function LobReasonsConfig() {
             padding: "0 22px",
             fontSize: 13,
             fontWeight: 800,
-            color: "#FFFFFF",
-            background: "#0066FF",
+            color: "var(--primary-foreground, #FFFFFF)",
+            background: "var(--primary)",
             border: "none",
             borderRadius: 10,
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+            boxShadow: "none",
             transition: "all 0.2s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#E6C200";
+            e.currentTarget.style.background = "var(--primary-dark, #075BBE)";
             e.currentTarget.style.transform = "translateY(-1px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#0066FF";
+            e.currentTarget.style.background = "var(--primary)";
             e.currentTarget.style.transform = "translateY(0)";
           }}
         >
@@ -437,7 +437,7 @@ export function LobReasonsConfig() {
       <div
         style={{
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           borderRadius: 18,
           padding: 24,
           boxShadow: "0 8px 28px rgba(0, 0, 0, 0.35)",
@@ -467,9 +467,9 @@ export function LobReasonsConfig() {
             style={{
               fontSize: 12,
               fontWeight: 800,
-              color: "#0066FF",
-              background: "rgba(0, 229, 255, 0.12)",
-              border: "1px solid rgba(0, 229, 255, 0.25)",
+              color: "var(--primary)",
+              background: "#14263A",
+              border: "1px solid rgba(22, 139, 255, 0.3)",
               padding: "4px 14px",
               borderRadius: 20,
             }}
@@ -596,7 +596,7 @@ export function LobReasonsConfig() {
                               justifyContent: "center",
                               transition: "all 0.15s ease",
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
                             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
                           >
                             <MoreVertical style={{ width: 16, height: 16 }} />
@@ -612,7 +612,7 @@ export function LobReasonsConfig() {
                                 zIndex: 30,
                                 width: 160,
                                 background: "var(--bg-secondary)",
-                                border: "1px solid rgba(0, 229, 255, 0.3)",
+                                border: "1px solid var(--border-color)",
                                 borderRadius: 12,
                                 boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
                                 padding: 6,
@@ -771,7 +771,7 @@ export function LobReasonsConfig() {
         ) : reasons.length === 0 ? (
           /* CLEAN EMPTY STATE - NO ITEMS CONFIGURED */
           <div style={{ padding: "50px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileText style={{ width: 22, height: 22 }} />
             </div>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -791,12 +791,12 @@ export function LobReasonsConfig() {
                 padding: "10px 20px",
                 fontSize: 13,
                 fontWeight: 700,
-                background: "#0066FF",
+                background: "var(--primary)",
                 border: "none",
                 borderRadius: 8,
-                color: "#FFFFFF",
+                color: "var(--primary-foreground, #FFFFFF)",
                 cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+                boxShadow: "none",
               }}
             >
               <Plus style={{ width: 16, height: 16, strokeWidth: 2.5 }} />
@@ -806,7 +806,7 @@ export function LobReasonsConfig() {
         ) : (
           /* EMPTY STATE - NO SEARCH MATCHES */
           <div style={{ padding: "50px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileText style={{ width: 22, height: 22 }} />
             </div>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -827,9 +827,9 @@ export function LobReasonsConfig() {
                 fontSize: 12,
                 fontWeight: 700,
                 background: "var(--bg-secondary)",
-                border: "1px solid rgba(0, 229, 255, 0.3)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 8,
-                color: "#0066FF",
+                color: "var(--primary)",
                 cursor: "pointer",
               }}
             >
@@ -860,7 +860,7 @@ export function LobReasonsConfig() {
               width: "100%",
               maxWidth: 640,
               background: "var(--surface)",
-              border: "1px solid rgba(0, 229, 255, 0.3)",
+              border: "1px solid var(--border-color)",
               borderRadius: 18,
               boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
               display: "flex",
@@ -979,8 +979,8 @@ export function LobReasonsConfig() {
                       alignItems: "center",
                       gap: 10,
                       padding: "12px 16px",
-                      background: formData.status === "ACTIVE" ? "rgba(0, 229, 255, 0.12)" : "var(--bg-secondary)",
-                      border: formData.status === "ACTIVE" ? "1px solid #0066FF" : "1px solid var(--border-color)",
+                      background: formData.status === "ACTIVE" ? "#14263A" : "var(--bg-secondary)",
+                      border: formData.status === "ACTIVE" ? "1px solid #168BFF" : "1px solid var(--border-color)",
                       borderRadius: 10,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
@@ -1041,7 +1041,7 @@ export function LobReasonsConfig() {
                 gap: 12,
                 padding: "18px 28px",
                 borderTop: "1px solid var(--border-color)",
-                background: "#161722",
+                background: "#141519",
               }}
             >
               <button
@@ -1069,11 +1069,11 @@ export function LobReasonsConfig() {
                   fontSize: 13,
                   fontWeight: 800,
                   borderRadius: 9,
-                  background: "#0066FF",
-                  color: "#FFFFFF",
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground, #FFFFFF)",
                   border: "none",
                   cursor: isSaving ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 14px rgba(0, 229, 255, 0.25)",
+                  boxShadow: "none",
                 }}
               >
                 {isSaving ? "Creating..." : editingReason ? "Save Changes" : "Create Reason"}

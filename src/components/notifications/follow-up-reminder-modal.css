@@ -3,41 +3,44 @@
    ========================================================================== */
 
 /* Design Tokens & Theme Variables */
-:root {
-  --fur-surface: #0B1324;
-  --fur-border: #1E293B;
-  --fur-border-subtle: rgba(255, 255, 255, 0.08);
-  --fur-text-title: #FFFFFF;
-  --fur-text-body: #CBD5E1;
-  --fur-text-muted: #94A3B8;
-  --fur-note-bg: rgba(15, 23, 42, 0.7);
-  --fur-note-border: rgba(255, 255, 255, 0.08);
+:root,
+[data-theme="dark"],
+html.dark,
+body.dark-mode {
+  --fur-surface: #1B1C21;
+  --fur-border: #343740;
+  --fur-border-subtle: #343740;
+  --fur-text-title: #F5F6F8;
+  --fur-text-body: #B5B8C2;
+  --fur-text-muted: #969CA8;
+  --fur-note-bg: #111216;
+  --fur-note-border: #343740;
   --fur-badge-overdue-bg: rgba(245, 158, 11, 0.14);
   --fur-badge-overdue-text: #F59E0B;
   --fur-badge-overdue-border: rgba(245, 158, 11, 0.3);
-  --fur-badge-due-bg: rgba(0, 102, 255, 0.14);
-  --fur-badge-due-text: #00E5FF;
-  --fur-badge-due-border: rgba(0, 102, 255, 0.3);
-  --fur-type-badge-bg: rgba(255, 255, 255, 0.08);
-  --fur-type-badge-text: #CBD5E1;
-  --fur-type-badge-border: rgba(255, 255, 255, 0.12);
-  --fur-btn-primary-bg: #0066FF;
-  --fur-btn-primary-hover: #0052CC;
-  --fur-btn-primary-active: #0040A8;
+  --fur-badge-due-bg: #14263A;
+  --fur-badge-due-text: #168BFF;
+  --fur-badge-due-border: rgba(22, 139, 255, 0.3);
+  --fur-type-badge-bg: #141519;
+  --fur-type-badge-text: #B5B8C2;
+  --fur-type-badge-border: #343740;
+  --fur-btn-primary-bg: #0967D2;
+  --fur-btn-primary-hover: #075BBE;
+  --fur-btn-primary-active: #054B9E;
   --fur-btn-primary-text: #FFFFFF;
-  --fur-btn-secondary-bg: rgba(255, 255, 255, 0.05);
-  --fur-btn-secondary-border: rgba(255, 255, 255, 0.16);
-  --fur-btn-secondary-hover: rgba(255, 255, 255, 0.09);
-  --fur-btn-secondary-text: #F8FAFC;
+  --fur-btn-secondary-bg: #23252C;
+  --fur-btn-secondary-border: #343740;
+  --fur-btn-secondary-hover: #14263A;
+  --fur-btn-secondary-text: #F5F6F8;
   --fur-btn-quieter-bg: transparent;
-  --fur-btn-quieter-border: rgba(255, 255, 255, 0.1);
-  --fur-btn-quieter-hover: rgba(255, 255, 255, 0.06);
-  --fur-btn-quieter-text: #94A3B8;
-  --fur-btn-quieter-text-hover: #F1F5F9;
-  --fur-close-hover-bg: rgba(255, 255, 255, 0.08);
-  --fur-close-hover-color: #FFFFFF;
-  --fur-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(255, 255, 255, 0.08);
-  --fur-focus-ring: rgba(0, 102, 255, 0.5);
+  --fur-btn-quieter-border: #343740;
+  --fur-btn-quieter-hover: #23252C;
+  --fur-btn-quieter-text: #969CA8;
+  --fur-btn-quieter-text-hover: #F5F6F8;
+  --fur-close-hover-bg: #23252C;
+  --fur-close-hover-color: #F5F6F8;
+  --fur-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.75), 0 0 1px 1px #343740;
+  --fur-focus-ring: rgba(22, 139, 255, 0.5);
 }
 
 [data-theme="light"],
@@ -292,13 +295,14 @@ body.light-mode .fur-backdrop {
 }
 
 .fur-queue-item.active {
-  background: rgba(0, 102, 255, 0.14);
-  color: #00E5FF;
+  background: #14263A;
+  color: #168BFF;
   font-weight: 600;
 }
 
 [data-theme="light"] .fur-queue-item.active,
 body.light-mode .fur-queue-item.active {
+  background: rgba(0, 102, 255, 0.14);
   color: #0066FF;
 }
 
@@ -378,7 +382,7 @@ body.light-mode .fur-queue-item.active {
 
 [data-theme="dark"] .fur-schedule-icon,
 body.dark-mode .fur-schedule-icon {
-  color: #00E5FF;
+  color: #168BFF;
 }
 
 .fur-schedule-text {

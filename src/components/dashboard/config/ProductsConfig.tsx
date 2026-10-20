@@ -382,14 +382,14 @@ export function ProductsConfig() {
           flexWrap: "wrap",
           gap: 16,
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           padding: "24px 28px",
           borderRadius: 18,
           boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
         }}
       >
         <div>
-          <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
             MASTER CONFIGURATION
           </span>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--text-primary)", margin: "4px 0 2px", fontFamily: "Inter, system-ui, sans-serif", letterSpacing: "-0.01em" }}>
@@ -411,20 +411,20 @@ export function ProductsConfig() {
             padding: "0 22px",
             fontSize: 13,
             fontWeight: 800,
-            color: "#FFFFFF",
-            background: "#0066FF",
+            color: "var(--primary-foreground, #FFFFFF)",
+            background: "var(--primary)",
             border: "none",
             borderRadius: 10,
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+            boxShadow: "none",
             transition: "all 0.2s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#E6C200";
+            e.currentTarget.style.background = "var(--primary-dark, #075BBE)";
             e.currentTarget.style.transform = "translateY(-1px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#0066FF";
+            e.currentTarget.style.background = "var(--primary)";
             e.currentTarget.style.transform = "translateY(0)";
           }}
         >
@@ -437,7 +437,7 @@ export function ProductsConfig() {
       <div
         style={{
           background: "var(--surface)",
-          border: "1px solid rgba(0, 229, 255, 0.18)",
+          border: "1px solid var(--border-color)",
           borderRadius: 18,
           padding: 24,
           boxShadow: "0 8px 28px rgba(0, 0, 0, 0.35)",
@@ -485,7 +485,7 @@ export function ProductsConfig() {
                 outline: "none",
                 transition: "all 0.2s ease",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(0, 229, 255, 0.6)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border-color)")}
             />
           </div>
@@ -524,28 +524,28 @@ export function ProductsConfig() {
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: 920 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border-color)", height: 48, background: "var(--bg-secondary)" }}>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       PRODUCT NAME
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       PRODUCT CODE
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       CATEGORY
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       UNIT PRICE
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       STATUS
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       CREATED DATE
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                       UPDATED DATE
                     </th>
-                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "right" }}>
+                    <th style={{ padding: "12px 18px", fontSize: 11, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "right" }}>
                       ACTIONS
                     </th>
                   </tr>
@@ -583,9 +583,9 @@ export function ProductsConfig() {
                             style={{
                               fontSize: 11,
                               fontWeight: 800,
-                              color: "#0066FF",
-                              background: "rgba(0, 229, 255, 0.1)",
-                              border: "1px solid rgba(0, 229, 255, 0.25)",
+                              color: "var(--primary)",
+                              background: "#14263A",
+                              border: "1px solid rgba(22, 139, 255, 0.3)",
                               padding: "3px 9px",
                               borderRadius: 6,
                               fontFamily: "monospace",
@@ -681,10 +681,10 @@ export function ProductsConfig() {
                               cursor: "pointer",
                               transition: "all 0.15s ease",
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
                             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
                           >
-                            <Edit2 style={{ width: 13, height: 13, color: "#0066FF" }} />
+                            <Edit2 style={{ width: 13, height: 13, color: "var(--primary)" }} />
                             Edit
                           </button>
 
@@ -768,7 +768,7 @@ export function ProductsConfig() {
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{prod.name}</div>
                       {prod.code && (
-                        <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.1)", padding: "2px 6px", borderRadius: 4, marginTop: 4, display: "inline-block" }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "var(--primary)", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", padding: "2px 6px", borderRadius: 4, marginTop: 4, display: "inline-block" }}>
                           CODE: {prod.code}
                         </span>
                       )}
@@ -879,7 +879,7 @@ export function ProductsConfig() {
         ) : products.length === 0 ? (
           /* NO PRODUCTS CONFIGURED EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Plus style={{ width: 24, height: 24 }} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -896,10 +896,10 @@ export function ProductsConfig() {
                 padding: "10px 22px",
                 fontSize: 13,
                 fontWeight: 700,
-                background: "#0066FF",
+                background: "var(--primary)",
                 border: "none",
                 borderRadius: 8,
-                color: "#FFFFFF",
+                color: "var(--primary-foreground, #FFFFFF)",
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
@@ -913,7 +913,7 @@ export function ProductsConfig() {
         ) : (
           /* SEARCH / FILTER EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Filter style={{ width: 24, height: 24 }} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -934,9 +934,9 @@ export function ProductsConfig() {
                 fontSize: 12,
                 fontWeight: 700,
                 background: "var(--bg-secondary)",
-                border: "1px solid rgba(0, 229, 255, 0.3)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 8,
-                color: "#0066FF",
+                color: "var(--primary)",
                 cursor: "pointer",
               }}
             >

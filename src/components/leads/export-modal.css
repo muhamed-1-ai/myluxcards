@@ -22,20 +22,20 @@
 html.dark .zappit-export-shell,
 body.dark-mode .zappit-export-shell,
 :root[data-theme="dark"] .zappit-export-shell {
-  --export-shell-bg: #0F172A;
-  --export-shell-border: #1E293B;
-  --export-header-bg: #1E293B;
-  --export-toolbar-bg: #0F172A;
-  --export-body-bg: #0F172A;
-  --export-footer-bg: #1E293B;
-  --export-card-bg: #1E293B;
-  --export-card-border: #334155;
-  --export-card-selected-bg: rgba(30, 58, 138, 0.35);
-  --export-card-selected-border: #3B82F6;
-  --export-text-primary: #F8FAFC;
-  --export-text-secondary: #94A3B8;
-  --export-input-bg: #1E293B;
-  --export-input-border: #334155;
+  --export-shell-bg: #1B1C21;
+  --export-shell-border: #343740;
+  --export-header-bg: #141519;
+  --export-toolbar-bg: #1B1C21;
+  --export-body-bg: #1B1C21;
+  --export-footer-bg: #141519;
+  --export-card-bg: #141519;
+  --export-card-border: #343740;
+  --export-card-selected-bg: #14263A;
+  --export-card-selected-border: #168BFF;
+  --export-text-primary: #F5F6F8;
+  --export-text-secondary: #B5B8C2;
+  --export-input-bg: #111216;
+  --export-input-border: #343740;
 }
 
 .zappit-export-overlay {

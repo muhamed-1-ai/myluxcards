@@ -589,20 +589,20 @@ export function LeadStagesConfig() {
             padding: "0 22px",
             fontSize: 13,
             fontWeight: 800,
-            color: "#FFFFFF",
-            background: "#0066FF",
+            color: "var(--primary-foreground, #FFFFFF)",
+            background: "var(--primary)",
             border: "none",
             borderRadius: 10,
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+            boxShadow: "none",
             transition: "all 0.2s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#E6C200";
+            e.currentTarget.style.background = "var(--primary-dark, #075BBE)";
             e.currentTarget.style.transform = "translateY(-1px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#0066FF";
+            e.currentTarget.style.background = "var(--primary)";
             e.currentTarget.style.transform = "translateY(0)";
           }}
         >
@@ -646,9 +646,9 @@ export function LeadStagesConfig() {
               width: 48,
               height: 48,
               borderRadius: 12,
-              background: "rgba(0, 229, 255, 0.12)",
-              border: "1px solid rgba(0, 229, 255, 0.25)",
-              color: "#0066FF",
+              background: "#14263A",
+              border: "1px solid rgba(22, 139, 255, 0.3)",
+              color: "var(--primary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -836,7 +836,7 @@ export function LeadStagesConfig() {
                 outline: "none",
                 transition: "all 0.2s ease",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(0, 229, 255, 0.6)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border-color)")}
             />
           </div>
@@ -947,7 +947,7 @@ export function LeadStagesConfig() {
                                 #{stg.stageOrder}
                               </span>
                               {stg.isSystem && (
-                                <span style={{ fontSize: 9, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.12)", border: "1px solid rgba(0, 229, 255,0.25)", padding: "1px 5px", borderRadius: 4 }}>
+                                <span style={{ fontSize: 9, fontWeight: 800, color: "var(--primary)", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", padding: "1px 5px", borderRadius: 4 }}>
                                   SYSTEM
                                 </span>
                               )}
@@ -967,9 +967,9 @@ export function LeadStagesConfig() {
                           style={{
                             fontSize: 11,
                             fontWeight: 800,
-                            color: "#0066FF",
-                            background: "rgba(0, 229, 255, 0.1)",
-                            border: "1px solid rgba(0, 229, 255, 0.25)",
+                            color: "var(--primary)",
+                            background: "#14263A",
+                            border: "1px solid rgba(22, 139, 255, 0.3)",
                             padding: "3px 9px",
                             borderRadius: 6,
                             fontFamily: "monospace",
@@ -1099,10 +1099,10 @@ export function LeadStagesConfig() {
                               cursor: "pointer",
                               transition: "all 0.15s ease",
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.4)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
                             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
                           >
-                            <Edit2 style={{ width: 13, height: 13, color: "#0066FF" }} />
+                            <Edit2 style={{ width: 13, height: 13, color: "var(--primary)" }} />
                             Edit
                           </button>
 
@@ -1186,7 +1186,7 @@ export function LeadStagesConfig() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ width: 10, height: 10, borderRadius: "50%", background: stg.color }} />
                       <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{stg.name}</div>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: "#0066FF", background: "rgba(0, 229, 255,0.1)", padding: "2px 6px", borderRadius: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "var(--primary)", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", padding: "2px 6px", borderRadius: 4 }}>
                         {stg.shortForm}
                       </span>
                     </div>
@@ -1296,7 +1296,7 @@ export function LeadStagesConfig() {
         ) : (
           /* EMPTY STATE */
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0, 229, 255, 0.1)", border: "1px solid rgba(0, 229, 255, 0.2)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Filter style={{ width: 24, height: 24 }} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -1317,9 +1317,9 @@ export function LeadStagesConfig() {
                 fontSize: 12,
                 fontWeight: 700,
                 background: "var(--bg-secondary)",
-                border: "1px solid rgba(0, 229, 255, 0.3)",
+                border: "1px solid var(--border-color)",
                 borderRadius: 8,
-                color: "#0066FF",
+                color: "var(--primary)",
                 cursor: "pointer",
               }}
             >
@@ -1351,7 +1351,7 @@ export function LeadStagesConfig() {
               maxWidth: 780,
               maxHeight: "88vh",
               background: "var(--surface)",
-              border: "1px solid rgba(0, 229, 255, 0.3)",
+              border: "1px solid var(--border-color)",
               borderRadius: 18,
               boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
               display: "flex",
@@ -1842,7 +1842,7 @@ export function LeadStagesConfig() {
                           alignItems: "center",
                           gap: 6,
                           background: "var(--bg-secondary)",
-                          border: "1px solid rgba(0, 229, 255, 0.3)",
+                          border: "1px solid var(--border-color)",
                           padding: "4px 10px",
                           borderRadius: 20,
                           fontSize: 12,
@@ -1885,7 +1885,7 @@ export function LeadStagesConfig() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     STAGE RULES
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginTop: 2 }}>
@@ -1912,9 +1912,9 @@ export function LeadStagesConfig() {
                           borderRadius: 20,
                           fontSize: 12,
                           fontWeight: isSelected ? 700 : 500,
-                          border: isSelected ? "1px solid rgba(0, 229, 255, 0.6)" : "1px solid var(--border-color)",
-                          background: isSelected ? "rgba(0, 229, 255, 0.15)" : "var(--bg-secondary)",
-                          color: isSelected ? "#0066FF" : "#94A3B8",
+                          border: isSelected ? "1px solid #168BFF" : "1px solid var(--border-color)",
+                          background: isSelected ? "#14263A" : "var(--bg-secondary)",
+                          color: isSelected ? "#168BFF" : "var(--text-muted)",
                           cursor: "pointer",
                           transition: "all 0.15s ease",
                         }}
@@ -1975,7 +1975,7 @@ export function LeadStagesConfig() {
                 gap: 12,
                 padding: "16px 28px",
                 borderTop: "1px solid var(--border-color)",
-                background: "#161722",
+                background: "#141519",
                 flexShrink: 0,
               }}
             >
@@ -2004,11 +2004,11 @@ export function LeadStagesConfig() {
                   fontSize: 13,
                   fontWeight: 800,
                   borderRadius: 9,
-                  background: "#0066FF",
-                  color: "#FFFFFF",
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground, #FFFFFF)",
                   border: "none",
                   cursor: isSaving ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 14px rgba(0, 229, 255, 0.25)",
+                  boxShadow: "none",
                 }}
               >
                 {isSaving ? "Saving..." : editingStage ? "Save Changes" : "Create Lead Stage"}

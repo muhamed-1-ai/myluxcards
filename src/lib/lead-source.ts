@@ -48,10 +48,10 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
     emoji: "📡",
     tooltip: "Lead generated from Zappit profile share",
     badgeStyle: {
-      bg: "rgba(0, 102, 255, 0.14)",
-      border: "rgba(0, 217, 255, 0.35)",
-      text: "#00E5FF",
-      glow: "rgba(0, 217, 255, 0.2)",
+      bg: "rgba(22, 139, 255, 0.14)",
+      border: "rgba(22, 139, 255, 0.35)",
+      text: "#168BFF",
+      glow: "rgba(22, 139, 255, 0.2)",
     },
   },
   NFC_TAP: {
@@ -61,10 +61,10 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
     emoji: "📡",
     tooltip: "Lead generated from Zappit profile share",
     badgeStyle: {
-      bg: "rgba(0, 102, 255, 0.14)",
-      border: "rgba(0, 217, 255, 0.35)",
-      text: "#00E5FF",
-      glow: "rgba(0, 217, 255, 0.2)",
+      bg: "rgba(22, 139, 255, 0.14)",
+      border: "rgba(22, 139, 255, 0.35)",
+      text: "#168BFF",
+      glow: "rgba(22, 139, 255, 0.2)",
     },
   },
   PROFILE_SHARE_DETAILS: {
@@ -74,10 +74,10 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
     emoji: "📡",
     tooltip: "Lead generated from Zappit profile share",
     badgeStyle: {
-      bg: "rgba(0, 102, 255, 0.14)",
-      border: "rgba(0, 217, 255, 0.35)",
-      text: "#00E5FF",
-      glow: "rgba(0, 217, 255, 0.2)",
+      bg: "rgba(22, 139, 255, 0.14)",
+      border: "rgba(22, 139, 255, 0.35)",
+      text: "#168BFF",
+      glow: "rgba(22, 139, 255, 0.2)",
     },
   },
   PROFILE_SHARE: {
@@ -87,10 +87,10 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
     emoji: "📡",
     tooltip: "Lead generated from Zappit profile share",
     badgeStyle: {
-      bg: "rgba(0, 102, 255, 0.14)",
-      border: "rgba(0, 217, 255, 0.35)",
-      text: "#00E5FF",
-      glow: "rgba(0, 217, 255, 0.2)",
+      bg: "rgba(22, 139, 255, 0.14)",
+      border: "rgba(22, 139, 255, 0.35)",
+      text: "#168BFF",
+      glow: "rgba(22, 139, 255, 0.2)",
     },
   },
   NPC: {
@@ -100,10 +100,10 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
     emoji: "📡",
     tooltip: "Lead generated from Zappit profile share",
     badgeStyle: {
-      bg: "rgba(0, 102, 255, 0.14)",
-      border: "rgba(0, 217, 255, 0.35)",
-      text: "#00E5FF",
-      glow: "rgba(0, 217, 255, 0.2)",
+      bg: "rgba(22, 139, 255, 0.14)",
+      border: "rgba(22, 139, 255, 0.35)",
+      text: "#168BFF",
+      glow: "rgba(22, 139, 255, 0.2)",
     },
   },
   NPC_TAP: {
@@ -113,10 +113,10 @@ const SOURCE_CONFIG_REGISTRY: Record<string, LeadSourceConfig> = {
     emoji: "📡",
     tooltip: "Lead generated from Zappit profile share",
     badgeStyle: {
-      bg: "rgba(0, 102, 255, 0.14)",
-      border: "rgba(0, 217, 255, 0.35)",
-      text: "#00E5FF",
-      glow: "rgba(0, 217, 255, 0.2)",
+      bg: "rgba(22, 139, 255, 0.14)",
+      border: "rgba(22, 139, 255, 0.35)",
+      text: "#168BFF",
+      glow: "rgba(22, 139, 255, 0.2)",
     },
   },
   MANUAL: {

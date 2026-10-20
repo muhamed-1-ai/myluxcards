@@ -751,12 +751,12 @@ export function CalendarConfig() {
               padding: "0 20px",
               fontSize: 13,
               fontWeight: 800,
-              color: "#FFFFFF",
-              background: "#0066FF",
+              color: "var(--primary-foreground, #FFFFFF)",
+              background: "var(--primary)",
               border: "none",
               borderRadius: 10,
               cursor: "pointer",
-              boxShadow: "0 4px 14px rgba(0, 229, 255, 0.3)",
+              boxShadow: "none",
               transition: "all 0.2s ease",
             }}
           >
@@ -795,7 +795,7 @@ export function CalendarConfig() {
               {metrics.stageFollowUps}
             </div>
           </div>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(0, 229, 255, 0.12)", border: "1px solid rgba(0, 229, 255, 0.25)", color: "#0066FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: "#14263A", border: "1px solid rgba(22, 139, 255, 0.3)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <CalendarIcon style={{ width: 18, height: 18 }} />
           </div>
         </div>
@@ -1504,7 +1504,7 @@ export function CalendarConfig() {
                           key={ev.id}
                           style={{ borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
                           onClick={() => setActiveEventDetail(ev)}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 229, 255, 0.05)")}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#14263A")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         >
                           <td style={{ padding: "14px", color: "var(--text-primary)", fontWeight: 700 }}>
@@ -1573,7 +1573,7 @@ export function CalendarConfig() {
               width: "100%",
               maxWidth: 640,
               background: "var(--surface)",
-              border: "1px solid rgba(0, 229, 255, 0.3)",
+              border: "1px solid var(--border-color)",
               borderRadius: 18,
               boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
               display: "flex",
@@ -1701,7 +1701,7 @@ export function CalendarConfig() {
                               alignItems: "center",
                               justifyContent: "space-between",
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 229, 255, 0.15)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "#14263A")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             <div>
@@ -1805,7 +1805,7 @@ export function CalendarConfig() {
                 gap: 12,
                 padding: "16px 24px",
                 borderTop: "1px solid var(--border-color)",
-                background: "#161722",
+                background: "#141519",
               }}
             >
               <button
@@ -1836,11 +1836,11 @@ export function CalendarConfig() {
                   fontSize: 13,
                   fontWeight: 800,
                   borderRadius: 9,
-                  background: "#0066FF",
-                  color: "#FFFFFF",
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground, #FFFFFF)",
                   border: "none",
                   cursor: isSavingFollowUp ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 14px rgba(0, 229, 255, 0.25)",
+                  boxShadow: "none",
                 }}
               >
                 {isSavingFollowUp ? (
@@ -1884,7 +1884,7 @@ export function CalendarConfig() {
               width: "100%",
               maxWidth: 500,
               background: "var(--surface)",
-              border: "1px solid rgba(0, 229, 255, 0.3)",
+              border: "1px solid var(--border-color)",
               padding: 24,
               borderRadius: 18,
               boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",

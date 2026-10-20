@@ -1208,16 +1208,16 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 
         {/* Access Pending Card */}
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-[#0B172A] border border-slate-800 rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
+          <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
             <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
               <Clock className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Access pending</h2>
-            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+            <h2 className="text-2xl font-bold text-[#F5F6F8] mb-2">Access pending</h2>
+            <p className="text-[#B5B8C2] text-sm leading-relaxed mb-6">
               Your account is active, but no features have been enabled yet. Please contact your administrator.
             </p>
-            <div className="pt-4 border-t border-slate-800/80 w-full flex items-center justify-between text-xs text-slate-500">
-              <span>Account Role: <strong className="text-slate-300">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
+            <div className="pt-4 border-t border-[#343740] w-full flex items-center justify-between text-xs text-[#969CA8]">
+              <span>Account Role: <strong className="text-[#F5F6F8]">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
               <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
             </div>
           </div>
@@ -2196,7 +2196,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
             type="button"
             className="asset-btn-primary"
             onClick={() => setIsAddModalOpen(true)}
-            style={{ background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", padding: "9px 18px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+            style={{ background: "var(--primary-btn-bg, #0967D2)", color: "var(--primary-btn-text, #FFFFFF)", border: "none", padding: "9px 18px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             + ADD SECTION
           </button>
@@ -2243,9 +2243,9 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                 type="button"
                 onClick={() => setActiveTab(tab)}
                 style={{
-                  background: activeTab === tab ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "transparent",
-                  color: activeTab === tab ? "#fff" : "var(--text-secondary)",
-                  border: "none",
+                  background: activeTab === tab ? "var(--accent-blue-soft, #14263A)" : "transparent",
+                  color: activeTab === tab ? "var(--accent-blue, #168BFF)" : "var(--text-secondary)",
+                  border: activeTab === tab ? "1px solid rgba(22, 139, 255, 0.35)" : "none",
                   padding: "6px 14px",
                   borderRadius: 8,
                   fontSize: 12.5,
@@ -2462,7 +2462,7 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
 
             return (
               <div key={cat.key} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#00E5FF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--accent-blue, #168BFF)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
                   {cat.title} • {cat.desc}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
@@ -2504,8 +2504,8 @@ function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { dra
                               setIsAddModalOpen(false);
                             }}
                             style={{
-                              background: "linear-gradient(135deg, #0066FF, #00E5FF)",
-                              color: "#fff",
+                              background: "var(--primary-btn-bg, #0967D2)",
+                              color: "var(--primary-btn-text, #FFFFFF)",
                               border: "none",
                               padding: "4px 10px",
                               borderRadius: 6,
@@ -2563,8 +2563,8 @@ function ModesForm({ draft, update, contactNumbers = [], emergencyContacts = [],
       <ProfileFeatureEngineManager draft={draft} update={update} onContactsRefresh={onContactsRefresh} />
 
       {/* ── CORE PROFILE MODES ── */}
-      <div style={{ background: "linear-gradient(135deg, rgba(0, 102, 255, 0.08), rgba(0, 229, 255, 0.04))", border: "1px solid rgba(0, 229, 255, 0.22)", borderRadius: 16, padding: "20px 22px", marginTop: 24, marginBottom: 24 }}>
-        <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", letterSpacing: 0.5 }}>CORE PROFILE MODES</div>
+      <div style={{ background: "var(--surface, #1B1C21)", border: "1px solid var(--border-color, #343740)", borderRadius: 16, padding: "20px 22px", marginTop: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 16, fontWeight: 900, color: "var(--text-primary, #F5F6F8)", letterSpacing: 0.5 }}>CORE PROFILE MODES</div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", margin: "6px 0 16px" }}>
           Manage the permanent profile capabilities available to this card. Multiple modes can remain enabled at the same time.
         </p>
@@ -4271,15 +4271,15 @@ function ProfileProductsManager({ cardId }: { cardId?: string }) {
                     style={{ width: 54, height: 54, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(255,255,255,0.15)" }}
                   />
                 ) : (
-                  <div style={{ width: 54, height: 54, borderRadius: 8, background: "rgba(0, 102, 255, 0.15)", border: "1px solid rgba(0, 102, 255, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#00E5FF" }}>
+                  <div style={{ width: 54, height: 54, borderRadius: 8, background: "rgba(22, 139, 255, 0.12)", border: "1px solid rgba(22, 139, 255, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "var(--accent-blue, #168BFF)" }}>
                     🛍️
                   </div>
                 )}
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{prod.name}</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary, #F5F6F8)" }}>{prod.name}</span>
                     {prod.category && (
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: "#00E5FF", background: "rgba(0, 229, 255, 0.12)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--accent-blue, #168BFF)", background: "rgba(22, 139, 255, 0.12)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase" }}>
                         {prod.category}
                       </span>
                     )}
@@ -5945,7 +5945,7 @@ function GenericProfileSectionManager({
                   <label className="mylux-field-label">IMAGE FILE OR URL *</label>
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <input type="text" className="mylux-input" style={{ flex: 1 }} value={editingItem.imageUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, imageUrl: e.target.value })} placeholder="https://..." required />
-                    <label style={{ background: "rgba(0, 102, 255, 0.2)", border: "1px solid rgba(0, 102, 255, 0.4)", color: "#00E5FF", padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    <label style={{ background: "var(--accent-blue-soft, #14263A)", border: "1px solid rgba(22, 139, 255, 0.35)", color: "var(--accent-blue, #168BFF)", padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                       Upload
                       <input type="file" accept="image/*" onChange={(e) => handleMediaUpload(e, "imageUrl")} style={{ display: "none" }} />
                     </label>
@@ -6010,7 +6010,7 @@ function GenericProfileSectionManager({
                   <label className="mylux-field-label">FILE ATTACHMENT OR URL *</label>
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <input type="text" className="mylux-input" style={{ flex: 1 }} value={editingItem.fileUrl || ""} onChange={(e) => setEditingItem({ ...editingItem, fileUrl: e.target.value })} placeholder="https://..." required />
-                    <label style={{ background: "rgba(0, 102, 255, 0.2)", border: "1px solid rgba(0, 102, 255, 0.4)", color: "#00E5FF", padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    <label style={{ background: "var(--accent-blue-soft, #14263A)", border: "1px solid rgba(22, 139, 255, 0.35)", color: "var(--accent-blue, #168BFF)", padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                       Upload PDF
                       <input type="file" accept="application/pdf" onChange={(e) => handleMediaUpload(e, "fileUrl")} style={{ display: "none" }} />
                     </label>

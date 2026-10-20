@@ -1,10 +1,9 @@
 :root {
-  --aff-bg: #020617;
-  --aff-panel: #071426;
-  --aff-cyan: #0066FF;
-  --aff-cyan: #00E5FF;
-  --aff-muted: #A7B6CC;
-  --aff-border: rgba(0, 229, 255, 0.2);
+  --aff-bg: #050505;
+  --aff-panel: #1B1C21;
+  --aff-cyan: #168BFF;
+  --aff-muted: #B5B8C2;
+  --aff-border: #343740;
 }
 
 .application-timeline {
@@ -143,7 +142,7 @@
   bottom: 3px;
   left: 0;
   height: 2px;
-  background: #00E5FF;
+  background: #168BFF;
   content: "";
   opacity: 0;
   transform: scaleX(0);
@@ -167,11 +166,11 @@
 
 .partner-main-button {
   padding: 14px 20px;
-  border: 1px solid #e3cc87;
+  border: 1px solid #168BFF;
   border-radius: 9px;
-  background: linear-gradient(135deg, #e3cc87, #00E5FF);
-  color: #0b0a08 !important;
-  box-shadow: 0 8px 28px rgba(0, 102, 255, 0.14);
+  background: #0967D2;
+  color: #FFFFFF !important;
+  box-shadow: none;
 }
 
 .partner-site .partner-landing {
@@ -217,7 +216,7 @@
 .partner-site .partner-benefit,
 .partner-site .partner-rules > a,
 .partner-site .partner-faq summary span {
-  color: #00E5FF;
+  color: #168BFF;
 }
 
 .partner-site .partner-hero > p {
@@ -227,17 +226,17 @@
 .partner-site .partner-primary,
 .partner-site .affiliate-button,
 .partner-site button {
-  border: 1px solid #e3cc87;
+  border: 1px solid #075BBE;
   border-radius: 9px;
-  background: linear-gradient(135deg, #e3cc87, #00E5FF);
-  color: #0b0a08;
+  background: #0967D2;
+  color: #FFFFFF;
 }
 
 .partner-site .partner-secondary {
-  border: 1px solid #00E5FF;
+  border: 1px solid #343740;
   border-radius: 9px;
-  background: transparent;
-  color: #00E5FF;
+  background: #1B1C21;
+  color: #168BFF;
 }
 
 .partner-site .partner-trust {
@@ -278,7 +277,7 @@
 
 .partner-site .affiliate-pill,
 .partner-site .affiliate-kicker {
-  color: #00E5FF;
+  color: #168BFF;
 }
 
 .partner-site .affiliate-pill {

@@ -28,22 +28,29 @@ export async function GET() {
   }
 }
 
+import { requireAuthoritativeOwner, isOwnerAccount } from "@/lib/ownerAuth";
+
 export async function POST(request: Request) {
   try {
     if (!validMutationOrigin(request)) {
       return NextResponse.json({ message: "Invalid origin" }, { status: 403 });
     }
 
-    const superAdmin = await requireSuperAdmin();
-    if (!superAdmin) {
-      return NextResponse.json({ message: "Forbidden: Super Admin access required." }, { status: 403 });
+    const ownerAuth = await requireAuthoritativeOwner(request);
+    if (!ownerAuth.success) {
+      return ownerAuth.response;
     }
+    const superAdmin = ownerAuth.actor;
 
     const body = await request.json();
     const { userId, newRole, status } = body;
 
     if (!userId || !newRole) {
       return NextResponse.json({ message: "userId and newRole are required." }, { status: 400 });
+    }
+
+    if (isOwnerAccount(userId)) {
+      return NextResponse.json({ message: "Cannot modify the primary owner account." }, { status: 403 });
     }
 
     if (!["ADMIN", "USER", "CUSTOMER"].includes(newRole)) {
@@ -55,8 +62,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Target user not found." }, { status: 404 });
     }
 
-    if (targetUser.role === "SUPER_ADMIN") {
-      return NextResponse.json({ message: "Cannot modify SUPER_ADMIN role." }, { status: 403 });
+    if (targetUser.role === "SUPER_ADMIN" || isOwnerAccount(targetUser.id, targetUser.email)) {
+      return NextResponse.json({ message: "Cannot modify SUPER_ADMIN or Owner role." }, { status: 403 });
     }
 
     const updatedStatus = status || targetUser.status;

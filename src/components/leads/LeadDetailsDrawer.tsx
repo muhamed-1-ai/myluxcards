@@ -519,8 +519,8 @@ export default function LeadDetailsDrawer({
                               fontWeight: 800,
                               letterSpacing: "0.08em",
                               textTransform: "uppercase",
-                              color: "#00E5FF",
-                              backgroundColor: "rgba(0, 229, 255, 0.18)",
+                              color: "#168BFF",
+                              backgroundColor: "#14263A",
                               padding: "3px 8px",
                               borderRadius: 6,
                             }}
@@ -645,15 +645,15 @@ export default function LeadDetailsDrawer({
                   {/* CARD 2: NEXT FOLLOW-UP */}
                   <section
                     className="lead-drawer-card"
-                    style={followUpId ? { border: "1.5px solid #00E5FF", boxShadow: "0 0 16px rgba(0, 229, 255, 0.2)" } : undefined}
+                    style={followUpId ? { border: "1.5px solid #168BFF", boxShadow: "0 0 16px rgba(22, 139, 255, 0.2)" } : undefined}
                   >
                     <h3 className="lead-drawer-card-title">
-                      NEXT FOLLOW-UP {followUpId && <span style={{ color: "#00E5FF", fontSize: 11, fontWeight: 700, marginLeft: 6 }}>• HIGHLIGHTED</span>}
+                      NEXT FOLLOW-UP {followUpId && <span style={{ color: "#168BFF", fontSize: 11, fontWeight: 700, marginLeft: 6 }}>• HIGHLIGHTED</span>}
                     </h3>
 
                     {highlightedFollowUp && highlightedFollowUp.id !== lead.nextFollowUp?.id && (
-                      <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "rgba(0, 229, 255, 0.08)", border: "1px dashed rgba(0, 229, 255, 0.4)" }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "#00E5FF", marginBottom: 4, textTransform: "uppercase" }}>
+                      <div style={{ marginBottom: 14, padding: 12, borderRadius: 10, background: "#14263A", border: "1px dashed rgba(22, 139, 255, 0.4)" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#168BFF", marginBottom: 4, textTransform: "uppercase" }}>
                           Targeted Follow-up ({highlightedFollowUp.status || "SCHEDULED"})
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ld-text-title)" }}>

@@ -273,30 +273,30 @@ export function DatePicker({
         aria-expanded={isOpen}
         className={`crm-datepicker-trigger crm-filter-date w-full h-[42px] px-3 rounded-[10px] flex items-center justify-between gap-2 border text-left transition-all duration-150 text-xs font-semibold cursor-pointer select-none outline-none ${
           disabled
-            ? "opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900/20 border-slate-300 dark:border-slate-800 text-slate-400 dark:text-slate-500"
+            ? "opacity-50 cursor-not-allowed bg-slate-100 dark:bg-[#111216]/50 border-slate-300 dark:border-[#343740] text-slate-400 dark:text-[#969CA8]"
             : error
             ? "border-rose-500/60 bg-rose-50 dark:bg-rose-500/5 text-rose-600 dark:text-rose-300 ring-1 ring-rose-500/30"
             : isOpen
-            ? "border-[#0066FF] ring-2 ring-[#0066FF]/20 bg-white dark:bg-[#071426] text-[#0F172A] dark:text-white"
-            : "border-[#CBD5E1] dark:border-slate-700/80 bg-white dark:bg-[#071426] text-[#0F172A] dark:text-[#F8FAFC] hover:border-slate-400 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-[#0B172A]"
+            ? "border-[#168BFF] ring-2 ring-[#168BFF]/20 bg-white dark:bg-[#111216] text-[#0F172A] dark:text-[#F5F6F8]"
+            : "border-[#CBD5E1] dark:border-[#343740] bg-white dark:bg-[#111216] text-[#0F172A] dark:text-[#F5F6F8] hover:border-slate-400 dark:hover:border-[#168BFF]/60 hover:bg-slate-50 dark:hover:bg-[#1B1C21]"
         }`}
         style={{
-          backgroundColor: isLightMode ? "#FFFFFF" : "#071426",
-          borderColor: isOpen ? "#0066FF" : isLightMode ? "#CBD5E1" : "rgba(255, 255, 255, 0.12)",
-          color: isLightMode ? "#0F172A" : "#FFFFFF",
+          backgroundColor: isLightMode ? "#FFFFFF" : "#111216",
+          borderColor: isOpen ? "#168BFF" : isLightMode ? "#CBD5E1" : "#343740",
+          color: isLightMode ? "#0F172A" : "#F5F6F8",
         }}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
           <CalendarIcon
             className="w-4 h-4 flex-shrink-0 transition-colors"
-            style={{ color: isLightMode ? "#0066FF" : "#38BDF8" }}
+            style={{ color: isLightMode ? "#0066FF" : "#168BFF" }}
           />
           <span
             className="truncate font-semibold text-xs"
             style={{
               color: displayFormatted
-                ? (isLightMode ? "#0F172A" : "#FFFFFF")
-                : (isLightMode ? "#94A3B8" : "#94A3B8"),
+                ? (isLightMode ? "#0F172A" : "#F5F6F8")
+                : (isLightMode ? "#94A3B8" : "#969CA8"),
             }}
           >
             {displayFormatted || placeholder}
@@ -311,7 +311,7 @@ export function DatePicker({
               onClick={handleClear}
               className="p-1 rounded-md transition-colors"
               style={{
-                color: isLightMode ? "#64748B" : "#94A3B8",
+                color: isLightMode ? "#64748B" : "#969CA8",
               }}
               title="Clear date"
             >
@@ -320,7 +320,7 @@ export function DatePicker({
           )}
           <ChevronDown
             className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-            style={{ color: isOpen ? (isLightMode ? "#0066FF" : "#38BDF8") : (isLightMode ? "#64748B" : "#94A3B8") }}
+            style={{ color: isOpen ? (isLightMode ? "#0066FF" : "#168BFF") : (isLightMode ? "#64748B" : "#969CA8") }}
           />
         </div>
       </button>
@@ -334,27 +334,27 @@ export function DatePicker({
           style={{
             transformOrigin: "top left",
             colorScheme: isLightMode ? "light" : "dark",
-            backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
-            borderColor: isLightMode ? "#E2E8F0" : "#1E293B",
-            color: isLightMode ? "#0F172A" : "#FFFFFF",
+            backgroundColor: isLightMode ? "#FFFFFF" : "#23252C",
+            borderColor: isLightMode ? "#E2E8F0" : "#343740",
+            color: isLightMode ? "#0F172A" : "#F5F6F8",
             boxShadow: isLightMode
               ? "0 16px 36px -4px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05)"
-              : "0 24px 48px -8px rgba(0, 0, 0, 0.7)",
+              : "0 20px 48px -8px rgba(0, 0, 0, 0.75)",
           }}
         >
           {/* Header: Month & Year Controls */}
           <div
             className="flex items-center justify-between mb-3 pb-3 border-b gap-2"
-            style={{ borderColor: isLightMode ? "#E2E8F0" : "rgba(30, 41, 59, 0.8)" }}
+            style={{ borderColor: isLightMode ? "#E2E8F0" : "#343740" }}
           >
             <button
               type="button"
               onClick={handlePrevMonth}
               className="p-2 rounded-xl border transition-all cursor-pointer"
               style={{
-                backgroundColor: isLightMode ? "#F8FAFC" : "rgba(15, 23, 42, 0.8)",
-                borderColor: isLightMode ? "#E2E8F0" : "#1E293B",
-                color: isLightMode ? "#475569" : "#CBD5E1",
+                backgroundColor: isLightMode ? "#F8FAFC" : "#1B1C21",
+                borderColor: isLightMode ? "#E2E8F0" : "#343740",
+                color: isLightMode ? "#475569" : "#B5B8C2",
               }}
               title="Previous month"
             >
@@ -368,9 +368,9 @@ export function DatePicker({
                 onChange={handleMonthChange}
                 className="text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors border"
                 style={{
-                  backgroundColor: isLightMode ? "#F8FAFC" : "rgba(15, 23, 42, 0.9)",
-                  borderColor: isLightMode ? "#E2E8F0" : "#1E293B",
-                  color: isLightMode ? "#0F172A" : "#FFFFFF",
+                  backgroundColor: isLightMode ? "#F8FAFC" : "#111216",
+                  borderColor: isLightMode ? "#E2E8F0" : "#343740",
+                  color: isLightMode ? "#0F172A" : "#F5F6F8",
                 }}
               >
                 {MONTH_NAMES.map((mName, idx) => (
@@ -378,8 +378,8 @@ export function DatePicker({
                     key={mName}
                     value={idx}
                     style={{
-                      backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
-                      color: isLightMode ? "#0F172A" : "#FFFFFF",
+                      backgroundColor: isLightMode ? "#FFFFFF" : "#23252C",
+                      color: isLightMode ? "#0F172A" : "#F5F6F8",
                     }}
                   >
                     {mName}
@@ -392,9 +392,9 @@ export function DatePicker({
                 onChange={handleYearChange}
                 className="text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors border"
                 style={{
-                  backgroundColor: isLightMode ? "#F8FAFC" : "rgba(15, 23, 42, 0.9)",
-                  borderColor: isLightMode ? "#E2E8F0" : "#1E293B",
-                  color: isLightMode ? "#0F172A" : "#FFFFFF",
+                  backgroundColor: isLightMode ? "#F8FAFC" : "#111216",
+                  borderColor: isLightMode ? "#E2E8F0" : "#343740",
+                  color: isLightMode ? "#0F172A" : "#F5F6F8",
                 }}
               >
                 {yearOptions.map((y) => (
@@ -402,8 +402,8 @@ export function DatePicker({
                     key={y}
                     value={y}
                     style={{
-                      backgroundColor: isLightMode ? "#FFFFFF" : "#0B172A",
-                      color: isLightMode ? "#0F172A" : "#FFFFFF",
+                      backgroundColor: isLightMode ? "#FFFFFF" : "#23252C",
+                      color: isLightMode ? "#0F172A" : "#F5F6F8",
                     }}
                   >
                     {y}
@@ -417,9 +417,9 @@ export function DatePicker({
               onClick={handleNextMonth}
               className="p-2 rounded-xl border transition-all cursor-pointer"
               style={{
-                backgroundColor: isLightMode ? "#F8FAFC" : "rgba(15, 23, 42, 0.8)",
-                borderColor: isLightMode ? "#E2E8F0" : "#1E293B",
-                color: isLightMode ? "#475569" : "#CBD5E1",
+                backgroundColor: isLightMode ? "#F8FAFC" : "#1B1C21",
+                borderColor: isLightMode ? "#E2E8F0" : "#343740",
+                color: isLightMode ? "#475569" : "#B5B8C2",
               }}
               title="Next month"
             >
@@ -433,7 +433,7 @@ export function DatePicker({
               <div
                 key={dayName}
                 className="text-[11px] font-bold py-1 uppercase tracking-wider"
-                style={{ color: isLightMode ? "#64748B" : "#94A3B8" }}
+                style={{ color: isLightMode ? "#64748B" : "#969CA8" }}
               >
                 {dayName}
               </div>
@@ -458,30 +458,30 @@ export function DatePicker({
               let cellStyle: React.CSSProperties = {};
               if (isSelected) {
                 cellStyle = {
-                  backgroundColor: "#0066FF",
+                  backgroundColor: "#0967D2",
                   color: "#FFFFFF",
-                  boxShadow: "0 4px 12px rgba(0, 102, 255, 0.35)",
+                  boxShadow: "0 2px 8px rgba(9, 103, 210, 0.4)",
                 };
               } else if (isToday) {
                 cellStyle = {
-                  border: isLightMode ? "1px solid #0066FF" : "1px solid rgba(0, 102, 255, 0.7)",
-                  color: isLightMode ? "#0066FF" : "#38BDF8",
-                  backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.08)" : "rgba(0, 102, 255, 0.15)",
+                  border: isLightMode ? "1px solid #0066FF" : "1px solid #168BFF",
+                  color: isLightMode ? "#0066FF" : "#168BFF",
+                  backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.08)" : "#14263A",
                 };
               } else if (!cell.isCurrentMonth) {
                 cellStyle = {
-                  color: isLightMode ? "#94A3B8" : "#475569",
-                  opacity: 0.5,
+                  color: isLightMode ? "#94A3B8" : "#969CA8",
+                  opacity: 0.4,
                 };
               } else if (isDisabled) {
                 cellStyle = {
-                  color: isLightMode ? "#CBD5E1" : "#334155",
+                  color: isLightMode ? "#CBD5E1" : "#4A4D57",
                   opacity: 0.3,
                   cursor: "not-allowed",
                 };
               } else {
                 cellStyle = {
-                  color: isLightMode ? "#0F172A" : "#E2E8F0",
+                  color: isLightMode ? "#0F172A" : "#F5F6F8",
                 };
               }
 
@@ -492,23 +492,23 @@ export function DatePicker({
                   disabled={isDisabled}
                   onClick={() => handleCellClick(cell)}
                   style={cellStyle}
-                  className={`h-9 w-full rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer relative outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] ${
+                  className={`h-9 w-full rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer relative outline-none focus-visible:ring-2 focus-visible:ring-[#168BFF] ${
                     isSelected
                       ? "font-black scale-105"
                       : isToday
                       ? "font-bold"
                       : !cell.isCurrentMonth
-                      ? "hover:bg-slate-100 dark:hover:bg-slate-800/40"
+                      ? "hover:bg-slate-100 dark:hover:bg-[#141519]/50"
                       : isDisabled
                       ? "cursor-not-allowed"
-                      : "hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-[#0066FF] dark:hover:text-white"
+                      : "hover:bg-slate-100 dark:hover:bg-[#14263A] hover:text-[#0066FF] dark:hover:text-[#168BFF]"
                   }`}
                 >
                   {cell.day}
                   {isToday && !isSelected && (
                     <span
                       className="absolute bottom-1 w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: isLightMode ? "#0066FF" : "#38BDF8" }}
+                      style={{ backgroundColor: isLightMode ? "#0066FF" : "#168BFF" }}
                     />
                   )}
                 </button>
@@ -519,15 +519,15 @@ export function DatePicker({
           {/* Footer Actions */}
           <div
             className="mt-3 pt-3 border-t flex items-center justify-between text-xs"
-            style={{ borderColor: isLightMode ? "#E2E8F0" : "rgba(30, 41, 59, 0.8)" }}
+            style={{ borderColor: isLightMode ? "#E2E8F0" : "#343740" }}
           >
             <button
               type="button"
               onClick={handleSelectToday}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer"
               style={{
-                backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.08)" : "rgba(0, 102, 255, 0.15)",
-                color: isLightMode ? "#0066FF" : "#38BDF8",
+                backgroundColor: isLightMode ? "rgba(0, 102, 255, 0.08)" : "#14263A",
+                color: isLightMode ? "#0066FF" : "#168BFF",
               }}
             >
               <RotateCcw className="w-3.5 h-3.5" />

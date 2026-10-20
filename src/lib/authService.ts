@@ -145,9 +145,6 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
         console.warn("[OAuth][signIn][REJECT]", { reason: "USER_ACCOUNT_DISABLED", userId: linked.id });
         throw new Error("USER_ACCOUNT_DISABLED");
       }
-      if (isAdminEmail && linked.role !== "ADMIN" && linked.role !== "SUPER_ADMIN") {
-        await db.query("update users set role='ADMIN', updated_at=now() where id=$1", [linked.id]);
-      }
       return linked;
     }
 
@@ -167,18 +164,16 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
     }
 
     if (!user) {
-      const assignedRole = isAdminEmail ? "ADMIN" : "CUSTOMER";
+      // All new user signups default to regular CUSTOMER role.
+      // Admin privileges can only be granted by the authoritative owner.
       user = (
         await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
           `insert into users(email,name,role,feature_permissions)
-        values($1,$2,$3,$4::jsonb) returning id,email,name,session_version,role,disabled,status`,
-          [email, name, assignedRole, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
+        values($1,$2,'CUSTOMER',$3::jsonb) returning id,email,name,session_version,role,disabled,status`,
+          [email, name, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
       await db.query("insert into profiles(id) values($1)", [user.id]);
-    } else if (isAdminEmail && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-      await db.query("update users set role='ADMIN', updated_at=now() where id=$1", [user.id]);
-      user.role = "ADMIN";
     }
 
     console.log("[OAuth][signIn][ACCOUNT_LINK]", { userId: user.id, providerAccountIdExists: Boolean(input.providerAccountId) });

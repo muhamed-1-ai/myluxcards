@@ -92,31 +92,31 @@ body.light-mode .lead-drawer-backdrop {
 [data-theme="dark"] .lead-drawer-panel,
 html.dark .lead-drawer-panel,
 body.dark-mode .lead-drawer-panel {
-  --ld-panel-bg: #0D1726;
-  --ld-header-bg: #0D1726;
-  --ld-footer-bg: #0D1726;
-  --ld-card-bg: #071426;
-  --ld-card-border: #1E293B;
-  --ld-inset-bg: #0A1320;
-  --ld-inset-border: #1E293B;
+  --ld-panel-bg: #1B1C21;
+  --ld-header-bg: #141519;
+  --ld-footer-bg: #141519;
+  --ld-card-bg: #141519;
+  --ld-card-border: #343740;
+  --ld-inset-bg: #111216;
+  --ld-inset-border: #343740;
 
-  --ld-text-title: #FFFFFF;
-  --ld-text-body: #E2E8F0;
-  --ld-text-muted: #94A3B8;
-  --ld-text-subtle: #64748B;
+  --ld-text-title: #F5F6F8;
+  --ld-text-body: #B5B8C2;
+  --ld-text-muted: #969CA8;
+  --ld-text-subtle: #969CA8;
 
   --ld-badge-bg: rgba(239, 68, 68, 0.15);
   --ld-badge-border: rgba(239, 68, 68, 0.3);
   --ld-badge-text: #F87171;
 
-  --ld-tab-track-bg: #071426;
-  --ld-tab-track-border: #1E293B;
-  --ld-tab-active-bg: #1E293B;
-  --ld-tab-active-text: #FFFFFF;
-  --ld-tab-active-border: #334155;
-  --ld-tab-inactive-text: #94A3B8;
+  --ld-tab-track-bg: #141519;
+  --ld-tab-track-border: #343740;
+  --ld-tab-active-bg: #14263A;
+  --ld-tab-active-text: #168BFF;
+  --ld-tab-active-border: rgba(22, 139, 255, 0.35);
+  --ld-tab-inactive-text: #969CA8;
 
-  --ld-icon-btn-hover: #1E293B;
+  --ld-icon-btn-hover: #23252C;
 
   --ld-wa-bg: rgba(16, 185, 129, 0.15);
   --ld-wa-border: rgba(16, 185, 129, 0.3);
@@ -130,8 +130,8 @@ body.dark-mode .lead-drawer-panel {
   --ld-revenue-icon-border: rgba(16, 185, 129, 0.3);
   --ld-revenue-icon-text: #34D399;
 
-  --ld-edit-btn-bg: #10B981;
-  --ld-edit-btn-hover: #059669;
+  --ld-edit-btn-bg: #0967D2;
+  --ld-edit-btn-hover: #075BBE;
   --ld-edit-btn-text: #FFFFFF;
 }
 
