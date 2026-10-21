@@ -62,9 +62,20 @@
   background-color: var(--acc-page);
   color: var(--acc-text-main);
   min-height: 100vh;
-  padding: 1.25rem;
+  padding: 1rem;
   font-family: inherit;
   box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: accountingRoot;
+}
+
+@media (min-width: 640px) {
+  .accounting-root {
+    padding: 1.25rem;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -193,6 +204,15 @@
   padding: 1.25rem;
   box-shadow: var(--acc-shadow-sm);
   box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .acc-card {
+    padding: 1rem 0.875rem;
+  }
 }
 
 .acc-card-raised {
@@ -202,20 +222,36 @@
 /* Grid Layouts (Reference 1 style) */
 .acc-overview-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@container accountingRoot (min-width: 520px) {
+  .acc-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container accountingRoot (min-width: 860px) {
+  .acc-overview-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 640px) {
   .acc-overview-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .acc-overview-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -229,6 +265,8 @@
   background-color: var(--acc-surface);
   border: 1px solid var(--acc-border);
   min-height: 120px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .acc-metric-top {
@@ -277,6 +315,10 @@
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
@@ -292,44 +334,59 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--acc-text-main);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Dashboard Two-Column Rows */
-.acc-two-col {
+.acc-two-col,
+.acc-two-col-equal {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-@media (min-width: 1024px) {
+/* Container-query based responsive tracks when the accounting root container has sufficient space (accounting container inline-size >= 860px) */
+@container accountingRoot (min-width: 860px) {
   .acc-two-col {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .acc-two-col-equal {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
-.acc-two-col-equal {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
-}
+/* Viewport fallback breakpoint (accounts for 256px sidebar + 48px main padding + 64px root padding = 368px overhead) */
+@media (min-width: 1200px) {
+  .acc-two-col {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
 
-@media (min-width: 1024px) {
   .acc-two-col-equal {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
 /* Tables */
 .acc-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   border-radius: var(--acc-radius-md);
   -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 .acc-table {
   width: 100%;
+  min-width: 100%;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.875rem;
@@ -344,12 +401,16 @@
   color: var(--acc-text-muted);
   border-bottom: 1px solid var(--acc-border);
   background-color: var(--acc-raised);
+  box-sizing: border-box;
 }
 
 .acc-table td {
   padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--acc-border);
   color: var(--acc-text-main);
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .acc-table tr:hover td {
@@ -359,6 +420,38 @@
 .acc-table th.acc-align-right,
 .acc-table td.acc-align-right {
   text-align: right;
+  white-space: nowrap;
+}
+
+/* Semantic Column Helpers */
+.acc-col-code,
+.acc-col-action {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.acc-col-balance {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.acc-col-name {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 120px;
+}
+
+@media (max-width: 640px) {
+  .acc-table th {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.6875rem;
+  }
+
+  .acc-table td {
+    padding: 0.75rem 0.75rem;
+    font-size: 0.8125rem;
+  }
 }
 
 /* Badges & Status Pills */
@@ -395,6 +488,32 @@
 .acc-badge-primary {
   background-color: var(--acc-blue-soft);
   color: var(--acc-blue);
+}
+
+/* Alerts & Inline Notices */
+.acc-alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--acc-radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+.acc-alert-danger {
+  background-color: var(--acc-danger-soft);
+  color: var(--acc-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.acc-alert-success {
+  background-color: var(--acc-success-soft);
+  color: var(--acc-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 /* Modals & Dialogs */
@@ -541,7 +660,6 @@
   /* Padding at bottom of page to prevent bottom bar from overlapping content */
   .accounting-root {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
-    overflow-x: hidden;
   }
 }
 

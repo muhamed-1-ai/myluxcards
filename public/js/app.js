@@ -1920,43 +1920,117 @@ class LuxApp {
       }
     });
 
+    let forgotCooldown = 0;
+    let forgotTimer = null;
+
     document.getElementById('forgot-password-trigger')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const resetEmail = document.getElementById('forgot-password-email');
-      if (resetEmail) resetEmail.value = document.getElementById('login-email')?.value || '';
-      switchAuthModal('login-modal', 'forgot-password-modal');
+      const loginEmail = document.getElementById('login-email')?.value || '';
+      const inlinePanel = document.getElementById('forgot-password-panel');
+      const loginForm = document.getElementById('login-form');
+      const googleAuth = document.querySelector('#login-modal .google-auth-container');
+      const authDivider = document.querySelector('#login-modal .auth-divider');
+      const loginHeader = document.querySelector('#login-modal .zappit-login-header');
+      const loginFooter = document.getElementById('login-modal-footer');
+
+      if (inlinePanel && loginForm) {
+        const forgotModalEmail = document.getElementById('forgot-modal-email');
+        if (forgotModalEmail) forgotModalEmail.value = loginEmail;
+        loginForm.style.display = 'none';
+        if (googleAuth) googleAuth.style.display = 'none';
+        if (authDivider) authDivider.style.display = 'none';
+        if (loginHeader) loginHeader.style.display = 'none';
+        if (loginFooter) loginFooter.style.display = 'none';
+        inlinePanel.style.display = 'block';
+      } else {
+        const resetEmail = document.getElementById('forgot-password-email');
+        if (resetEmail) resetEmail.value = loginEmail;
+        switchAuthModal('login-modal', 'forgot-password-modal');
+      }
     });
 
     document.getElementById('forgot-back-to-login')?.addEventListener('click', (e) => {
       e.preventDefault();
-      switchAuthModal('forgot-password-modal', 'login-modal');
+      const inlinePanel = document.getElementById('forgot-password-panel');
+      const loginForm = document.getElementById('login-form');
+      const googleAuth = document.querySelector('#login-modal .google-auth-container');
+      const authDivider = document.querySelector('#login-modal .auth-divider');
+      const loginHeader = document.querySelector('#login-modal .zappit-login-header');
+      const loginFooter = document.getElementById('login-modal-footer');
+
+      if (inlinePanel && loginForm) {
+        inlinePanel.style.display = 'none';
+        loginForm.style.display = 'block';
+        if (googleAuth) googleAuth.style.display = 'block';
+        if (authDivider) authDivider.style.display = 'flex';
+        if (loginHeader) loginHeader.style.display = 'block';
+        if (loginFooter) loginFooter.style.display = 'block';
+      } else {
+        switchAuthModal('forgot-password-modal', 'login-modal');
+      }
     });
 
     document.getElementById('forgot-password-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.currentTarget;
-      const email = document.getElementById('forgot-password-email')?.value.trim().toLowerCase();
-      const error = document.getElementById('forgot-password-error');
-      if (error) error.textContent = '';
+      const emailInput = document.getElementById('forgot-modal-email') || document.getElementById('forgot-password-email');
+      const email = emailInput?.value.trim().toLowerCase();
+      const messageBox = document.getElementById('forgot-modal-message');
       const button = form.querySelector('button[type="submit"]');
-      if (button) button.disabled = true;
+
+      if (!email) return;
+
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Sending instructions…';
+      }
+
       try {
         const response = await fetch('/api/auth/forgot-password', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email }),
+          cache: 'no-store'
         });
-        const data = await response.json();
-        if (!response.ok) {
-          if (error) error.textContent = data.message || 'Unable to send the reset email.';
-          return;
+        const data = await response.json().catch(() => ({}));
+        const confirmationMsg = data.message || "If this email is eligible, we’ll send password recovery instructions.";
+        
+        if (messageBox) {
+          messageBox.style.display = 'block';
+          messageBox.textContent = confirmationMsg + " Check your inbox and spam folder. The link is valid for 15 minutes.";
         }
-        form.reset();
-        this.closeModal('forgot-password-modal');
-        this.showToast(data.message, 'success');
-      } finally {
-        if (button) button.disabled = false;
+        this.showToast(confirmationMsg, 'success');
+
+        // Start 60-second cooldown on resend
+        forgotCooldown = 60;
+        if (forgotTimer) clearInterval(forgotTimer);
+        if (button) {
+          button.disabled = true;
+          button.textContent = `Resend available in ${forgotCooldown}s`;
+        }
+        forgotTimer = setInterval(() => {
+          forgotCooldown--;
+          if (forgotCooldown <= 0) {
+            clearInterval(forgotTimer);
+            if (button) {
+              button.disabled = false;
+              button.textContent = 'Resend Reset Link';
+            }
+          } else if (button) {
+            button.textContent = `Resend available in ${forgotCooldown}s`;
+          }
+        }, 1000);
+      } catch {
+        const fallbackMsg = "If this email is eligible, we’ll send password recovery instructions.";
+        if (messageBox) {
+          messageBox.style.display = 'block';
+          messageBox.textContent = fallbackMsg;
+        }
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Send Reset Link';
+        }
       }
     });
 

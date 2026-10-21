@@ -8,9 +8,10 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
+    const direction = body.direction || (body.type === "THEY_OWE_ME" ? "LENT_OUT" : "BORROWED");
     const result = await recordPersonalIOU(context!.workspace.id, {
       contactId: body.contactId,
-      direction: body.direction,
+      direction,
       amountMinor: body.amountMinor,
       financialAccountId: body.financialAccountId,
       date: body.date,

@@ -7513,6 +7513,14 @@ body.dark-mode .side-nav-item.active,
   position: relative !important;
 }
 
+.dash-main > section,
+.main-content > section {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
 .dash-main-header {
   width: 100% !important;
   max-width: 100% !important;

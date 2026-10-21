@@ -162,7 +162,7 @@ export async function PATCH(request: Request) {
       // Apply transition atomically, preserving user status, disabled state, and feature permissions
       await db.query(
         `UPDATE users
-         SET role = $1, updated_at = NOW()
+         SET role = $1, session_version = session_version + 1, updated_at = NOW()
          WHERE id = $2`,
         [targetRole, target.id]
       );

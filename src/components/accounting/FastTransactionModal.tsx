@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput, { formatAmountWithCommas } from "../ui/FormattedMoneyInput";
 
 export default function FastTransactionModal() {
   const {
@@ -17,7 +18,8 @@ export default function FastTransactionModal() {
 
   // Form states
   const [amountStr, setAmountStr] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [mainCategoryId, setMainCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -47,7 +49,8 @@ export default function FastTransactionModal() {
     if (fastModalOpen) {
       setErrorMsg("");
       setAmountStr("");
-      setCategoryId("");
+      setMainCategoryId("");
+      setSubcategoryId("");
       setToAccountId("");
       setPaymentStatus("PAID");
       setPaidAmountStr("");
@@ -75,10 +78,15 @@ export default function FastTransactionModal() {
   const isTransfer = fastModalType === "TRANSFER";
   const isIncome = fastModalType === "INCOME";
 
-  // Filter categories by type
-  const availableCategories = categories.filter(
-    (c) => c.type === (isIncome ? "INCOME" : "EXPENSE") && !c.is_archived
+  // Filter main categories by type (active root categories only)
+  const availableMainCategories = categories.filter(
+    (c) => c.type === (isIncome ? "INCOME" : "EXPENSE") && !c.parent_id && !c.is_archived
   );
+
+  // Filter subcategories belonging strictly to selected main category
+  const availableSubcategories = mainCategoryId
+    ? categories.filter((c) => c.parent_id === mainCategoryId && !c.is_archived)
+    : [];
 
   const parsedTotal = parseFloat(amountStr) || 0;
   const parsedPaid = parseFloat(paidAmountStr) || 0;
@@ -105,7 +113,7 @@ export default function FastTransactionModal() {
         return;
       }
     } else {
-      if (!categoryId) {
+      if (!mainCategoryId) {
         setErrorMsg("Please select a category.");
         return;
       }
@@ -153,7 +161,8 @@ export default function FastTransactionModal() {
         payload.financialAccountId = accountId;
         payload.destinationAccountId = toAccountId;
       } else {
-        payload.categoryId = categoryId;
+        // Canonical classification: store subcategory if chosen, else main category
+        payload.categoryId = subcategoryId || mainCategoryId;
         payload.paymentStatus = paymentStatus;
         payload.contactName = contactName.trim() || undefined;
 
@@ -242,11 +251,8 @@ export default function FastTransactionModal() {
             <label className="acc-form-label" htmlFor="fast-amount">
               Amount (₹) *
             </label>
-            <input
+            <FormattedMoneyInput
               id="fast-amount"
-              type="number"
-              step="0.01"
-              min="0.01"
               autoFocus
               required
               className="acc-form-input acc-amount-hero-input tabular-nums"
@@ -301,7 +307,7 @@ export default function FastTransactionModal() {
             </>
           ) : (
             <>
-              {/* Category */}
+              {/* Category (Main) */}
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="fast-category">
                   Category *
@@ -309,14 +315,44 @@ export default function FastTransactionModal() {
                 <select
                   id="fast-category"
                   className="acc-form-select"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+                  value={mainCategoryId}
+                  onChange={(e) => {
+                    setMainCategoryId(e.target.value);
+                    setSubcategoryId(""); // Changing category must clear an incompatible subcategory
+                  }}
                   required
                 >
                   <option value="">Select {isIncome ? "income" : "expense"} category...</option>
-                  {availableCategories.map((c) => (
+                  {availableMainCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subcategory (Optional, dependent on Main Category) */}
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="fast-subcategory">
+                  Subcategory (Optional)
+                </label>
+                <select
+                  id="fast-subcategory"
+                  className="acc-form-select"
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                  disabled={!mainCategoryId || availableSubcategories.length === 0}
+                >
+                  <option value="">
+                    {!mainCategoryId
+                      ? "Select a category first..."
+                      : availableSubcategories.length === 0
+                      ? "None (Recorded directly under main category)"
+                      : "None (Use main category directly)"}
+                  </option>
+                  {availableSubcategories.map((sc) => (
+                    <option key={sc.id} value={sc.id}>
+                      {sc.name}
                     </option>
                   ))}
                 </select>
@@ -362,12 +398,8 @@ export default function FastTransactionModal() {
                     <label className="acc-form-label" htmlFor="fast-paid-amount">
                       Amount Paid Now (₹) *
                     </label>
-                    <input
+                    <FormattedMoneyInput
                       id="fast-paid-amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max={parsedTotal > 0 ? (parsedTotal - 0.01).toFixed(2) : undefined}
                       required
                       className="acc-form-input tabular-nums"
                       placeholder="0.00"
@@ -379,7 +411,7 @@ export default function FastTransactionModal() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", backgroundColor: "var(--acc-surface)", borderRadius: "6px", fontSize: "0.8125rem", marginBottom: "0.75rem" }}>
                     <span style={{ color: "var(--acc-text-muted)" }}>Remaining Balance:</span>
                     <span className="tabular-nums font-bold" style={{ color: isIncome ? "var(--acc-blue)" : "var(--acc-danger)", fontSize: "0.9375rem" }}>
-                      ₹{remainingBalance.toFixed(2)} ({isIncome ? "Owed to Me" : "I Owe"})
+                      ₹{formatAmountWithCommas(remainingBalance.toFixed(2))} ({isIncome ? "Owed to Me" : "I Owe"})
                     </span>
                   </div>
 

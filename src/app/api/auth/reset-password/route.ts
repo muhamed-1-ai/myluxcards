@@ -1,4 +1,39 @@
-import { createHash } from "node:crypto";
-import { hashPassword, validPassword } from "@/lib/authService";
-import { withTransaction } from "@/lib/db";
-export async function POST(request:Request){const body=await request.json().catch(()=>({})),token=typeof body.token==="string"?body.token:"",password=typeof body.password==="string"?body.password:"";if(!token||!validPassword(password))return Response.json({message:"The reset link or password is invalid."},{status:400});const tokenHash=createHash("sha256").update(token).digest("hex");const changed=await withTransaction(async db=>{const row=(await db.query<{id:string;user_id:string}>("select id,user_id from auth_action_tokens where token_hash=$1 and purpose='PASSWORD_RESET' and consumed_at is null and expires_at>now() for update",[tokenHash])).rows[0];if(!row)return false;await db.query("update users set password_hash=$1,session_version=session_version+1,must_change_password=false where id=$2",[await hashPassword(password),row.user_id]);await db.query("update auth_action_tokens set consumed_at=now() where id=$1",[row.id]);return true});return changed?Response.json({ok:true}):Response.json({message:"The reset link or password is invalid."},{status:400})}
+import { NextResponse } from "next/server";
+import { redeemResetToken } from "@/lib/auth/passwordRecovery";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+
+    if (!token || !password) {
+      return NextResponse.json(
+        { message: "The reset link or password is invalid." },
+        { status: 400, headers: { "Cache-Control": "no-store, private" } }
+      );
+    }
+
+    const result = await redeemResetToken(token, password);
+
+    if (!result.ok) {
+      return NextResponse.json(
+        { message: result.message },
+        { status: 400, headers: { "Cache-Control": "no-store, private" } }
+      );
+    }
+
+    return NextResponse.json(
+      { ok: true, message: result.message },
+      { status: 200, headers: { "Cache-Control": "no-store, private" } }
+    );
+  } catch (error) {
+    console.error("[Auth][ResetPassword] Unexpected error:", error);
+    return NextResponse.json(
+      { message: "Unable to complete password reset. Please try again." },
+      { status: 500, headers: { "Cache-Control": "no-store, private" } }
+    );
+  }
+}

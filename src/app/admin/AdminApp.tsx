@@ -1,5 +1,6 @@
 "use client";
 import BrandLogo from "@/components/BrandLogo";
+import FormattedMoneyInput from "@/components/ui/FormattedMoneyInput";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
 import { buildPremiumQrSvg, buildAdminUserQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
@@ -69,8 +70,13 @@ export default function AdminApp({
       if(response.status===403){window.location.replace("/forbidden");return}
       if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
       const payload=await response.json();
-      if(version===loadVersion.current)setData(payload);
-    } catch(e){if(version===loadVersion.current)setError(e instanceof Error?e.message:"Could not load this section.")} finally{if(version===loadVersion.current)setLoading(false)}
+      if(version===loadVersion.current) setData(payload);
+    } catch(e){
+      if(version===loadVersion.current) {
+        setError(e instanceof Error?e.message:"Could not load this section.");
+        setData(null);
+      }
+    } finally{if(version===loadVersion.current)setLoading(false)}
   },[section,search]);
   useEffect(()=>{const requested=new URLSearchParams(window.location.search).get("section") as Section|null;if(requested&&Object.hasOwn(labels,requested))setSection(requested)},[]);
   useEffect(()=>{load()},[load]);
@@ -337,7 +343,7 @@ function Activations({rows}:{rows:Row[]}) {
 }
 function Products({rows,mutate}:{rows:Row[],mutate:any}) {
   const create=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);await mutate("products","POST",{name:f.get("name"),productType:f.get("type"),priceMinor:Math.round(Number(f.get("price"))*100),stock:Number(f.get("stock"))});e.currentTarget.reset()};
-  return <><form className="quick-form" onSubmit={create}><h2>Add product</h2><input name="name" required placeholder="Product name"/><select name="type"><option value="NFC_CARD">NFC card</option><option value="QR_LOST_FOUND">QR lost & found</option><option value="ACCESSORY">Accessory</option><option value="OTHER">Other</option></select><input name="price" required type="number" min="0" step=".01" placeholder="Price"/><input name="stock" required type="number" min="0" placeholder="Stock"/><button>Add product</button></form>{rows.length?<Table heads={["Product","Type","SKU","Price","Stock","Status","Action"]} rows={rows.map(r=>[r.name,r.product_type,r.sku||"—",money(r.price_minor,r.currency),r.stock,r.archived_at?"Archived":r.active?"Active":"Inactive",<button className="small" onClick={()=>mutate("products","PATCH",{id:r.id,archived:!r.archived_at})}>{r.archived_at?"Restore":"Archive"}</button>])}/>:<Empty title="No products" text="Create your first database-backed product above."/>}</>;
+  return <><form className="quick-form" onSubmit={create}><h2>Add product</h2><input name="name" required placeholder="Product name"/><select name="type"><option value="NFC_CARD">NFC card</option><option value="QR_LOST_FOUND">QR lost & found</option><option value="ACCESSORY">Accessory</option><option value="OTHER">Other</option></select><FormattedMoneyInput name="price" required placeholder="Price"/><input name="stock" required type="number" min="0" placeholder="Stock"/><button>Add product</button></form>{rows.length?<Table heads={["Product","Type","SKU","Price","Stock","Status","Action"]} rows={rows.map(r=>[r.name,r.product_type,r.sku||"—",money(r.price_minor,r.currency),r.stock,r.archived_at?"Archived":r.active?"Active":"Inactive",<button className="small" onClick={()=>mutate("products","PATCH",{id:r.id,archived:!r.archived_at})}>{r.archived_at?"Restore":"Archive"}</button>])}/>:<Empty title="No products" text="Create your first database-backed product above."/>}</>;
 }
 function Admins({rows,identity,mutate,navigate}:{rows:Row[],identity:AdminIdentity,mutate:any,navigate?:(s:Section)=>void}) {
   const OWNER_EMAIL = "muhammedfebincholayil@gmail.com";

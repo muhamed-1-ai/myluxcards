@@ -1,5 +1,36 @@
-import { checkRateLimit } from "@/lib/authService";
-import { validMutationOrigin } from "@/lib/adminAuth";
-import { normalizeEmail } from "@/lib/repositories/users";
+import { NextResponse } from "next/server";
+import { requestPasswordRecovery } from "@/lib/auth/passwordRecovery";
 
-export async function POST(request:Request){if(!validMutationOrigin(request))return Response.json({message:"Invalid request origin."},{status:403});const body=await request.json().catch(()=>({}));await checkRateLimit("PASSWORD_RESET",`${normalizeEmail(String(body.email||""))}:${request.headers.get("x-forwarded-for")||"unknown"}`,5,3600);return Response.json({message:"If an account exists for that email, password recovery instructions will be sent when email delivery is configured."})}
+export const dynamic = "force-dynamic";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const email = typeof body.email === "string" ? body.email.trim() : "";
+
+    // Extract client IP safely for distributed rate limiting
+    const forwarded = request.headers.get("x-forwarded-for");
+    const realIp = request.headers.get("x-real-ip");
+    const clientIp = forwarded ? forwarded.split(",")[0].trim() : realIp || "unknown";
+
+    const result = await requestPasswordRecovery(email, clientIp);
+
+    return NextResponse.json(
+      { ok: result.ok, message: result.message },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, private",
+          Pragma: "no-cache",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("[Auth][ForgotPassword] Unexpected error:", error);
+    // Never expose stack traces or specific server errors to prevent enumeration
+    return NextResponse.json(
+      { ok: true, message: "If this email is eligible, we’ll send password recovery instructions." },
+      { status: 200, headers: { "Cache-Control": "no-store, private" } }
+    );
+  }
+}

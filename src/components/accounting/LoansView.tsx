@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface Loan {
   id: string;
@@ -259,10 +260,8 @@ export default function LoansView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="loan-principal">Principal Amount (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="loan-principal"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   placeholder="0.00"
@@ -354,12 +353,11 @@ export default function LoansView() {
             <form onSubmit={handleLoanRepayment}>
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="repay-principal">Principal Portion (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="repay-principal"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input tabular-nums font-bold"
+                  placeholder="0.00"
                   value={principalPaidStr}
                   onChange={(e) => setPrincipalPaidStr(e.target.value)}
                 />
@@ -367,11 +365,10 @@ export default function LoansView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="repay-interest">Interest Portion (₹)</label>
-                <input
+                <FormattedMoneyInput
                   id="repay-interest"
-                  type="number"
-                  step="0.01"
                   className="acc-form-input tabular-nums"
+                  placeholder="0.00"
                   value={interestPaidStr}
                   onChange={(e) => setInterestPaidStr(e.target.value)}
                 />

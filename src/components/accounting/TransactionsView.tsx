@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface TransactionItem {
   id: string;
@@ -10,7 +11,9 @@ interface TransactionItem {
   date: string;
   notes?: string;
   contact_name?: string;
+  category_id?: string | null;
   category_name?: string;
+  parent_category_name?: string;
   account_name?: string;
   status: string;
   journal_entry_id?: string;
@@ -24,6 +27,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
   const {
     activeWorkspace,
     accounts,
+    categories,
     formatMoney,
     openFastModal,
     refreshKey,
@@ -35,8 +39,18 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("ALL");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   
+  // Edit Transaction state
+  const [editingTx, setEditingTx] = useState<TransactionItem | null>(null);
+  const [editMainCatId, setEditMainCatId] = useState("");
+  const [editSubCatId, setEditSubCatId] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   // Void modal state
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -135,15 +149,78 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     }
   };
 
+  const openEditTx = (tx: TransactionItem) => {
+    setEditingTx(tx);
+    setEditError(null);
+    setEditDate(tx.date || new Date().toISOString().split("T")[0]);
+    setEditNotes(tx.notes || "");
+
+    const cat = categories.find((c) => c.id === tx.category_id);
+    if (cat) {
+      if (cat.parent_id) {
+        setEditMainCatId(cat.parent_id);
+        setEditSubCatId(cat.id);
+      } else {
+        setEditMainCatId(cat.id);
+        setEditSubCatId("");
+      }
+    } else {
+      setEditMainCatId("");
+      setEditSubCatId("");
+    }
+  };
+
+  const handleSaveEditTx = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+
+    setSubmittingEdit(true);
+    setEditError(null);
+    try {
+      const targetCatId = editSubCatId || editMainCatId || null;
+      const res = await fetch(`/api/accounting/transactions/${editingTx.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryId: targetCatId,
+          date: editDate,
+          notes: editNotes,
+        }),
+      });
+
+      if (res.ok) {
+        setEditingTx(null);
+        triggerRefresh();
+      } else {
+        const data = await res.json();
+        setEditError(data.error || "Failed to update transaction.");
+      }
+    } catch {
+      setEditError("Network error updating transaction.");
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter((tx) => {
     if (filterType !== "ALL" && tx.type !== filterType) return false;
+    if (filterCategoryId) {
+      const matchingCatIds = new Set<string>([filterCategoryId]);
+      categories.forEach((c) => {
+        if (c.parent_id === filterCategoryId) {
+          matchingCatIds.add(c.id);
+        }
+      });
+      if (!tx.category_id || !matchingCatIds.has(tx.category_id)) return false;
+    }
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       const matchNotes = (tx.notes || "").toLowerCase().includes(q);
       const matchContact = (tx.contact_name || "").toLowerCase().includes(q);
       const matchCat = (tx.category_name || "").toLowerCase().includes(q);
+      const matchParentCat = (tx.parent_category_name || "").toLowerCase().includes(q);
       const matchAcc = (tx.account_name || "").toLowerCase().includes(q);
-      if (!matchNotes && !matchContact && !matchCat && !matchAcc) return false;
+      if (!matchNotes && !matchContact && !matchCat && !matchParentCat && !matchAcc) return false;
     }
     return true;
   });
@@ -196,7 +273,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
       </div>
 
       {/* Secondary Navigation Segmented Control */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
         <button
           type="button"
           className={`acc-btn acc-btn-sm ${subtab === "TRANSACTIONS" ? "acc-btn-primary" : "acc-btn-outline"}`}
@@ -219,7 +296,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           {/* Filters Bar */}
           <div className="acc-card" style={{ marginBottom: "1.25rem", padding: "1rem" }}>
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-              <div style={{ flex: 1, minWidth: "220px" }}>
+              <div style={{ flex: 1, minWidth: "200px" }}>
                 <input
                   type="text"
                   className="acc-form-input"
@@ -227,6 +304,29 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+              </div>
+              <div style={{ minWidth: "170px" }}>
+                <select
+                  className="acc-form-select"
+                  value={filterCategoryId}
+                  onChange={(e) => setFilterCategoryId(e.target.value)}
+                  style={{ height: "38px" }}
+                >
+                  <option value="">All Categories</option>
+                  {categories
+                    .filter((c) => !c.parent_id)
+                    .map((main) => {
+                      const subs = categories.filter((s) => s.parent_id === main.id);
+                      return (
+                        <React.Fragment key={main.id}>
+                          <option value={main.id}>{main.name} ({main.type})</option>
+                          {subs.map((sub) => (
+                            <option key={sub.id} value={sub.id}>&nbsp;&nbsp;↳ {sub.name}</option>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                </select>
               </div>
               <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
                 {["ALL", "INCOME", "EXPENSE", "TRANSFER"].map((t) => (
@@ -302,9 +402,16 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                           )}
                         </td>
                         <td>
-                          <span className="acc-badge acc-badge-neutral">
-                            {tx.category_name || "—"}
-                          </span>
+                          {tx.parent_category_name ? (
+                            <span className="acc-badge acc-badge-neutral" title={`${tx.parent_category_name} → ${tx.category_name}`}>
+                              <span style={{ opacity: 0.7 }}>{tx.parent_category_name} → </span>
+                              <span style={{ fontWeight: 600 }}>{tx.category_name}</span>
+                            </span>
+                          ) : (
+                            <span className="acc-badge acc-badge-neutral">
+                              {tx.category_name || "—"}
+                            </span>
+                          )}
                         </td>
                         <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
                           {tx.account_name || "—"}
@@ -324,16 +431,26 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                           {formatMoney(tx.amount_minor, activeWorkspace?.currency)}
                         </td>
                         {canMutate && (
-                          <td className="acc-align-right">
+                          <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
                             {tx.status === "POSTED" && (
-                              <button
-                                type="button"
-                                className="acc-btn acc-btn-sm acc-btn-outline"
-                                style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
-                                onClick={() => setVoidingId(tx.id)}
-                              >
-                                Void
-                              </button>
+                              <div style={{ display: "inline-flex", gap: "0.35rem" }}>
+                                <button
+                                  type="button"
+                                  className="acc-btn acc-btn-sm acc-btn-outline"
+                                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                                  onClick={() => openEditTx(tx)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="acc-btn acc-btn-sm acc-btn-outline"
+                                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", color: "var(--acc-danger)" }}
+                                  onClick={() => setVoidingId(tx.id)}
+                                >
+                                  Void
+                                </button>
+                              </div>
                             )}
                           </td>
                         )}
@@ -352,7 +469,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
         <div>
           {/* Asset Accounts */}
           <div className="acc-card" style={{ marginBottom: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
               <div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
                   Cash, Bank & UPI Accounts (Assets)
@@ -376,30 +493,30 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
               <table className="acc-table">
                 <thead>
                   <tr>
-                    <th>Code</th>
-                    <th>Account Name</th>
-                    <th>Subtype</th>
-                    <th className="acc-align-right">Current Balance</th>
-                    {canMutate && <th className="acc-align-right">Action</th>}
+                    <th className="acc-col-code" style={{ width: "70px", whiteSpace: "nowrap" }}>Code</th>
+                    <th className="acc-col-name">Account Name</th>
+                    <th style={{ width: "110px", whiteSpace: "nowrap" }}>Subtype</th>
+                    <th className="acc-align-right acc-col-balance" style={{ width: "150px", whiteSpace: "nowrap" }}>Current Balance</th>
+                    {canMutate && <th className="acc-align-right acc-col-action" style={{ width: "120px", whiteSpace: "nowrap" }}>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {assetAccounts.map((acc) => (
                     <tr key={acc.id}>
-                      <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{acc.code}</td>
-                      <td style={{ fontWeight: 600 }}>{acc.name}</td>
-                      <td>
+                      <td className="acc-col-code" style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>{acc.code}</td>
+                      <td className="acc-col-name" style={{ fontWeight: 600, overflowWrap: "break-word", wordBreak: "break-word" }}>{acc.name}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
                         <span className="acc-badge acc-badge-neutral">{acc.subtype}</span>
                       </td>
-                      <td className="acc-align-right tabular-nums font-bold" style={{ fontSize: "0.9375rem" }}>
+                      <td className="acc-align-right acc-col-balance tabular-nums font-bold" style={{ fontSize: "0.9375rem" }}>
                         {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                       </td>
                       {canMutate && (
-                        <td className="acc-align-right">
+                        <td className="acc-align-right acc-col-action" style={{ whiteSpace: "nowrap" }}>
                           <button
                             type="button"
                             className="acc-btn acc-btn-sm acc-btn-outline"
-                            style={{ padding: "0.2rem 0.5rem" }}
+                            style={{ padding: "0.2rem 0.5rem", whiteSpace: "nowrap" }}
                             onClick={() => {
                               setSelectedAccountId(acc.id);
                               setOpeningBalanceStr((acc.current_balance_minor / 100).toString());
@@ -427,9 +544,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 <table className="acc-table">
                   <thead>
                     <tr>
-                      <th>Code</th>
-                      <th>Account Name</th>
-                      <th className="acc-align-right">Balance</th>
+                      <th className="acc-col-code" style={{ width: "70px", whiteSpace: "nowrap" }}>Code</th>
+                      <th className="acc-col-name">Account Name</th>
+                      <th className="acc-align-right acc-col-balance" style={{ width: "130px", whiteSpace: "nowrap" }}>Balance</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -442,9 +559,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                     ) : (
                       liabilityAccounts.map((acc) => (
                         <tr key={acc.id}>
-                          <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{acc.code}</td>
-                          <td style={{ fontWeight: 600 }}>{acc.name}</td>
-                          <td className="acc-align-right tabular-nums font-bold" style={{ color: "var(--acc-danger)" }}>
+                          <td className="acc-col-code" style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>{acc.code}</td>
+                          <td className="acc-col-name" style={{ fontWeight: 600, overflowWrap: "break-word", wordBreak: "break-word" }}>{acc.name}</td>
+                          <td className="acc-align-right acc-col-balance tabular-nums font-bold" style={{ color: "var(--acc-danger)" }}>
                             {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                           </td>
                         </tr>
@@ -463,9 +580,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 <table className="acc-table">
                   <thead>
                     <tr>
-                      <th>Code</th>
-                      <th>Account Name</th>
-                      <th className="acc-align-right">Balance</th>
+                      <th className="acc-col-code" style={{ width: "70px", whiteSpace: "nowrap" }}>Code</th>
+                      <th className="acc-col-name">Account Name</th>
+                      <th className="acc-align-right acc-col-balance" style={{ width: "130px", whiteSpace: "nowrap" }}>Balance</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -478,9 +595,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                     ) : (
                       equityAccounts.map((acc) => (
                         <tr key={acc.id}>
-                          <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{acc.code}</td>
-                          <td style={{ fontWeight: 600 }}>{acc.name}</td>
-                          <td className="acc-align-right tabular-nums font-bold" style={{ color: "var(--acc-blue)" }}>
+                          <td className="acc-col-code" style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>{acc.code}</td>
+                          <td className="acc-col-name" style={{ fontWeight: 600, overflowWrap: "break-word", wordBreak: "break-word" }}>{acc.name}</td>
+                          <td className="acc-align-right acc-col-balance tabular-nums font-bold" style={{ color: "var(--acc-blue)" }}>
                             {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                           </td>
                         </tr>
@@ -533,10 +650,8 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 <label className="acc-form-label" htmlFor="opening-balance-input">
                   Balance Amount (₹) *
                 </label>
-                <input
+                <FormattedMoneyInput
                   id="opening-balance-input"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   placeholder="0.00"
@@ -620,6 +735,137 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                   disabled={submittingVoid}
                 >
                   {submittingVoid ? "Voiding..." : "Confirm Void"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Transaction Modal */}
+      {editingTx && (
+        <div className="acc-modal-backdrop" onClick={() => setEditingTx(null)}>
+          <div className="acc-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="acc-modal-header">
+              <div>
+                <h3 className="acc-modal-title">Edit Transaction</h3>
+                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                  {editingTx.type} • {formatMoney(editingTx.amount_minor, activeWorkspace?.currency)}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="acc-modal-close"
+                onClick={() => setEditingTx(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditTx}>
+              {editError && (
+                <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                  {editError}
+                </div>
+              )}
+
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="edit-tx-date">
+                  Date *
+                </label>
+                <input
+                  id="edit-tx-date"
+                  type="date"
+                  required
+                  className="acc-form-input"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                />
+              </div>
+
+              {editingTx.type !== "TRANSFER" && (
+                <>
+                  <div className="acc-form-group">
+                    <label className="acc-form-label" htmlFor="edit-main-cat">
+                      Category (Main)
+                    </label>
+                    <select
+                      id="edit-main-cat"
+                      className="acc-form-select"
+                      value={editMainCatId}
+                      onChange={(e) => {
+                        setEditMainCatId(e.target.value);
+                        setEditSubCatId(""); // Clear subcategory when parent changes
+                      }}
+                    >
+                      <option value="">No Category</option>
+                      {categories
+                        .filter((c) => !c.parent_id && !c.is_archived && c.type === editingTx.type)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {editMainCatId && (
+                    <div className="acc-form-group">
+                      <label className="acc-form-label" htmlFor="edit-sub-cat">
+                        Subcategory (Optional)
+                      </label>
+                      <select
+                        id="edit-sub-cat"
+                        className="acc-form-select"
+                        value={editSubCatId}
+                        onChange={(e) => setEditSubCatId(e.target.value)}
+                      >
+                        <option value="">None (Keep under main category)</option>
+                        {categories
+                          .filter((c) => c.parent_id === editMainCatId && !c.is_archived)
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              ↳ {c.name}
+                            </option>
+                          ))}
+                      </select>
+                      <small style={{ color: "var(--acc-text-muted)", fontSize: "0.6875rem", display: "block", marginTop: "0.25rem" }}>
+                        Only children of the selected category are shown.
+                      </small>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="edit-tx-notes">
+                  Description / Notes
+                </label>
+                <input
+                  id="edit-tx-notes"
+                  type="text"
+                  className="acc-form-input"
+                  placeholder="e.g. Office supplies purchase"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-outline"
+                  style={{ flex: 1 }}
+                  onClick={() => setEditingTx(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="acc-btn acc-btn-primary"
+                  style={{ flex: 1.5 }}
+                  disabled={submittingEdit}
+                >
+                  {submittingEdit ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>

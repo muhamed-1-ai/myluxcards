@@ -6,82 +6,218 @@ import "./reset-password.css";
 
 export default function ResetPasswordPage() {
   const [token, setToken] = useState("");
+  const [tokenChecked, setTokenChecked] = useState(false);
+  const [tokenValid, setTokenValid] = useState(false);
+  const [tokenError, setTokenError] = useState("");
+
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [complete, setComplete] = useState(false);
   const [required, setRequired] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [passwordValue, setPasswordValue] = useState("");
   const [confirmationValue, setConfirmationValue] = useState("");
   const [capsField, setCapsField] = useState<"password" | "confirmation" | null>(null);
+
   const passwordRules = [
     ["12+ characters", passwordValue.length >= 12],
-    ["Uppercase", /[A-Z]/.test(passwordValue)],
-    ["Lowercase", /[a-z]/.test(passwordValue)],
+    ["Uppercase letter", /[A-Z]/.test(passwordValue)],
+    ["Lowercase letter", /[a-z]/.test(passwordValue)],
     ["Number", /\d/.test(passwordValue)],
-    ["Symbol", /[^A-Za-z0-9]/.test(passwordValue)],
+    ["Special symbol", /[^A-Za-z0-9]/.test(passwordValue)],
   ] as const;
 
+  const allRulesMet = passwordRules.every(([, met]) => met);
+  const passwordsMatch = passwordValue.length > 0 && passwordValue === confirmationValue;
+
   useEffect(() => {
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    setToken(hash.get("access_token") || "");
-    setRequired(new URLSearchParams(window.location.search).get("required") === "1");
+    // Referrer leakage prevention for token URLs
+    const meta = document.createElement("meta");
+    meta.name = "referrer";
+    meta.content = "no-referrer";
+    document.head.appendChild(meta);
+
+    // Extract token from query params (?token=...) or legacy hash (#access_token=...)
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const isRequired = searchParams.get("required") === "1";
+    setRequired(isRequired);
+
+    const extractedToken =
+      searchParams.get("token") ||
+      hashParams.get("token") ||
+      hashParams.get("access_token") ||
+      "";
+
+    setToken(extractedToken);
+
+    if (isRequired) {
+      setTokenValid(true);
+      setTokenChecked(true);
+      return;
+    }
+
+    if (!extractedToken) {
+      setTokenValid(false);
+      setTokenError("No password recovery token was provided. Please use the link sent to your email.");
+      setTokenChecked(true);
+      return;
+    }
+
+    // Verify token validity on server without consuming it
+    async function verifyToken() {
+      try {
+        const res = await fetch(`/api/auth/verify-reset-token?token=${encodeURIComponent(extractedToken)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.valid) {
+          setTokenValid(true);
+        } else {
+          setTokenValid(false);
+          setTokenError(data.message || "This password recovery link is invalid, expired, or has already been used.");
+        }
+      } catch {
+        setTokenValid(false);
+        setTokenError("Unable to verify reset link. Please check your network connection.");
+      } finally {
+        setTokenChecked(true);
+      }
+    }
+
+    verifyToken();
+
+    return () => {
+      if (document.head.contains(meta)) {
+        document.head.removeChild(meta);
+      }
+    };
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
-    const form = new FormData(event.currentTarget);
-    const password = String(form.get("password") || "");
-    const confirmation = String(form.get("confirmation") || "");
 
-    if (password.length < 12 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) ||
-        !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-      return setMessage("Use 12+ characters with upper, lower, number, and symbol.");
+    if (!allRulesMet) {
+      return setMessage("Use 12+ characters with uppercase, lowercase, numbers, and symbols.");
     }
-    if (password !== confirmation) return setMessage("Passwords do not match.");
-    if (!required && !token) return setMessage("This reset link is invalid or has expired.");
 
-    const response = await fetch(required ? "/api/auth/change-password" : "/api/auth/reset-password", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ password }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.message || data.msg || "This reset link is invalid or has expired.");
-      return;
+    if (!passwordsMatch) {
+      return setMessage("New password and confirmation password do not match.");
     }
-    window.history.replaceState({}, "", required ? "/admin" : "/reset-password");
-    setComplete(true);
+
+    if (!required && !token) {
+      return setMessage("This reset link is invalid or has expired.");
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(required ? "/api/auth/change-password" : "/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          token,
+          password: passwordValue,
+          newPassword: passwordValue,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setMessage(data.message || data.msg || "Unable to reset password. The link may have expired.");
+        return;
+      }
+
+      // Remove sensitive token from browser URL history immediately
+      window.history.replaceState({}, "", required ? "/admin" : "/reset-password");
+      setComplete(true);
+    } catch {
+      setMessage("Network connection error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <main className="reset-shell">
       <section className="reset-card">
         <Link href="/" className="reset-brand">Zappit</Link>
+
+        {/* 1. Success State */}
         {complete ? (
           <>
             <h1>Password changed</h1>
-            <p>Your new password is ready.</p>
-            <Link href={required ? "/admin" : "/?login=1"} className="reset-button">{required ? "Continue to administration" : "Return to login"}</Link>
+            <p style={{ lineHeight: 1.6, color: "var(--acc-text-muted, #94a3b8)" }}>
+              Your new password is now active. All previous sessions across your devices have been signed out.
+            </p>
+            <Link
+              href={required ? "/admin" : "/?login=1"}
+              className="reset-button"
+              style={{ display: "inline-block", textAlign: "center", textDecoration: "none", marginTop: "1rem" }}
+            >
+              {required ? "Continue to administration" : "Return to Login"}
+            </Link>
+          </>
+        ) : !tokenChecked ? (
+          /* 2. Loading / Verification State */
+          <div style={{ textAlign: "center", padding: "2rem 0" }}>
+            <p style={{ color: "#94a3b8" }}>Verifying password recovery link…</p>
+          </div>
+        ) : !tokenValid && !required ? (
+          /* 3. Invalid or Expired Token State with Request New Link Action */
+          <>
+            <h1 style={{ color: "#f87171" }}>Invalid or Expired Link</h1>
+            <p style={{ lineHeight: 1.6, color: "#cbd5e1" }}>
+              {tokenError || "This password recovery link is invalid, expired, or has already been used."}
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "0.5rem" }}>
+              For your security, password reset links expire after 15 minutes and can only be used once.
+            </p>
+            <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <Link
+                href="/forgot-password"
+                className="reset-button"
+                style={{ textAlign: "center", textDecoration: "none" }}
+              >
+                Request New Reset Link
+              </Link>
+              <Link
+                href="/?login=1"
+                style={{
+                  textAlign: "center",
+                  fontSize: "0.85rem",
+                  color: "#38bdf8",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                }}
+              >
+                Back to Login
+              </Link>
+            </div>
           </>
         ) : (
+          /* 4. Valid Token Form */
           <>
             <h1>Choose a new password</h1>
             <p>Enter a new password for your Zappit account.</p>
+
             <form onSubmit={submit}>
               <label>
                 New password
                 <span className="reset-password-field">
                   <input
                     name="password"
+                    id="new-password"
                     type={showPassword ? "text" : "password"}
                     minLength={12}
                     autoComplete="new-password"
+                    value={passwordValue}
                     onChange={(event) => setPasswordValue(event.target.value)}
                     onKeyUp={(event) => setCapsField(event.getModifierState("CapsLock") ? "password" : null)}
                     onBlur={() => setCapsField(null)}
@@ -98,18 +234,25 @@ export default function ResetPasswordPage() {
                   </button>
                 </span>
                 <span className="reset-password-requirements" aria-live="polite">
-                  {passwordRules.map(([label, met]) => <small className={met ? "met" : ""} key={label}>{label}</small>)}
+                  {passwordRules.map(([label, met]) => (
+                    <small className={met ? "met" : ""} key={label}>
+                      {met ? "✓ " : ""}{label}
+                    </small>
+                  ))}
                 </span>
                 {capsField === "password" && <small className="reset-caps-warning">Caps Lock is on</small>}
               </label>
+
               <label>
                 Confirm password
                 <span className="reset-password-field">
                   <input
                     name="confirmation"
+                    id="confirm-password"
                     type={showConfirmation ? "text" : "password"}
                     minLength={12}
                     autoComplete="new-password"
+                    value={confirmationValue}
                     onChange={(event) => setConfirmationValue(event.target.value)}
                     onKeyUp={(event) => setCapsField(event.getModifierState("CapsLock") ? "confirmation" : null)}
                     onBlur={() => setCapsField(null)}
@@ -125,11 +268,27 @@ export default function ResetPasswordPage() {
                     {showConfirmation ? "Hide" : "Show"}
                   </button>
                 </span>
-                {confirmationValue && <small className={`reset-match ${passwordValue === confirmationValue ? "met" : ""}`}>{passwordValue === confirmationValue ? "Passwords match" : "Passwords do not match yet"}</small>}
+                {confirmationValue && (
+                  <small className={`reset-match ${passwordsMatch ? "met" : ""}`}>
+                    {passwordsMatch ? "✓ Passwords match" : "✕ Passwords do not match"}
+                  </small>
+                )}
                 {capsField === "confirmation" && <small className="reset-caps-warning">Caps Lock is on</small>}
               </label>
-              <div className="reset-error" role="alert">{message}</div>
-              <button className="reset-button" type="submit">Change password</button>
+
+              {message && <div className="reset-error" role="alert">{message}</div>}
+
+              <button
+                className="reset-button"
+                type="submit"
+                disabled={submitting || !allRulesMet || !passwordsMatch}
+                style={{
+                  opacity: submitting || !allRulesMet || !passwordsMatch ? 0.6 : 1,
+                  cursor: submitting || !allRulesMet || !passwordsMatch ? "not-allowed" : "pointer",
+                }}
+              >
+                {submitting ? "Saving New Password…" : "Save New Password"}
+              </button>
             </form>
           </>
         )}

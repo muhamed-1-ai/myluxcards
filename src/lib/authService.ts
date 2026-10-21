@@ -169,8 +169,8 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
       user = (
         await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
           `insert into users(email,name,role,feature_permissions)
-        values($1,$2,'CUSTOMER',$3::jsonb) returning id,email,name,session_version,role,disabled,status`,
-          [email, name, JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
+        values($1,$2,$3,$4::jsonb) returning id,email,name,session_version,role,disabled,status`,
+          [email, name, "CUSTOMER", JSON.stringify(ZERO_FEATURE_PERMISSIONS)]
         )
       ).rows[0];
       await db.query("insert into profiles(id) values($1)", [user.id]);

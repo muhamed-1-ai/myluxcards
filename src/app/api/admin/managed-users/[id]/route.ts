@@ -180,7 +180,11 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         return NextResponse.json({ message: "Self-suspension is not permitted. You cannot suspend your own account." }, { status: 400 });
       }
 
-      // 3. Target user is SUPER_ADMIN check
+      // 3. Target user is ADMIN or SUPER_ADMIN check
+      if (managedUser.role === "ADMIN" && !isAuthoritativeOwner(identity)) {
+        return NextResponse.json({ message: "Only the primary owner can alter an administrator account." }, { status: 403 });
+      }
+
       if (managedUser.role === "SUPER_ADMIN") {
         if (identity.role !== "SUPER_ADMIN") {
           return NextResponse.json({ message: "Only Super Admins can alter a Super Admin account." }, { status: 403 });
@@ -203,10 +207,16 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 
     if (name && typeof name === "string" && name.trim().length >= 2) {
+      if ((managedUser.role === "ADMIN" || managedUser.role === "SUPER_ADMIN") && !isAuthoritativeOwner(identity)) {
+        return NextResponse.json({ message: "Only the primary owner can alter an administrator account." }, { status: 403 });
+      }
       updatedUser = await updateUserNickname(managedUser.id, name.trim());
     }
 
     if (featurePermissions && typeof featurePermissions === "object") {
+      if ((managedUser.role === "ADMIN" || managedUser.role === "SUPER_ADMIN") && !isAuthoritativeOwner(identity)) {
+        return NextResponse.json({ message: "Only the primary owner can alter administrator feature permissions." }, { status: 403 });
+      }
       // Normalize submitted feature permissions map
       const normalizedPermissions = normalizeFeaturePermissions(featurePermissions);
       const oldPermissions = managedUser.feature_permissions;
@@ -238,6 +248,10 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 
     if (isOwnerAccount(managedUser.id, managedUser.email)) {
       return NextResponse.json({ message: "The primary owner account is protected and cannot be deleted or disabled." }, { status: 403 });
+    }
+
+    if ((managedUser.role === "ADMIN" || managedUser.role === "SUPER_ADMIN") && !isAuthoritativeOwner(identity)) {
+      return NextResponse.json({ message: "Only the primary owner can disable an administrator account." }, { status: 403 });
     }
 
     const updatedUser = await updateUserStatus(managedUser.id, "DISABLED");

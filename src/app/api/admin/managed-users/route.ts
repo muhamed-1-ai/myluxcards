@@ -13,14 +13,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim() || undefined;
+    const status = searchParams.get("status")?.trim() || undefined;
+
     const isSuperAdmin = identity.role === "SUPER_ADMIN";
-    const rawUsers = await findManagedUsersByAdmin(identity.id, isSuperAdmin);
+    const rawUsers = await findManagedUsersByAdmin(identity.id, { search, status });
     const users = rawUsers.map((u) => ({
       ...u,
       feature_permissions: normalizeFeaturePermissions(u.feature_permissions),
     }));
 
-    return NextResponse.json({ users });
+    return NextResponse.json({ users, total: users.length });
   } catch (error) {
     return safeError(error);
   }

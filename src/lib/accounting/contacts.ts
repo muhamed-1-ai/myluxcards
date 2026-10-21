@@ -22,13 +22,77 @@ export async function createContact(
   client?: Queryable
 ): Promise<ContactRow> {
   const db = client || pool;
-  const name = input.name.trim();
-  if (name.length < 2) throw new Error("Contact name must be at least 2 characters.");
+  const name = (input.name || "").trim();
+  if (name.length < 2) {
+    throw new Error("Full Name is required (minimum 2 characters).");
+  }
 
+  // Validate contact type (CUSTOMER, VENDOR, PERSONAL)
+  const rawType = (input.type || "CUSTOMER").toString().toUpperCase().trim();
+  const validTypes: ContactType[] = ["CUSTOMER", "VENDOR", "PERSONAL"];
+  if (!validTypes.includes(rawType as ContactType)) {
+    throw new Error(`Invalid contact type "${input.type}". Must be Customer, Vendor, or Personal.`);
+  }
+  const type = rawType as ContactType;
+
+  // Validate and normalize optional email
+  const rawEmail = input.email ? input.email.trim().toLowerCase() : null;
+  let email: string | null = null;
+  if (rawEmail) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(rawEmail)) {
+      throw new Error(`Please enter a valid email address.`);
+    }
+    email = rawEmail;
+  }
+
+  // Validate and normalize optional phone
+  const rawPhone = input.phone ? input.phone.trim() : null;
+  let phone: string | null = null;
   let phoneNormalized: string | null = null;
-  if (input.phone) {
-    const parsed = normalizePhoneNumber(input.phone);
-    if (parsed.isValid) phoneNormalized = parsed.normalized;
+  if (rawPhone) {
+    phone = rawPhone;
+    const parsed = normalizePhoneNumber(rawPhone);
+    if (parsed.isValid) {
+      phoneNormalized = parsed.normalized;
+    }
+  }
+
+  // 1. Double-submit guard: If identical name and type was submitted within 10 seconds in this workspace, return it idempotently
+  const recentSub = await db.query<ContactRow>(
+    `SELECT * FROM accounting_contacts
+     WHERE workspace_id = $1 AND LOWER(name) = LOWER($2) AND type = $3 AND is_active = true AND created_at > NOW() - INTERVAL '10 seconds'
+     ORDER BY created_at DESC LIMIT 1`,
+    [input.workspaceId, name, type]
+  );
+  if (recentSub.rows.length > 0) {
+    const existing = recentSub.rows[0];
+    const matchEmail = !email || (existing.email && existing.email.toLowerCase() === email.toLowerCase());
+    const matchPhone = !phoneNormalized || existing.phone_normalized === phoneNormalized;
+    if (matchEmail && matchPhone) {
+      return existing;
+    }
+  }
+
+  // 2. Meaningful duplicate checks (only if unique identifier values are present)
+  if (email) {
+    const dupEmail = await db.query(
+      `SELECT id, name FROM accounting_contacts WHERE workspace_id = $1 AND LOWER(email) = LOWER($2) AND is_active = true LIMIT 1`,
+      [input.workspaceId, email]
+    );
+    if (dupEmail.rows.length > 0) {
+      throw new Error(`A contact with email "${email}" already exists (${dupEmail.rows[0].name}).`);
+    }
+  }
+
+  if (phoneNormalized) {
+    const dupPhone = await db.query(
+      `SELECT id, name FROM accounting_contacts WHERE workspace_id = $1 AND phone_normalized = $2 AND is_active = true LIMIT 1`,
+      [input.workspaceId, phoneNormalized]
+    );
+    if (dupPhone.rows.length > 0) {
+      throw new Error(`A contact with phone "${input.phone}" already exists (${dupPhone.rows[0].name}).`);
+    }
   }
 
   const res = await db.query<ContactRow>(
@@ -39,12 +103,12 @@ export async function createContact(
     [
       input.workspaceId,
       name,
-      input.type,
-      input.email?.trim().toLowerCase() || null,
-      input.phone || null,
+      type,
+      email,
+      phone,
       phoneNormalized,
-      input.address || null,
-      input.notes || null,
+      input.address?.trim() || null,
+      input.notes?.trim() || null,
       input.leadId || null,
     ]
   );

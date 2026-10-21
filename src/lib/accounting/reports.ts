@@ -159,19 +159,21 @@ export async function getDashboardMetrics(
     cashOutMinor: parseInt(r.cash_out || "0", 10),
   }));
 
-  // 7. Category Breakdown for Expenses in the period
-  const catRes = await pool.query<{ category_name: string; total: string }>(
+  // 7. Category Breakdown for Expenses in the period (rolls subcategory spending into main category)
+  const catRes = await pool.query<{ category_id: string; category_name: string; total: string }>(
     `SELECT
-       COALESCE(c.name, 'Uncategorized') as category_name,
+       COALESCE(parent.id, c.id)::text as category_id,
+       COALESCE(parent.name, c.name, 'Uncategorized') as category_name,
        COALESCE(SUM(t.amount_minor), 0) as total
      FROM accounting_transactions t
      LEFT JOIN accounting_categories c ON c.id = t.category_id
+     LEFT JOIN accounting_categories parent ON parent.id = c.parent_id
      WHERE t.workspace_id = $1
        AND t.type = 'EXPENSE'
        AND t.status = 'POSTED'
        AND t.date >= $2
        AND t.date <= $3
-     GROUP BY c.name
+     GROUP BY COALESCE(parent.id, c.id), COALESCE(parent.name, c.name, 'Uncategorized')
      ORDER BY total DESC
      LIMIT 8`,
     [workspaceId, start, end]
@@ -180,6 +182,7 @@ export async function getDashboardMetrics(
   const categoryBreakdown = catRes.rows.map((r) => {
     const amt = parseInt(r.total || "0", 10);
     return {
+      category_id: r.category_id || "",
       categoryName: r.category_name,
       amountMinor: amt,
       percent: totalCatExpenses > 0 ? Math.round((amt / totalCatExpenses) * 100) : 0,
@@ -188,10 +191,14 @@ export async function getDashboardMetrics(
 
   // 8. Recent 5 Transactions
   const recentRes = await pool.query<UserTransactionRow>(
-    `SELECT t.*, c.name as contact_name, cat.name as category_name, fa.name as account_name
+    `SELECT t.*, c.name as contact_name,
+            cat.name as category_name,
+            parent_cat.name as parent_category_name,
+            fa.name as account_name
      FROM accounting_transactions t
      LEFT JOIN accounting_contacts c ON c.id = t.contact_id
      LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+     LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
      LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
      WHERE t.workspace_id = $1
      ORDER BY t.date DESC, t.created_at DESC
@@ -383,7 +390,10 @@ export async function generateTransactionsExport(
       t.date as "Date",
       t.type as "Type",
       COALESCE(c.name, '') as "Contact / Person",
-      COALESCE(cat.name, '') as "Category",
+      CASE
+        WHEN p.name IS NOT NULL THEN (p.name || ' → ' || cat.name)
+        ELSE COALESCE(cat.name, '')
+      END as "Category",
       fa.name as "Financial Account",
       (t.amount_minor::numeric / 100.0) as "Amount (INR)",
       t.status as "Status",
@@ -391,6 +401,7 @@ export async function generateTransactionsExport(
     FROM accounting_transactions t
     LEFT JOIN accounting_contacts c ON c.id = t.contact_id
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+    LEFT JOIN accounting_categories p ON p.id = cat.parent_id
     LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
     WHERE t.workspace_id = $1
     ORDER BY t.date DESC, t.created_at DESC

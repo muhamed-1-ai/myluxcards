@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
+import FormattedMoneyInput, { formatAmountWithCommas } from "@/components/ui/FormattedMoneyInput";
 import { FollowUpType, normalizeFollowUpType, extractFollowUpTypeAndCleanNote } from "@/lib/follow-up-types";
 import { 
   X, 
@@ -1289,9 +1290,7 @@ export default function AddLeadDrawer({
                 <label className="add-lead-label">
                   Total Amount
                 </label>
-                <input 
-                  type="number"
-                  min={0}
+                <FormattedMoneyInput 
                   value={totalAmount || ""}
                   onChange={e => setFormData({ ...formData, customTotalAmount: e.target.value })}
                   disabled={selectedProducts.length > 0}
@@ -1307,7 +1306,7 @@ export default function AddLeadDrawer({
                 <input 
                   type="text" 
                   readOnly
-                  value={balanceAmount ? balanceAmount.toFixed(2) : "0.00"}
+                  value={balanceAmount ? formatAmountWithCommas(balanceAmount.toFixed(2)) : "0.00"}
                   className="add-lead-input font-bold opacity-80 cursor-not-allowed"
                 />
               </div>
@@ -1336,9 +1335,7 @@ export default function AddLeadDrawer({
             {/* Inline Request Advance Form */}
             {isRequestingAdvance && (
               <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-center gap-3">
-                <input
-                  type="number"
-                  min={0}
+                <FormattedMoneyInput
                   placeholder="Advance Amount (₹)"
                   value={newAdvanceAmount}
                   onChange={e => setNewAdvanceAmount(e.target.value)}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface RecurringRule {
   id: string;
@@ -243,10 +244,8 @@ export default function RecurringView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="rec-amount">Amount (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="rec-amount"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   placeholder="0.00"

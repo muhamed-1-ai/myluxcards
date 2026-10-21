@@ -15,12 +15,12 @@ export async function PATCH(
   try {
     const body = await req.json();
 
-    if (body.action === "ARCHIVE") {
+    if (body.action === "ARCHIVE" || body.isArchived === true) {
       const category = await archiveCategory(context!.workspace.id, categoryId);
       return NextResponse.json({ category });
     }
 
-    if (body.action === "RESTORE") {
+    if (body.action === "RESTORE" || body.isArchived === false) {
       const category = await restoreCategory(context!.workspace.id, categoryId);
       return NextResponse.json({ category });
     }

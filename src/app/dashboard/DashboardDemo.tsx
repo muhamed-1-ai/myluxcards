@@ -60,6 +60,10 @@ const LeadsWorkspace = dynamic(
   () => import("@/components/leads/LeadsWorkspace"),
   { ssr: false }
 );
+const SecuritySettingsView = dynamic(
+  () => import("@/components/security/SecuritySettingsView"),
+  { ssr: false }
+);
 import {
   BusinessKpiGrid,
   DigitalCardKpiGrid,
@@ -87,6 +91,7 @@ import {
   MessageSquare,
   Check,
   X,
+  Shield,
   ShieldAlert,
   ArrowUpRight,
   Clock,
@@ -130,7 +135,8 @@ type Tab =
   | "accounting-recurring"
   | "accounting-reports"
   | "accounting-reminders"
-  | "accounting-settings";
+  | "accounting-settings"
+  | "security";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
   allowDirectCall?: boolean; allowDirectMessage?: boolean; showEmergencyContact?: boolean;
@@ -1206,21 +1212,44 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           </div>
         </header>
 
-        {/* Access Pending Card */}
+        {/* Access Pending Card or Security Settings */}
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
-              <Clock className="w-8 h-8" />
+          {tab === "security" ? (
+            <div className="w-full max-w-2xl bg-[#1B1C21] border border-[#343740] rounded-2xl p-6 shadow-2xl">
+              <button
+                type="button"
+                onClick={() => selectTab("dashboard")}
+                className="mb-4 text-xs font-bold text-sky-400 hover:text-sky-300 cursor-pointer inline-flex items-center gap-1"
+              >
+                ← Back to Overview
+              </button>
+              <SecuritySettingsView user={currentUser} />
             </div>
-            <h2 className="text-2xl font-bold text-[#F5F6F8] mb-2">Access pending</h2>
-            <p className="text-[#B5B8C2] text-sm leading-relaxed mb-6">
-              Your account is active, but no features have been enabled yet. Please contact your administrator.
-            </p>
-            <div className="pt-4 border-t border-[#343740] w-full flex items-center justify-between text-xs text-[#969CA8]">
-              <span>Account Role: <strong className="text-[#F5F6F8]">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
-              <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
+          ) : (
+            <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
+                <Clock className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-bold text-[#F5F6F8] mb-2">Access pending</h2>
+              <p className="text-[#B5B8C2] text-sm leading-relaxed mb-6">
+                Your account is active, but no features have been enabled yet. Please contact your administrator.
+              </p>
+              <div className="pt-4 border-t border-[#343740] w-full flex flex-col items-center gap-3">
+                <div className="w-full flex items-center justify-between text-xs text-[#969CA8]">
+                  <span>Account Role: <strong className="text-[#F5F6F8]">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
+                  <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectTab("security")}
+                  className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Security &amp; Password Settings</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -1567,6 +1596,16 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 </span>
               </button>
             )}
+            <button
+              type="button"
+              className={`side-nav-item ${tab === "security" ? "active" : ""}`}
+              onClick={() => { selectTab("security" as Tab); setSidebar(false); }}
+            >
+              <span className="side-nav-item-left">
+                <Shield className="side-nav-icon" />
+                <span>Security</span>
+              </span>
+            </button>
             {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
               <a className="side-nav-item side-link side-admin-link" href="/admin">
                 <span className="side-nav-item-left">
@@ -1598,7 +1637,9 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
               <span className="crumb-brand">Zappit</span>
               <span className="crumb-slash">/</span>
               <span className="crumb-target">
-                {tab === "cards"
+                {tab === "security"
+                  ? "Security Settings"
+                  : tab === "cards"
                   ? "My Cards"
                   : tab === "dashboard"
                     ? "Dashboard"
@@ -1679,6 +1720,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                           <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
                         )}
                         <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
+                        <button type="button" onClick={() => { selectTab("security" as Tab); setAccountMenu(false); }}>🛡 Security &amp; Password</button>
                         <button type="button" onClick={logout}>Log out</button>
                       </div>
                     )}
@@ -1720,7 +1762,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 
         {/* Zappit Accounts Financial Management Page Views */}
         {tab.startsWith("accounting-") && (
-          <section>
+          <section style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
             {!isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) ? (
               <div
                 style={{
@@ -1773,6 +1815,12 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           isOpen={layoutModalOpen}
           onClose={() => setLayoutModalOpen(false)}
         />
+
+        {tab === "security" && (
+          <section className="dashboard-content-section" style={{ minHeight: "80vh", padding: "1rem" }}>
+            <SecuritySettingsView user={currentUser} />
+          </section>
+        )}
 
         {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
           <div className="page-heading edit-heading"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>

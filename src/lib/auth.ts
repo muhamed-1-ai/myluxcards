@@ -154,7 +154,7 @@ export const authOptions: NextAuthOptions = {
           const dbUser = await findUserById(token.userId as string);
           if (dbUser) {
             token.role = dbUser.role;
-            if (dbUser.session_version !== undefined) {
+            if (token.sessionVersion === undefined && dbUser.session_version !== undefined) {
               token.sessionVersion = dbUser.session_version;
             }
           }

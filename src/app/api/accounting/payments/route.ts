@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const result = await recordPayment({
       workspaceId: context!.workspace.id,
-      type: body.type,
+      type: body.type || "IN",
       contactId: body.contactId,
       financialAccountId: body.financialAccountId,
       amountMinor: body.amountMinor,
@@ -31,7 +31,9 @@ export async function POST(req: Request) {
       paymentMethod: body.paymentMethod,
       referenceNumber: body.referenceNumber,
       notes: body.notes,
+      invoiceId: body.invoiceId,
       allocations: body.allocations,
+      idempotencyKey: body.idempotencyKey,
       userId: context!.identity.id,
     });
     return NextResponse.json(result, { status: 201 });

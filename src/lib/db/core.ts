@@ -1,5 +1,8 @@
-import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 import { databaseConfig } from "./config";
+
+// Ensure DATE (OID 1082) columns are returned as exact YYYY-MM-DD strings without timezone conversion
+types.setTypeParser(1082, (val: string) => val);
 
 const globalPool = globalThis as typeof globalThis & { __myluxcardsPool?: Pool };
 export const pool = globalPool.__myluxcardsPool ?? new Pool(databaseConfig());

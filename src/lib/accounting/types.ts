@@ -70,6 +70,8 @@ export interface CategoryRow {
   sort_order: number;
   created_at: Date;
   updated_at: Date;
+  parent_name?: string | null;
+  parent_is_archived?: boolean | null;
 }
 
 export interface ContactRow {
@@ -244,6 +246,7 @@ export interface UserTransactionRow {
   created_at: Date;
   updated_at: Date;
   category_name?: string | null;
+  parent_category_name?: string | null;
   account_name?: string | null;
   contact_name?: string | null;
 }

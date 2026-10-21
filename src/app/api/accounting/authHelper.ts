@@ -45,9 +45,21 @@ export async function requireAccountingApi(
     };
   }
 
-  // 3. Resolve workspace from query params or header
+  // 3. Resolve workspace from query params, header, or body (for mutations)
   const url = new URL(req.url);
-  const workspaceId = url.searchParams.get("workspaceId") || req.headers.get("x-workspace-id");
+  let workspaceId = url.searchParams.get("workspaceId") || req.headers.get("x-workspace-id");
+
+  if (!workspaceId && req.method !== "GET" && req.method !== "HEAD") {
+    try {
+      const cloned = req.clone();
+      const body = await cloned.json();
+      if (body && typeof body.workspaceId === "string" && body.workspaceId.trim()) {
+        workspaceId = body.workspaceId.trim();
+      }
+    } catch {
+      // Body not JSON or unparseable, fallback to default
+    }
+  }
 
   let workspace: (WorkspaceRow & { role: WorkspaceRole }) | null = null;
 

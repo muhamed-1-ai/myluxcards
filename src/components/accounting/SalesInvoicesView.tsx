@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface Product {
   id: string;
@@ -76,6 +77,8 @@ export default function SalesInvoicesView() {
   // Payment Allocation State
   const [payAmountStr, setPayAmountStr] = useState("");
   const [payAccountId, setPayAccountId] = useState("");
+  const [payError, setPayError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -232,23 +235,29 @@ export default function SalesInvoicesView() {
   const handleInvoicePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recordPaymentInvoice || !activeWorkspace) return;
+    setPayError(null);
+
     const amt = parseFloat(payAmountStr);
     if (isNaN(amt) || amt <= 0 || !payAccountId) {
-      alert("Please provide a valid payment amount and account.");
+      setPayError("Please provide a valid payment amount and deposit account.");
       return;
     }
 
     const payMinor = Math.round(amt * 100);
     if (payMinor > recordPaymentInvoice.amount_due_minor) {
-      alert(`Cannot overpay invoice. Maximum balance due is ${formatMoney(recordPaymentInvoice.amount_due_minor)}.`);
+      setPayError(`Cannot overpay invoice. Maximum balance due is ${formatMoney(recordPaymentInvoice.amount_due_minor, activeWorkspace?.currency)}.`);
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/accounting/payments", {
+      const idempotencyKey = `PAY-COLL-${recordPaymentInvoice.id}-${payMinor}-${Date.now()}`;
+      const res = await fetch(`/api/accounting/payments?workspaceId=${activeWorkspace.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": activeWorkspace.id,
+        },
         body: JSON.stringify({
           workspaceId: activeWorkspace.id,
           invoiceId: recordPaymentInvoice.id,
@@ -258,17 +267,39 @@ export default function SalesInvoicesView() {
           financialAccountId: payAccountId,
           paymentDate: new Date().toISOString().slice(0, 10),
           notes: `Payment for Invoice ${recordPaymentInvoice.invoice_number}`,
+          allocations: [{ invoiceId: recordPaymentInvoice.id, amountMinor: payMinor }],
+          idempotencyKey,
         }),
       });
 
+      const data = await res.json();
       if (res.ok) {
+        // Immediate optimistic update so invoice reflects payment without manual reload
+        const updatedPaid = Number(recordPaymentInvoice.amount_paid_minor) + payMinor;
+        const updatedDue = Math.max(0, Number(recordPaymentInvoice.amount_due_minor) - payMinor);
+        const updatedStatus = updatedDue === 0 ? "PAID" : "PARTIALLY_PAID";
+
+        setInvoices((prev) =>
+          prev.map((inv) =>
+            inv.id === recordPaymentInvoice.id
+              ? { ...inv, amount_paid_minor: updatedPaid, amount_due_minor: updatedDue, status: updatedStatus }
+              : inv
+          )
+        );
+
+        setSuccessToast(
+          `Collection of ${formatMoney(payMinor, activeWorkspace?.currency)} recorded successfully for ${recordPaymentInvoice.invoice_number}.`
+        );
         setRecordPaymentInvoice(null);
         setPayAmountStr("");
+        setPayAccountId("");
+        setPayError(null);
         triggerRefresh();
       } else {
-        const data = await res.json();
-        alert(data.error || "Failed to record invoice payment");
+        setPayError(data.error || "Failed to record invoice payment");
       }
+    } catch (err: any) {
+      setPayError(err.message || "Network request failed. Please check connection and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -303,6 +334,37 @@ export default function SalesInvoicesView() {
           )}
         </div>
       </div>
+
+      {/* Success Feedback Banner */}
+      {successToast && (
+        <div
+          className="acc-alert acc-alert-success"
+          style={{
+            marginBottom: "1.25rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>{successToast}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessToast(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: "1.1rem",
+              lineHeight: 1,
+              padding: "0 0.25rem",
+            }}
+            aria-label="Dismiss message"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Subtab Navigation */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
@@ -383,20 +445,29 @@ export default function SalesInvoicesView() {
                         </span>
                       </td>
                       <td className="acc-align-right">
-                        <div style={{ display: "inline-flex", gap: "0.375rem" }}>
-                          {inv.amount_due_minor > 0 && canMutate && (
+                        <div style={{ display: "inline-flex", gap: "0.375rem", alignItems: "center" }}>
+                          {inv.amount_due_minor > 0 && canMutate ? (
                             <button
                               type="button"
                               className="acc-btn acc-btn-sm acc-btn-primary"
                               style={{ padding: "0.2rem 0.5rem" }}
                               onClick={() => {
+                                setPayError(null);
                                 setRecordPaymentInvoice(inv);
                                 setPayAmountStr((inv.amount_due_minor / 100).toString());
+                                const defaultAcc = accounts.find(
+                                  (a) => a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype)
+                                );
+                                setPayAccountId(defaultAcc?.id || "");
                               }}
                             >
                               Collect
                             </button>
-                          )}
+                          ) : inv.status === "PAID" || inv.amount_due_minor === 0 ? (
+                            <span className="acc-badge acc-badge-success" style={{ padding: "0.2rem 0.5rem" }}>
+                              Settled
+                            </span>
+                          ) : null}
                           <button
                             type="button"
                             className="acc-btn acc-btn-sm acc-btn-outline"
@@ -478,10 +549,8 @@ export default function SalesInvoicesView() {
             <form onSubmit={handleWalkinSale}>
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="sale-amount">Sale Amount (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="sale-amount"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   placeholder="0.00"
@@ -638,10 +707,7 @@ export default function SalesInvoicesView() {
                       }}
                       required
                     />
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <FormattedMoneyInput
                       className="acc-form-input tabular-nums"
                       placeholder="Price (₹)"
                       style={{ width: "110px" }}
@@ -707,17 +773,19 @@ export default function SalesInvoicesView() {
               <button type="button" className="acc-modal-close" onClick={() => setRecordPaymentInvoice(null)}>✕</button>
             </div>
             <p style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", marginBottom: "1rem" }}>
-              Total Invoice: {formatMoney(recordPaymentInvoice.total_minor)} · Outstanding Balance Due:{" "}
-              <strong>{formatMoney(recordPaymentInvoice.amount_due_minor)}</strong>
+              Total Invoice: {formatMoney(recordPaymentInvoice.total_minor, activeWorkspace?.currency)} · Outstanding Balance Due:{" "}
+              <strong>{formatMoney(recordPaymentInvoice.amount_due_minor, activeWorkspace?.currency)}</strong>
             </p>
             <form onSubmit={handleInvoicePayment}>
+              {payError && (
+                <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                  {payError}
+                </div>
+              )}
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="pay-amt-input">Amount Received (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="pay-amt-input"
-                  type="number"
-                  step="0.01"
-                  max={(recordPaymentInvoice.amount_due_minor / 100).toFixed(2)}
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   value={payAmountStr}
@@ -850,10 +918,8 @@ export default function SalesInvoicesView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="prod-price">Default Price (₹)</label>
-                <input
+                <FormattedMoneyInput
                   id="prod-price"
-                  type="number"
-                  step="0.01"
                   className="acc-form-input tabular-nums"
                   placeholder="0.00"
                   value={prodPriceStr}

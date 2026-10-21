@@ -27,6 +27,8 @@ export interface Category {
   name: string;
   type: "INCOME" | "EXPENSE";
   parent_id: string | null;
+  parent_name?: string | null;
+  parent_is_archived?: boolean | null;
   color?: string;
   icon?: string;
   is_archived: boolean;
@@ -38,6 +40,7 @@ interface AccountingContextType {
   setActiveWorkspace: (ws: Workspace) => void;
   accounts: FinancialAccount[];
   categories: Category[];
+  setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
   loading: boolean;
   refreshKey: number;
   triggerRefresh: () => void;
@@ -110,13 +113,18 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
   // Fetch accounts and categories when active workspace changes or refreshKey bumps
   useEffect(() => {
     if (!activeWorkspace) return;
+    const wsId = activeWorkspace.id;
     let isMounted = true;
 
     async function loadWorkspaceData() {
       try {
         const [accRes, catRes] = await Promise.all([
-          fetch(`/api/accounting/accounts?workspaceId=${activeWorkspace?.id}`),
-          fetch(`/api/accounting/categories?workspaceId=${activeWorkspace?.id}`),
+          fetch(`/api/accounting/accounts?workspaceId=${wsId}`, {
+            headers: { "x-workspace-id": wsId },
+          }),
+          fetch(`/api/accounting/categories?workspaceId=${wsId}&includeArchived=true`, {
+            headers: { "x-workspace-id": wsId },
+          }),
         ]);
 
         if (accRes.ok && isMounted) {
@@ -164,6 +172,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         setActiveWorkspace,
         accounts,
         categories,
+        setCategories,
         loading,
         refreshKey,
         triggerRefresh,

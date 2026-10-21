@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 export default function AccountsTransfersView() {
   const { activeWorkspace, accounts, formatMoney, openFastModal, refreshKey, triggerRefresh, canMutate } = useAccounting();
@@ -139,18 +140,18 @@ export default function AccountsTransfersView() {
             <table className="acc-table">
               <thead>
                 <tr>
-                  <th>Account Name</th>
-                  <th className="acc-align-right">Balance</th>
+                  <th className="acc-col-name">Account Name</th>
+                  <th className="acc-align-right acc-col-balance" style={{ width: "130px", whiteSpace: "nowrap" }}>Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {liabilityAccounts.map((acc) => (
                   <tr key={acc.id}>
-                    <td>
+                    <td className="acc-col-name" style={{ overflowWrap: "break-word", wordBreak: "break-word" }}>
                       <div style={{ fontWeight: 600 }}>{acc.name}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>{acc.code}</div>
                     </td>
-                    <td className="acc-align-right tabular-nums font-semibold" style={{ color: "var(--acc-danger)" }}>
+                    <td className="acc-align-right acc-col-balance tabular-nums font-semibold" style={{ color: "var(--acc-danger)" }}>
                       {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                     </td>
                   </tr>
@@ -168,18 +169,18 @@ export default function AccountsTransfersView() {
             <table className="acc-table">
               <thead>
                 <tr>
-                  <th>Account Name</th>
-                  <th className="acc-align-right">Balance</th>
+                  <th className="acc-col-name">Account Name</th>
+                  <th className="acc-align-right acc-col-balance" style={{ width: "130px", whiteSpace: "nowrap" }}>Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {equityAccounts.map((acc) => (
                   <tr key={acc.id}>
-                    <td>
+                    <td className="acc-col-name" style={{ overflowWrap: "break-word", wordBreak: "break-word" }}>
                       <div style={{ fontWeight: 600 }}>{acc.name}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>{acc.code}</div>
                     </td>
-                    <td className="acc-align-right tabular-nums font-semibold">
+                    <td className="acc-align-right acc-col-balance tabular-nums font-semibold">
                       {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                     </td>
                   </tr>
@@ -222,10 +223,8 @@ export default function AccountsTransfersView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="open-balance-amt">Opening Balance (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="open-balance-amt"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   placeholder="0.00"

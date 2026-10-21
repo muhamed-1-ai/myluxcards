@@ -184,9 +184,10 @@ export async function reverseJournalEntry(
   workspaceId: string,
   entryId: string,
   reason: string,
-  userId?: string
+  userId?: string,
+  client?: Queryable
 ): Promise<{ reversalEntry: JournalEntryRow; originalEntry: JournalEntryRow }> {
-  return withTransaction(async (client) => {
+  const runner = async (client: Queryable) => {
     // 1. Fetch original entry and its lines
     const origRes = await client.query<JournalEntryRow>(
       `SELECT * FROM accounting_journal_entries WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
@@ -243,23 +244,39 @@ export async function reverseJournalEntry(
       [original.id, reversal.id]
     );
 
-    // 5. Audit Log
-    await client.query(
-      `INSERT INTO accounting_audit_logs
-         (workspace_id, actor_id, actor_role, action, entity_type, entity_id, previous_state, new_state)
-       VALUES ($1, $2, 'STAFF', 'JOURNAL_REVERSED', 'accounting_journal_entries', $3, $4, $5)`,
-      [
-        workspaceId,
-        userId || original.created_by,
-        original.id,
-        JSON.stringify({ status: original.status }),
-        JSON.stringify({ status: "VOIDED", reversed_by: reversal.id, reason }),
-      ]
-    );
+    // 5. Audit Log (ensure non-null actor_id)
+    let actorId = userId || original.created_by;
+    if (!actorId) {
+      const wsOwner = await client.query<{ owner_user_id: string }>(
+        `SELECT owner_user_id FROM accounting_workspaces WHERE id = $1`,
+        [workspaceId]
+      );
+      actorId = wsOwner.rows[0]?.owner_user_id || null;
+    }
+
+    if (actorId) {
+      await client.query(
+        `INSERT INTO accounting_audit_logs
+           (workspace_id, actor_id, actor_role, action, entity_type, entity_id, previous_state, new_state)
+         VALUES ($1, $2, 'STAFF', 'JOURNAL_REVERSED', 'accounting_journal_entries', $3, $4, $5)`,
+        [
+          workspaceId,
+          actorId,
+          original.id,
+          JSON.stringify({ status: original.status }),
+          JSON.stringify({ status: "VOIDED", reversed_by: reversal.id, reason }),
+        ]
+      );
+    }
 
     return {
       reversalEntry: reversal,
-      originalEntry: { ...original, status: "VOIDED", reversed_by_entry_id: reversal.id },
+      originalEntry: { ...original, status: "VOIDED" as const, reversed_by_entry_id: reversal.id },
     };
-  });
+  };
+
+  if (client) {
+    return runner(client);
+  }
+  return withTransaction(runner);
 }

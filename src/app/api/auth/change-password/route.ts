@@ -1,4 +1,56 @@
-import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
-import { hashPassword, validPassword } from "@/lib/authService";
-import { pool } from "@/lib/db";
-export async function POST(request:Request){if(!validMutationOrigin(request))return Response.json({message:"Invalid request origin."},{status:403});const user=await currentIdentity();if(!user)return Response.json({message:"Unauthorized"},{status:401});const body=await request.json().catch(()=>({}));if(typeof body.password!=="string"||!validPassword(body.password))return Response.json({message:"Use 12+ characters with upper, lower, number, and symbol."},{status:400});await pool.query("update users set password_hash=$1,must_change_password=false,session_version=session_version+1 where id=$2",[await hashPassword(body.password),user.id]);return Response.json({ok:true,signInRequired:true})}
+import { NextResponse } from "next/server";
+import { currentIdentity } from "@/lib/auth/currentIdentity";
+import { validMutationOrigin } from "@/lib/adminAuth";
+import { changePasswordForAuthenticatedUser } from "@/lib/auth/passwordRecovery";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(request: Request) {
+  if (!validMutationOrigin(request)) {
+    return NextResponse.json({ message: "Invalid request origin." }, { status: 403 });
+  }
+
+  const user = await currentIdentity(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized. Please sign in." }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
+    const newPassword = typeof body.newPassword === "string" ? body.newPassword : typeof body.password === "string" ? body.password : "";
+
+    const result = await changePasswordForAuthenticatedUser(user.id, currentPassword, newPassword);
+
+    if (!result.ok) {
+      return NextResponse.json(
+        { message: result.message },
+        { status: 400, headers: { "Cache-Control": "no-store, private" } }
+      );
+    }
+
+    const response = NextResponse.json(
+      {
+        ok: true,
+        signInRequired: true,
+        message: result.message,
+      },
+      {
+        status: 200,
+        headers: { "Cache-Control": "no-store, private" },
+      }
+    );
+
+    // Expire session cookies so the browser also removes them immediately
+    response.cookies.set("next-auth.session-token", "", { path: "/", maxAge: 0, expires: new Date(0) });
+    response.cookies.set("__Secure-next-auth.session-token", "", { path: "/", maxAge: 0, expires: new Date(0), secure: true });
+
+    return response;
+  } catch (error) {
+    console.error("[Auth][ChangePassword] Unexpected error:", error);
+    return NextResponse.json(
+      { message: "Unable to complete password change. Please try again." },
+      { status: 500, headers: { "Cache-Control": "no-store, private" } }
+    );
+  }
+}

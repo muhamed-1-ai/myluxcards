@@ -20,8 +20,9 @@ export async function POST(req: Request) {
       workspaceId: context!.workspace.id,
       categoryId: body.categoryId,
       periodType: body.periodType,
-      periodStart: body.periodStart,
-      periodEnd: body.periodEnd,
+      month: body.month,
+      periodStart: body.periodStart || body.startDate,
+      periodEnd: body.periodEnd || body.endDate,
       amountMinor: body.amountMinor,
       alertThresholdPercent: body.alertThresholdPercent,
     });

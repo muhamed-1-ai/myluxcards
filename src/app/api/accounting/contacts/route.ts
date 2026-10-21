@@ -12,7 +12,12 @@ export async function GET(req: Request) {
   const search = url.searchParams.get("search") || undefined;
   const onlyWithBalances = url.searchParams.get("onlyWithBalances") === "true";
 
-  const contacts = await listContacts(context!.workspace.id, { type, search, onlyWithBalances });
+  const rows = await listContacts(context!.workspace.id, { type, search, onlyWithBalances });
+  const contacts = rows.map((c) => ({
+    ...c,
+    receivable_balance_minor: Number(c.total_receivable_minor ?? 0),
+    payable_balance_minor: Number(c.total_payable_minor ?? 0),
+  }));
   return NextResponse.json({ contacts });
 }
 
@@ -32,7 +37,16 @@ export async function POST(req: Request) {
       notes: body.notes,
       leadId: body.leadId,
     });
-    return NextResponse.json({ contact }, { status: 201 });
+    return NextResponse.json(
+      {
+        contact: {
+          ...contact,
+          receivable_balance_minor: Number(contact.total_receivable_minor ?? 0),
+          payable_balance_minor: Number(contact.total_payable_minor ?? 0),
+        },
+      },
+      { status: 201 }
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to create contact" }, { status: 400 });
   }

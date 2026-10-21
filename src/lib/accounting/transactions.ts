@@ -82,6 +82,31 @@ export async function createTransaction(
       }
     }
 
+    // Validate category if provided
+    if (input.categoryId) {
+      const catCheck = await db.query<{ id: string; name: string; type: string; is_archived: boolean; parent_archived: boolean | null }>(
+        `SELECT c.id, c.name, c.type, c.is_archived, p.is_archived as parent_archived
+         FROM accounting_categories c
+         LEFT JOIN accounting_categories p ON p.id = c.parent_id
+         WHERE c.id = $1 AND c.workspace_id = $2
+         LIMIT 1`,
+        [input.categoryId, input.workspaceId]
+      );
+      if (catCheck.rows.length === 0) {
+        throw new Error("Selected category does not exist in this workspace.");
+      }
+      const cat = catCheck.rows[0];
+      if (cat.is_archived) {
+        throw new Error(`Cannot record transaction under archived category "${cat.name}".`);
+      }
+      if (cat.parent_archived) {
+        throw new Error(`Cannot record transaction under subcategory "${cat.name}" because its parent category is archived.`);
+      }
+      if (cat.type !== input.type) {
+        throw new Error(`Category "${cat.name}" type (${cat.type}) does not match transaction type (${input.type}).`);
+      }
+    }
+
     // 1. Resolve Financial Accounts
     let primaryAccountId = input.financialAccountId || null;
     let offsetAccountId: string;
@@ -388,7 +413,9 @@ export async function listTransactions(
   }
   if (filter.categoryId) {
     params.push(filter.categoryId);
-    where += ` AND t.category_id = $${params.length}`;
+    where += ` AND t.category_id IN (
+      SELECT id FROM accounting_categories WHERE id = $${params.length} OR parent_id = $${params.length}
+    )`;
   }
   if (filter.financialAccountId) {
     params.push(filter.financialAccountId);
@@ -408,7 +435,7 @@ export async function listTransactions(
   }
   if (filter.search) {
     params.push(`%${filter.search.toLowerCase()}%`);
-    where += ` AND (LOWER(t.notes) LIKE $${params.length} OR LOWER(c.name) LIKE $${params.length} OR LOWER(cat.name) LIKE $${params.length})`;
+    where += ` AND (LOWER(t.notes) LIKE $${params.length} OR LOWER(c.name) LIKE $${params.length} OR LOWER(cat.name) LIKE $${params.length} OR LOWER(parent_cat.name) LIKE $${params.length})`;
   }
 
   const countQuery = `
@@ -416,6 +443,7 @@ export async function listTransactions(
     FROM accounting_transactions t
     LEFT JOIN accounting_contacts c ON c.id = t.contact_id
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+    LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
     ${where}
   `;
   const total = parseInt((await pool.query<{ count: string }>(countQuery, params)).rows[0]?.count || "0", 10);
@@ -425,9 +453,11 @@ export async function listTransactions(
 
   params.push(limit, offset);
   const dataQuery = `
-    SELECT t.*, cat.name as category_name, fa.name as account_name, c.name as contact_name
+    SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
+           fa.name as account_name, c.name as contact_name
     FROM accounting_transactions t
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+    LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
     LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
     LEFT JOIN accounting_contacts c ON c.id = t.contact_id
     ${where}
@@ -437,6 +467,89 @@ export async function listTransactions(
 
   const res = await pool.query<UserTransactionRow>(dataQuery, params);
   return { transactions: res.rows, total };
+}
+
+/**
+ * Update transaction metadata and category classification safely.
+ */
+export async function updateTransaction(
+  workspaceId: string,
+  transactionId: string,
+  input: {
+    categoryId?: string | null;
+    date?: string;
+    notes?: string | null;
+    tags?: string[];
+  }
+): Promise<UserTransactionRow> {
+  return withTransaction(async (db) => {
+    const existingRes = await db.query<UserTransactionRow>(
+      `SELECT * FROM accounting_transactions WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
+      [transactionId, workspaceId]
+    );
+    if (existingRes.rows.length === 0) {
+      throw new Error("Transaction not found.");
+    }
+    const existing = existingRes.rows[0];
+    if (existing.status === "VOIDED") {
+      throw new Error("Cannot edit a voided transaction.");
+    }
+
+    let categoryId = existing.category_id;
+    if (input.categoryId !== undefined) {
+      if (input.categoryId) {
+        const catCheck = await db.query<{ id: string; name: string; type: string; is_archived: boolean; parent_archived: boolean | null }>(
+          `SELECT c.id, c.name, c.type, c.is_archived, p.is_archived as parent_archived
+           FROM accounting_categories c
+           LEFT JOIN accounting_categories p ON p.id = c.parent_id
+           WHERE c.id = $1 AND c.workspace_id = $2
+           LIMIT 1`,
+          [input.categoryId, workspaceId]
+        );
+        if (catCheck.rows.length === 0) {
+          throw new Error("Selected category does not exist in this workspace.");
+        }
+        const cat = catCheck.rows[0];
+        if (cat.is_archived) {
+          throw new Error(`Cannot select archived category "${cat.name}".`);
+        }
+        if (cat.parent_archived) {
+          throw new Error(`Cannot select subcategory "${cat.name}" because its parent category is archived.`);
+        }
+        if (cat.type !== existing.type) {
+          throw new Error(`Category "${cat.name}" type (${cat.type}) does not match transaction type (${existing.type}).`);
+        }
+        categoryId = cat.id;
+      } else {
+        categoryId = null;
+      }
+    }
+
+    const date = input.date !== undefined ? input.date : existing.date;
+    const notes = input.notes !== undefined ? input.notes : existing.notes;
+    const tags = input.tags !== undefined ? JSON.stringify(input.tags) : existing.tags;
+
+    await db.query(
+      `UPDATE accounting_transactions
+       SET category_id = $1, date = $2, notes = $3, tags = $4::jsonb, updated_at = NOW()
+       WHERE id = $5 AND workspace_id = $6`,
+      [categoryId, date, notes, tags, transactionId, workspaceId]
+    );
+
+    const fullRes = await db.query<UserTransactionRow>(
+      `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
+              fa.name as account_name, c.name as contact_name
+       FROM accounting_transactions t
+       LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+       LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
+       LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
+       LEFT JOIN accounting_contacts c ON c.id = t.contact_id
+       WHERE t.id = $1 AND t.workspace_id = $2`,
+      [transactionId, workspaceId]
+    );
+
+    return fullRes.rows[0];
+  });
 }
 
 /**

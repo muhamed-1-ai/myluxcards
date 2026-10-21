@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
+import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface Contact {
   id: string;
@@ -11,6 +12,8 @@ interface Contact {
   phone?: string;
   receivable_balance_minor: number;
   payable_balance_minor: number;
+  total_receivable_minor?: number | string;
+  total_payable_minor?: number | string;
 }
 
 interface PaymentRecord {
@@ -39,11 +42,13 @@ export default function PeopleView() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
-  // Form states
+  // Form & Feedback states
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<"CUSTOMER" | "VENDOR" | "PERSONAL">("CUSTOMER");
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // IOU states
   const [iouContactId, setIouContactId] = useState("");
@@ -66,17 +71,27 @@ export default function PeopleView() {
     async function loadContactsAndPayments() {
       try {
         setLoading(true);
-        const [contactsRes, paymentsRes] = await Promise.all([
-          fetch(`/api/accounting/contacts?workspaceId=${activeWorkspace?.id}`),
-          fetch(`/api/accounting/payments?workspaceId=${activeWorkspace?.id}`),
+        const headers: HeadersInit = {
+          "x-workspace-id": activeWorkspace!.id,
+        };
+
+        const [contactsRes, paymentsRes] = await Promise.allSettled([
+          fetch(`/api/accounting/contacts?workspaceId=${activeWorkspace!.id}`, { headers }),
+          fetch(`/api/accounting/payments?workspaceId=${activeWorkspace!.id}`, { headers }),
         ]);
 
-        if (contactsRes.ok && isMounted) {
-          const cData = await contactsRes.json();
-          setContacts(cData.contacts || []);
+        if (contactsRes.status === "fulfilled" && contactsRes.value.ok && isMounted) {
+          const cData = await contactsRes.value.json();
+          const normalizedContacts: Contact[] = (cData.contacts || []).map((c: any) => ({
+            ...c,
+            receivable_balance_minor: Number(c.receivable_balance_minor ?? c.total_receivable_minor ?? 0),
+            payable_balance_minor: Number(c.payable_balance_minor ?? c.total_payable_minor ?? 0),
+          }));
+          setContacts(normalizedContacts);
         }
-        if (paymentsRes.ok && isMounted) {
-          const pData = await paymentsRes.json();
+
+        if (paymentsRes.status === "fulfilled" && paymentsRes.value.ok && isMounted) {
+          const pData = await paymentsRes.value.json();
           setPayments(pData.payments || []);
         }
       } catch (err) {
@@ -92,31 +107,69 @@ export default function PeopleView() {
 
   const handleAddContact = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || !activeWorkspace) return;
+    if (!activeWorkspace) {
+      setFormError("No active workspace selected.");
+      return;
+    }
+
+    const trimmedName = newName.trim();
+    if (trimmedName.length < 2) {
+      setFormError("Full Name is required (minimum 2 characters).");
+      return;
+    }
 
     setSubmitting(true);
+    setFormError(null);
+
     try {
-      const res = await fetch("/api/accounting/contacts", {
+      const res = await fetch(`/api/accounting/contacts?workspaceId=${activeWorkspace.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": activeWorkspace.id,
+        },
         body: JSON.stringify({
           workspaceId: activeWorkspace.id,
-          name: newName.trim(),
+          name: trimmedName,
           type: newType,
           phone: newPhone.trim() || undefined,
           email: newEmail.trim() || undefined,
         }),
       });
-      if (res.ok) {
+
+      const data = await res.json();
+
+      if (res.ok && data.contact) {
+        const created: Contact = {
+          ...data.contact,
+          receivable_balance_minor: Number(data.contact.receivable_balance_minor ?? data.contact.total_receivable_minor ?? 0),
+          payable_balance_minor: Number(data.contact.payable_balance_minor ?? data.contact.total_payable_minor ?? 0),
+        };
+
+        // Immediately update local contacts state so person appears in All People
+        setContacts((prev) => {
+          const exists = prev.some((c) => c.id === created.id);
+          if (exists) {
+            return prev.map((c) => (c.id === created.id ? created : c));
+          }
+          return [created, ...prev];
+        });
+
+        // Switch to All People view so new contact is immediately visible
+        setSubtab("ALL");
+        setSuccessMessage(`Contact "${created.name}" added successfully.`);
         setAddContactOpen(false);
         setNewName("");
         setNewPhone("");
         setNewEmail("");
+        setNewType("CUSTOMER");
+        setFormError(null);
         triggerRefresh();
       } else {
-        const data = await res.json();
-        alert(data.error || "Failed to add contact");
+        setFormError(data.error || "Failed to add contact. Please review form fields.");
       }
+    } catch (err: any) {
+      setFormError(err.message || "Network request failed. Please check connection and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -132,13 +185,17 @@ export default function PeopleView() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/accounting/contacts/iou", {
+      const res = await fetch(`/api/accounting/contacts/iou?workspaceId=${activeWorkspace.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": activeWorkspace.id,
+        },
         body: JSON.stringify({
           workspaceId: activeWorkspace.id,
           contactId: iouContactId,
           type: iouType,
+          direction: iouType === "THEY_OWE_ME" ? "LENT_OUT" : "BORROWED",
           amountMinor: Math.round(amt * 100),
           financialAccountId: iouAccountId,
           notes: iouNotes || undefined,
@@ -148,6 +205,7 @@ export default function PeopleView() {
         setIouModalOpen(false);
         setIouAmountStr("");
         setIouNotes("");
+        setSuccessMessage("Personal IOU recorded successfully.");
         triggerRefresh();
       } else {
         const data = await res.json();
@@ -171,9 +229,12 @@ export default function PeopleView() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/accounting/payments", {
+      const res = await fetch(`/api/accounting/payments?workspaceId=${activeWorkspace.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": activeWorkspace.id,
+        },
         body: JSON.stringify({
           workspaceId: activeWorkspace.id,
           contactId: selectedContact.id,
@@ -190,6 +251,7 @@ export default function PeopleView() {
         setSelectedContact(null);
         setPayAmountStr("");
         setPayNotes("");
+        setSuccessMessage("Payment recorded successfully.");
         triggerRefresh();
       } else {
         const data = await res.json();
@@ -231,7 +293,10 @@ export default function PeopleView() {
               <button
                 type="button"
                 className="acc-btn acc-btn-primary acc-btn-sm"
-                onClick={() => setAddContactOpen(true)}
+                onClick={() => {
+                  setFormError(null);
+                  setAddContactOpen(true);
+                }}
               >
                 + Add Person / Contact
               </button>
@@ -239,6 +304,37 @@ export default function PeopleView() {
           )}
         </div>
       </div>
+
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div
+          className="acc-alert acc-alert-success"
+          style={{
+            marginBottom: "1.25rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>{successMessage}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: "1.1rem",
+              lineHeight: 1,
+              padding: "0 0.25rem",
+            }}
+            aria-label="Dismiss message"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Subtabs */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
@@ -281,7 +377,16 @@ export default function PeopleView() {
             </div>
           ) : filteredContacts.length === 0 ? (
             <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
-              No contacts found in this view.
+              <p style={{ margin: "0 0 1rem 0" }}>No contacts found in this view.</p>
+              {subtab !== "ALL" && (
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-outline acc-btn-sm"
+                  onClick={() => setSubtab("ALL")}
+                >
+                  View All People ({contacts.length})
+                </button>
+              )}
             </div>
           ) : (
             <div className="acc-table-wrapper">
@@ -453,6 +558,11 @@ export default function PeopleView() {
               <button type="button" className="acc-modal-close" onClick={() => setAddContactOpen(false)}>✕</button>
             </div>
             <form onSubmit={handleAddContact}>
+              {formError && (
+                <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                  {formError}
+                </div>
+              )}
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="new-contact-name">Full Name *</label>
                 <input
@@ -570,10 +680,8 @@ export default function PeopleView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="iou-amount">Amount (₹) *</label>
-                <input
+                <FormattedMoneyInput
                   id="iou-amount"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   placeholder="0.00"
@@ -659,10 +767,8 @@ export default function PeopleView() {
                 <label className="acc-form-label" htmlFor="pay-amount">
                   Payment Amount (₹) *
                 </label>
-                <input
+                <FormattedMoneyInput
                   id="pay-amount"
-                  type="number"
-                  step="0.01"
                   required
                   className="acc-form-input acc-amount-hero-input tabular-nums"
                   value={payAmountStr}
