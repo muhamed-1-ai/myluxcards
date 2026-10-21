@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     if (!token || !password) {
       return NextResponse.json(
-        { message: "The reset link or password is invalid." },
+        { ok: false, message: "The reset link or password is invalid." },
         { status: 400, headers: { "Cache-Control": "no-store, private" } }
       );
     }
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       return NextResponse.json(
-        { message: result.message },
+        { ok: false, message: result.message },
         { status: 400, headers: { "Cache-Control": "no-store, private" } }
       );
     }

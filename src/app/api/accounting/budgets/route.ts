@@ -6,7 +6,10 @@ export async function GET(req: Request) {
   const { errorResponse, context } = await requireAccountingApi(req, "VIEWER");
   if (errorResponse) return errorResponse;
 
-  const budgets = await listBudgets(context!.workspace.id);
+  const url = new URL(req.url);
+  const month = url.searchParams.get("month") || undefined;
+
+  const budgets = await listBudgets(context!.workspace.id, month);
   return NextResponse.json({ budgets });
 }
 
@@ -18,6 +21,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const budget = await createBudget({
       workspaceId: context!.workspace.id,
+      name: body.name,
+      icon: body.icon,
       categoryId: body.categoryId,
       periodType: body.periodType,
       month: body.month,

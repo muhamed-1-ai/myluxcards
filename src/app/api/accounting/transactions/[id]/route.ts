@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAccountingApi } from "../../authHelper";
-import { updateTransaction } from "@/lib/accounting/transactions";
+import { updateTransaction, voidTransaction } from "@/lib/accounting/transactions";
 import { pool } from "@/lib/db";
 import type { UserTransactionRow } from "@/lib/accounting/types";
 
@@ -59,5 +59,30 @@ export async function PATCH(
     return NextResponse.json({ transaction });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to update transaction" }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  props: { params: Promise<{ id: string }> }
+) {
+  const { errorResponse, context } = await requireAccountingApi(req, "MANAGER");
+  if (errorResponse) return errorResponse;
+
+  const params = await props.params;
+  const transactionId = params.id;
+
+  try {
+    const url = new URL(req.url);
+    const reason = url.searchParams.get("reason") || "Voided from budget details";
+    const voided = await voidTransaction(
+      context!.workspace.id,
+      transactionId,
+      reason,
+      context!.identity.id
+    );
+    return NextResponse.json({ transaction: voided, success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to void transaction" }, { status: 400 });
   }
 }

@@ -18,7 +18,9 @@ export async function POST(
       workspaceId: context!.workspace.id,
       loanId,
       installmentNumber: body.installmentNumber,
-      paidDate: body.paidDate,
+      principalMinor: body.principalMinor,
+      interestMinor: body.interestMinor,
+      paidDate: body.paymentDate || body.paidDate,
       financialAccountId: body.financialAccountId,
       userId: context!.identity.id,
     });

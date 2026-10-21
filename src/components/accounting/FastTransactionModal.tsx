@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
-import FormattedMoneyInput, { formatAmountWithCommas } from "../ui/FormattedMoneyInput";
+import FormattedMoneyInput, { formatAmountWithCommas, stripCommas } from "../ui/FormattedMoneyInput";
 
 export default function FastTransactionModal() {
   const {
@@ -88,8 +88,8 @@ export default function FastTransactionModal() {
     ? categories.filter((c) => c.parent_id === mainCategoryId && !c.is_archived)
     : [];
 
-  const parsedTotal = parseFloat(amountStr) || 0;
-  const parsedPaid = parseFloat(paidAmountStr) || 0;
+  const parsedTotal = parseFloat(stripCommas(amountStr)) || 0;
+  const parsedPaid = parseFloat(stripCommas(paidAmountStr)) || 0;
   const remainingBalance = Math.max(0, parsedTotal - parsedPaid);
 
   const handleSubmit = async (e: React.FormEvent) => {

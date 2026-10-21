@@ -18,13 +18,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const result = await createLoan({
       workspaceId: context!.workspace.id,
-      loanName: body.loanName,
+      loanName: body.loanName || body.lenderName,
       lenderContactId: body.lenderContactId,
       principalMinor: body.principalMinor,
       interestRatePercent: body.interestRatePercent,
-      tenureMonths: body.tenureMonths,
+      tenureMonths: body.tenureMonths || body.termMonths,
       startDate: body.startDate,
-      disbursementAccountId: body.disbursementAccountId,
+      disbursementAccountId: body.disbursementAccountId || body.depositAccountId,
       userId: context!.identity.id,
     });
     return NextResponse.json(result, { status: 201 });

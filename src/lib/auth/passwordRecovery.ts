@@ -106,6 +106,7 @@ export async function requestPasswordRecovery(
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
+    let tokenId: string | null = null;
     await withTransaction(async (db) => {
       // Invalidate any existing unconsumed tokens for this user
       await db.query(
@@ -113,23 +114,56 @@ export async function requestPasswordRecovery(
         [user.id]
       );
 
-      // Insert new token hash
-      await db.query(
-        `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at)
-        values($1, 'PASSWORD_RESET', $2, $3)`,
+      // Insert new token hash with initial PENDING delivery status
+      const insertResult = await db.query<{ id: string }>(
+        `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status)
+        values($1, 'PASSWORD_RESET', $2, $3, 'PENDING')
+        returning id`,
         [user.id, tokenHash, expiresAt]
       );
+      tokenId = insertResult.rows[0]?.id || null;
     });
 
     const origin = getAppOrigin();
     const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
-    await sendPasswordResetEmail({
+    const deliveryResult = await sendPasswordResetEmail({
       to: user.email,
       name: user.name,
       resetUrl,
       expiresMinutes: 15,
     });
+
+    // Record delivery outcome and diagnostics directly in the token record
+    if (tokenId) {
+      if (deliveryResult.ok) {
+        await pool.query(
+          `update auth_action_tokens
+           set delivery_status = 'SENT',
+               delivery_provider = $1,
+               delivery_message_id = $2,
+               delivery_error = null,
+               sent_at = now()
+           where id = $3`,
+          [deliveryResult.provider || "resend", deliveryResult.messageId || null, tokenId]
+        ).catch((err) => console.error("[Auth] Failed to update token delivery status:", err));
+      } else {
+        const deliveryStatus = deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : "FAILED";
+        await pool.query(
+          `update auth_action_tokens
+           set delivery_status = $1,
+               delivery_provider = $2,
+               delivery_error = $3
+           where id = $4`,
+          [deliveryStatus, deliveryResult.provider || null, deliveryResult.error || "Delivery failed", tokenId]
+        ).catch((err) => console.error("[Auth] Failed to update token delivery error:", err));
+
+        // Actionable private diagnostic log (never leaks tokens or credentials)
+        console.error(
+          `[Auth][PasswordRecovery] Delivery failure for user ${user.id} (${normalized}): status=${deliveryStatus}, provider=${deliveryResult.provider || "none"}, error=${deliveryResult.error || "unknown"}`
+        );
+      }
+    }
   } else {
     // Account is authenticated via Google: inform the user without setting a local password
     const googleAccount = (
@@ -140,10 +174,16 @@ export async function requestPasswordRecovery(
     ).rows[0];
 
     if (googleAccount) {
-      await sendGoogleAccountRecoveryInfoEmail({
+      const deliveryResult = await sendGoogleAccountRecoveryInfoEmail({
         to: user.email,
         name: user.name,
       });
+
+      if (!deliveryResult.ok) {
+        console.error(
+          `[Auth][GoogleRecovery] Delivery failure for user ${user.id} (${normalized}): provider=${deliveryResult.provider || "none"}, error=${deliveryResult.error || "unknown"}`
+        );
+      }
     }
   }
 

@@ -10,6 +10,42 @@ import React, {
 } from "react";
 
 /**
+ * Strips formatting commas, returning a canonical numeric string ready for API/calculations.
+ */
+export function stripCommas(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  return String(value).replace(/,/g, "").trim();
+}
+
+/**
+ * Strips currency symbols (₹, $, €, £) and formatting commas.
+ */
+export function cleanRawAmount(
+  value: string | number | null | undefined,
+  allowNegative: boolean = false
+): string {
+  if (value === null || value === undefined) return "";
+  let clean = String(value).trim().replace(/^[₹$€£]\s?/, "");
+  clean = clean.replace(/,/g, "").trim();
+  if (!allowNegative) {
+    clean = clean.replace(/-/g, "");
+  }
+  return clean;
+}
+
+/**
+ * Checks whether an unformatted string is a valid raw monetary string in progress.
+ * Valid examples: "", "-", ".", "-.", "100", "100.5", "100.50".
+ * Invalid examples: "10abc20", "10.5.5", "abc".
+ */
+export function isValidRawMoney(raw: string, allowNegative: boolean = false): boolean {
+  if (!raw) return true;
+  if (raw === "." || (allowNegative && (raw === "-" || raw === "-."))) return true;
+  const regex = allowNegative ? /^-?\d*(\.\d*)?$/ : /^\d*(\.\d*)?$/;
+  return regex.test(raw);
+}
+
+/**
  * Formats a raw numeric/decimal string or number into standard 3-digit comma-grouped representation.
  * Examples:
  * - 1000 -> 1,000
@@ -37,7 +73,11 @@ export function formatAmountWithCommas(
 
   let formattedInt = "";
   if (intRaw !== undefined && intRaw !== "") {
-    const digitsOnly = intRaw.replace(/\D/g, "");
+    let digitsOnly = intRaw.replace(/\D/g, "");
+    // Normalize leading zeroes if integer has more than 1 digit (e.g. "05" -> "5", "00" -> "0")
+    if (digitsOnly.length > 1 && digitsOnly.startsWith("0")) {
+      digitsOnly = digitsOnly.replace(/^0+(?=\d)/, "");
+    }
     if (digitsOnly) {
       formattedInt = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     } else if (hasDot) {
@@ -56,16 +96,35 @@ export function formatAmountWithCommas(
 }
 
 /**
- * Strips formatting commas, returning a canonical numeric string ready for API/calculations.
+ * Calculates new cursor position in a formatted string based on non-comma character count.
  */
-export function stripCommas(value: string | null | undefined): string {
-  if (!value) return "";
-  return String(value).replace(/,/g, "").trim();
+export function calculateNewCursor(
+  formatted: string,
+  nonCommaBefore: number,
+  rawCandidate: string = ""
+): number {
+  if (rawCandidate === ".") return 2; // after "0."
+  if (rawCandidate === "-.") return 3; // after "-0."
+
+  let newCursor = formatted.length;
+  let count = 0;
+  if (nonCommaBefore === 0) {
+    newCursor = 0;
+  } else {
+    for (let i = 0; i < formatted.length; i++) {
+      if (formatted[i] !== ",") count++;
+      if (count === nonCommaBefore) {
+        newCursor = i + 1;
+        break;
+      }
+    }
+  }
+  return newCursor;
 }
 
 /**
- * Checks whether a string is a valid money format (clean or grouped).
- * Rejects letters like "10abc20" and invalid symbols.
+ * Checks whether a string is a valid static money format (clean or grouped).
+ * Preserved for backwards compatibility with tests and static format checks.
  */
 export function isValidMoneyString(str: string, allowNegative: boolean = false): boolean {
   if (!str || !str.trim()) return true;
@@ -104,6 +163,7 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       readOnly,
       required,
       autoFocus,
+      maxLength,
       onKeyDown,
       onPaste,
       ...restProps
@@ -118,9 +178,9 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       value !== undefined
         ? value === null
           ? ""
-          : String(value)
+          : cleanRawAmount(value, allowNegative)
         : defaultValue !== undefined
-        ? String(defaultValue)
+        ? cleanRawAmount(defaultValue, allowNegative)
         : "";
 
     const [displayValue, setDisplayValue] = useState(() =>
@@ -130,9 +190,10 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
     // Sync external value updates when controlled
     useEffect(() => {
       if (value === undefined) return;
-      const incomingRaw = value === null ? "" : String(value);
+      const incomingRaw = value === null ? "" : cleanRawAmount(value, allowNegative);
       if (inputRef.current) {
-        const currentRaw = stripCommas(inputRef.current.value);
+        const currentRaw = cleanRawAmount(inputRef.current.value, allowNegative);
+        // Only update DOM if the canonical value actually differs (prevents cursor jumps & state loops)
         if (currentRaw !== incomingRaw) {
           const nextFormatted = formatAmountWithCommas(incomingRaw, maxDecimals);
           inputRef.current.value = nextFormatted;
@@ -141,7 +202,7 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       } else {
         setDisplayValue(formatAmountWithCommas(incomingRaw, maxDecimals));
       }
-    }, [value, maxDecimals]);
+    }, [value, maxDecimals, allowNegative]);
 
     // Handle form reset event when uncontrolled
     useEffect(() => {
@@ -149,14 +210,14 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       if (!input || !input.form) return;
       const form = input.form;
       const handleReset = () => {
-        const resetRaw = defaultValue !== undefined ? String(defaultValue) : "";
+        const resetRaw = defaultValue !== undefined ? cleanRawAmount(defaultValue, allowNegative) : "";
         const formatted = formatAmountWithCommas(resetRaw, maxDecimals);
         input.value = formatted;
         setDisplayValue(formatted);
       };
       form.addEventListener("reset", handleReset);
       return () => form.removeEventListener("reset", handleReset);
-    }, [defaultValue, maxDecimals]);
+    }, [defaultValue, maxDecimals, allowNegative]);
 
     const notifyChange = useCallback(
       (raw: string) => {
@@ -204,7 +265,7 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
             e.preventDefault();
             const before = curVal.slice(0, selectionStart - 2);
             const after = curVal.slice(selectionStart);
-            const newRaw = stripCommas(before + after);
+            const newRaw = cleanRawAmount(before + after, allowNegative);
             const newFormatted = formatAmountWithCommas(newRaw, maxDecimals);
 
             // Count non-comma characters before selectionStart - 2
@@ -212,19 +273,7 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
             input.value = newFormatted;
             setDisplayValue(newFormatted);
 
-            let newPos = newFormatted.length;
-            let count = 0;
-            if (nonCommaBefore === 0) {
-              newPos = 0;
-            } else {
-              for (let i = 0; i < newFormatted.length; i++) {
-                if (newFormatted[i] !== ",") count++;
-                if (count === nonCommaBefore) {
-                  newPos = i + 1;
-                  break;
-                }
-              }
-            }
+            const newPos = calculateNewCursor(newFormatted, nonCommaBefore, newRaw);
             input.setSelectionRange(newPos, newPos);
             notifyChange(newRaw);
             return;
@@ -240,26 +289,14 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
             e.preventDefault();
             const before = curVal.slice(0, selectionStart);
             const after = curVal.slice(selectionStart + 2);
-            const newRaw = stripCommas(before + after);
+            const newRaw = cleanRawAmount(before + after, allowNegative);
             const newFormatted = formatAmountWithCommas(newRaw, maxDecimals);
 
             const nonCommaBefore = stripCommas(before).length;
             input.value = newFormatted;
             setDisplayValue(newFormatted);
 
-            let newPos = newFormatted.length;
-            let count = 0;
-            if (nonCommaBefore === 0) {
-              newPos = 0;
-            } else {
-              for (let i = 0; i < newFormatted.length; i++) {
-                if (newFormatted[i] !== ",") count++;
-                if (count === nonCommaBefore) {
-                  newPos = i + 1;
-                  break;
-                }
-              }
-            }
+            const newPos = calculateNewCursor(newFormatted, nonCommaBefore, newRaw);
             input.setSelectionRange(newPos, newPos);
             notifyChange(newRaw);
             return;
@@ -279,11 +316,20 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
         e.key === "ArrowUp" ||
         e.key === "ArrowDown" ||
         e.key === "Home" ||
-        e.key === "End";
+        e.key === "End" ||
+        e.key === "PageUp" ||
+        e.key === "PageDown";
 
-      const isModifierShortcut = (e.ctrlKey || e.metaKey) && ["a", "c", "v", "x", "z", "y"].includes(e.key.toLowerCase());
+      const isModifierShortcut =
+        (e.ctrlKey || e.metaKey) &&
+        ["a", "c", "v", "x", "z", "y"].includes(e.key.toLowerCase());
 
       if (isControlKey || isModifierShortcut) {
+        return;
+      }
+
+      // Allow mobile / Android virtual keyboards (often sent as "Unidentified" or keyCode 229)
+      if (e.key === "Unidentified" || e.key === "Process" || e.key.length > 1) {
         return;
       }
 
@@ -292,8 +338,12 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
         return;
       }
 
-      // Allow decimal point if not already present
+      // Allow decimal point if maxDecimals > 0 and not already present
       if (e.key === ".") {
+        if (maxDecimals <= 0) {
+          e.preventDefault();
+          return;
+        }
         const selectedText =
           selectionStart !== null && selectionEnd !== null
             ? curVal.substring(selectionStart, selectionEnd)
@@ -305,10 +355,27 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
         return;
       }
 
-      // Block all non-digit characters (rejecting letters like 'a', 'b', etc.)
-      if (!/^\d$/.test(e.key)) {
-        e.preventDefault();
+      // Check decimal precision cap if cursor is after decimal dot
+      if (/^\d$/.test(e.key)) {
+        if (
+          selectionStart !== null &&
+          selectionEnd !== null &&
+          selectionStart === selectionEnd
+        ) {
+          const dotIdx = curVal.indexOf(".");
+          if (dotIdx !== -1 && selectionStart > dotIdx) {
+            const decPart = curVal.slice(dotIdx + 1);
+            if (decPart.length >= maxDecimals) {
+              e.preventDefault();
+              return;
+            }
+          }
+        }
+        return;
       }
+
+      // Block all non-digit, non-system keys
+      e.preventDefault();
     };
 
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
@@ -318,8 +385,9 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       const pastedText = e.clipboardData.getData("text");
       if (!pastedText) return;
 
-      // Reject malformed input clearly (e.g. "10abc20")
-      if (!isValidMoneyString(pastedText, allowNegative)) {
+      // Clean pasted text of currency signs, commas, and whitespace
+      const cleanPasted = cleanRawAmount(pastedText, allowNegative);
+      if (!cleanPasted || !isValidRawMoney(cleanPasted, allowNegative)) {
         e.preventDefault();
         return;
       }
@@ -335,37 +403,36 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       const before = curVal.slice(0, start);
       const after = curVal.slice(end);
 
-      // Clean pasted amount
-      const cleanPasted = pastedText.trim().replace(/^[₹$€£]\s?/, "").replace(/,/g, "");
-      const combined = (before + cleanPasted + after).replace(/,/g, "");
+      const combinedRaw = (
+        cleanRawAmount(before, allowNegative) +
+        cleanPasted +
+        cleanRawAmount(after, allowNegative)
+      ).trim();
 
-      // Ensure at most one dot
-      const dotCount = (combined.match(/\./g) || []).length;
-      if (dotCount > 1) {
+      // Ensure at most one decimal dot
+      const dotMatches = combinedRaw.match(/\./g);
+      if (dotMatches && dotMatches.length > 1) {
         return;
       }
 
-      let capped = combined;
-      if (combined.includes(".")) {
-        const [intP, decP] = combined.split(".");
+      let capped = combinedRaw;
+      if (combinedRaw.includes(".")) {
+        const [intP, decP] = combinedRaw.split(".");
         capped = intP + "." + (decP || "").slice(0, maxDecimals);
+      }
+
+      if (maxLength !== undefined && stripCommas(capped).length > maxLength) {
+        capped = stripCommas(capped).slice(0, maxLength);
       }
 
       const formatted = formatAmountWithCommas(capped, maxDecimals);
       input.value = formatted;
       setDisplayValue(formatted);
 
-      // Position cursor at end of pasted section
-      const nonCommaTarget = stripCommas(before + cleanPasted).length;
-      let newPos = formatted.length;
-      let count = 0;
-      for (let i = 0; i < formatted.length; i++) {
-        if (formatted[i] !== ",") count++;
-        if (count === nonCommaTarget) {
-          newPos = i + 1;
-          break;
-        }
-      }
+      // Target cursor position: after the pasted section
+      const nonCommaTarget = (cleanRawAmount(before, allowNegative) + cleanPasted).length;
+      const newPos = calculateNewCursor(formatted, nonCommaTarget, capped);
+
       input.setSelectionRange(newPos, newPos);
       notifyChange(capped);
     };
@@ -375,26 +442,20 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       const curPos = input.selectionStart || 0;
       const currentVal = input.value;
 
-      // Reject malformed input clearly (e.g. from drag/drop or unusual IME like "10abc20")
-      if (currentVal && !isValidMoneyString(currentVal, allowNegative)) {
+      // Extract raw digits & decimal dot, ignoring any formatting commas or currency symbols
+      const rawCandidate = cleanRawAmount(currentVal, allowNegative);
+
+      // If the resulting raw string is invalid (e.g. letters from drag-drop or non-sanitized input), reject
+      if (!isValidRawMoney(rawCandidate, allowNegative)) {
         input.value = displayValue;
         return;
       }
 
-      // Count non-comma characters to the left of the cursor
+      // Count non-comma characters to the left of the cursor before re-formatting
       const nonCommaBefore = stripCommas(currentVal.slice(0, curPos)).length;
 
-      // Strip commas to get raw number
-      let raw = stripCommas(currentVal);
-
-      // Validate single decimal point
-      const dotMatches = raw.match(/\./g);
-      if (dotMatches && dotMatches.length > 1) {
-        input.value = displayValue;
-        return;
-      }
-
       // Enforce maxDecimals
+      let raw = rawCandidate;
       if (raw.includes(".")) {
         const [intPart, decPart] = raw.split(".");
         if (decPart && decPart.length > maxDecimals) {
@@ -402,22 +463,13 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
         }
       }
 
-      const formatted = formatAmountWithCommas(raw, maxDecimals);
-
-      // Restore cursor position matching nonCommaBefore
-      let newCursor = formatted.length;
-      let count = 0;
-      if (nonCommaBefore === 0) {
-        newCursor = 0;
-      } else {
-        for (let i = 0; i < formatted.length; i++) {
-          if (formatted[i] !== ",") count++;
-          if (count === nonCommaBefore) {
-            newCursor = i + 1;
-            break;
-          }
-        }
+      // Enforce maxLength against raw digits if provided
+      if (maxLength !== undefined && stripCommas(raw).length > maxLength) {
+        raw = stripCommas(raw).slice(0, maxLength);
       }
+
+      const formatted = formatAmountWithCommas(raw, maxDecimals);
+      const newCursor = calculateNewCursor(formatted, nonCommaBefore, rawCandidate);
 
       input.value = formatted;
       input.setSelectionRange(newCursor, newCursor);
@@ -425,7 +477,7 @@ export const FormattedMoneyInput = forwardRef<HTMLInputElement, FormattedMoneyIn
       notifyChange(raw);
     };
 
-    const rawCurrent = stripCommas(displayValue);
+    const rawCurrent = cleanRawAmount(displayValue, allowNegative);
 
     return (
       <>

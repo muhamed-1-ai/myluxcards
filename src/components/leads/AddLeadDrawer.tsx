@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
-import FormattedMoneyInput, { formatAmountWithCommas } from "@/components/ui/FormattedMoneyInput";
+import FormattedMoneyInput, { formatAmountWithCommas, stripCommas } from "@/components/ui/FormattedMoneyInput";
 import { FollowUpType, normalizeFollowUpType, extractFollowUpTypeAndCleanNote } from "@/lib/follow-up-types";
 import { 
   X, 
@@ -198,7 +198,7 @@ export default function AddLeadDrawer({
   const calculatedProductTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
   const totalAmount = selectedProducts.length > 0 
     ? calculatedProductTotal 
-    : (formData.customTotalAmount ? Number(formData.customTotalAmount) : 0);
+    : (formData.customTotalAmount ? Number(stripCommas(formData.customTotalAmount)) : 0);
 
   const totalAdvanceFromRecords = advanceRecords.reduce((sum, r) => sum + r.amount, 0);
   const balanceAmount = Math.max(0, totalAmount - totalAdvanceFromRecords);
@@ -594,7 +594,7 @@ export default function AddLeadDrawer({
 
   // Advance Payments Handlers
   const handleSaveAdvanceRequest = () => {
-    const amt = Number(newAdvanceAmount);
+    const amt = Number(stripCommas(newAdvanceAmount));
     if (isNaN(amt) || amt <= 0) return;
 
     const newRecord: AdvancePaymentRecord = {
@@ -1291,7 +1291,7 @@ export default function AddLeadDrawer({
                   Total Amount
                 </label>
                 <FormattedMoneyInput 
-                  value={totalAmount || ""}
+                  value={selectedProducts.length > 0 ? calculatedProductTotal : (formData.customTotalAmount ?? "")}
                   onChange={e => setFormData({ ...formData, customTotalAmount: e.target.value })}
                   disabled={selectedProducts.length > 0}
                   placeholder="0.00"

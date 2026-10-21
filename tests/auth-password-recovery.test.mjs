@@ -65,7 +65,8 @@ test("RECOVERY 6: Google-only accounts are protected from password creation, tak
 });
 
 test("RECOVERY 7: Transactional email service implements verified sender, escaping, and no password leaks", () => {
-  assert.match(emailLib, /process\.env\.EMAIL_FROM\s*\|\|\s*"ZAPPIT <no-reply@3gzappit\.com>"/);
+  assert.match(emailLib, /process\.env\.EMAIL_FROM/);
+  assert.match(emailLib, /"ZAPPIT <no-reply@3gzappit\.com>"/);
   assert.match(emailLib, /export function escapeHtml/);
   assert.match(emailLib, /This link will expire in \$\{minutes\} minutes/);
   // Password changed email must NEVER include raw passwords or reset tokens

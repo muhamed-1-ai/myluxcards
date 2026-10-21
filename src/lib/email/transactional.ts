@@ -30,13 +30,48 @@ export function escapeHtml(value: unknown): string {
 }
 
 /**
+ * Returns safe server-side diagnostics about the current transactional email configuration
+ * without exposing secret keys or passwords.
+ */
+export function getEmailConfigDiagnostics() {
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  const smtpHost = process.env.SMTP_HOST?.trim();
+  const from =
+    process.env.EMAIL_FROM?.trim() ||
+    process.env.RESEND_FROM?.trim() ||
+    process.env.SMTP_FROM?.trim() ||
+    process.env.MAIL_FROM?.trim() ||
+    "ZAPPIT <no-reply@3gzappit.com>";
+
+  return {
+    configured: Boolean(resendApiKey || smtpHost),
+    activeProvider: resendApiKey ? "resend" : smtpHost ? "smtp" : "none",
+    resendConfigured: Boolean(resendApiKey),
+    resendKeyPrefix: resendApiKey ? resendApiKey.slice(0, 7) + "..." : null,
+    smtpConfigured: Boolean(smtpHost),
+    smtpHost: smtpHost || null,
+    smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
+    fromAddress: from,
+    nodeEnv: process.env.NODE_ENV || "development",
+  };
+}
+
+/**
  * Delivers transactional emails with automatic failover/fallback between Resend REST API
  * and standard SMTP transport, with bounded retries and error isolation.
  */
 export async function sendTransactionalEmail(options: SendEmailOptions): Promise<EmailDeliveryResult> {
-  const from = process.env.EMAIL_FROM || "ZAPPIT <no-reply@3gzappit.com>";
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const smtpHost = process.env.SMTP_HOST;
+  const from =
+    process.env.EMAIL_FROM?.trim() ||
+    process.env.RESEND_FROM?.trim() ||
+    process.env.SMTP_FROM?.trim() ||
+    process.env.MAIL_FROM?.trim() ||
+    "ZAPPIT <no-reply@3gzappit.com>";
+
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  const smtpHost = process.env.SMTP_HOST?.trim();
+
+  let lastResendError: string | null = null;
 
   // 1. Try Resend API if configured
   if (resendApiKey) {
@@ -64,10 +99,16 @@ export async function sendTransactionalEmail(options: SendEmailOptions): Promise
           return { ok: true, provider: "resend", messageId: data.id };
         }
 
-        const errText = await response.text().catch(() => "Unknown Resend error");
-        console.error(`[Email][Resend] Attempt ${attempt} failed: HTTP ${response.status} - ${errText}`);
+        const errData = await response.json().catch(async () => {
+          const text = await response.text().catch(() => "Unknown Resend error");
+          return { message: text };
+        });
+        const errDetail = errData?.message || errData?.name || JSON.stringify(errData);
+        lastResendError = `Resend HTTP ${response.status}: ${errDetail}`;
+        console.error(`[Email][Resend] Attempt ${attempt} failed: ${lastResendError}`);
       } catch (err) {
-        console.error(`[Email][Resend] Attempt ${attempt} network error:`, err instanceof Error ? err.message : err);
+        lastResendError = err instanceof Error ? err.message : String(err);
+        console.error(`[Email][Resend] Attempt ${attempt} network error: ${lastResendError}`);
       }
       if (attempt < 2) await new Promise((r) => setTimeout(r, 600));
     }
@@ -86,13 +127,16 @@ export async function sendTransactionalEmail(options: SendEmailOptions): Promise
         secure,
         auth: process.env.SMTP_USER
           ? {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASSWORD || process.env.SMTP_PASS || "",
+              user: process.env.SMTP_USER.trim(),
+              pass: (process.env.SMTP_PASSWORD || process.env.SMTP_PASS || "").trim(),
             }
           : undefined,
         tls: {
           rejectUnauthorized: process.env.NODE_ENV === "production",
         },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000,
       });
 
       const info = await transporter.sendMail({
@@ -105,19 +149,33 @@ export async function sendTransactionalEmail(options: SendEmailOptions): Promise
 
       return { ok: true, provider: "smtp", messageId: info.messageId };
     } catch (err) {
-      console.error("[Email][SMTP] Delivery error:", err instanceof Error ? err.message : err);
-      return { ok: false, provider: "smtp", error: err instanceof Error ? err.message : "SMTP delivery failed" };
+      const smtpErr = err instanceof Error ? err.message : "SMTP delivery failed";
+      console.error("[Email][SMTP] Delivery error:", smtpErr);
+      return {
+        ok: false,
+        provider: "smtp",
+        error: lastResendError ? `${lastResendError} | SMTP: ${smtpErr}` : smtpErr,
+      };
     }
   }
 
-  // 3. Fallback: neither Resend nor SMTP is configured in current environment
+  // 3. If Resend was configured but failed and no SMTP was configured
+  if (resendApiKey) {
+    return {
+      ok: false,
+      provider: "resend",
+      error: lastResendError || "Resend email delivery failed.",
+    };
+  }
+
+  // 4. Fallback: neither Resend nor SMTP is configured in current environment
   console.warn(
     `[Email] Transactional email credentials not configured (RESEND_API_KEY or SMTP_HOST missing in env). Email to ${options.to} not dispatched.`
   );
   return {
     ok: false,
     provider: "unconfigured",
-    error: "Transactional email provider is not configured.",
+    error: "Transactional email provider is not configured. RESEND_API_KEY or SMTP_HOST is missing in environment variables.",
   };
 }
 

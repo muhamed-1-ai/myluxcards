@@ -286,6 +286,8 @@ export interface LoanInstallmentRow {
 export interface BudgetRow {
   id: string;
   workspace_id: string;
+  name?: string | null;
+  icon?: string | null;
   category_id: string | null;
   period_type: "MONTHLY" | "QUARTERLY" | "YEARLY";
   period_start: string;
@@ -296,6 +298,7 @@ export interface BudgetRow {
   created_at: Date;
   updated_at: Date;
   category_name?: string | null;
+  transaction_count?: number;
 }
 
 export interface RecurringRuleRow {

@@ -20,7 +20,9 @@ export interface CreateLoanInput {
 export interface RecordInstallmentPaymentInput {
   workspaceId: string;
   loanId: string;
-  installmentNumber: number;
+  installmentNumber?: number;
+  principalMinor?: number;
+  interestMinor?: number;
   paidDate?: string;
   financialAccountId: string; // Source account (Bank/Cash)
   userId?: string;
@@ -119,7 +121,7 @@ export async function createLoan(
 }
 
 /**
- * Record an installment EMI payment.
+ * Record an installment or custom loan repayment.
  * Debits Loans Payable (reduces liability by principal)
  * Debits Interest Expense (5100, recognizes interest expense)
  * Credits Cash/Bank (total payment outflow)
@@ -127,11 +129,11 @@ export async function createLoan(
 export async function recordLoanInstallmentPayment(
   input: RecordInstallmentPaymentInput,
   client?: Queryable
-): Promise<{ installment: LoanInstallmentRow; loan: LoanRow }> {
+): Promise<{ installment?: LoanInstallmentRow; loan: LoanRow }> {
   const paidDate = input.paidDate || new Date().toISOString().slice(0, 10);
 
   return withTransaction(async (db) => {
-    // 1. Fetch loan and installment
+    // 1. Fetch loan
     const loanRes = await db.query<LoanRow>(
       `SELECT * FROM accounting_loans WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
       [input.loanId, input.workspaceId]
@@ -139,25 +141,54 @@ export async function recordLoanInstallmentPayment(
     const loan = loanRes.rows[0];
     if (!loan) throw new Error("Loan not found.");
 
-    const instRes = await db.query<LoanInstallmentRow>(
-      `SELECT * FROM accounting_loan_installments WHERE loan_id = $1 AND installment_number = $2 FOR UPDATE`,
-      [input.loanId, input.installmentNumber]
-    );
-    const inst = instRes.rows[0];
-    if (!inst) throw new Error("Installment not found.");
-    if (inst.status === "PAID") throw new Error("Installment is already paid.");
+    let inst: LoanInstallmentRow | undefined;
+    if (input.installmentNumber) {
+      const instRes = await db.query<LoanInstallmentRow>(
+        `SELECT * FROM accounting_loan_installments WHERE loan_id = $1 AND installment_number = $2 FOR UPDATE`,
+        [input.loanId, input.installmentNumber]
+      );
+      inst = instRes.rows[0];
+      if (!inst) throw new Error(`Installment #${input.installmentNumber} not found.`);
+      if (inst.status === "PAID") throw new Error(`Installment #${input.installmentNumber} is already paid.`);
+    } else {
+      // Find next pending installment if any
+      const instRes = await db.query<LoanInstallmentRow>(
+        `SELECT * FROM accounting_loan_installments WHERE loan_id = $1 AND status != 'PAID' ORDER BY installment_number ASC LIMIT 1 FOR UPDATE`,
+        [input.loanId]
+      );
+      inst = instRes.rows[0];
+    }
 
-    const principalMinor = Number(inst.principal_minor);
-    const interestMinor = Number(inst.interest_minor);
+    const principalMinor = input.principalMinor !== undefined
+      ? Number(input.principalMinor)
+      : (inst ? Number(inst.principal_minor) : 0);
+    const interestMinor = input.interestMinor !== undefined
+      ? Number(input.interestMinor)
+      : (inst ? Number(inst.interest_minor) : 0);
     const totalMinor = principalMinor + interestMinor;
+
+    if (totalMinor <= 0) {
+      throw new Error("Repayment amount must be greater than zero.");
+    }
 
     // 2. Resolve Interest Expense (5100) and Loans Payable (2500)
     const interestAcc = await getFinancialAccountByCode(input.workspaceId, "5100", db);
     if (!interestAcc) throw new Error("Interest expense account (5100) not found.");
 
+    const installmentLabel = inst ? ` (EMI #${inst.installment_number})` : "";
     const lines = [
-      { financialAccountId: loan.liability_account_id, debitMinor: principalMinor, creditMinor: 0, description: `Loan Principal Repayment (EMI #${inst.installment_number})` },
-      { financialAccountId: input.financialAccountId, debitMinor: 0, creditMinor: totalMinor, description: `EMI Payment for ${loan.loan_name}` },
+      {
+        financialAccountId: loan.liability_account_id,
+        debitMinor: principalMinor,
+        creditMinor: 0,
+        description: `Loan Principal Repayment${installmentLabel}`,
+      },
+      {
+        financialAccountId: input.financialAccountId,
+        debitMinor: 0,
+        creditMinor: totalMinor,
+        description: `Loan Repayment for ${loan.loan_name}${installmentLabel}`,
+      },
     ];
 
     if (interestMinor > 0) {
@@ -165,7 +196,7 @@ export async function recordLoanInstallmentPayment(
         financialAccountId: interestAcc.id,
         debitMinor: interestMinor,
         creditMinor: 0,
-        description: `Loan Interest Expense (EMI #${inst.installment_number})`,
+        description: `Loan Interest Expense${installmentLabel}`,
       });
     }
 
@@ -175,25 +206,28 @@ export async function recordLoanInstallmentPayment(
         workspaceId: input.workspaceId,
         entryType: "LOAN_REPAYMENT",
         entryDate: paidDate,
-        description: `Loan Repayment: ${loan.loan_name} (EMI #${inst.installment_number})`,
+        description: `Loan Repayment: ${loan.loan_name}${installmentLabel}`,
         sourceType: "LOAN_INSTALLMENT",
-        sourceId: inst.id,
+        sourceId: inst?.id || loan.id,
         lines,
         userId: input.userId,
       },
       db
     );
 
-    // 4. Update Installment
-    const updatedInst = (
-      await db.query<LoanInstallmentRow>(
-        `UPDATE accounting_loan_installments
-         SET status = 'PAID', paid_date = $1, journal_entry_id = $2
-         WHERE id = $3
-         RETURNING *`,
-        [paidDate, entry.id, inst.id]
-      )
-    ).rows[0];
+    // 4. Update Installment if applicable
+    let updatedInst: LoanInstallmentRow | undefined = undefined;
+    if (inst) {
+      updatedInst = (
+        await db.query<LoanInstallmentRow>(
+          `UPDATE accounting_loan_installments
+           SET status = 'PAID', paid_date = $1, journal_entry_id = $2
+           WHERE id = $3
+           RETURNING *`,
+          [paidDate, entry.id, inst.id]
+        )
+      ).rows[0];
+    }
 
     // 5. Update Loan remaining principal
     const newRemaining = Math.max(0, Number(loan.remaining_principal_minor) - principalMinor);
@@ -209,38 +243,80 @@ export async function recordLoanInstallmentPayment(
       )
     ).rows[0];
 
-    return { installment: updatedInst, loan: updatedLoan };
+    const mappedLoan = {
+      ...updatedLoan,
+      remaining_principal_minor: Number(newRemaining),
+      current_balance_minor: Number(newRemaining),
+      principal_minor: Number(updatedLoan.principal_minor),
+    };
+
+    return { installment: updatedInst, loan: mappedLoan };
   });
 }
 
 export async function listLoans(
   workspaceId: string
-): Promise<Array<LoanRow & { lender_name?: string }>> {
+): Promise<Array<LoanRow & { lender_name?: string; current_balance_minor?: number }>> {
   const query = `
-    SELECT l.*, c.name as lender_name
+    SELECT l.*,
+           COALESCE(c.name, l.loan_name) as lender_name,
+           l.remaining_principal_minor as current_balance_minor
     FROM accounting_loans l
     LEFT JOIN accounting_contacts c ON c.id = l.lender_contact_id
     WHERE l.workspace_id = $1
     ORDER BY l.created_at DESC
   `;
-  const res = await pool.query<LoanRow & { lender_name?: string }>(query, [workspaceId]);
-  return res.rows;
+  const res = await pool.query<LoanRow & { lender_name?: string; current_balance_minor?: number }>(query, [workspaceId]);
+  return res.rows.map((row) => ({
+    ...row,
+    principal_minor: Number(row.principal_minor),
+    remaining_principal_minor: Number(row.remaining_principal_minor),
+    current_balance_minor: Number(row.current_balance_minor ?? row.remaining_principal_minor),
+    monthly_installment_minor: Number(row.monthly_installment_minor || 0),
+    interest_rate_percent: Number(row.interest_rate_percent || 0),
+  }));
 }
 
 export async function getLoanDetails(
   workspaceId: string,
   loanId: string
-): Promise<{ loan: LoanRow; installments: LoanInstallmentRow[] } | null> {
-  const loanRes = await pool.query<LoanRow>(
-    `SELECT * FROM accounting_loans WHERE id = $1 AND workspace_id = $2 LIMIT 1`,
+): Promise<{ loan: LoanRow & { lender_name?: string; current_balance_minor?: number; liability_account_name?: string; disbursement_account_name?: string }; installments: LoanInstallmentRow[] } | null> {
+  const loanRes = await pool.query<LoanRow & { lender_name?: string; current_balance_minor?: number; liability_account_name?: string; disbursement_account_name?: string }>(
+    `SELECT l.*,
+            COALESCE(c.name, l.loan_name) as lender_name,
+            l.remaining_principal_minor as current_balance_minor,
+            la.name as liability_account_name,
+            da.name as disbursement_account_name
+     FROM accounting_loans l
+     LEFT JOIN accounting_contacts c ON c.id = l.lender_contact_id
+     LEFT JOIN accounting_financial_accounts la ON la.id = l.liability_account_id
+     LEFT JOIN accounting_financial_accounts da ON da.id = l.disbursement_account_id
+     WHERE l.id = $1 AND l.workspace_id = $2
+     LIMIT 1`,
     [loanId, workspaceId]
   );
-  const loan = loanRes.rows[0];
-  if (!loan) return null;
+  const rawLoan = loanRes.rows[0];
+  if (!rawLoan) return null;
+
+  const loan = {
+    ...rawLoan,
+    principal_minor: Number(rawLoan.principal_minor),
+    remaining_principal_minor: Number(rawLoan.remaining_principal_minor),
+    current_balance_minor: Number(rawLoan.current_balance_minor ?? rawLoan.remaining_principal_minor),
+    monthly_installment_minor: Number(rawLoan.monthly_installment_minor || 0),
+    interest_rate_percent: Number(rawLoan.interest_rate_percent || 0),
+  };
 
   const instRes = await pool.query<LoanInstallmentRow>(
     `SELECT * FROM accounting_loan_installments WHERE loan_id = $1 ORDER BY installment_number ASC`,
     [loanId]
   );
-  return { loan, installments: instRes.rows };
+  const installments = instRes.rows.map((inst) => ({
+    ...inst,
+    principal_minor: Number(inst.principal_minor),
+    interest_minor: Number(inst.interest_minor),
+    total_minor: Number(inst.total_minor),
+  }));
+
+  return { loan, installments };
 }
