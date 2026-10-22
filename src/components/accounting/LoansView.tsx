@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput, { stripCommas } from "../ui/FormattedMoneyInput";
+import PaymentAccountPicker from "./PaymentAccountPicker";
 
 interface Loan {
   id: string;
@@ -484,19 +485,13 @@ export default function LoansView() {
                     <label className="acc-form-label" htmlFor="repay-account">
                       Payment Account *
                     </label>
-                    <select
+                    <PaymentAccountPicker
                       id="repay-account"
-                      className="acc-form-select"
                       required
                       value={repayAccountId}
-                      onChange={(e) => setRepayAccountId(e.target.value)}
-                    >
-                      {availableAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace?.currency)})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setRepayAccountId}
+                      accounts={availableAccounts}
+                    />
                   </div>
                 </div>
 
@@ -912,19 +907,13 @@ export default function LoansView() {
                   <label className="acc-form-label" htmlFor="create-loan-account">
                     Deposit Account (Liquid Asset) *
                   </label>
-                  <select
+                  <PaymentAccountPicker
                     id="create-loan-account"
-                    className="acc-form-select"
                     required
                     value={depositAccountId}
-                    onChange={(e) => setDepositAccountId(e.target.value)}
-                  >
-                    {availableAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace?.currency)})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setDepositAccountId}
+                    accounts={availableAccounts}
+                  />
                 </div>
 
                 <div className="acc-form-group">

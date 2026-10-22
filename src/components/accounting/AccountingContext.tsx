@@ -57,7 +57,7 @@ interface AccountingContextType {
   isOwnerOrManager: boolean;
 }
 
-const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
+export const AccountingContext = createContext<AccountingContextType | undefined>(undefined);
 
 export function AccountingProvider({ children }: { children: React.ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -198,4 +198,8 @@ export function useAccounting() {
     throw new Error("useAccounting must be used within an AccountingProvider");
   }
   return context;
+}
+
+export function useOptionalAccounting() {
+  return useContext(AccountingContext);
 }

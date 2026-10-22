@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput, { formatAmountWithCommas, stripCommas } from "../ui/FormattedMoneyInput";
+import PaymentAccountPicker from "./PaymentAccountPicker";
 
 export default function FastTransactionModal() {
   const {
@@ -269,40 +270,28 @@ export default function FastTransactionModal() {
                 <label className="acc-form-label" htmlFor="fast-from-account">
                   From Account (Sending) *
                 </label>
-                <select
+                <PaymentAccountPicker
                   id="fast-from-account"
-                  className="acc-form-select"
                   value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
+                  onChange={setAccountId}
+                  accounts={liquidAccounts}
+                  placeholder="Select source account..."
                   required
-                >
-                  <option value="">Select source account...</option>
-                  {liquidAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace.currency)})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="fast-to-account">
                   To Account (Receiving) *
                 </label>
-                <select
+                <PaymentAccountPicker
                   id="fast-to-account"
-                  className="acc-form-select"
                   value={toAccountId}
-                  onChange={(e) => setToAccountId(e.target.value)}
+                  onChange={setToAccountId}
+                  accounts={liquidAccounts}
+                  placeholder="Select destination account..."
                   required
-                >
-                  <option value="">Select destination account...</option>
-                  {liquidAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace.currency)})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             </>
           ) : (
@@ -419,20 +408,14 @@ export default function FastTransactionModal() {
                     <label className="acc-form-label" htmlFor="fast-partial-account">
                       {isIncome ? "Deposit Paid Portion To Account *" : "Pay Partial Amount From Account *"}
                     </label>
-                    <select
+                    <PaymentAccountPicker
                       id="fast-partial-account"
-                      className="acc-form-select"
                       value={accountId}
-                      onChange={(e) => setAccountId(e.target.value)}
+                      onChange={setAccountId}
+                      accounts={liquidAccounts}
+                      placeholder="Select payment account..."
                       required
-                    >
-                      <option value="">Select payment account...</option>
-                      {liquidAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace.currency)})
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
 
                   <div className="acc-form-group">
@@ -507,20 +490,14 @@ export default function FastTransactionModal() {
                   <label className="acc-form-label" htmlFor="fast-account-select">
                     {isIncome ? "Deposit To Account (Cash, Bank, UPI) *" : "Paid From Account (Cash, Bank, UPI) *"}
                   </label>
-                  <select
+                  <PaymentAccountPicker
                     id="fast-account-select"
-                    className="acc-form-select"
                     value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
+                    onChange={setAccountId}
+                    accounts={liquidAccounts}
+                    placeholder="Select payment account..."
                     required
-                  >
-                    <option value="">Select payment account...</option>
-                    {liquidAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace.currency)})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               )}
             </>

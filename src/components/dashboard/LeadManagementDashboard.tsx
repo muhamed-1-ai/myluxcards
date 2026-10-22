@@ -482,69 +482,263 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
   const activeUsersVal = String(kpis.activeUsers ?? data?.activeUsers ?? 1);
 
-  const renderSectionItem = (secPref: ItemPreference) => {
-    const title = secPref.displayName || secPref.defaultTitle;
-    switch (secPref.id) {
-      case "daily_capacity":
-        return (
-          <div key="daily_capacity" className="crm-capacity-card">
-            <div className="crm-capacity-header">
-              <div className="crm-capacity-icon-wrap">
-                <Calendar style={{ width: 20, height: 20, color: "var(--accent-blue, #168BFF)" }} />
-              </div>
-              <div>
-                <h3 className="crm-capacity-title">{title}</h3>
-                <p className="crm-capacity-status">Daily follow-up limit is currently disabled.</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onNavigateTab && onNavigateTab("leads")}
-              className="crm-capacity-badge-btn"
-            >
-              <CheckCircle2 style={{ width: 16, height: 16 }} />
-              Today's Follow-Ups: {todaysFollowUps.length}
-            </button>
-          </div>
-        );
+  const isCapacityVisible = visibleSections.some((s) => s.id === "daily_capacity");
+  const capacityPref = visibleSections.find((s) => s.id === "daily_capacity");
 
-      case "growth_pipeline":
-        return (
-          <div key="growth_pipeline" className="crm-chart-row">
-            <div className="crm-chart-card">
-              <LeadGrowthChart
-                growthTimeline={data?.growthTimeline}
-                recentActivity={recentActivity}
-                totalLeads={kpis.totalLeads}
-              />
-            </div>
-
-            <div className="crm-pipeline-card">
-              <LeadLivePipeline
-                pipelineCounts={pipelineCounts}
-                totalLeads={kpis.totalLeads}
-                onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
-              />
-            </div>
-          </div>
-        );
-
-
-      case "lob_analysis":
-      case "calendar_companion":
-        // Handled by rendering combined row or single full-width card
-        return null;
-
-      default:
-        return null;
-    }
-  };
+  const isGrowthPipelineVisible = visibleSections.some((s) => s.id === "growth_pipeline");
+  const growthPipelinePref = visibleSections.find((s) => s.id === "growth_pipeline");
 
   const isLobVisible = visibleSections.some((s) => s.id === "lob_analysis");
-  const isCalendarVisible = visibleSections.some((s) => s.id === "calendar_companion");
-
   const lobPref = visibleSections.find((s) => s.id === "lob_analysis");
+
+  const isCalendarVisible = visibleSections.some((s) => s.id === "calendar_companion");
   const calendarPref = visibleSections.find((s) => s.id === "calendar_companion");
+
+  const renderCapacityCard = (secPref?: ItemPreference) => {
+    const title = secPref?.displayName || secPref?.defaultTitle || "Daily Follow-Up Capacity";
+    return (
+      <div key="daily_capacity" className="crm-capacity-card">
+        <div className="crm-capacity-header">
+          <div className="crm-capacity-icon-wrap">
+            <Calendar style={{ width: 20, height: 20, color: "var(--accent-blue, #168BFF)" }} />
+          </div>
+          <div>
+            <h3 className="crm-capacity-title">{title}</h3>
+            <p className="crm-capacity-status">Daily follow-up limit is currently disabled.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigateTab && onNavigateTab("leads")}
+          className="crm-capacity-badge-btn"
+        >
+          <CheckCircle2 style={{ width: 16, height: 16 }} />
+          Today's Follow-Ups: {todaysFollowUps.length}
+        </button>
+      </div>
+    );
+  };
+
+  const renderGrowthChartCard = (orderStyle?: React.CSSProperties) => (
+    <div key="growth_velocity_card" className="crm-chart-card" style={orderStyle}>
+      <LeadGrowthChart
+        growthTimeline={data?.growthTimeline}
+        recentActivity={recentActivity}
+        totalLeads={kpis.totalLeads}
+      />
+    </div>
+  );
+
+  const renderPipelineCard = (orderStyle?: React.CSSProperties) => (
+    <div key="pipeline_stages_card" className="crm-pipeline-card" style={orderStyle}>
+      <LeadLivePipeline
+        pipelineCounts={pipelineCounts}
+        totalLeads={kpis.totalLeads}
+        onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
+      />
+    </div>
+  );
+
+  const renderLobCard = (orderStyle?: React.CSSProperties) => (
+    <div key="lob_analysis_card" className="crm-lob-card" style={orderStyle}>
+      <div className="crm-card-header-row">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
+            <AlertTriangle style={{ width: 18, height: 18 }} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+              {lobPref?.displayName || "LOB Analysis"}
+            </h3>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              LOST LEADS BY STAGE
+            </span>
+          </div>
+        </div>
+        {data && (
+          <span className="crm-lob-total-badge">
+            {totalLostCount} {totalLostCount === 1 ? "Lead" : "Leads"}
+          </span>
+        )}
+      </div>
+      <div className="crm-divider" style={{ margin: "16px 0 20px" }} />
+
+      {/* Loading Skeleton */}
+      {loading && !data && (
+        <div className="crm-lob-skeleton">
+          <div className="crm-lob-skeleton-row" />
+          <div className="crm-lob-skeleton-row" />
+          <div className="crm-lob-skeleton-row" />
+          <div className="crm-lob-skeleton-row" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !data && (
+        <div className="crm-lob-error-state">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => void fetchDashboardData(true)}
+            className="crm-lob-retry-btn"
+          >
+            <RefreshCw style={{ width: 14, height: 14 }} />
+            <span>Retry</span>
+          </button>
+        </div>
+      )}
+
+      {/* Genuine Empty State */}
+      {!loading && data && totalLostCount === 0 && (
+        <div className="crm-lob-empty-state">
+          <p className="crm-lob-empty-title">No lost leads in this period</p>
+          <span className="crm-lob-empty-sub">
+            Leads that transition to Lost within active filters will appear here by stage.
+          </span>
+        </div>
+      )}
+
+      {/* Render Data Chart */}
+      {data && totalLostCount > 0 && (
+        <>
+          {/* Desktop: Vertical Bar Chart */}
+          <div className="crm-lob-desktop-chart">
+            <div className="crm-lob-vertical-chart-container">
+              <div className="crm-lob-y-axis">
+                {lobYAxisTicks.map((val, idx) => (
+                  <div key={`lob-step-${val}-${idx}`} className="crm-lob-y-step">
+                    <span className="crm-lob-y-label">{val}</span>
+                    <div className="crm-lob-y-line" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="crm-lob-bars-area">
+                {lobAnalysisData.map((item) => {
+                  const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
+                  const heightPct = lobTopVal > 0 && item.count > 0 ? Math.min(100, Math.max(6, (item.count / lobTopVal) * 100)) : 0;
+                  return (
+                    <div key={item.stageId} className="crm-lob-bar-col">
+                      <div className="crm-lob-bar-wrapper">
+                        <div
+                          className="crm-lob-bar-fill"
+                          style={{ height: `${heightPct}%` }}
+                          aria-label={`${item.label}: ${item.count} leads (${pct}%)`}
+                        >
+                          <div className="crm-lob-bar-tooltip">
+                            <strong>{item.count} Leads</strong> ({pct}%)
+                          </div>
+                        </div>
+                      </div>
+                      <span className="crm-lob-x-label" title={item.label}>{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile: Horizontal Bar Chart */}
+          <div className="crm-lob-mobile-chart">
+            <div className="crm-lob-horizontal-chart-container">
+              {lobAnalysisData.map((item) => {
+                const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
+                const widthPct = lobTopVal > 0 && item.count > 0 ? Math.min(100, Math.max(2, (item.count / lobTopVal) * 100)) : 0;
+                return (
+                  <div
+                    key={item.stageId}
+                    className="crm-lob-hbar-row"
+                    aria-label={`${item.label}: ${item.count} leads (${pct}%)`}
+                  >
+                    <div className="crm-lob-hbar-header">
+                      <span className="crm-lob-hbar-label" title={item.label}>
+                        {item.label}
+                      </span>
+                      <span className="crm-lob-hbar-val">
+                        {item.count}{" "}
+                        <span className="crm-lob-hbar-unit">
+                          ({pct}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div className="crm-lob-hbar-track">
+                      <div
+                        className="crm-lob-hbar-fill"
+                        style={{ width: `${widthPct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const renderCalendarCard = (orderStyle?: React.CSSProperties) => (
+    <div key="calendar_companion_card" className="crm-calendar-widget-card" style={orderStyle}>
+      <CompactDashboardCalendar
+        onNavigateTab={onNavigateTab}
+        todaysFollowUps={todaysFollowUps}
+        refreshTrigger={refreshing}
+      />
+    </div>
+  );
+
+  // Left column widgets: Growth Velocity & LOB Analysis
+  const leftWidgets: { id: string; order: number; node: React.ReactNode }[] = [];
+  if (isGrowthPipelineVisible) {
+    const gpOrder = growthPipelinePref?.order ?? 1;
+    leftWidgets.push({
+      id: "growth_pipeline",
+      order: gpOrder,
+      node: renderGrowthChartCard({ order: gpOrder * 10 + 1 }),
+    });
+  }
+  if (isLobVisible) {
+    const lobOrder = lobPref?.order ?? 2;
+    leftWidgets.push({
+      id: "lob_analysis",
+      order: lobOrder,
+      node: renderLobCard({ order: lobOrder * 10 }),
+    });
+  }
+  leftWidgets.sort((a, b) => a.order - b.order);
+
+  // Right column widgets: Pipeline Stages & Calendar
+  const rightWidgets: { id: string; order: number; node: React.ReactNode }[] = [];
+  if (isGrowthPipelineVisible) {
+    const gpOrder = growthPipelinePref?.order ?? 1;
+    rightWidgets.push({
+      id: "growth_pipeline",
+      order: gpOrder,
+      node: renderPipelineCard({ order: gpOrder * 10 + 2 }),
+    });
+  }
+  if (isCalendarVisible) {
+    const calOrder = calendarPref?.order ?? 3;
+    rightWidgets.push({
+      id: "calendar_companion",
+      order: calOrder,
+      node: renderCalendarCard({ order: calOrder * 10 }),
+    });
+  }
+  rightWidgets.sort((a, b) => a.order - b.order);
+
+  const hasColumns = leftWidgets.length > 0 || rightWidgets.length > 0;
+  const isSingleColumn = leftWidgets.length === 0 || rightWidgets.length === 0;
+
+  const capacityOrder = capacityPref?.order ?? 0;
+  const minColumnOrder = Math.min(
+    ...[
+      isGrowthPipelineVisible ? (growthPipelinePref?.order ?? 1) : Infinity,
+      isLobVisible ? (lobPref?.order ?? 2) : Infinity,
+      isCalendarVisible ? (calendarPref?.order ?? 3) : Infinity,
+    ]
+  );
+  const isCapacityBeforeColumns = capacityOrder <= minColumnOrder;
 
   return (
     <div className="crm-dashboard-root">
@@ -898,169 +1092,28 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       )}
 
       {/* DASHBOARD SECTIONS — only rendered after data loads */}
-      {(!loading || data) && visibleSections.map((secPref) => {
-        if (secPref.id === "lob_analysis" || secPref.id === "calendar_companion") {
-          // Render combined or individual LOB/Calendar row only once when encountering the first one
-          const firstLobOrCal = visibleSections.find(
-            (s) => s.id === "lob_analysis" || s.id === "calendar_companion"
-          );
-          if (secPref.id !== firstLobOrCal?.id) return null;
+      {(!loading || data) && (
+        <>
+          {isCapacityVisible && isCapacityBeforeColumns && renderCapacityCard(capacityPref)}
 
-          return (
-            <div key="lob_calendar_combined_row" className="crm-lob-calendar-row">
-              {isLobVisible && (
-                <div className="crm-lob-card" style={{ flex: isCalendarVisible ? undefined : 1 }}>
-                  <div className="crm-card-header-row">
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
-                        <AlertTriangle style={{ width: 18, height: 18 }} />
-                      </div>
-                      <div>
-                        <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-                          {lobPref?.displayName || "LOB Analysis"}
-                        </h3>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                          LOST LEADS BY STAGE
-                        </span>
-                      </div>
-                    </div>
-                    {data && (
-                      <span className="crm-lob-total-badge">
-                        {totalLostCount} {totalLostCount === 1 ? "Lead" : "Leads"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="crm-divider" style={{ margin: "16px 0 20px" }} />
-
-                  {/* Loading Skeleton */}
-                  {loading && !data && (
-                    <div className="crm-lob-skeleton">
-                      <div className="crm-lob-skeleton-row" />
-                      <div className="crm-lob-skeleton-row" />
-                      <div className="crm-lob-skeleton-row" />
-                      <div className="crm-lob-skeleton-row" />
-                    </div>
-                  )}
-
-                  {/* Error State */}
-                  {error && !data && (
-                    <div className="crm-lob-error-state">
-                      <p>{error}</p>
-                      <button
-                        type="button"
-                        onClick={() => void fetchDashboardData(true)}
-                        className="crm-lob-retry-btn"
-                      >
-                        <RefreshCw style={{ width: 14, height: 14 }} />
-                        <span>Retry</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Genuine Empty State */}
-                  {!loading && data && totalLostCount === 0 && (
-                    <div className="crm-lob-empty-state">
-                      <p className="crm-lob-empty-title">No lost leads in this period</p>
-                      <span className="crm-lob-empty-sub">
-                        Leads that transition to Lost within active filters will appear here by stage.
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Render Data Chart */}
-                  {data && totalLostCount > 0 && (
-                    <>
-                      {/* Desktop: Vertical Bar Chart */}
-                      <div className="crm-lob-desktop-chart">
-                        <div className="crm-lob-vertical-chart-container">
-                          <div className="crm-lob-y-axis">
-                            {lobYAxisTicks.map((val, idx) => (
-                              <div key={`lob-step-${val}-${idx}`} className="crm-lob-y-step">
-                                <span className="crm-lob-y-label">{val}</span>
-                                <div className="crm-lob-y-line" />
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="crm-lob-bars-area">
-                            {lobAnalysisData.map((item) => {
-                              const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
-                              const heightPct = lobTopVal > 0 && item.count > 0 ? Math.min(100, Math.max(6, (item.count / lobTopVal) * 100)) : 0;
-                              return (
-                                <div key={item.stageId} className="crm-lob-bar-col">
-                                  <div className="crm-lob-bar-wrapper">
-                                    <div
-                                      className="crm-lob-bar-fill"
-                                      style={{ height: `${heightPct}%` }}
-                                      aria-label={`${item.label}: ${item.count} leads (${pct}%)`}
-                                    >
-                                      <div className="crm-lob-bar-tooltip">
-                                        <strong>{item.count} Leads</strong> ({pct}%)
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <span className="crm-lob-x-label" title={item.label}>{item.label}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Mobile: Horizontal Bar Chart */}
-                      <div className="crm-lob-mobile-chart">
-                        <div className="crm-lob-horizontal-chart-container">
-                          {lobAnalysisData.map((item) => {
-                            const pct = totalLostCount > 0 ? Math.round((item.count / totalLostCount) * 100) : 0;
-                            const widthPct = lobTopVal > 0 && item.count > 0 ? Math.min(100, Math.max(2, (item.count / lobTopVal) * 100)) : 0;
-                            return (
-                              <div
-                                key={item.stageId}
-                                className="crm-lob-hbar-row"
-                                aria-label={`${item.label}: ${item.count} leads (${pct}%)`}
-                              >
-                                <div className="crm-lob-hbar-header">
-                                  <span className="crm-lob-hbar-label" title={item.label}>
-                                    {item.label}
-                                  </span>
-                                  <span className="crm-lob-hbar-val">
-                                    {item.count}{" "}
-                                    <span className="crm-lob-hbar-unit">
-                                      ({pct}%)
-                                    </span>
-                                  </span>
-                                </div>
-                                <div className="crm-lob-hbar-track">
-                                  <div
-                                    className="crm-lob-hbar-fill"
-                                    style={{ width: `${widthPct}%` }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  )}
+          {hasColumns && (
+            <div className={`crm-dashboard-columns ${isSingleColumn ? "single-column" : ""}`}>
+              {leftWidgets.length > 0 && (
+                <div className="crm-dashboard-col-left">
+                  {leftWidgets.map((w) => w.node)}
                 </div>
               )}
-
-              {isCalendarVisible && (
-                <div className="crm-calendar-widget-card" style={{ flex: isLobVisible ? undefined : 1 }}>
-                  <CompactDashboardCalendar
-                    onNavigateTab={onNavigateTab}
-                    todaysFollowUps={todaysFollowUps}
-                    refreshTrigger={refreshing}
-                  />
+              {rightWidgets.length > 0 && (
+                <div className="crm-dashboard-col-right">
+                  {rightWidgets.map((w) => w.node)}
                 </div>
               )}
             </div>
-          );
-        }
+          )}
 
-        return renderSectionItem(secPref);
-      })}
+          {isCapacityVisible && !isCapacityBeforeColumns && renderCapacityCard(capacityPref)}
+        </>
+      )}
 
       {/* CUSTOMIZE DASHBOARD DRAWER */}
       {canCustomize && (

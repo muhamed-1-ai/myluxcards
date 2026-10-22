@@ -156,6 +156,7 @@ export interface InvoiceRow {
   amount_due_minor: string | number;
   notes: string | null;
   terms: string | null;
+  internal_notes?: string | null;
   share_token: string | null;
   lead_id: string | null;
   posted_journal_entry_id: string | null;
@@ -165,6 +166,7 @@ export interface InvoiceRow {
   contact_name?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
+  contact_address?: string | null;
 }
 
 export interface InvoiceLineRow {

@@ -4318,6 +4318,30 @@ th {
   align-items: start;
 }
 
+/* Independently Flowing Column Stacks Layout */
+.crm-dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(340px, 1fr);
+  gap: 24px;
+  width: 100%;
+  align-items: start;
+  box-sizing: border-box;
+}
+
+.crm-dashboard-columns.single-column {
+  grid-template-columns: 1fr;
+}
+
+.crm-dashboard-col-left,
+.crm-dashboard-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Vertical Bar Chart for LOB Analysis (Reference 3) */
 .crm-lob-card {
   background: #1B1C21;
@@ -5085,6 +5109,15 @@ body.light-mode .crm-cal-summary-card {
 
 /* RESPONSIVE BREAKPOINTS */
 @media (max-width: 1023px) {
+  .crm-dashboard-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .crm-dashboard-col-left,
+  .crm-dashboard-col-right {
+    display: contents;
+  }
   .crm-chart-row,
   .crm-lob-calendar-row {
     grid-template-columns: 1fr;
@@ -5093,6 +5126,26 @@ body.light-mode .crm-cal-summary-card {
   .crm-filter-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.preview-compact .crm-dashboard-columns {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+.preview-compact .crm-dashboard-col-left,
+.preview-compact .crm-dashboard-col-right {
+  display: contents !important;
+}
+
+.preview-compact .crm-lob-desktop-chart {
+  display: none !important;
+}
+
+.preview-compact .crm-lob-mobile-chart {
+  display: flex !important;
 }
 
 @media (max-width: 640px) {

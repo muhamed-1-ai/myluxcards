@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
+import PaymentAccountPicker from "./PaymentAccountPicker";
 
 interface RecurringRule {
   id: string;
@@ -256,20 +257,14 @@ export default function RecurringView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="rec-account">Payment Account *</label>
-                <select
+                <PaymentAccountPicker
                   id="rec-account"
-                  className="acc-form-select"
                   value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
+                  onChange={setAccountId}
+                  placeholder="Select Bank or Cash account..."
+                  accountFilter={(a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR"].includes(a.subtype)}
                   required
-                >
-                  <option value="">Select Bank or Cash account...</option>
-                  {accounts
-                    .filter((a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR"].includes(a.subtype))
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                </select>
+                />
               </div>
 
               <div className="acc-form-group">

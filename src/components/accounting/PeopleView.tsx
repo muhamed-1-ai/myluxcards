@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
+import PaymentAccountPicker from "./PaymentAccountPicker";
 
 interface Contact {
   id: string;
@@ -692,20 +693,14 @@ export default function PeopleView() {
 
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="iou-account">Financial Account *</label>
-                <select
+                <PaymentAccountPicker
                   id="iou-account"
-                  className="acc-form-select"
                   value={iouAccountId}
-                  onChange={(e) => setIouAccountId(e.target.value)}
+                  onChange={setIouAccountId}
+                  accounts={liquidAccounts}
+                  placeholder="Select Cash or Bank account..."
                   required
-                >
-                  <option value="">Select Cash or Bank account...</option>
-                  {liquidAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace?.currency)})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="acc-form-group">
@@ -780,20 +775,14 @@ export default function PeopleView() {
                 <label className="acc-form-label" htmlFor="pay-account">
                   {(selectedContact.receivable_balance_minor || 0) > 0 ? "Deposit Account *" : "Payment Account *"}
                 </label>
-                <select
+                <PaymentAccountPicker
                   id="pay-account"
-                  className="acc-form-select"
                   value={payAccountId}
-                  onChange={(e) => setPayAccountId(e.target.value)}
+                  onChange={setPayAccountId}
+                  accounts={liquidAccounts}
+                  placeholder="Select account (Cash, Bank, UPI)..."
                   required
-                >
-                  <option value="">Select account (Cash, Bank, UPI)...</option>
-                  {liquidAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace?.currency)})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="acc-form-group">

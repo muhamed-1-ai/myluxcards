@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       status: body.status,
       notes: body.notes,
       terms: body.terms,
+      internalNotes: body.internalNotes,
       leadId: body.leadId,
       lines: body.lines,
       userId: context!.identity.id,

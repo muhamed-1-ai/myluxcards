@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput, { stripCommas } from "../ui/FormattedMoneyInput";
+import PaymentAccountPicker from "./PaymentAccountPicker";
 
 interface Budget {
   id: string;
@@ -660,19 +661,13 @@ export default function BudgetsView() {
                   <label className="acc-form-label" htmlFor="exp-account">
                     Payment Account *
                   </label>
-                  <select
+                  <PaymentAccountPicker
                     id="exp-account"
-                    className="acc-form-select"
                     required
                     value={expAccountId}
-                    onChange={(e) => setExpAccountId(e.target.value)}
-                  >
-                    {availableAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} ({formatMoney(a.current_balance_minor, activeWorkspace?.currency)})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setExpAccountId}
+                    accounts={availableAccounts}
+                  />
                 </div>
               </div>
 
