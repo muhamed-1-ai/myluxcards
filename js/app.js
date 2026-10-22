@@ -1754,9 +1754,14 @@ class LuxApp {
     };
     signupPassword?.addEventListener('input', updatePasswordRequirements);
 
-    document.querySelectorAll('[data-password-toggle]').forEach(toggle => {
-      toggle.addEventListener('click', () => {
-        const input = document.getElementById(toggle.dataset.passwordToggle);
+    document.querySelectorAll('[data-password-toggle], .password-toggle').forEach(toggle => {
+      if (toggle.dataset.toggleBound === 'true') return;
+      toggle.dataset.toggleBound = 'true';
+
+      toggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = toggle.dataset.passwordToggle || toggle.getAttribute('aria-controls') || (toggle.id === 'login-password-toggle' ? 'login-password' : null);
+        const input = targetId ? document.getElementById(targetId) : toggle.parentElement?.querySelector('input[type="password"], input[type="text"]');
         if (!input) return;
         const showing = input.type === 'text';
         input.type = showing ? 'password' : 'text';
@@ -2032,16 +2037,6 @@ class LuxApp {
           button.textContent = 'Send Setup or Reset Link';
         }
       }
-    });
-
-    document.getElementById('login-password-toggle')?.addEventListener('click', (e) => {
-      const password = document.getElementById('login-password');
-      if (!password) return;
-      const showing = password.type === 'text';
-      password.type = showing ? 'password' : 'text';
-      e.currentTarget.textContent = showing ? 'Show' : 'Hide';
-      e.currentTarget.setAttribute('aria-pressed', String(!showing));
-      password.focus({ preventScroll: true });
     });
 
     const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
