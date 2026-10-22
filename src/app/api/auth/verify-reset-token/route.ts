@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const result = await verifyResetToken(token);
 
   return NextResponse.json(
-    { valid: result.valid, message: result.message },
+    { valid: result.valid, message: result.message, isSetup: result.isSetup },
     {
       status: result.valid ? 200 : 400,
       headers: {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const result = await verifyResetToken(token);
 
   return NextResponse.json(
-    { valid: result.valid, message: result.message },
+    { valid: result.valid, message: result.message, isSetup: result.isSetup },
     {
       status: result.valid ? 200 : 400,
       headers: {

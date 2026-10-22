@@ -25,32 +25,62 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [isGoogleManaged, setIsGoogleManaged] = useState<boolean | null>(null);
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [setupSubmitting, setSetupSubmitting] = useState(false);
+  const [setupSuccessMessage, setSetupSuccessMessage] = useState("");
+  const [setupErrorMessage, setSetupErrorMessage] = useState("");
+  const [setupCooldown, setSetupCooldown] = useState(0);
 
-  // Check whether the user is Google-managed on mount
+  // Check whether the user already has a password credential on mount
   React.useEffect(() => {
     async function checkAccountType() {
       try {
-        const res = await fetch("/api/auth/session");
-        const session = await res.json().catch(() => ({}));
-        // We can inspect whether user has credentials or is Google-only
         const profileRes = await fetch("/api/auth/me").catch(() => null);
         if (profileRes && profileRes.ok) {
           const profileData = await profileRes.json().catch(() => ({}));
-          if (profileData.isGoogleOnly) {
-            setIsGoogleManaged(true);
-          } else {
-            setIsGoogleManaged(false);
-          }
+          setHasPassword(Boolean(profileData.hasPassword));
         } else {
-          setIsGoogleManaged(false);
+          setHasPassword(true);
         }
       } catch {
-        setIsGoogleManaged(false);
+        setHasPassword(true);
       }
     }
     checkAccountType();
   }, []);
+
+  React.useEffect(() => {
+    if (setupCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setSetupCooldown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [setupCooldown]);
+
+  const handleSendSetupLink = async () => {
+    setSetupErrorMessage("");
+    setSetupSuccessMessage("");
+    setSetupSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/setup-password/send-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSetupErrorMessage(data.message || "Failed to send password setup link. Please try again.");
+        return;
+      }
+      setSetupSuccessMessage(
+        data.message || "A secure password setup link has been sent to your verified email address."
+      );
+      setSetupCooldown(60);
+    } catch {
+      setSetupErrorMessage("Network error occurred. Please try again.");
+    } finally {
+      setSetupSubmitting(false);
+    }
+  };
 
   const passwordRules = [
     { label: "12+ characters", met: newPassword.length >= 12 },
@@ -102,8 +132,8 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        if (data.message && data.message.includes("Google")) {
-          setIsGoogleManaged(true);
+        if (data.message && data.message.includes("Add Password")) {
+          setHasPassword(false);
         }
         setErrorMessage(data.message || "Failed to update password. Please verify your current password.");
         return;
@@ -155,60 +185,131 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
         </div>
       </div>
 
-      {/* Google-Only Managed Notice */}
-      {isGoogleManaged ? (
+      {/* When user has no password yet (e.g. Google-registered user): Show "Add password" */}
+      {hasPassword === false ? (
         <div
           style={{
-            backgroundColor: "rgba(30, 41, 59, 0.7)",
-            border: "1px solid rgba(59, 130, 246, 0.3)",
+            backgroundColor: "var(--acc-card-bg, #1e293b)",
+            border: "1px solid var(--acc-border, #334155)",
             borderRadius: "14px",
-            padding: "1.5rem",
+            padding: "1.75rem",
+            boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.2)",
             marginBottom: "1.5rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", marginBottom: "1.25rem" }}>
             <div
               style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "8px",
-                backgroundColor: "rgba(59, 130, 246, 0.15)",
+                width: "40px",
+                height: "40px",
+                borderRadius: "10px",
+                backgroundColor: "rgba(56, 189, 248, 0.15)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#60a5fa",
+                color: "#38bdf8",
                 flexShrink: 0,
               }}
             >
-              <KeyRound style={{ width: "20px", height: "20px" }} />
+              <KeyRound style={{ width: "22px", height: "22px" }} />
             </div>
             <div>
-              <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 0.5rem", color: "#FFFFFF" }}>
-                Sign-In Managed via Google
-              </h3>
-              <p style={{ fontSize: "0.875rem", color: "#cbd5e1", lineHeight: 1.5, margin: "0 0 1rem" }}>
-                Your ZAPPIT account signs in directly through your Google identity (<strong>{user?.email}</strong>).
-                Standalone passwords are not required or stored locally.
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: "0 0 0.35rem", color: "#FFFFFF" }}>
+                Add password
+              </h2>
+              <p style={{ fontSize: "0.9rem", color: "#cbd5e1", margin: 0, lineHeight: 1.5 }}>
+                Add a password so you can also sign in with your email.
               </p>
-              <a
-                href="https://myaccount.google.com/security"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  fontSize: "0.8125rem",
-                  color: "#38bdf8",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                }}
-              >
-                <span>Manage Google Account Security</span>
-                <ExternalLink style={{ width: "14px", height: "14px" }} />
-              </a>
             </div>
           </div>
+
+          <div
+            style={{
+              backgroundColor: "rgba(15, 23, 42, 0.6)",
+              border: "1px solid rgba(51, 65, 85, 0.8)",
+              borderRadius: "10px",
+              padding: "1.25rem",
+              marginBottom: "1.25rem",
+            }}
+          >
+            <p style={{ fontSize: "0.875rem", color: "#e2e8f0", lineHeight: 1.6, margin: "0 0 0.75rem" }}>
+              Your account currently signs in through Google (<strong>{user?.email}</strong>). Adding a password enables direct email and password login to this same account while keeping your Google sign-in, profile, and records unchanged.
+            </p>
+            <p style={{ fontSize: "0.8125rem", color: "#94a3b8", lineHeight: 1.5, margin: 0 }}>
+              To verify email ownership securely, we’ll email a single-use setup link to your registered address.
+            </p>
+          </div>
+
+          {setupErrorMessage && (
+            <div
+              role="alert"
+              style={{
+                backgroundColor: "rgba(239, 68, 68, 0.12)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                color: "#f87171",
+                padding: "0.75rem 1rem",
+                borderRadius: "8px",
+                fontSize: "0.875rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "1.25rem",
+              }}
+            >
+              <AlertCircle style={{ width: "16px", height: "16px", flexShrink: 0 }} />
+              <span>{setupErrorMessage}</span>
+            </div>
+          )}
+
+          {setupSuccessMessage && (
+            <div
+              role="status"
+              style={{
+                backgroundColor: "rgba(16, 185, 129, 0.12)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                color: "#34d399",
+                padding: "0.75rem 1rem",
+                borderRadius: "8px",
+                fontSize: "0.875rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "1.25rem",
+              }}
+            >
+              <CheckCircle2 style={{ width: "16px", height: "16px", flexShrink: 0 }} />
+              <span>{setupSuccessMessage}</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={setupSubmitting || setupCooldown > 0}
+            onClick={handleSendSetupLink}
+            style={{
+              width: "100%",
+              height: "46px",
+              borderRadius: "10px",
+              backgroundColor: "#0284c7",
+              color: "#FFFFFF",
+              fontSize: "0.9375rem",
+              fontWeight: 600,
+              border: "none",
+              cursor: setupSubmitting || setupCooldown > 0 ? "not-allowed" : "pointer",
+              opacity: setupSubmitting || setupCooldown > 0 ? 0.6 : 1,
+              transition: "all 0.15s ease",
+            }}
+          >
+            {setupCooldown > 0
+              ? `Resend link in ${setupCooldown}s`
+              : setupSubmitting
+              ? "Sending setup link…"
+              : "Email Password Setup Link"}
+          </button>
+
+          <p style={{ fontSize: "0.75rem", color: "var(--acc-text-muted, #94a3b8)", marginTop: "1rem", lineHeight: 1.4 }}>
+            Setup links expire in 15 minutes and can only be used once. Opening the link will allow you to create your password and sign in with email.
+          </p>
         </div>
       ) : (
         /* Change Password Card */

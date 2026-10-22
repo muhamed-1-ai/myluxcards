@@ -14,6 +14,7 @@ export default function ResetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [complete, setComplete] = useState(false);
   const [required, setRequired] = useState(false);
+  const [isSetup, setIsSetup] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -75,6 +76,7 @@ export default function ResetPasswordPage() {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.valid) {
           setTokenValid(true);
+          setIsSetup(Boolean(data.isSetup));
         } else {
           setTokenValid(false);
           setTokenError(data.message || "This password recovery link is invalid, expired, or has already been used.");
@@ -152,9 +154,11 @@ export default function ResetPasswordPage() {
         {/* 1. Success State */}
         {complete ? (
           <>
-            <h1>Password changed</h1>
+            <h1>{isSetup ? "Password added" : "Password changed"}</h1>
             <p style={{ lineHeight: 1.6, color: "var(--acc-text-muted, #94a3b8)" }}>
-              Your new password is now active. All previous sessions across your devices have been signed out.
+              {isSetup
+                ? "Your password has been successfully established. You can now log in using either your email and password or Google."
+                : "Your new password is now active. All previous sessions across your devices have been signed out."}
             </p>
             <Link
               href={required ? "/admin" : "/?login=1"}
@@ -177,7 +181,7 @@ export default function ResetPasswordPage() {
               {tokenError || "This password recovery link is invalid, expired, or has already been used."}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "0.5rem" }}>
-              For your security, password reset links expire after 15 minutes and can only be used once.
+              For your security, links expire after 15 minutes and can only be used once.
             </p>
             <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <Link
@@ -185,7 +189,7 @@ export default function ResetPasswordPage() {
                 className="reset-button"
                 style={{ textAlign: "center", textDecoration: "none" }}
               >
-                Request New Reset Link
+                Request New Link
               </Link>
               <Link
                 href="/?login=1"
@@ -204,8 +208,8 @@ export default function ResetPasswordPage() {
         ) : (
           /* 4. Valid Token Form */
           <>
-            <h1>Choose a new password</h1>
-            <p>Enter a new password for your Zappit account.</p>
+            <h1>{isSetup ? "Create your password" : "Choose a new password"}</h1>
+            <p>{isSetup ? "Add a password so you can also sign in with your email." : "Enter a new password for your Zappit account."}</p>
 
             <form onSubmit={submit}>
               <label>
@@ -287,7 +291,7 @@ export default function ResetPasswordPage() {
                   cursor: submitting || !allRulesMet || !passwordsMatch ? "not-allowed" : "pointer",
                 }}
               >
-                {submitting ? "Saving New Password…" : "Save New Password"}
+                {submitting ? (isSetup ? "Creating Password…" : "Saving New Password…") : (isSetup ? "Create Password" : "Save New Password")}
               </button>
             </form>
           </>

@@ -16,7 +16,7 @@ const currentIdentityLib = readFileSync("src/lib/auth/currentIdentity.ts", "utf8
 const authOptions = readFileSync("src/lib/auth.ts", "utf8");
 
 test("RECOVERY 1: Public forgot password endpoint uses uniform, non-enumerating response text and headers", () => {
-  const uniformMessage = "If this email is eligible, we’ll send password recovery instructions.";
+  const uniformMessage = "If this account is eligible, we’ll email you a link to set or reset your password.";
   assert.match(forgotRoute, /"Cache-Control":\s*"no-store/);
   assert.match(recoveryLib, new RegExp(uniformMessage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   // Must execute dummy bcrypt comparison to neutralize timing side channels on non-existent accounts
@@ -58,10 +58,10 @@ test("RECOVERY 5: Change Password enforces current password verification, reject
   assert.match(recoveryLib, /New password must be different from your current password\./);
 });
 
-test("RECOVERY 6: Google-only accounts are protected from password creation, takeover, or local change", () => {
-  assert.match(recoveryLib, /Your sign-in is managed through Google\. Password change is not applicable for Google-only accounts\./);
-  assert.match(recoveryLib, /sendGoogleAccountRecoveryInfoEmail/);
-  assert.match(emailLib, /Sign in to ZAPPIT with Google/);
+test("RECOVERY 6: Accounts without passwords require verified setup link before password establishment", () => {
+  assert.match(recoveryLib, /requestPasswordSetupForAuthenticatedUser/);
+  assert.match(recoveryLib, /This account does not have a password yet\. Please use Add Password to set up your password\./);
+  assert.match(recoveryLib, /sendPasswordResetEmail/);
 });
 
 test("RECOVERY 7: Transactional email service implements verified sender, escaping, and no password leaks", () => {

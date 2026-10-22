@@ -52,7 +52,7 @@ test("EMAIL DIAGNOSTICS 2: Live forgot-password request creates token and record
     assert.equal(response.status, 200);
     const data = await response.json();
     assert.equal(data.ok, true);
-    assert.equal(data.message, "If this email is eligible, we’ll send password recovery instructions.");
+    assert.equal(data.message, "If this account is eligible, we’ll email you a link to set or reset your password.");
     assert.match(response.headers.get("cache-control") || "", /no-store/);
 
     // 3. Query the created token in the database
@@ -92,7 +92,7 @@ test("EMAIL DIAGNOSTICS 3: Non-existent emails yield identical generic response 
   assert.equal(response.status, 200);
   const data = await response.json();
   assert.equal(data.ok, true);
-  assert.equal(data.message, "If this email is eligible, we’ll send password recovery instructions.");
+  assert.equal(data.message, "If this account is eligible, we’ll email you a link to set or reset your password.");
 
   // Confirm NO token was inserted for this nonexistent email
   const check = await pool.query(
@@ -279,7 +279,7 @@ test("EMAIL DIAGNOSTICS 6: Rate limiting on forgot-password requests (max 3 per 
     const fourthData = await fourthRes.json();
     // Public response remains uniform
     assert.equal(fourthData.ok, true);
-    assert.equal(fourthData.message, "If this email is eligible, we’ll send password recovery instructions.");
+    assert.equal(fourthData.message, "If this account is eligible, we’ll email you a link to set or reset your password.");
 
     // Count how many tokens were created for this user: should be exactly 3, not 4
     const countRes = await client.query(

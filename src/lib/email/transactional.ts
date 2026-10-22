@@ -180,31 +180,39 @@ export async function sendTransactionalEmail(options: SendEmailOptions): Promise
 }
 
 /**
- * Builds and sends the Password Recovery Email with 15-minute expiration notice and safe link.
+ * Builds and sends the Password Setup or Recovery Email with 15-minute expiration notice and safe link.
  */
 export async function sendPasswordResetEmail(input: {
   to: string;
   name?: string;
   resetUrl: string;
   expiresMinutes?: number;
+  isSetup?: boolean;
 }): Promise<EmailDeliveryResult> {
   const name = input.name?.trim() || "User";
   const safeName = escapeHtml(name);
   const safeUrl = escapeHtml(input.resetUrl);
   const minutes = input.expiresMinutes || 15;
+  const isSetup = Boolean(input.isSetup);
 
-  const subject = "Reset your ZAPPIT password";
+  const subject = isSetup ? "Set your ZAPPIT password" : "Reset your ZAPPIT password";
+  const title = isSetup ? "Set Your Password" : "Password Recovery Request";
+  const buttonText = isSetup ? "Set Password" : "Reset Password";
 
   const text = `Hello ${name},
 
-We received a request to reset the password for your ZAPPIT account.
+${
+  isSetup
+    ? "We received a request to set a password for your ZAPPIT account so you can also sign in using email and password."
+    : "We received a request to reset the password for your ZAPPIT account."
+}
 
-You can reset your password by opening the following link:
+You can ${isSetup ? "set" : "reset"} your password by opening the following link:
 ${input.resetUrl}
 
 This link will expire in ${minutes} minutes and can only be used once.
 
-If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged and your account remains secure.
+If you did not request this, you can safely ignore this email. Your existing credentials and account remain protected.
 
 — The ZAPPIT Team
 `;
@@ -230,15 +238,19 @@ If you did not request a password reset, you can safely ignore this email. Your 
 <body>
   <div class="container">
     <div class="brand">ZAPPIT</div>
-    <h1>Password Recovery Request</h1>
+    <h1>${escapeHtml(title)}</h1>
     <p>Hello ${safeName},</p>
-    <p>We received a request to reset the password for your ZAPPIT account. Click the button below to choose a new password:</p>
+    <p>${
+      isSetup
+        ? "We received a request to set a password for your ZAPPIT account so you can sign in with your email as well as Google. Click the button below to choose a password:"
+        : "We received a request to reset the password for your ZAPPIT account. Click the button below to choose a new password:"
+    }</p>
     <div class="btn-wrap">
-      <a href="${safeUrl}" class="btn" target="_blank" rel="noopener noreferrer">Reset Password</a>
+      <a href="${safeUrl}" class="btn" target="_blank" rel="noopener noreferrer">${escapeHtml(buttonText)}</a>
     </div>
-    <p>This recovery link expires in <strong>${minutes} minutes</strong> and can only be used once.</p>
+    <p>This secure link expires in <strong>${minutes} minutes</strong> and can only be used once.</p>
     <p class="muted">
-      If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged and your account remains protected.<br><br>
+      If you did not request this, you can safely ignore this email. Your account remains protected.<br><br>
       Button not working? Copy and paste this URL into your browser:<br>
       <span class="link-fallback">${safeUrl}</span>
     </p>
@@ -255,30 +267,46 @@ If you did not request a password reset, you can safely ignore this email. Your 
 }
 
 /**
- * Builds and sends the Password Changed Notification Email.
+ * Builds and sends the Password Changed or Added Notification Email.
  * Crucial security requirement: Never includes passwords or reset tokens.
  */
 export async function sendPasswordChangedEmail(input: {
   to: string;
   name?: string;
+  isAdded?: boolean;
 }): Promise<EmailDeliveryResult> {
   const name = input.name?.trim() || "User";
   const safeName = escapeHtml(name);
   const appOrigin = getAppOrigin();
   const safeOrigin = escapeHtml(appOrigin);
+  const isAdded = Boolean(input.isAdded);
 
-  const subject = "Your ZAPPIT password was changed";
+  const subject = isAdded
+    ? "A password was added to your ZAPPIT account"
+    : "Your ZAPPIT password was changed";
+
+  const alertText = isAdded
+    ? "✓ Password Successfully Added"
+    : "✓ Password Successfully Updated";
+
+  const title = isAdded
+    ? "Password Added Confirmation"
+    : "Password Change Confirmation";
 
   const text = `Hello ${name},
 
-The password for your ZAPPIT account (${input.to}) was recently changed.
+${
+  isAdded
+    ? `A password was successfully added to your ZAPPIT account (${input.to}). You can now sign in using either Google or your email and password.`
+    : `The password for your ZAPPIT account (${input.to}) was recently changed.`
+}
 
 All existing sessions across your devices have been signed out for security.
 
-If you made this change, no further action is required. You can sign in using your new password at:
+If you made this change, no further action is required. You can sign in using your password at:
 ${appOrigin}
 
-If you did NOT change your password, please reset your password immediately or contact your administrator to protect your account.
+If you did NOT authorize this change, please reset your password immediately or contact your administrator to protect your account.
 
 — The ZAPPIT Team
 `;
@@ -304,10 +332,14 @@ If you did NOT change your password, please reset your password immediately or c
 <body>
   <div class="container">
     <div class="brand">ZAPPIT</div>
-    <div class="alert-box">✓ Password Successfully Updated</div>
-    <h1>Password Change Confirmation</h1>
+    <div class="alert-box">${escapeHtml(alertText)}</div>
+    <h1>${escapeHtml(title)}</h1>
     <p>Hello ${safeName},</p>
-    <p>The password for your ZAPPIT account (<strong>${escapeHtml(input.to)}</strong>) has been changed successfully.</p>
+    <p>${
+      isAdded
+        ? `A password was successfully added to your ZAPPIT account (<strong>${escapeHtml(input.to)}</strong>). You can now sign in using either Google or your email and password.`
+        : `The password for your ZAPPIT account (<strong>${escapeHtml(input.to)}</strong>) has been changed successfully.`
+    }</p>
     <p>For your security, all active sessions on your other browsers and mobile devices have been invalidated.</p>
     <div class="btn-wrap">
       <a href="${safeOrigin}" class="btn" target="_blank" rel="noopener noreferrer">Sign in to ZAPPIT</a>

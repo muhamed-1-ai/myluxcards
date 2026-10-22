@@ -727,7 +727,7 @@ const redesignedMarkup = `
             <div class="form-group" style="margin-bottom: 20px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;">
                 <label for="login-password" class="auth-field-label" style="font-size: 0.85rem; font-weight: 600; margin: 0; color: var(--apple-text-primary, #1E293B);">Password</label>
-                <a href="/forgot-password" class="forgot-password-link" id="forgot-password-trigger" style="font-size: 0.8rem; color: var(--apple-blue, #0066FF); text-decoration: none; font-weight: 500;">Forgot password?</a>
+                <a href="/forgot-password" class="forgot-password-link" id="forgot-password-trigger" style="font-size: 0.8rem; color: var(--apple-blue, #0066FF); text-decoration: none; font-weight: 500;">Set or reset password?</a>
               </div>
               <div class="password-field" style="position: relative;">
                 <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••" style="width: 100%; height: 44px; padding: 0 48px 0 14px; border-radius: 8px; border: 1px solid var(--apple-border, #CBD5E1); background: #FFFFFF; color: #0F172A; box-sizing: border-box;">
@@ -743,8 +743,8 @@ const redesignedMarkup = `
           <!-- Forgot Password Panel within Modal -->
           <div id="forgot-password-panel" style="display: none;">
             <div style="margin-bottom: 18px;">
-              <h4 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; color: var(--apple-text-primary, #1E293B);">Reset Password</h4>
-              <p style="font-size: 0.825rem; color: #64748B; margin: 0; line-height: 1.5;">Enter your registered email address and we'll send password recovery instructions.</p>
+              <h4 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; color: var(--apple-text-primary, #1E293B);">Set or Reset Password</h4>
+              <p style="font-size: 0.825rem; color: #64748B; margin: 0; line-height: 1.5;">Enter your registered email address and we'll send a link to set or reset your password.</p>
             </div>
 
             <form id="forgot-password-form">
@@ -755,7 +755,7 @@ const redesignedMarkup = `
 
               <div id="forgot-modal-message" role="status" style="display: none; padding: 12px 14px; border-radius: 8px; font-size: 0.825rem; margin-bottom: 16px; line-height: 1.5; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #059669;"></div>
 
-              <button class="apple-btn apple-btn-primary" id="forgot-modal-submit" type="submit" style="width: 100%; height: 46px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; background: var(--apple-blue, #0066FF); color: #FFFFFF; border: none; cursor: pointer; transition: all 0.2s ease;">Send Reset Link</button>
+              <button class="apple-btn apple-btn-primary" id="forgot-modal-submit" type="submit" style="width: 100%; height: 46px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; background: var(--apple-blue, #0066FF); color: #FFFFFF; border: none; cursor: pointer; transition: all 0.2s ease;">Send Setup or Reset Link</button>
             </form>
 
             <div style="margin-top: 18px; text-align: center;">

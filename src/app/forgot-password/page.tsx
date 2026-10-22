@@ -35,12 +35,12 @@ export default function ForgotPasswordPage() {
 
       const data = await res.json().catch(() => ({}));
       setSubmitted(true);
-      setMessage(data.message || "If this email is eligible, we’ll send password recovery instructions.");
+      setMessage(data.message || "If this account is eligible, we’ll email you a link to set or reset your password.");
       setCooldown(60); // 60 second resend cooldown
     } catch {
       // Always show uniform message to prevent enumeration even on network errors
       setSubmitted(true);
-      setMessage("If this email is eligible, we’ll send password recovery instructions.");
+      setMessage("If this account is eligible, we’ll email you a link to set or reset your password.");
       setCooldown(60);
     } finally {
       setSubmitting(false);
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
               {message}
             </p>
             <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "0.5rem", lineHeight: 1.5 }}>
-              Check your inbox and spam folder. Recovery links expire in 15 minutes and can only be used once.
+              Check your inbox and spam folder. Recovery and setup links expire in 15 minutes and can only be used once.
             </p>
 
             <div style={{ marginTop: "1.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -109,9 +109,9 @@ export default function ForgotPasswordPage() {
           </>
         ) : (
           <>
-            <h1>Forgot your password?</h1>
+            <h1>Set or reset your password</h1>
             <p style={{ lineHeight: 1.6, color: "#cbd5e1" }}>
-              Enter your registered email address and we’ll send you password recovery instructions.
+              Enter your registered email address to set or reset your password. If this account is eligible, we’ll email you a link to choose a password.
             </p>
 
             <form onSubmit={handleSendReset}>

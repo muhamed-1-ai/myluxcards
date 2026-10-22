@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     console.error("[Auth][ForgotPassword] Unexpected error:", error);
     // Never expose stack traces or specific server errors to prevent enumeration
     return NextResponse.json(
-      { ok: true, message: "If this email is eligible, we’ll send password recovery instructions." },
+      { ok: true, message: "If this account is eligible, we’ll email you a link to set or reset your password." },
       { status: 200, headers: { "Cache-Control": "no-store, private" } }
     );
   }

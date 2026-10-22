@@ -30,6 +30,7 @@ export interface VerifyTokenResult {
   valid: boolean;
   message?: string;
   userId?: string;
+  isSetup?: boolean;
 }
 
 export interface ResetPasswordResult {
@@ -44,11 +45,12 @@ export interface ChangePasswordResult {
 }
 
 /**
- * Initiates secure password recovery.
+ * Initiates secure password recovery or initial password setup.
  * Generates a 256-bit cryptographically random token, stores its SHA-256 verifier with a 15-minute expiry,
  * and sends an email to the registered address.
  *
- * Guarantees uniform response text, status, and execution timing to prevent email enumeration.
+ * Supports both accounts with an existing password (reset) and Google-registered accounts (first password setup).
+ * Guarantees uniform generic response text, status, and execution timing to prevent email enumeration.
  */
 export async function requestPasswordRecovery(
   email: string,
@@ -56,7 +58,7 @@ export async function requestPasswordRecovery(
 ): Promise<RecoveryRequestResult> {
   const genericResponse: RecoveryRequestResult = {
     ok: true,
-    message: "If this email is eligible, we’ll send password recovery instructions.",
+    message: "If this account is eligible, we’ll email you a link to set or reset your password.",
   };
 
   if (!email || typeof email !== "string") {
@@ -99,91 +101,70 @@ export async function requestPasswordRecovery(
     return genericResponse;
   }
 
-  // 4. Check if account is Google-only or credential-enabled
-  if (user.password_hash) {
-    // Account has a local password: create secure single-use recovery link
-    const rawToken = randomBytes(32).toString("hex"); // 64 hex characters (256 bits)
-    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  // 4. Create secure single-use recovery link
+  // Supports both accounts with an existing password (reset) and Google-registered accounts (first setup)
+  const isSetup = !user.password_hash;
+  const rawToken = randomBytes(32).toString("hex"); // 64 hex characters (256 bits)
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    let tokenId: string | null = null;
-    await withTransaction(async (db) => {
-      // Invalidate any existing unconsumed tokens for this user
-      await db.query(
-        "update auth_action_tokens set consumed_at = now() where user_id = $1 and purpose = 'PASSWORD_RESET' and consumed_at is null",
-        [user.id]
+  let tokenId: string | null = null;
+  await withTransaction(async (db) => {
+    // Invalidate any existing unconsumed tokens for this user
+    await db.query(
+      "update auth_action_tokens set consumed_at = now() where user_id = $1 and purpose = 'PASSWORD_RESET' and consumed_at is null",
+      [user.id]
+    );
+
+    // Insert new token hash with initial PENDING delivery status
+    const insertResult = await db.query<{ id: string }>(
+      `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status)
+      values($1, 'PASSWORD_RESET', $2, $3, 'PENDING')
+      returning id`,
+      [user.id, tokenHash, expiresAt]
+    );
+    tokenId = insertResult.rows[0]?.id || null;
+  });
+
+  const origin = getAppOrigin();
+  const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+  const deliveryResult = await sendPasswordResetEmail({
+    to: user.email,
+    name: user.name,
+    resetUrl,
+    expiresMinutes: 15,
+    isSetup,
+  });
+
+  // Record delivery outcome and diagnostics directly in the token record
+  if (tokenId) {
+    if (deliveryResult.ok) {
+      await pool.query(
+        `update auth_action_tokens
+         set delivery_status = 'SENT',
+             delivery_provider = $1,
+             delivery_message_id = $2,
+             delivery_error = null,
+             sent_at = now()
+         where id = $3`,
+        [deliveryResult.provider || "resend", deliveryResult.messageId || null, tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update token delivery status:", err));
+    } else {
+      const deliveryStatus = deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : "FAILED";
+      await pool.query(
+        `update auth_action_tokens
+         set delivery_status = $1,
+             delivery_provider = $2,
+             delivery_error = $3
+         where id = $4`,
+        [deliveryStatus, deliveryResult.provider || null, deliveryResult.error || "Delivery failed", tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update token delivery error:", err));
+
+      // Actionable private diagnostic log (never leaks tokens or credentials)
+      console.error(
+        `[Auth][PasswordRecovery] Delivery failure for user ${user.id} (${normalized}): status=${deliveryStatus}, provider=${deliveryResult.provider || "none"}, error=${deliveryResult.error || "unknown"}`
       );
-
-      // Insert new token hash with initial PENDING delivery status
-      const insertResult = await db.query<{ id: string }>(
-        `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status)
-        values($1, 'PASSWORD_RESET', $2, $3, 'PENDING')
-        returning id`,
-        [user.id, tokenHash, expiresAt]
-      );
-      tokenId = insertResult.rows[0]?.id || null;
-    });
-
-    const origin = getAppOrigin();
-    const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
-
-    const deliveryResult = await sendPasswordResetEmail({
-      to: user.email,
-      name: user.name,
-      resetUrl,
-      expiresMinutes: 15,
-    });
-
-    // Record delivery outcome and diagnostics directly in the token record
-    if (tokenId) {
-      if (deliveryResult.ok) {
-        await pool.query(
-          `update auth_action_tokens
-           set delivery_status = 'SENT',
-               delivery_provider = $1,
-               delivery_message_id = $2,
-               delivery_error = null,
-               sent_at = now()
-           where id = $3`,
-          [deliveryResult.provider || "resend", deliveryResult.messageId || null, tokenId]
-        ).catch((err) => console.error("[Auth] Failed to update token delivery status:", err));
-      } else {
-        const deliveryStatus = deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : "FAILED";
-        await pool.query(
-          `update auth_action_tokens
-           set delivery_status = $1,
-               delivery_provider = $2,
-               delivery_error = $3
-           where id = $4`,
-          [deliveryStatus, deliveryResult.provider || null, deliveryResult.error || "Delivery failed", tokenId]
-        ).catch((err) => console.error("[Auth] Failed to update token delivery error:", err));
-
-        // Actionable private diagnostic log (never leaks tokens or credentials)
-        console.error(
-          `[Auth][PasswordRecovery] Delivery failure for user ${user.id} (${normalized}): status=${deliveryStatus}, provider=${deliveryResult.provider || "none"}, error=${deliveryResult.error || "unknown"}`
-        );
-      }
-    }
-  } else {
-    // Account is authenticated via Google: inform the user without setting a local password
-    const googleAccount = (
-      await pool.query<{ id: string }>(
-        "select id from accounts where user_id = $1 and provider = 'google'",
-        [user.id]
-      )
-    ).rows[0];
-
-    if (googleAccount) {
-      const deliveryResult = await sendGoogleAccountRecoveryInfoEmail({
-        to: user.email,
-        name: user.name,
-      });
-
-      if (!deliveryResult.ok) {
-        console.error(
-          `[Auth][GoogleRecovery] Delivery failure for user ${user.id} (${normalized}): provider=${deliveryResult.provider || "none"}, error=${deliveryResult.error || "unknown"}`
-        );
-      }
     }
   }
 
@@ -191,11 +172,122 @@ export async function requestPasswordRecovery(
 }
 
 /**
- * Validates a recovery token without consuming it (safe for email link scanners/crawlers).
+ * Initiates verified password setup for an authenticated session without an existing password (e.g. Google-registered user).
+ * Derives target user and trusted email strictly from the authenticated server identity.
+ * Dispatches a short-lived single-use setup link to their verified email.
+ */
+export async function requestPasswordSetupForAuthenticatedUser(
+  userId: string,
+  clientIp?: string
+): Promise<RecoveryRequestResult> {
+  if (!userId) {
+    return { ok: false, message: "Unauthorized" };
+  }
+
+  // Rate limit setup requests per user ID (max 3 in 15 minutes)
+  const allowed = await checkRateLimit("setup-pwd-user", userId, 3, 900);
+  if (!allowed) {
+    return {
+      ok: false,
+      message: "Too many password setup requests. Please wait a few minutes before trying again.",
+    };
+  }
+
+  const user = (
+    await pool.query<{
+      id: string;
+      email: string;
+      name: string;
+      password_hash: string | null;
+      disabled: boolean;
+      status: string;
+    }>("select id, email, name, password_hash, disabled, status from users where id = $1", [userId])
+  ).rows[0];
+
+  if (!user || user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
+    return { ok: false, message: "User account is not active." };
+  }
+
+  if (user.password_hash) {
+    return {
+      ok: false,
+      message: "Your account already has a password. Please use Change Password instead.",
+    };
+  }
+
+  // Generate 256-bit cryptographically random token with 15-minute expiry
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  let tokenId: string | null = null;
+  await withTransaction(async (db) => {
+    await db.query(
+      "update auth_action_tokens set consumed_at = now() where user_id = $1 and purpose = 'PASSWORD_RESET' and consumed_at is null",
+      [user.id]
+    );
+
+    const insertResult = await db.query<{ id: string }>(
+      `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status)
+       values($1, 'PASSWORD_RESET', $2, $3, 'PENDING')
+       returning id`,
+      [user.id, tokenHash, expiresAt]
+    );
+    tokenId = insertResult.rows[0]?.id || null;
+  });
+
+  const origin = getAppOrigin();
+  const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+  const deliveryResult = await sendPasswordResetEmail({
+    to: user.email,
+    name: user.name,
+    resetUrl,
+    expiresMinutes: 15,
+    isSetup: true,
+  });
+
+  if (tokenId) {
+    if (deliveryResult.ok) {
+      await pool.query(
+        `update auth_action_tokens
+         set delivery_status = 'SENT',
+             delivery_provider = $1,
+             delivery_message_id = $2,
+             delivery_error = null,
+             sent_at = now()
+         where id = $3`,
+        [deliveryResult.provider || "resend", deliveryResult.messageId || null, tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update setup token delivery status:", err));
+    } else {
+      const deliveryStatus = deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : "FAILED";
+      await pool.query(
+        `update auth_action_tokens
+         set delivery_status = $1,
+             delivery_provider = $2,
+             delivery_error = $3
+         where id = $4`,
+        [deliveryStatus, deliveryResult.provider || null, deliveryResult.error || "Delivery failed", tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update setup token delivery error:", err));
+
+      console.error(
+        `[Auth][PasswordSetup] Delivery failure for user ${user.id} (${user.email}): status=${deliveryStatus}, provider=${deliveryResult.provider || "none"}, error=${deliveryResult.error || "unknown"}`
+      );
+    }
+  }
+
+  return {
+    ok: true,
+    message: "A secure password setup link has been sent to your verified email address.",
+  };
+}
+
+/**
+ * Validates a recovery or setup token without consuming it (safe for email link scanners/crawlers).
  */
 export async function verifyResetToken(rawToken: string): Promise<VerifyTokenResult> {
   if (!rawToken || typeof rawToken !== "string" || rawToken.length < 32) {
-    return { valid: false, message: "This password reset link is invalid or has expired." };
+    return { valid: false, message: "This password link is invalid or has expired." };
   }
 
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -203,7 +295,7 @@ export async function verifyResetToken(rawToken: string): Promise<VerifyTokenRes
   // Rate limit token verification attempts per token hash to prevent brute force
   const attemptAllowed = await checkRateLimit("verify-reset-token", tokenHash, 10, 900);
   if (!attemptAllowed) {
-    return { valid: false, message: "Too many attempts. Please request a new reset link." };
+    return { valid: false, message: "Too many attempts. Please request a new link." };
   }
 
   const result = await pool.query<{
@@ -211,30 +303,33 @@ export async function verifyResetToken(rawToken: string): Promise<VerifyTokenRes
     user_id: string;
     expires_at: Date;
     consumed_at: Date | null;
+    password_hash: string | null;
   }>(
-    `select id, user_id, expires_at, consumed_at from auth_action_tokens
-    where token_hash = $1 and purpose = 'PASSWORD_RESET'`,
+    `select t.id, t.user_id, t.expires_at, t.consumed_at, u.password_hash
+    from auth_action_tokens t
+    join users u on u.id = t.user_id
+    where t.token_hash = $1 and t.purpose = 'PASSWORD_RESET'`,
     [tokenHash]
   );
   const tokenRow = result.rows[0];
 
   if (!tokenRow) {
-    return { valid: false, message: "This password reset link is invalid or has expired." };
+    return { valid: false, message: "This password link is invalid or has expired." };
   }
 
   if (tokenRow.consumed_at !== null) {
-    return { valid: false, message: "This reset link has already been used. Please request a new one." };
+    return { valid: false, message: "This link has already been used. Please request a new one." };
   }
 
   if (new Date(tokenRow.expires_at).getTime() <= Date.now()) {
-    return { valid: false, message: "This reset link has expired. Password reset links are valid for 15 minutes." };
+    return { valid: false, message: "This link has expired. Links are valid for 15 minutes." };
   }
 
-  return { valid: true, userId: tokenRow.user_id };
+  return { valid: true, userId: tokenRow.user_id, isSetup: !tokenRow.password_hash };
 }
 
 /**
- * Atomically consumes a password recovery token, updates the password,
+ * Atomically consumes a password recovery or setup token, updates the password,
  * bumps session_version to revoke all active sessions, and dispatches a confirmation email.
  */
 export async function redeemResetToken(
@@ -242,7 +337,7 @@ export async function redeemResetToken(
   newPassword: string
 ): Promise<ResetPasswordResult> {
   if (!rawToken || typeof rawToken !== "string" || rawToken.length < 32) {
-    return { ok: false, message: "The reset link or password is invalid." };
+    return { ok: false, message: "The link or password is invalid." };
   }
 
   if (!validPassword(newPassword)) {
@@ -260,7 +355,7 @@ export async function redeemResetToken(
   const newHash = await hashPassword(newPassword);
 
   const updateResult = await withTransaction(async (db) => {
-    // 1. Select and lock the token row
+    // 1. Select and lock the token row joined with user
     const row = (
       await db.query<{
         id: string;
@@ -269,8 +364,11 @@ export async function redeemResetToken(
         consumed_at: Date | null;
         email: string;
         name: string;
+        password_hash: string | null;
+        disabled: boolean;
+        status: string;
       }>(
-        `select t.id, t.user_id, t.expires_at, t.consumed_at, u.email, u.name
+        `select t.id, t.user_id, t.expires_at, t.consumed_at, u.email, u.name, u.password_hash, u.disabled, u.status
         from auth_action_tokens t
         join users u on u.id = t.user_id
         where t.token_hash = $1 and t.purpose = 'PASSWORD_RESET' for update`,
@@ -278,9 +376,18 @@ export async function redeemResetToken(
       )
     ).rows[0];
 
-    if (!row || row.consumed_at !== null || new Date(row.expires_at).getTime() <= Date.now()) {
+    if (
+      !row ||
+      row.consumed_at !== null ||
+      new Date(row.expires_at).getTime() <= Date.now() ||
+      row.disabled ||
+      row.status === "DISABLED" ||
+      row.status === "SUSPENDED"
+    ) {
       return null;
     }
+
+    const wasFirstPassword = !row.password_hash;
 
     // 2. Update user's password, bump session_version to revoke all sessions, clear must_change_password
     await db.query(
@@ -299,26 +406,29 @@ export async function redeemResetToken(
       [row.user_id]
     );
 
-    return { userId: row.user_id, email: row.email, name: row.name };
+    return { userId: row.user_id, email: row.email, name: row.name, wasFirstPassword };
   }, "serializable");
 
   if (!updateResult) {
-    return { ok: false, message: "The reset link is invalid, expired, or has already been used." };
+    return { ok: false, message: "The link is invalid, expired, or has already been used." };
   }
 
-  // 5. Send password-changed notification email (non-blocking for return, but awaited)
+  // 5. Send password-changed / added notification email (awaited)
   try {
     await sendPasswordChangedEmail({
       to: updateResult.email,
       name: updateResult.name,
+      isAdded: updateResult.wasFirstPassword,
     });
   } catch (err) {
-    console.error("[Auth] Failed to send password changed notification email:", err);
+    console.error("[Auth] Failed to send password notification email:", err);
   }
 
   return {
     ok: true,
-    message: "Password reset successful. Please log in with your new password.",
+    message: updateResult.wasFirstPassword
+      ? "Password created successfully. Please log in with your email and password."
+      : "Password reset successful. Please log in with your new password.",
   };
 }
 
@@ -360,15 +470,15 @@ export async function changePasswordForAuthenticatedUser(
     }>("select id, email, name, password_hash, disabled, status from users where id = $1", [userId])
   ).rows[0];
 
-  if (!user || user.disabled || user.status === "DISABLED") {
+  if (!user || user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
     return { ok: false, message: "User account not active." };
   }
 
-  // Handle Google-only account
+  // Accounts without a password must use the verified setup link flow
   if (!user.password_hash) {
     return {
       ok: false,
-      message: "Your sign-in is managed through Google. Password change is not applicable for Google-only accounts.",
+      message: "This account does not have a password yet. Please use Add Password to set up your password.",
     };
   }
 
@@ -410,6 +520,7 @@ export async function changePasswordForAuthenticatedUser(
     await sendPasswordChangedEmail({
       to: user.email,
       name: user.name,
+      isAdded: false,
     });
   } catch (err) {
     console.error("[Auth] Failed to dispatch password changed notification:", err);

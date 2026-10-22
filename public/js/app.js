@@ -1994,7 +1994,7 @@ class LuxApp {
           cache: 'no-store'
         });
         const data = await response.json().catch(() => ({}));
-        const confirmationMsg = data.message || "If this email is eligible, we’ll send password recovery instructions.";
+        const confirmationMsg = data.message || "If this account is eligible, we’ll email you a link to set or reset your password.";
         
         if (messageBox) {
           messageBox.style.display = 'block';
@@ -2015,21 +2015,21 @@ class LuxApp {
             clearInterval(forgotTimer);
             if (button) {
               button.disabled = false;
-              button.textContent = 'Resend Reset Link';
+              button.textContent = 'Resend Link';
             }
           } else if (button) {
             button.textContent = `Resend available in ${forgotCooldown}s`;
           }
         }, 1000);
       } catch {
-        const fallbackMsg = "If this email is eligible, we’ll send password recovery instructions.";
+        const fallbackMsg = "If this account is eligible, we’ll email you a link to set or reset your password.";
         if (messageBox) {
           messageBox.style.display = 'block';
           messageBox.textContent = fallbackMsg;
         }
         if (button) {
           button.disabled = false;
-          button.textContent = 'Send Reset Link';
+          button.textContent = 'Send Setup or Reset Link';
         }
       }
     });
