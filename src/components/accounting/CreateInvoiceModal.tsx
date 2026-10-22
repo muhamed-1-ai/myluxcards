@@ -391,6 +391,7 @@ export default function CreateInvoiceModal({
 
   // Form Submission (Draft or Issue)
   const handleSubmitInvoice = async (targetStatus: "DRAFT" | "ISSUED") => {
+    if (submitting) return;
     if (!activeWorkspace) return;
     setFormError(null);
 
@@ -489,14 +490,18 @@ export default function CreateInvoiceModal({
 
       const resData = await res.json();
       if (!res.ok) {
-        setFormError(resData.error || "Failed to save invoice.");
+        setFormError(
+          resData.error || "We couldn’t create the invoice. Your entries are still here. Please try again."
+        );
         return;
       }
 
       if (onInvoiceSaved) onInvoiceSaved(resData.invoice, targetStatus === "ISSUED");
       onClose();
     } catch (err: any) {
-      setFormError(err.message || "Network error. Please try again.");
+      setFormError(
+        err.message || "We couldn’t create the invoice. Your entries are still here. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -723,11 +728,12 @@ export default function CreateInvoiceModal({
             </div>
           </div>
         ) : (
-          /* ==========================================================================
-             EDIT FORM VIEW
-             Clean, spacious layout with customer selector, items, totals, and notes
-             ========================================================================== */
-          <div className="acc-invoice-form-scrollable">
+          <>
+            {/* ==========================================================================
+               EDIT FORM VIEW
+               Clean, spacious layout with customer selector, items, totals, and notes
+               ========================================================================== */}
+            <div className="acc-invoice-form-scrollable">
             {/* 1. Customer Section */}
             <div className="acc-form-section">
               <label className="acc-form-label" style={{ fontWeight: 600 }}>
@@ -1263,55 +1269,56 @@ export default function CreateInvoiceModal({
                 </div>
               )}
             </div>
+          </div>
 
-            {/* 6. Form Footer Actions */}
-            <div className="acc-modal-actions" style={{ marginTop: "1.75rem" }}>
+          {/* 6. Form Footer Actions (Pinned to bottom of modal, always reachable on mobile) */}
+          <div className="acc-invoice-modal-footer">
+            <button
+              type="button"
+              className="acc-btn acc-btn-outline"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+
+            <div className="acc-invoice-footer-right">
               <button
                 type="button"
                 className="acc-btn acc-btn-outline"
-                onClick={onClose}
+                onClick={() => setViewMode("PREVIEW")}
                 disabled={submitting}
               >
-                Cancel
+                Preview
               </button>
 
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="acc-btn acc-btn-outline"
+                onClick={() => handleSubmitInvoice("DRAFT")}
+                disabled={submitting}
+              >
+                {submitting ? "Saving..." : "Save as Draft"}
+              </button>
+
+              {canMutate && (
                 <button
                   type="button"
-                  className="acc-btn acc-btn-outline"
-                  onClick={() => setViewMode("PREVIEW")}
+                  className="acc-btn acc-btn-primary"
+                  onClick={() => handleSubmitInvoice("ISSUED")}
                   disabled={submitting}
                 >
-                  Preview
+                  {submitting
+                    ? "Issuing..."
+                    : invoiceIdToEdit
+                    ? "Issue Invoice"
+                    : "Create & Issue Invoice"}
                 </button>
-
-                <button
-                  type="button"
-                  className="acc-btn acc-btn-outline"
-                  onClick={() => handleSubmitInvoice("DRAFT")}
-                  disabled={submitting}
-                >
-                  {submitting ? "Saving..." : "Save as Draft"}
-                </button>
-
-                {canMutate && (
-                  <button
-                    type="button"
-                    className="acc-btn acc-btn-primary"
-                    onClick={() => handleSubmitInvoice("ISSUED")}
-                    disabled={submitting}
-                  >
-                    {submitting
-                      ? "Issuing..."
-                      : invoiceIdToEdit
-                      ? "Issue Invoice"
-                      : "Create & Issue Invoice"}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
-        )}
+        </>
+      )}
       </div>
     </div>
   );

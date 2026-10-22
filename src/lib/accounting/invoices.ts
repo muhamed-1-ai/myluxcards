@@ -131,23 +131,69 @@ export async function createInvoice(
   const status: InvoiceStatus = input.status || "DRAFT";
 
   return withTransaction(async (db) => {
-    // 1. Generate sequential invoice number with concurrency lock
-    await db.query(`SELECT id FROM accounting_workspaces WHERE id = $1 FOR UPDATE`, [input.workspaceId]);
-    const year = new Date().getFullYear();
-    const countRes = await db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM accounting_invoices WHERE workspace_id = $1`,
-      [input.workspaceId]
+    // 1. Generate sequential invoice number with transactional sequence counter on (workspace_id, period)
+    const period = new Date().getFullYear().toString();
+
+    // Ensure sequence row exists for this workspace and period
+    await db.query(
+      `INSERT INTO accounting_invoice_sequences (workspace_id, period, next_seq, updated_at)
+       VALUES ($1, $2, 1, NOW())
+       ON CONFLICT (workspace_id, period) DO NOTHING`,
+      [input.workspaceId, period]
     );
-    const maxSeqRes = await db.query<{ max_seq: string }>(
-      `SELECT COALESCE(MAX(CAST(NULLIF(regexp_replace(invoice_number, '^INV-[0-9]+-', ''), '') AS integer)), 0) as max_seq
+
+    // Lock and retrieve current sequence counter
+    const seqRow = (
+      await db.query<{ next_seq: number }>(
+        `SELECT next_seq FROM accounting_invoice_sequences
+         WHERE workspace_id = $1 AND period = $2
+         FOR UPDATE`,
+        [input.workspaceId, period]
+      )
+    ).rows[0];
+
+    const currentCounter = seqRow?.next_seq || 1;
+
+    // Genuinely guarded check against existing numeric suffixes (1 to 8 digits)
+    // Non-numeric suffixes (e.g. INV-2026-TEST01, INV-TEST-99) and large numbers safely evaluate to 0
+    const sqlMaxRes = await db.query<{ max_seq: number }>(
+      `SELECT COALESCE(
+         MAX(
+           CASE 
+             WHEN invoice_number ~ ('^INV-' || $2 || '-([0-9]{1,8})$')
+             THEN (regexp_match(invoice_number, ('^INV-' || $2 || '-([0-9]{1,8})$')))[1]::integer
+             ELSE 0
+           END
+         ), 0
+       ) as max_seq
        FROM accounting_invoices
-       WHERE workspace_id = $1 AND invoice_number LIKE $2`,
-      [input.workspaceId, `INV-${year}-%`]
+       WHERE workspace_id = $1`,
+      [input.workspaceId, period]
     );
-    const countSeq = parseInt(countRes.rows[0]?.count || "0", 10) + 1;
-    const parsedMaxSeq = parseInt(maxSeqRes.rows[0]?.max_seq || "0", 10) + 1;
-    const seq = Math.max(countSeq, parsedMaxSeq);
-    const invoiceNumber = `INV-${year}-${seq.toString().padStart(4, "0")}`;
+    const maxExistingNumeric = sqlMaxRes.rows[0]?.max_seq || 0;
+
+    let candidateSeq = Math.max(currentCounter, maxExistingNumeric + 1);
+    let invoiceNumber = `INV-${period}-${candidateSeq.toString().padStart(4, "0")}`;
+
+    // Loop-check to guarantee zero collision with any existing invoice identifier
+    while (true) {
+      const existingCheck = await db.query(
+        `SELECT 1 FROM accounting_invoices WHERE workspace_id = $1 AND invoice_number = $2 LIMIT 1`,
+        [input.workspaceId, invoiceNumber]
+      );
+      if (existingCheck.rows.length === 0) break;
+      candidateSeq++;
+      invoiceNumber = `INV-${period}-${candidateSeq.toString().padStart(4, "0")}`;
+    }
+
+    // Advance sequence counter atomically in the sequence table
+    await db.query(
+      `UPDATE accounting_invoice_sequences
+       SET next_seq = $1, updated_at = NOW()
+       WHERE workspace_id = $2 AND period = $3`,
+      [candidateSeq + 1, input.workspaceId, period]
+    );
+
     const shareToken = randomBytes(16).toString("hex");
 
     let postedJournalEntryId: string | null = null;

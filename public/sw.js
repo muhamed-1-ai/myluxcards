@@ -37,25 +37,30 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/dashboard';
-  const urlToOpen = new URL(targetUrl, self.location.origin).href;
+  const rawUrl = (event.notification.data && event.notification.data.url) || '/dashboard';
+  // Strict origin path validation: must start with / and not // to prevent open redirect
+  const safePath = (typeof rawUrl === 'string' && rawUrl.startsWith('/') && !rawUrl.startsWith('//'))
+    ? rawUrl
+    : '/dashboard';
+
+  const destinationUrl = new URL(safePath, self.location.origin).href;
 
   const promiseChain = clients.matchAll({
     type: 'window',
     includeUncontrolled: true
-  }).then((windowClients) => {
-    // 1. Check if there's already a matching window/tab open on this origin
+  }).then(async (windowClients) => {
+    // 1. Check if there's already a tab open on this origin
     for (const client of windowClients) {
       if (client.url.startsWith(self.location.origin) && 'focus' in client) {
         if ('navigate' in client) {
-          client.navigate(urlToOpen);
+          await client.navigate(destinationUrl);
         }
         return client.focus();
       }
     }
     // 2. If no window open, open new one
     if (clients.openWindow) {
-      return clients.openWindow(urlToOpen);
+      return clients.openWindow(destinationUrl);
     }
   });
 

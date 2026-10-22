@@ -243,7 +243,12 @@ test("Guardrail 6: Environment files (.env*) are strictly excluded from Git", ()
 
   let trackedEnvFiles = "";
   try {
-    trackedEnvFiles = execSync("git ls-files *.env*", { encoding: "utf8" }).trim();
+    const rawFiles = execSync("git ls-files *.env*", { encoding: "utf8" }).trim();
+    trackedEnvFiles = rawFiles
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((s) => s && s !== ".env.example")
+      .join("\n");
   } catch {}
 
   assert.equal(trackedEnvFiles, "", "No .env files may be tracked by Git");

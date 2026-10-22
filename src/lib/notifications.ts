@@ -35,6 +35,7 @@ export interface NotificationPreferences {
   follow_up_reminders?: boolean;
   broadcast_results?: boolean;
   connection_alerts?: boolean;
+  show_previews?: boolean;
 }
 
 /**
@@ -43,7 +44,7 @@ export interface NotificationPreferences {
 export async function getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
   try {
     const res = await pool.query<NotificationPreferences>(
-      `select user_id, new_whatsapp_messages, new_leads, follow_up_reminders, broadcast_results, connection_alerts
+      `select user_id, new_whatsapp_messages, new_leads, follow_up_reminders, broadcast_results, connection_alerts, show_previews
        from notification_preferences where user_id = $1 limit 1`,
       [userId]
     );
@@ -55,17 +56,29 @@ export async function getNotificationPreferences(userId: string): Promise<Notifi
     const inserted = await pool.query<NotificationPreferences>(
       `insert into notification_preferences (user_id) values ($1)
        on conflict (user_id) do update set updated_at = now()
-       returning user_id, new_whatsapp_messages, new_leads, follow_up_reminders, broadcast_results, connection_alerts`,
+       returning user_id, new_whatsapp_messages, new_leads, follow_up_reminders, broadcast_results, connection_alerts, show_previews`,
       [userId]
     );
 
     return inserted.rows[0] || {
       user_id: userId,
+      new_whatsapp_messages: true,
+      new_leads: true,
+      follow_up_reminders: true,
+      broadcast_results: true,
+      connection_alerts: true,
+      show_previews: true,
     };
   } catch (error) {
     console.error("[Notifications] Error getting preferences:", error);
     return {
       user_id: userId,
+      new_whatsapp_messages: true,
+      new_leads: true,
+      follow_up_reminders: true,
+      broadcast_results: true,
+      connection_alerts: true,
+      show_previews: true,
     };
   }
 }
@@ -79,14 +92,40 @@ export async function updateNotificationPreferences(
 ): Promise<NotificationPreferences> {
   const current = await getNotificationPreferences(userId);
 
+  const next = {
+    new_whatsapp_messages: updates.new_whatsapp_messages !== undefined ? updates.new_whatsapp_messages : current.new_whatsapp_messages ?? true,
+    new_leads: updates.new_leads !== undefined ? updates.new_leads : current.new_leads ?? true,
+    follow_up_reminders: updates.follow_up_reminders !== undefined ? updates.follow_up_reminders : current.follow_up_reminders ?? true,
+    broadcast_results: updates.broadcast_results !== undefined ? updates.broadcast_results : current.broadcast_results ?? true,
+    connection_alerts: updates.connection_alerts !== undefined ? updates.connection_alerts : current.connection_alerts ?? true,
+    show_previews: updates.show_previews !== undefined ? updates.show_previews : current.show_previews ?? true,
+  };
+
   const res = await pool.query<NotificationPreferences>(
-    `insert into notification_preferences (user_id, updated_at) values ($1, now())
-     on conflict (user_id) do update set updated_at = now()
-     returning user_id`,
-    [userId]
+    `insert into notification_preferences (
+       user_id, new_whatsapp_messages, new_leads, follow_up_reminders, broadcast_results, connection_alerts, show_previews, updated_at
+     ) values ($1, $2, $3, $4, $5, $6, $7, now())
+     on conflict (user_id) do update set
+       new_whatsapp_messages = EXCLUDED.new_whatsapp_messages,
+       new_leads = EXCLUDED.new_leads,
+       follow_up_reminders = EXCLUDED.follow_up_reminders,
+       broadcast_results = EXCLUDED.broadcast_results,
+       connection_alerts = EXCLUDED.connection_alerts,
+       show_previews = EXCLUDED.show_previews,
+       updated_at = now()
+     returning user_id, new_whatsapp_messages, new_leads, follow_up_reminders, broadcast_results, connection_alerts, show_previews`,
+    [
+      userId,
+      next.new_whatsapp_messages,
+      next.new_leads,
+      next.follow_up_reminders,
+      next.broadcast_results,
+      next.connection_alerts,
+      next.show_previews,
+    ]
   );
 
-  return res.rows[0] || { user_id: userId };
+  return res.rows[0] || { user_id: userId, ...next };
 }
 
 /**

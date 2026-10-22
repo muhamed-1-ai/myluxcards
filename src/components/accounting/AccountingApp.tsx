@@ -10,6 +10,8 @@ import SalesInvoicesView from "./SalesInvoicesView";
 import MoreView, { MoreTool } from "./MoreView";
 import ReportsView from "./ReportsView";
 import SettingsView from "./SettingsView";
+import CategoriesView from "./CategoriesView";
+import ProductsView from "./ProductsView";
 import "./accounting.css";
 
 export type AccountingTab =
@@ -19,6 +21,8 @@ export type AccountingTab =
   | "accounting-people"
   | "accounting-sales-invoices"
   | "accounting-invoices"
+  | "accounting-products"
+  | "accounting-categories"
   | "accounting-accounts-transfers"
   | "accounting-more"
   | "accounting-budgets"
@@ -49,6 +53,10 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
       case "accounting-sales-invoices":
       case "accounting-invoices":
         return <SalesInvoicesView />;
+      case "accounting-products":
+        return <ProductsView />;
+      case "accounting-categories":
+        return <CategoriesView />;
       case "accounting-reports":
         return <ReportsView />;
       case "accounting-more":
@@ -153,14 +161,36 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               <button
                 type="button"
-                className={`acc-btn ${currentTab.startsWith("accounting-sales-invoices") ? "acc-btn-primary" : "acc-btn-outline"}`}
+                className={`acc-btn ${currentTab === "accounting-invoices" || currentTab === "accounting-sales-invoices" ? "acc-btn-primary" : "acc-btn-outline"}`}
                 style={{ justifyContent: "flex-start", width: "100%" }}
                 onClick={() => {
-                  onSelectTab("accounting-sales-invoices");
+                  onSelectTab("accounting-invoices");
                   setMobileMoreOpen(false);
                 }}
               >
-                🧾 Invoices & Sales
+                🧾 Invoices
+              </button>
+              <button
+                type="button"
+                className={`acc-btn ${currentTab === "accounting-products" ? "acc-btn-primary" : "acc-btn-outline"}`}
+                style={{ justifyContent: "flex-start", width: "100%" }}
+                onClick={() => {
+                  onSelectTab("accounting-products");
+                  setMobileMoreOpen(false);
+                }}
+              >
+                📦 Products &amp; Services
+              </button>
+              <button
+                type="button"
+                className={`acc-btn ${currentTab === "accounting-categories" ? "acc-btn-primary" : "acc-btn-outline"}`}
+                style={{ justifyContent: "flex-start", width: "100%" }}
+                onClick={() => {
+                  onSelectTab("accounting-categories");
+                  setMobileMoreOpen(false);
+                }}
+              >
+                🏷️ Categories
               </button>
               <button
                 type="button"

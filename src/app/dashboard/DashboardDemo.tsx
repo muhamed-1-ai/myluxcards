@@ -128,6 +128,8 @@ type Tab =
   | "accounting-people"
   | "accounting-sales-invoices"
   | "accounting-invoices"
+  | "accounting-products"
+  | "accounting-categories"
   | "accounting-accounts-transfers"
   | "accounting-more"
   | "accounting-budgets"
@@ -388,14 +390,25 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   );
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    const syncTabFromLocation = () => {
+      if (typeof window === "undefined") return;
       const sp = new URLSearchParams(window.location.search);
-      const qTab = sp.get("tab");
+      let qTab = sp.get("tab");
+      const settingsTab = sp.get("settingsTab");
+      const subtab = sp.get("subtab");
       const editCard = sp.get("editCard");
       const editSlug = sp.get("editSlug");
+
+      // Backward compatibility mapping for old bookmarks:
+      if (qTab === "accounting-settings" && settingsTab === "categories") {
+        qTab = "accounting-categories";
+      } else if ((qTab === "accounting-invoices" || qTab === "accounting-sales-invoices") && subtab === "products") {
+        qTab = "accounting-products";
+      }
+
       if (qTab === "qr-activity" || qTab === "analytics") {
         setTab("dashboard");
-      } else if (qTab && (qTab.startsWith("accounting-") || ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic"].includes(qTab))) {
+      } else if (qTab && (qTab.startsWith("accounting-") || ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic", "security"].includes(qTab))) {
         setTab(qTab as Tab);
         if (qTab.startsWith("accounting-")) {
           setAccountingOpen(true);
@@ -403,7 +416,11 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       } else if (editCard || editSlug) {
         setTab("contact");
       }
-    }
+    };
+
+    syncTabFromLocation();
+    window.addEventListener("popstate", syncTabFromLocation);
+    return () => window.removeEventListener("popstate", syncTabFromLocation);
   }, []);
 
   useEffect(() => {
@@ -865,7 +882,22 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     });
     setCards((prevCards) => prevCards.map((c) => (c.id === draft.id ? { ...c, [key]: value } : c)));
   };
-  const selectTab = (next: Tab) => { setTab(next); setSidebar(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const selectTab = (next: Tab) => {
+    setTab(next);
+    setSidebar(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      if (next === "accounting-categories") {
+        url.searchParams.delete("settingsTab");
+      }
+      if (next === "accounting-products") {
+        url.searchParams.delete("subtab");
+      }
+      window.history.pushState({ tab: next }, "", url.toString());
+    }
+  };
   const requestCardOpen = (card: Card) => {
     if (!card.slug) return;
     if (saveStatus === "unsaved") {
@@ -1448,13 +1480,33 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                     <button
                       type="button"
                       className={`side-subnav-item ${tab === "accounting-sales-invoices" || tab === "accounting-invoices" ? "active" : ""}`}
-                      onClick={() => { selectTab("accounting-sales-invoices" as Tab); setSidebar(false); }}
+                      onClick={() => { selectTab("accounting-invoices" as Tab); setSidebar(false); }}
                     >
                       <span>Invoices</span>
                       {(tab === "accounting-sales-invoices" || tab === "accounting-invoices") && <span className="side-subnav-dot" />}
                     </button>
 
-                    {/* 5. Reports */}
+                    {/* 5. Products & Services */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-products" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-products" as Tab); setSidebar(false); }}
+                    >
+                      <span>Products & Services</span>
+                      {tab === "accounting-products" && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* 6. Categories */}
+                    <button
+                      type="button"
+                      className={`side-subnav-item ${tab === "accounting-categories" ? "active" : ""}`}
+                      onClick={() => { selectTab("accounting-categories" as Tab); setSidebar(false); }}
+                    >
+                      <span>Categories</span>
+                      {tab === "accounting-categories" && <span className="side-subnav-dot" />}
+                    </button>
+
+                    {/* 7. Reports */}
                     <button
                       type="button"
                       className={`side-subnav-item ${tab === "accounting-reports" ? "active" : ""}`}
@@ -1651,6 +1703,10 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                               ? "HOME"
                               : tab === "accounting-sales-invoices" || tab === "accounting-invoices"
                               ? "INVOICES"
+                              : tab === "accounting-products"
+                              ? "PRODUCTS & SERVICES"
+                              : tab === "accounting-categories"
+                              ? "CATEGORIES"
                               : tab === "accounting-accounts-transfers"
                               ? "TRANSACTIONS & BALANCES"
                               : tab === "accounting-more"

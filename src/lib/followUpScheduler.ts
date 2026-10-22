@@ -1,7 +1,7 @@
 import "server-only";
 import { pool } from "./db";
 import { createNotification, getNotificationPreferences } from "./notifications";
-import { sendWebPushToUser } from "./webpush";
+import { sendWebPushToSubscription } from "./webpush";
 
 interface DueFollowUpRow {
   id: string;
@@ -191,26 +191,101 @@ export async function runFollowUpReminderScan(): Promise<ScanResult> {
         try {
           const prefs = await getNotificationPreferences(targetUserId);
           if (prefs.follow_up_reminders !== false) {
-            // Send Web Push to all registered devices (background/closed browser)
-            // Keep lock-screen content privacy conscious (no sensitive phone numbers or internal notes)
-            const cleanPushBody = row.note
-              ? (row.note.length > 80 ? `${row.note.slice(0, 77)}...` : row.note)
-              : `Scheduled ${row.type.toLowerCase()} follow-up is due.`;
+            // Check existing dispatches for this follow-up & reminder_version
+            const existingDispatches = await client.query<{ endpoint: string; status: string }>(
+              `SELECT endpoint, status FROM follow_up_push_dispatches 
+               WHERE follow_up_id = $1 AND reminder_version = $2`,
+              [row.id, row.reminder_version]
+            );
 
-            await sendWebPushToUser(targetUserId, {
-              title: titleText,
-              body: cleanPushBody,
-              tag: `zappit-followup-${row.id}`,
-              data: {
-                url: `/dashboard?tab=leads&leadId=${row.lead_id}&followUpId=${row.id}`,
-                leadId: row.lead_id,
-                followUpId: row.id,
-                leadName: row.lead_name,
-                scheduledAt: row.scheduled_at.toISOString(),
-                type: row.type,
-                timestamp: Date.now(),
-              },
-            });
+            const acceptedEndpoints = new Set(
+              existingDispatches.rows
+                .filter((d) => d.status === "ACCEPTED")
+                .map((d) => d.endpoint)
+            );
+
+            // Fetch user's registered subscriptions
+            const userSubs = await client.query<{
+              id: string;
+              user_id: string;
+              endpoint: string;
+              p256dh: string;
+              auth: string;
+              device_name: string | null;
+              user_agent: string | null;
+            }>(
+              `SELECT id, user_id, endpoint, p256dh, auth, device_name, user_agent 
+               FROM push_subscriptions 
+               WHERE user_id = $1`,
+              [targetUserId]
+            );
+
+            // Filter out endpoints that have already accepted this reminder version
+            const pendingSubs = userSubs.rows.filter(
+              (sub) => !acceptedEndpoints.has(sub.endpoint)
+            );
+
+            if (pendingSubs.length > 0) {
+              const showPreviews = prefs.show_previews !== false;
+              const pushTitle = showPreviews ? titleText : "Follow-up due";
+              const pushBody = showPreviews
+                ? (row.note
+                    ? (row.note.length > 80 ? `${row.note.slice(0, 77)}...` : row.note)
+                    : `Scheduled ${row.type.toLowerCase()} follow-up is due.`)
+                : "You have a scheduled follow-up reminder waiting in Zappit.";
+
+              const pushPayload = {
+                title: pushTitle,
+                body: pushBody,
+                icon: "/brand/zappit-mark.png",
+                badge: "/brand/zappit-mark.png",
+                tag: `zappit-followup-${row.id}-${row.reminder_version}`,
+                data: {
+                  url: `/dashboard?tab=leads&leadId=${row.lead_id}&followUpId=${row.id}`,
+                  leadId: row.lead_id,
+                  followUpId: row.id,
+                  leadName: showPreviews ? row.lead_name : undefined,
+                  type: row.type,
+                  reminderVersion: row.reminder_version,
+                  scheduledAt: row.scheduled_at.toISOString(),
+                  timestamp: Date.now(),
+                },
+              };
+
+              for (const sub of pendingSubs) {
+                // Record initial QUEUED attempt
+                await client.query(
+                  `INSERT INTO follow_up_push_dispatches (
+                     follow_up_id, reminder_version, user_id, subscription_id, endpoint, status, attempts, dispatched_at, updated_at
+                   ) VALUES ($1, $2, $3, $4, $5, 'QUEUED', 1, NOW(), NOW())
+                   ON CONFLICT (follow_up_id, reminder_version, endpoint) DO UPDATE
+                   SET attempts = follow_up_push_dispatches.attempts + 1, updated_at = NOW()`,
+                  [row.id, row.reminder_version, targetUserId, sub.id, sub.endpoint]
+                );
+
+                const receipt = await sendWebPushToSubscription(sub, pushPayload);
+
+                // Update durable dispatch record with observed status
+                await client.query(
+                  `UPDATE follow_up_push_dispatches
+                   SET status = $1,
+                       status_code = $2,
+                       error_message = $3,
+                       updated_at = NOW()
+                   WHERE follow_up_id = $4 
+                     AND reminder_version = $5 
+                     AND endpoint = $6`,
+                  [
+                    receipt.status,
+                    receipt.statusCode || null,
+                    receipt.error || null,
+                    row.id,
+                    row.reminder_version,
+                    sub.endpoint,
+                  ]
+                );
+              }
+            }
           }
         } catch (pushErr) {
           console.warn(`[FollowUpScheduler] Web push dispatch failed for user ${targetUserId} (in-app reminder preserved):`, pushErr);

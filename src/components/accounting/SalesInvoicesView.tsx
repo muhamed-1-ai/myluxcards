@@ -7,14 +7,6 @@ import PaymentAccountPicker from "./PaymentAccountPicker";
 import CreateInvoiceModal from "./CreateInvoiceModal";
 import InvoiceDetailModal from "./InvoiceDetailModal";
 
-interface Product {
-  id: string;
-  name: string;
-  sku?: string;
-  unit: string;
-  default_price_minor: number;
-}
-
 interface InvoiceLine {
   id?: string;
   description: string;
@@ -40,10 +32,8 @@ interface Invoice {
 
 export default function SalesInvoicesView() {
   const { activeWorkspace, formatMoney, accounts, refreshKey, triggerRefresh, canMutate } = useAccounting();
-  const [subtab, setSubtab] = useState<"INVOICES" | "DIRECT_SALES" | "PRODUCTS">("INVOICES");
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -51,7 +41,6 @@ export default function SalesInvoicesView() {
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [detailInvoiceId, setDetailInvoiceId] = useState<string | null>(null);
   const [walkinSaleOpen, setWalkinSaleOpen] = useState(false);
-  const [addProductOpen, setAddProductOpen] = useState(false);
   const [recordPaymentInvoice, setRecordPaymentInvoice] = useState<Invoice | null>(null);
   const [shareModalInvoice, setShareModalInvoice] = useState<Invoice | null>(null);
 
@@ -60,12 +49,6 @@ export default function SalesInvoicesView() {
   const [saleAmountStr, setSaleAmountStr] = useState("");
   const [saleAccountId, setSaleAccountId] = useState("");
   const [saleNotes, setSaleNotes] = useState("");
-
-  // Add Product Form State
-  const [prodName, setProdName] = useState("");
-  const [prodSku, setProdSku] = useState("");
-  const [prodPriceStr, setProdPriceStr] = useState("");
-  const [prodUnit, setProdUnit] = useState("unit");
 
   // Payment Allocation State
   const [payAmountStr, setPayAmountStr] = useState("");
@@ -81,17 +64,10 @@ export default function SalesInvoicesView() {
     async function loadData() {
       try {
         setLoading(true);
-        const [invRes, prodRes] = await Promise.all([
-          fetch(`/api/accounting/invoices?workspaceId=${activeWorkspace?.id}`),
-          fetch(`/api/accounting/products?workspaceId=${activeWorkspace?.id}`),
-        ]);
+        const invRes = await fetch(`/api/accounting/invoices?workspaceId=${activeWorkspace?.id}`);
         if (invRes.ok && isMounted) {
           const invData = await invRes.json();
           setInvoices(invData.invoices || []);
-        }
-        if (prodRes.ok && isMounted) {
-          const prodData = await prodRes.json();
-          setProducts(prodData.products || []);
         }
       } catch (err) {
         console.error("Failed to load sales data:", err);
@@ -103,8 +79,6 @@ export default function SalesInvoicesView() {
     loadData();
     return () => { isMounted = false; };
   }, [activeWorkspace, refreshKey]);
-
-
 
   // Walk-in Direct Sale Submit (No Lead Required)
   const handleWalkinSale = async (e: React.FormEvent) => {
@@ -139,41 +113,6 @@ export default function SalesInvoicesView() {
       } else {
         const data = await res.json();
         alert(data.error || "Failed to record direct sale");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Add Product Submit
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const price = parseFloat(prodPriceStr) || 0;
-    if (!prodName.trim() || !activeWorkspace) return;
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/accounting/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspaceId: activeWorkspace.id,
-          name: prodName.trim(),
-          sku: prodSku.trim() || undefined,
-          defaultPriceMinor: Math.round(price * 100),
-          unit: prodUnit,
-        }),
-      });
-
-      if (res.ok) {
-        setAddProductOpen(false);
-        setProdName("");
-        setProdSku("");
-        setProdPriceStr("");
-        triggerRefresh();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Failed to save product");
       }
     } finally {
       setSubmitting(false);
@@ -259,7 +198,7 @@ export default function SalesInvoicesView() {
       <div className="acc-header">
         <div className="acc-title-group">
           <h2 className="acc-title">Sales & Invoices</h2>
-          <p className="acc-subtitle">Walk-in sales, client invoices, products catalog, and receipts.</p>
+          <p className="acc-subtitle">Walk-in sales, client invoices, and receipts.</p>
         </div>
 
         <div className="acc-header-actions">
@@ -315,204 +254,136 @@ export default function SalesInvoicesView() {
         </div>
       )}
 
-      {/* Subtab Navigation */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
-        <button
-          type="button"
-          className={`acc-btn acc-btn-sm ${subtab === "INVOICES" ? "acc-btn-primary" : "acc-btn-outline"}`}
-          onClick={() => setSubtab("INVOICES")}
-        >
-          Invoices ({invoices.length})
-        </button>
-        <button
-          type="button"
-          className={`acc-btn acc-btn-sm ${subtab === "PRODUCTS" ? "acc-btn-primary" : "acc-btn-outline"}`}
-          onClick={() => setSubtab("PRODUCTS")}
-        >
-          Products & Services ({products.length})
-        </button>
-      </div>
-
-      {subtab === "INVOICES" && (
-        <div className="acc-card">
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
-              Loading invoices...
-            </div>
-          ) : invoices.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
-              No invoices created yet. Click "+ Create Invoice" or "+ Walk-in Direct Sale" to start.
-            </div>
-          ) : (
-            <div className="acc-table-wrapper">
-              <table className="acc-table">
-                <thead>
-                  <tr>
-                    <th>Invoice #</th>
-                    <th>Customer</th>
-                    <th>Issue Date</th>
-                    <th>Due Date</th>
-                    <th className="acc-align-right">Total</th>
-                    <th className="acc-align-right">Paid</th>
-                    <th className="acc-align-right">Balance Due</th>
-                    <th>Status</th>
-                    <th className="acc-align-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      style={{ cursor: "pointer" }}
-                      onClick={() => setDetailInvoiceId(inv.id)}
+      <div className="acc-card">
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
+            Loading invoices...
+          </div>
+        ) : invoices.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
+            No invoices created yet. Click "+ Create Invoice" or "+ Walk-in Direct Sale" to start.
+          </div>
+        ) : (
+          <div className="acc-table-wrapper">
+            <table className="acc-table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Customer</th>
+                  <th>Issue Date</th>
+                  <th>Due Date</th>
+                  <th className="acc-align-right">Total</th>
+                  <th className="acc-align-right">Paid</th>
+                  <th className="acc-align-right">Balance Due</th>
+                  <th>Status</th>
+                  <th className="acc-align-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setDetailInvoiceId(inv.id)}
+                  >
+                    <td style={{ fontWeight: 700 }}>{inv.invoice_number}</td>
+                    <td>{inv.contact_name || "Direct Client"}</td>
+                    <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{inv.issue_date}</td>
+                    <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{inv.due_date}</td>
+                    <td className="acc-align-right tabular-nums font-semibold">
+                      {formatMoney(inv.total_minor, activeWorkspace?.currency)}
+                    </td>
+                    <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-success)" }}>
+                      {formatMoney(inv.amount_paid_minor, activeWorkspace?.currency)}
+                    </td>
+                    <td
+                      className="acc-align-right tabular-nums font-bold"
+                      style={{ color: inv.amount_due_minor > 0 ? "var(--acc-danger)" : "inherit" }}
                     >
-                      <td style={{ fontWeight: 700 }}>{inv.invoice_number}</td>
-                      <td>{inv.contact_name || "Direct Client"}</td>
-                      <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{inv.issue_date}</td>
-                      <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{inv.due_date}</td>
-                      <td className="acc-align-right tabular-nums font-semibold">
-                        {formatMoney(inv.total_minor, activeWorkspace?.currency)}
-                      </td>
-                      <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-success)" }}>
-                        {formatMoney(inv.amount_paid_minor, activeWorkspace?.currency)}
-                      </td>
-                      <td
-                        className="acc-align-right tabular-nums font-bold"
-                        style={{ color: inv.amount_due_minor > 0 ? "var(--acc-danger)" : "inherit" }}
+                      {formatMoney(inv.amount_due_minor, activeWorkspace?.currency)}
+                    </td>
+                    <td>
+                      <span
+                        className={`acc-badge ${
+                          inv.status === "PAID"
+                            ? "acc-badge-success"
+                            : inv.status === "PARTIALLY_PAID"
+                            ? "acc-badge-warning"
+                            : inv.status === "ISSUED"
+                            ? "acc-badge-info"
+                            : inv.status === "OVERDUE"
+                            ? "acc-badge-danger"
+                            : "acc-badge-neutral"
+                        }`}
                       >
-                        {formatMoney(inv.amount_due_minor, activeWorkspace?.currency)}
-                      </td>
-                      <td>
-                        <span
-                          className={`acc-badge ${
-                            inv.status === "PAID"
-                              ? "acc-badge-success"
-                              : inv.status === "PARTIALLY_PAID"
-                              ? "acc-badge-warning"
-                              : inv.status === "ISSUED"
-                              ? "acc-badge-info"
-                              : inv.status === "OVERDUE"
-                              ? "acc-badge-danger"
-                              : "acc-badge-neutral"
-                          }`}
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="acc-align-right" onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "inline-flex", gap: "0.375rem", alignItems: "center" }}>
+                        {inv.status === "DRAFT" && canMutate ? (
+                          <button
+                            type="button"
+                            className="acc-btn acc-btn-sm acc-btn-outline"
+                            style={{ padding: "0.2rem 0.5rem" }}
+                            onClick={() => {
+                              setEditingInvoiceId(inv.id);
+                              setCreateInvoiceOpen(true);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        ) : inv.amount_due_minor > 0 && canMutate ? (
+                          <button
+                            type="button"
+                            className="acc-btn acc-btn-sm acc-btn-primary"
+                            style={{ padding: "0.2rem 0.5rem" }}
+                            onClick={() => {
+                              setPayError(null);
+                              setRecordPaymentInvoice(inv);
+                              setPayAmountStr((inv.amount_due_minor / 100).toString());
+                              const defaultAcc = accounts.find(
+                                (a) => a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype)
+                              );
+                              setPayAccountId(defaultAcc?.id || "");
+                            }}
+                          >
+                            Collect
+                          </button>
+                        ) : inv.status === "PAID" || inv.amount_due_minor === 0 ? (
+                          <span className="acc-badge acc-badge-success" style={{ padding: "0.2rem 0.5rem" }}>
+                            Settled
+                          </span>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          className="acc-btn acc-btn-sm acc-btn-outline"
+                          style={{ padding: "0.2rem 0.5rem" }}
+                          onClick={() => setDetailInvoiceId(inv.id)}
+                          title="View full invoice details"
                         >
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="acc-align-right" onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: "inline-flex", gap: "0.375rem", alignItems: "center" }}>
-                          {inv.status === "DRAFT" && canMutate ? (
-                            <button
-                              type="button"
-                              className="acc-btn acc-btn-sm acc-btn-outline"
-                              style={{ padding: "0.2rem 0.5rem" }}
-                              onClick={() => {
-                                setEditingInvoiceId(inv.id);
-                                setCreateInvoiceOpen(true);
-                              }}
-                            >
-                              Edit
-                            </button>
-                          ) : inv.amount_due_minor > 0 && canMutate ? (
-                            <button
-                              type="button"
-                              className="acc-btn acc-btn-sm acc-btn-primary"
-                              style={{ padding: "0.2rem 0.5rem" }}
-                              onClick={() => {
-                                setPayError(null);
-                                setRecordPaymentInvoice(inv);
-                                setPayAmountStr((inv.amount_due_minor / 100).toString());
-                                const defaultAcc = accounts.find(
-                                  (a) => a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype)
-                                );
-                                setPayAccountId(defaultAcc?.id || "");
-                              }}
-                            >
-                              Collect
-                            </button>
-                          ) : inv.status === "PAID" || inv.amount_due_minor === 0 ? (
-                            <span className="acc-badge acc-badge-success" style={{ padding: "0.2rem 0.5rem" }}>
-                              Settled
-                            </span>
-                          ) : null}
+                          View
+                        </button>
 
-                          <button
-                            type="button"
-                            className="acc-btn acc-btn-sm acc-btn-outline"
-                            style={{ padding: "0.2rem 0.5rem" }}
-                            onClick={() => setDetailInvoiceId(inv.id)}
-                            title="View full invoice details"
-                          >
-                            View
-                          </button>
-
-                          <button
-                            type="button"
-                            className="acc-btn acc-btn-sm acc-btn-outline"
-                            style={{ padding: "0.2rem 0.5rem" }}
-                            onClick={() => setShareModalInvoice(inv)}
-                            title="Share public link"
-                          >
-                            Share
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {subtab === "PRODUCTS" && (
-        <div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
-            {canMutate && (
-              <button
-                type="button"
-                className="acc-btn acc-btn-primary acc-btn-sm"
-                onClick={() => setAddProductOpen(true)}
-              >
-                + Add Product / Service
-              </button>
-            )}
+                        <button
+                          type="button"
+                          className="acc-btn acc-btn-sm acc-btn-outline"
+                          style={{ padding: "0.2rem 0.5rem" }}
+                          onClick={() => setShareModalInvoice(inv)}
+                          title="Share public link"
+                        >
+                          Share
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="acc-card">
-            {products.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
-                No products or services saved. Add your catalog items here.
-              </div>
-            ) : (
-              <div className="acc-table-wrapper">
-                <table className="acc-table">
-                  <thead>
-                    <tr>
-                      <th>Product / Service Name</th>
-                      <th>SKU</th>
-                      <th>Unit</th>
-                      <th className="acc-align-right">Default Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((p) => (
-                      <tr key={p.id}>
-                        <td style={{ fontWeight: 600 }}>{p.name}</td>
-                        <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{p.sku || "—"}</td>
-                        <td>{p.unit}</td>
-                        <td className="acc-align-right tabular-nums font-semibold">
-                          {formatMoney(p.default_price_minor, activeWorkspace?.currency)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Walk-in Direct Sale Modal */}
       {walkinSaleOpen && (
@@ -746,86 +617,6 @@ export default function SalesInvoicesView() {
                 Close
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Product Modal */}
-      {addProductOpen && (
-        <div className="acc-modal-backdrop" onClick={() => setAddProductOpen(false)}>
-          <div className="acc-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="acc-modal-header">
-              <h3 className="acc-modal-title">Add Product / Service</h3>
-              <button type="button" className="acc-modal-close" onClick={() => setAddProductOpen(false)}>✕</button>
-            </div>
-            <form onSubmit={handleAddProduct}>
-              <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="prod-name">Item Name *</label>
-                <input
-                  id="prod-name"
-                  type="text"
-                  required
-                  className="acc-form-input"
-                  placeholder="e.g. Website Development, Standard Consultation"
-                  value={prodName}
-                  onChange={(e) => setProdName(e.target.value)}
-                />
-              </div>
-
-              <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="prod-sku">SKU / Code</label>
-                <input
-                  id="prod-sku"
-                  type="text"
-                  className="acc-form-input"
-                  placeholder="e.g. SRV-001"
-                  value={prodSku}
-                  onChange={(e) => setProdSku(e.target.value)}
-                />
-              </div>
-
-              <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="prod-price">Default Price (₹)</label>
-                <FormattedMoneyInput
-                  id="prod-price"
-                  className="acc-form-input tabular-nums"
-                  placeholder="0.00"
-                  value={prodPriceStr}
-                  onChange={(e) => setProdPriceStr(e.target.value)}
-                />
-              </div>
-
-              <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="prod-unit">Billing Unit</label>
-                <input
-                  id="prod-unit"
-                  type="text"
-                  className="acc-form-input"
-                  placeholder="e.g. unit, hour, project"
-                  value={prodUnit}
-                  onChange={(e) => setProdUnit(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
-                <button
-                  type="button"
-                  className="acc-btn acc-btn-outline"
-                  style={{ flex: 1 }}
-                  onClick={() => setAddProductOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="acc-btn acc-btn-primary"
-                  style={{ flex: 1.5 }}
-                  disabled={submitting}
-                >
-                  {submitting ? "Saving..." : "Save Product"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

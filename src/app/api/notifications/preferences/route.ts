@@ -29,11 +29,12 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const updated = await updateNotificationPreferences(identity.id, {
-      new_whatsapp_messages: Boolean(body.new_whatsapp_messages !== false),
-      new_leads: Boolean(body.new_leads !== false),
-      follow_up_reminders: Boolean(body.follow_up_reminders !== false),
-      broadcast_results: Boolean(body.broadcast_results !== false),
-      connection_alerts: Boolean(body.connection_alerts !== false),
+      new_whatsapp_messages: body.new_whatsapp_messages !== undefined ? Boolean(body.new_whatsapp_messages) : undefined,
+      new_leads: body.new_leads !== undefined ? Boolean(body.new_leads) : undefined,
+      follow_up_reminders: body.follow_up_reminders !== undefined ? Boolean(body.follow_up_reminders) : undefined,
+      broadcast_results: body.broadcast_results !== undefined ? Boolean(body.broadcast_results) : undefined,
+      connection_alerts: body.connection_alerts !== undefined ? Boolean(body.connection_alerts) : undefined,
+      show_previews: body.show_previews !== undefined ? Boolean(body.show_previews) : undefined,
     });
 
     return Response.json({ ok: true, preferences: updated, message: "Notification preferences saved." });

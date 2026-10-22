@@ -54,6 +54,7 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
     follow_up_reminders: true,
     broadcast_results: true,
     connection_alerts: true,
+    show_previews: true,
   });
   const [savingPrefs, setSavingPrefs] = useState(false);
 
@@ -471,7 +472,10 @@ export default function NotificationsClient({ identity }: { identity: CurrentUse
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <DevicePushSettings />
+                <DevicePushSettings
+                  showPreviews={prefs.show_previews}
+                  onTogglePreviews={(enabled) => setPrefs((prev) => ({ ...prev, show_previews: enabled }))}
+                />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>

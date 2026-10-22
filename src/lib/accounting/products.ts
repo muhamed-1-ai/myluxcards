@@ -66,3 +66,41 @@ export async function getProductById(workspaceId: string, productId: string): Pr
   );
   return res.rows[0] || null;
 }
+
+export interface UpdateProductInput {
+  workspaceId: string;
+  productId: string;
+  name?: string;
+  sku?: string | null;
+  description?: string | null;
+  unit?: string;
+  defaultPriceMinor?: number;
+  isActive?: boolean;
+}
+
+export async function updateProduct(
+  input: UpdateProductInput,
+  client?: Queryable
+): Promise<ProductServiceRow | null> {
+  const db = client || pool;
+  const existing = await getProductById(input.workspaceId, input.productId);
+  if (!existing) return null;
+
+  const name = input.name !== undefined ? input.name.trim() : existing.name;
+  if (name.length < 2) throw new Error("Product name must be at least 2 characters.");
+
+  const sku = input.sku !== undefined ? (input.sku?.trim().toUpperCase() || null) : existing.sku;
+  const description = input.description !== undefined ? (input.description || null) : existing.description;
+  const unit = input.unit !== undefined ? (input.unit.trim() || "pcs") : existing.unit;
+  const defaultPriceMinor = input.defaultPriceMinor !== undefined ? Math.max(0, input.defaultPriceMinor) : existing.default_price_minor;
+  const isActive = input.isActive !== undefined ? input.isActive : existing.is_active;
+
+  const res = await db.query<ProductServiceRow>(
+    `UPDATE accounting_products
+     SET name = $1, sku = $2, description = $3, unit = $4, default_price_minor = $5, is_active = $6, updated_at = NOW()
+     WHERE id = $7 AND workspace_id = $8
+     RETURNING *`,
+    [name, sku, description, unit, defaultPriceMinor, isActive, input.productId, input.workspaceId]
+  );
+  return res.rows[0] || null;
+}
