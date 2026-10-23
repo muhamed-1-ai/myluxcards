@@ -154,10 +154,10 @@ export default function ResetPasswordPage() {
         {/* 1. Success State */}
         {complete ? (
           <>
-            <h1>{isSetup ? "Password added" : "Password changed"}</h1>
-            <p style={{ lineHeight: 1.6, color: "var(--acc-text-muted, #94a3b8)" }}>
+            <h1>{isSetup ? "Password Established" : "Password Changed"}</h1>
+            <p style={{ lineHeight: 1.6, color: "var(--reset-text-secondary, #94a3b8)" }}>
               {isSetup
-                ? "Your password has been successfully established. You can now log in using either your email and password or Google."
+                ? "Your password is ready. You can now sign in with Google or your email and password."
                 : "Your new password is now active. All previous sessions across your devices have been signed out."}
             </p>
             <Link
@@ -171,16 +171,16 @@ export default function ResetPasswordPage() {
         ) : !tokenChecked ? (
           /* 2. Loading / Verification State */
           <div style={{ textAlign: "center", padding: "2rem 0" }}>
-            <p style={{ color: "#94a3b8" }}>Verifying password recovery link…</p>
+            <p style={{ color: "var(--reset-text-muted, #94a3b8)" }}>Verifying password recovery link…</p>
           </div>
         ) : !tokenValid && !required ? (
           /* 3. Invalid or Expired Token State with Request New Link Action */
           <>
-            <h1 style={{ color: "#f87171" }}>Invalid or Expired Link</h1>
-            <p style={{ lineHeight: 1.6, color: "#cbd5e1" }}>
+            <h1 style={{ color: "var(--reset-danger, #f87171)" }}>Invalid or Expired Link</h1>
+            <p style={{ lineHeight: 1.6, color: "var(--reset-text-secondary, #cbd5e1)" }}>
               {tokenError || "This password recovery link is invalid, expired, or has already been used."}
             </p>
-            <p style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "0.5rem" }}>
+            <p style={{ fontSize: "0.85rem", color: "var(--reset-text-muted, #94a3b8)", marginTop: "0.5rem" }}>
               For your security, links expire after 15 minutes and can only be used once.
             </p>
             <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -196,7 +196,7 @@ export default function ResetPasswordPage() {
                 style={{
                   textAlign: "center",
                   fontSize: "0.85rem",
-                  color: "#38bdf8",
+                  color: "var(--reset-brand, #38bdf8)",
                   textDecoration: "none",
                   fontWeight: 600,
                 }}
@@ -208,8 +208,8 @@ export default function ResetPasswordPage() {
         ) : (
           /* 4. Valid Token Form */
           <>
-            <h1>{isSetup ? "Create your password" : "Choose a new password"}</h1>
-            <p>{isSetup ? "Add a password so you can also sign in with your email." : "Enter a new password for your Zappit account."}</p>
+            <h1>{isSetup ? "Set your ZAPPIT password" : "Choose a new password"}</h1>
+            <p>{isSetup ? "Choose a secure password for your ZAPPIT account so you can also sign in with your email." : "Enter a new password for your Zappit account."}</p>
 
             <form onSubmit={submit}>
               <label>
@@ -291,7 +291,7 @@ export default function ResetPasswordPage() {
                   cursor: submitting || !allRulesMet || !passwordsMatch ? "not-allowed" : "pointer",
                 }}
               >
-                {submitting ? (isSetup ? "Creating Password…" : "Saving New Password…") : (isSetup ? "Create Password" : "Save New Password")}
+                {submitting ? (isSetup ? "Setting Password…" : "Saving New Password…") : (isSetup ? "Set Password" : "Save New Password")}
               </button>
             </form>
           </>

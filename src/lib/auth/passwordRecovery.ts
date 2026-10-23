@@ -16,6 +16,8 @@ import {
   sendPasswordChangedEmail,
   sendGoogleAccountRecoveryInfoEmail,
 } from "../email/transactional";
+import { isOwnerAccount, isAuthoritativeOwner } from "../ownerAuth";
+import { audit } from "../adminAuth";
 
 // Dummy bcrypt hash used for constant-time comparison when an email does not exist,
 // neutralizing timing side-channels against user enumeration.
@@ -118,16 +120,18 @@ export async function requestPasswordRecovery(
 
     // Insert new token hash with initial PENDING delivery status
     const insertResult = await db.query<{ id: string }>(
-      `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status)
-      values($1, 'PASSWORD_RESET', $2, $3, 'PENDING')
+      `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status, is_setup)
+      values($1, 'PASSWORD_RESET', $2, $3, 'PENDING', $4)
       returning id`,
-      [user.id, tokenHash, expiresAt]
+      [user.id, tokenHash, expiresAt, isSetup]
     );
     tokenId = insertResult.rows[0]?.id || null;
   });
 
   const origin = getAppOrigin();
-  const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const resetUrl = isSetup
+    ? `${origin}/setup-password?token=${encodeURIComponent(rawToken)}`
+    : `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
   const deliveryResult = await sendPasswordResetEmail({
     to: user.email,
@@ -228,8 +232,8 @@ export async function requestPasswordSetupForAuthenticatedUser(
     );
 
     const insertResult = await db.query<{ id: string }>(
-      `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status)
-       values($1, 'PASSWORD_RESET', $2, $3, 'PENDING')
+      `insert into auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status, is_setup)
+       values($1, 'PASSWORD_RESET', $2, $3, 'PENDING', true)
        returning id`,
       [user.id, tokenHash, expiresAt]
     );
@@ -237,7 +241,7 @@ export async function requestPasswordSetupForAuthenticatedUser(
   });
 
   const origin = getAppOrigin();
-  const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const resetUrl = `${origin}/setup-password?token=${encodeURIComponent(rawToken)}`;
 
   const deliveryResult = await sendPasswordResetEmail({
     to: user.email,
@@ -303,9 +307,10 @@ export async function verifyResetToken(rawToken: string): Promise<VerifyTokenRes
     user_id: string;
     expires_at: Date;
     consumed_at: Date | null;
+    is_setup?: boolean;
     password_hash: string | null;
   }>(
-    `select t.id, t.user_id, t.expires_at, t.consumed_at, u.password_hash
+    `select t.id, t.user_id, t.expires_at, t.consumed_at, t.is_setup, u.password_hash
     from auth_action_tokens t
     join users u on u.id = t.user_id
     where t.token_hash = $1 and t.purpose = 'PASSWORD_RESET'`,
@@ -325,7 +330,8 @@ export async function verifyResetToken(rawToken: string): Promise<VerifyTokenRes
     return { valid: false, message: "This link has expired. Links are valid for 15 minutes." };
   }
 
-  return { valid: true, userId: tokenRow.user_id, isSetup: !tokenRow.password_hash };
+  const isSetup = Boolean(tokenRow.is_setup || !tokenRow.password_hash);
+  return { valid: true, userId: tokenRow.user_id, isSetup };
 }
 
 /**
@@ -362,13 +368,14 @@ export async function redeemResetToken(
         user_id: string;
         expires_at: Date;
         consumed_at: Date | null;
+        is_setup?: boolean;
         email: string;
         name: string;
         password_hash: string | null;
         disabled: boolean;
         status: string;
       }>(
-        `select t.id, t.user_id, t.expires_at, t.consumed_at, u.email, u.name, u.password_hash, u.disabled, u.status
+        `select t.id, t.user_id, t.expires_at, t.consumed_at, t.is_setup, u.email, u.name, u.password_hash, u.disabled, u.status
         from auth_action_tokens t
         join users u on u.id = t.user_id
         where t.token_hash = $1 and t.purpose = 'PASSWORD_RESET' for update`,
@@ -385,6 +392,16 @@ export async function redeemResetToken(
       row.status === "SUSPENDED"
     ) {
       return null;
+    }
+
+    // Recheck eligibility: if this was requested as a first-password setup link,
+    // but a password has already been established since the link was requested,
+    // do not let an older setup link overwrite the established password.
+    if (row.is_setup && row.password_hash !== null) {
+      return {
+        conflict: true as const,
+        message: "A password has already been established for this account since this setup link was requested. Please log in or request a password reset.",
+      };
     }
 
     const wasFirstPassword = !row.password_hash;
@@ -411,6 +428,10 @@ export async function redeemResetToken(
 
   if (!updateResult) {
     return { ok: false, message: "The link is invalid, expired, or has already been used." };
+  }
+
+  if ("conflict" in updateResult && updateResult.conflict) {
+    return { ok: false, message: updateResult.message };
   }
 
   // 5. Send password-changed / added notification email (awaited)
@@ -543,3 +564,386 @@ export async function userHasLocalPassword(userId: string): Promise<boolean> {
   const user = (await pool.query<{ password_hash: string | null }>("select password_hash from users where id = $1", [userId])).rows[0];
   return Boolean(user?.password_hash);
 }
+
+export interface AdminCredentialLinkResult {
+  ok: boolean;
+  code?: string;
+  status?: "sent" | "unconfigured" | "failed";
+  message: string;
+  targetEmail?: string;
+}
+
+/**
+ * Initiates an administrative "Send Password Setup Link" for an eligible Google-only user.
+ * Strictly verifies admin scope, checks eligibility (Google identity, no local password, active status),
+ * derives destination strictly from trusted server database, creates an expiring single-use token,
+ * dispatches the setup email, and records an audit log.
+ */
+export async function requestPasswordSetupByAdmin(input: {
+  adminId: string;
+  adminRole: string;
+  targetUserId: string;
+  clientIp?: string;
+}): Promise<AdminCredentialLinkResult> {
+  const { adminId, adminRole, targetUserId, clientIp } = input;
+  if (!adminId || !targetUserId) {
+    return { ok: false, code: "INVALID_REQUEST", message: "Administrator identity and target user ID are required." };
+  }
+
+  // 1. Fetch target user from database (never trust client-supplied email or state)
+  const userResult = await pool.query<{
+    id: string;
+    email: string;
+    name: string;
+    password_hash: string | null;
+    role: string;
+    status: string;
+    disabled: boolean;
+  }>(
+    "SELECT id, email, name, password_hash, role, status, disabled FROM users WHERE id = $1",
+    [targetUserId]
+  );
+  const user = userResult.rows[0];
+  if (!user) {
+    return { ok: false, code: "USER_NOT_FOUND", message: "Target user not found." };
+  }
+
+  // 2. Status eligibility checks: reject suspended, disabled, or inactive targets
+  if (user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
+    return {
+      ok: false,
+      code: "USER_INACTIVE",
+      message: `Cannot send password setup link to a ${user.status.toLowerCase()} or disabled account.`,
+    };
+  }
+
+  // 3. Protected account authorization checks
+  const isActorOwner = isAuthoritativeOwner({ id: adminId, role: adminRole as any, email: "" } as any);
+  if (isOwnerAccount(user.id, user.email) && !isActorOwner) {
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      message: "The primary owner account is protected and cannot be modified by other administrators.",
+    };
+  }
+
+  if ((user.role === "ADMIN" || user.role === "SUPER_ADMIN") && !isActorOwner) {
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      message: "Only the primary owner can alter credentials for an administrator account.",
+    };
+  }
+
+  // 4. Must NOT already have a local password (prevent overwriting credentials)
+  if (user.password_hash) {
+    return {
+      ok: false,
+      code: "PASSWORD_ALREADY_EXISTS",
+      message: "This account already has a password enabled. Please use the password reset action instead.",
+    };
+  }
+
+  // 5. Must be an eligible Google user with linked account
+  const googleAccountResult = await pool.query<{ id: string }>(
+    "SELECT id FROM accounts WHERE user_id = $1 AND provider = 'google'",
+    [user.id]
+  );
+  if (googleAccountResult.rows.length === 0) {
+    return {
+      ok: false,
+      code: "NOT_GOOGLE_USER",
+      message: "This account does not have a linked Google identity eligible for initial password setup.",
+    };
+  }
+
+  // 6. Rate limiting by admin and target user (does not lock out user if request was unauthorized)
+  const adminAllowed = await checkRateLimit("setup-pwd-admin", adminId, 15, 900);
+  const targetAllowed = await checkRateLimit("setup-pwd-target", targetUserId, 3, 900);
+  if (!adminAllowed || !targetAllowed) {
+    return {
+      ok: false,
+      code: "RATE_LIMITED",
+      message: "Too many password setup requests for this account. Please wait a few minutes before trying again.",
+    };
+  }
+
+  // 7. Generate 256-bit cryptographically random token with 15-minute expiry
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  let tokenId: string | null = null;
+  await withTransaction(async (db) => {
+    // Invalidate any open reset/setup tokens for this user
+    await db.query(
+      "UPDATE auth_action_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = 'PASSWORD_RESET' AND consumed_at IS NULL",
+      [user.id]
+    );
+
+    const insertResult = await db.query<{ id: string }>(
+      `INSERT INTO auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status, is_setup, requested_by_admin_id)
+       VALUES($1, 'PASSWORD_RESET', $2, $3, 'PENDING', true, $4)
+       RETURNING id`,
+      [user.id, tokenHash, expiresAt, adminId]
+    );
+    tokenId = insertResult.rows[0]?.id || null;
+  });
+
+  const origin = getAppOrigin();
+  const setupUrl = `${origin}/setup-password?token=${encodeURIComponent(rawToken)}`;
+
+  // 8. Deliver email strictly to trusted user.email from server
+  const deliveryResult = await sendPasswordResetEmail({
+    to: user.email,
+    name: user.name,
+    resetUrl: setupUrl,
+    expiresMinutes: 15,
+    isSetup: true,
+  });
+
+  // 9. Update token record with delivery results
+  if (tokenId) {
+    if (deliveryResult.ok) {
+      await pool.query(
+        `UPDATE auth_action_tokens
+         SET delivery_status = 'SENT',
+             delivery_provider = $1,
+             delivery_message_id = $2,
+             delivery_error = null,
+             sent_at = now()
+         WHERE id = $3`,
+        [deliveryResult.provider || "resend", deliveryResult.messageId || null, tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update token delivery status:", err));
+    } else {
+      const deliveryStatus = deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : "FAILED";
+      await pool.query(
+        `UPDATE auth_action_tokens
+         SET delivery_status = $1,
+             delivery_provider = $2,
+             delivery_error = $3
+         WHERE id = $4`,
+        [deliveryStatus, deliveryResult.provider || null, deliveryResult.error || "Delivery failed", tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update token delivery error:", err));
+    }
+  }
+
+  // 10. Audit logging (without leaking credentials or tokens)
+  await audit(
+    { id: adminId, role: adminRole as any, email: "" } as any,
+    "USER_PASSWORD_SETUP_REQUESTED",
+    "users",
+    user.id,
+    null,
+    {
+      targetEmail: user.email,
+      isSetup: true,
+      deliveryStatus: deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : deliveryResult.ok ? "SENT" : "FAILED",
+      provider: deliveryResult.provider || "none",
+    }
+  );
+
+  if (deliveryResult.ok) {
+    return {
+      ok: true,
+      status: "sent",
+      targetEmail: user.email,
+      message: `Password setup email requested and sent to ${user.email}.`,
+    };
+  } else if (deliveryResult.provider === "unconfigured") {
+    return {
+      ok: false,
+      status: "unconfigured",
+      targetEmail: user.email,
+      message: "Password setup link was generated, but transactional email provider is not configured (RESEND_API_KEY or SMTP_HOST is missing in environment variables).",
+    };
+  } else {
+    return {
+      ok: false,
+      status: "failed",
+      targetEmail: user.email,
+      message: `Password setup email could not be delivered: ${deliveryResult.error || "Provider rejected delivery"}.`,
+    };
+  }
+}
+
+/**
+ * Initiates an administrative "Send Password Reset Link" for a user who already has a password.
+ * Strictly verifies admin scope, checks account status, derives destination from trusted server DB,
+ * creates an expiring single-use token, dispatches the reset email, and logs an audit trail.
+ */
+export async function requestPasswordResetByAdmin(input: {
+  adminId: string;
+  adminRole: string;
+  targetUserId: string;
+  clientIp?: string;
+}): Promise<AdminCredentialLinkResult> {
+  const { adminId, adminRole, targetUserId, clientIp } = input;
+  if (!adminId || !targetUserId) {
+    return { ok: false, code: "INVALID_REQUEST", message: "Administrator identity and target user ID are required." };
+  }
+
+  // 1. Fetch target user from database
+  const userResult = await pool.query<{
+    id: string;
+    email: string;
+    name: string;
+    password_hash: string | null;
+    role: string;
+    status: string;
+    disabled: boolean;
+  }>(
+    "SELECT id, email, name, password_hash, role, status, disabled FROM users WHERE id = $1",
+    [targetUserId]
+  );
+  const user = userResult.rows[0];
+  if (!user) {
+    return { ok: false, code: "USER_NOT_FOUND", message: "Target user not found." };
+  }
+
+  // 2. Status eligibility checks
+  if (user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
+    return {
+      ok: false,
+      code: "USER_INACTIVE",
+      message: `Cannot send password reset link to a ${user.status.toLowerCase()} or disabled account.`,
+    };
+  }
+
+  // 3. Protected account authorization checks
+  const isActorOwner = isAuthoritativeOwner({ id: adminId, role: adminRole as any, email: "" } as any);
+  if (isOwnerAccount(user.id, user.email) && !isActorOwner) {
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      message: "The primary owner account is protected and cannot be modified by other administrators.",
+    };
+  }
+
+  if ((user.role === "ADMIN" || user.role === "SUPER_ADMIN") && !isActorOwner) {
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      message: "Only the primary owner can alter credentials for an administrator account.",
+    };
+  }
+
+  // 4. Must already have a local password established
+  if (!user.password_hash) {
+    return {
+      ok: false,
+      code: "PASSWORD_NOT_SET",
+      message: "This account does not have a password configured yet. Please use Send Password Setup Link instead.",
+    };
+  }
+
+  // 5. Rate limiting by admin and target user (after authorization)
+  const adminAllowed = await checkRateLimit("reset-pwd-admin", adminId, 15, 900);
+  const targetAllowed = await checkRateLimit("reset-pwd-target", targetUserId, 3, 900);
+  if (!adminAllowed || !targetAllowed) {
+    return {
+      ok: false,
+      code: "RATE_LIMITED",
+      message: "Too many password reset requests for this account. Please wait a few minutes before trying again.",
+    };
+  }
+
+  // 5. Generate 256-bit cryptographically random token with 15-minute expiry
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  let tokenId: string | null = null;
+  await withTransaction(async (db) => {
+    // Invalidate any open reset tokens for this user
+    await db.query(
+      "UPDATE auth_action_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = 'PASSWORD_RESET' AND consumed_at IS NULL",
+      [user.id]
+    );
+
+    const insertResult = await db.query<{ id: string }>(
+      `INSERT INTO auth_action_tokens(user_id, purpose, token_hash, expires_at, delivery_status, is_setup, requested_by_admin_id)
+       VALUES($1, 'PASSWORD_RESET', $2, $3, 'PENDING', false, $4)
+       RETURNING id`,
+      [user.id, tokenHash, expiresAt, adminId]
+    );
+    tokenId = insertResult.rows[0]?.id || null;
+  });
+
+  const origin = getAppOrigin();
+  const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+  // 6. Deliver email strictly to trusted user.email from server
+  const deliveryResult = await sendPasswordResetEmail({
+    to: user.email,
+    name: user.name,
+    resetUrl,
+    expiresMinutes: 15,
+    isSetup: false,
+  });
+
+  // 7. Update token record with delivery results
+  if (tokenId) {
+    if (deliveryResult.ok) {
+      await pool.query(
+        `UPDATE auth_action_tokens
+         SET delivery_status = 'SENT',
+             delivery_provider = $1,
+             delivery_message_id = $2,
+             delivery_error = null,
+             sent_at = now()
+         WHERE id = $3`,
+        [deliveryResult.provider || "resend", deliveryResult.messageId || null, tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update token delivery status:", err));
+    } else {
+      const deliveryStatus = deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : "FAILED";
+      await pool.query(
+        `UPDATE auth_action_tokens
+         SET delivery_status = $1,
+             delivery_provider = $2,
+             delivery_error = $3
+         WHERE id = $4`,
+        [deliveryStatus, deliveryResult.provider || null, deliveryResult.error || "Delivery failed", tokenId]
+      ).catch((err) => console.error("[Auth] Failed to update token delivery error:", err));
+    }
+  }
+
+  // 8. Audit logging
+  await audit(
+    { id: adminId, role: adminRole as any, email: "" } as any,
+    "USER_PASSWORD_RESET_REQUESTED",
+    "users",
+    user.id,
+    null,
+    {
+      targetEmail: user.email,
+      isSetup: false,
+      deliveryStatus: deliveryResult.provider === "unconfigured" ? "UNCONFIGURED" : deliveryResult.ok ? "SENT" : "FAILED",
+      provider: deliveryResult.provider || "none",
+    }
+  );
+
+  if (deliveryResult.ok) {
+    return {
+      ok: true,
+      status: "sent",
+      targetEmail: user.email,
+      message: `Password reset email requested and sent to ${user.email}.`,
+    };
+  } else if (deliveryResult.provider === "unconfigured") {
+    return {
+      ok: false,
+      status: "unconfigured",
+      targetEmail: user.email,
+      message: "Password reset link was generated, but transactional email provider is not configured (RESEND_API_KEY or SMTP_HOST is missing in environment variables).",
+    };
+  } else {
+    return {
+      ok: false,
+      status: "failed",
+      targetEmail: user.email,
+      message: `Password reset email could not be delivered: ${deliveryResult.error || "Provider rejected delivery"}.`,
+    };
+  }
+}
+

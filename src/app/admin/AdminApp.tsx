@@ -434,7 +434,71 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
   const OWNER_USER_ID = "b8c2491d-3769-4850-86d9-1ff17eef2257";
   const isActorOwner = identity.id === OWNER_USER_ID && identity.email?.toLowerCase() === OWNER_EMAIL;
   const [savingRoleUserId, setSavingRoleUserId] = useState<string | null>(null);
+  const [sendingPasswordUserId, setSendingPasswordUserId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const handleSendPasswordSetupLink = async (targetUser: Row) => {
+    if (sendingPasswordUserId) return;
+    setSendingPasswordUserId(targetUser.id);
+    setActionNotice(null);
+
+    try {
+      const res = await fetch(`/api/admin/managed-users/${targetUser.id}/password-setup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || "Failed to request password setup link.");
+      }
+
+      setActionNotice({
+        type: "success",
+        message: data.message || `Password setup email requested for ${targetUser.email}.`,
+      });
+      setTimeout(() => setActionNotice((cur) => (cur?.type === "success" ? null : cur)), 5000);
+      await reload();
+    } catch (err: any) {
+      setActionNotice({
+        type: "error",
+        message: err.message || "Failed to request password setup link.",
+      });
+    } finally {
+      setSendingPasswordUserId(null);
+    }
+  };
+
+  const handleSendPasswordResetLink = async (targetUser: Row) => {
+    if (sendingPasswordUserId) return;
+    if (!confirm(`Send a password reset email to ${targetUser.email}?`)) return;
+    setSendingPasswordUserId(targetUser.id);
+    setActionNotice(null);
+
+    try {
+      const res = await fetch(`/api/admin/managed-users/${targetUser.id}/password-reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || "Failed to request password reset link.");
+      }
+
+      setActionNotice({
+        type: "success",
+        message: data.message || `Password reset email requested for ${targetUser.email}.`,
+      });
+      setTimeout(() => setActionNotice((cur) => (cur?.type === "success" ? null : cur)), 5000);
+      await reload();
+    } catch (err: any) {
+      setActionNotice({
+        type: "error",
+        message: err.message || "Failed to request password reset link.",
+      });
+    } finally {
+      setSendingPasswordUserId(null);
+    }
+  };
 
   const handleToggleAdminRole = async (targetUser: Row, action: "PROMOTE" | "DEMOTE") => {
     if (savingRoleUserId) return;
@@ -627,12 +691,15 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
         <Empty title="No matching users found" text="Try adjusting search filter or click '+ Create User' to add a new account." />
       ) : (
         <Table
-          heads={["User", "Role", "Status", "Created", "Actions"]}
+          heads={["User", "Role", "Credentials", "Status", "Created", "Actions"]}
           rows={filteredUsers.map((user) => {
             const isTargetOwner =
               user.id === OWNER_USER_ID ||
               user.email?.toLowerCase() === OWNER_EMAIL;
             const isTargetAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+            const hasPassword = Boolean(user.has_password);
+            const isGoogleOnly = !hasPassword && Boolean(user.has_google_account);
+            const isSuspended = user.status === "SUSPENDED" || user.status === "DISABLED" || user.disabled;
 
             return [
               <>
@@ -642,6 +709,19 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
               <span className={`pill ${isTargetOwner || isTargetAdmin ? "gold" : ""}`}>
                 {isTargetOwner ? "OWNER" : isTargetAdmin ? "ADMIN" : "USER"}
               </span>,
+              <div>
+                <span
+                  className={`pill credential-status-pill ${hasPassword ? "enabled" : "not-set"}`}
+                  title={hasPassword ? "Account has a local password credential" : "Account has no local password"}
+                >
+                  {hasPassword ? "Password enabled" : "Password not set"}
+                </span>
+                {user.has_google_account && (
+                  <small style={{ display: "block", color: "var(--admin-muted, #888)", fontSize: "11px", marginTop: "3px" }}>
+                    Google identity
+                  </small>
+                )}
+              </div>,
               <span className={`pill ${user.status?.toLowerCase()}`}>{user.status}</span>,
               new Date(user.created_at).toLocaleDateString(),
               <div className="row-actions">
@@ -657,6 +737,31 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
                 <button className="small" onClick={() => setPermissionUser(user)}>
                   Permissions
                 </button>
+
+                {/* Send Password Setup Link for eligible Google-only users */}
+                {isGoogleOnly && !isSuspended && !isTargetOwner && (
+                  <button
+                    className="small gold admin-btn-setup-password"
+                    disabled={sendingPasswordUserId === user.id}
+                    onClick={() => handleSendPasswordSetupLink(user)}
+                    title="Send secure first-password setup link to verified email"
+                  >
+                    {sendingPasswordUserId === user.id ? "Sending…" : "Send Password Setup Link"}
+                  </button>
+                )}
+
+                {/* Send Reset Link for users who already have a local password */}
+                {hasPassword && !isSuspended && !isTargetOwner && (
+                  <button
+                    className="small admin-btn-reset-password"
+                    disabled={sendingPasswordUserId === user.id}
+                    onClick={() => handleSendPasswordResetLink(user)}
+                    title="Send password reset link to verified email"
+                  >
+                    {sendingPasswordUserId === user.id ? "Sending…" : "Send Reset"}
+                  </button>
+                )}
+
                 {isTargetOwner ? (
                   <span className="admin-owner-badge" title="Protected Owner Account">👑 Owner</span>
                 ) : isActorOwner ? (

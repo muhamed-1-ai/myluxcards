@@ -38,6 +38,7 @@ export { getLuminance, isLightColor };
 export interface ModernProfileConfig {
   cardBackground?: string;
   cardBorder?: string;
+  nameColor?: string;
   mutedText?: string;
   primaryBtnBg?: string;
   primaryBtnText?: string;
@@ -87,6 +88,8 @@ export interface ModernProfileLayoutProps {
     profileBackground?: string;
     profileAccent?: string;
     profileText?: string;
+    nameColor?: string;
+    profileNameColor?: string;
     modernConfig?: ModernProfileConfig;
     slug?: string;
     id?: string;
@@ -276,7 +279,7 @@ export function ModernProfileLayout({
 
         {/* ── 3. CENTERED PROFILE HEADER (Always stays below avatar) ── */}
         <div className="zappit-modern-header">
-          <h1 className="zappit-modern-name">{name}</h1>
+          <h1 className="zappit-modern-name" style={{ color: "var(--profile-name-color, var(--mod-name-color, var(--profile-text)))" }}>{name}</h1>
           {subtitle && <p className="zappit-modern-subtitle">{subtitle}</p>}
         </div>
 

@@ -67,6 +67,8 @@ export async function findManagedUsersByAdmin(
       u.updated_at,
       u.created_by_admin_id,
       u.feature_permissions,
+      (u.password_hash IS NOT NULL) AS has_password,
+      EXISTS(SELECT 1 FROM accounts a WHERE a.user_id = u.id AND a.provider = 'google') AS has_google_account,
       p.phone,
       dc.slug as digital_card_slug
     FROM users u
@@ -80,7 +82,7 @@ export async function findManagedUsersByAdmin(
     ${offsetSql}
   `;
 
-  return (await db.query<UserRow & { phone?: string; digital_card_slug?: string }>(query, params)).rows;
+  return (await db.query<UserRow & { phone?: string; digital_card_slug?: string; has_password: boolean; has_google_account: boolean }>(query, params)).rows;
 }
 
 export async function findManagedUserById(

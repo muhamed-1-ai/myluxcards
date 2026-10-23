@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { Pool } from "pg";
 import { databaseConfig } from "../src/lib/db/config.ts";
 
+import { randomUUID } from "node:crypto";
+
 const usersRepoContent = readFileSync("src/lib/repositories/users.ts", "utf8");
 const managedUsersRouteContent = readFileSync("src/app/api/admin/managed-users/route.ts", "utf8");
 const managedUserDetailRouteContent = readFileSync("src/app/api/admin/managed-users/[id]/route.ts", "utf8");
@@ -85,7 +87,7 @@ test("DIRECTORY 7: Live Database Integration - Promoted ADMIN sees all users, se
   const pool = new Pool(databaseConfig());
   const client = await pool.connect();
 
-  const promotedAdminId = "00000000-0000-0000-0000-0000000000a1";
+  const promotedAdminId = randomUUID();
   const promotedAdminEmail = `promoted_admin_${Date.now()}@example.com`;
   const existingUserEmail = `existing_user_${Date.now()}@example.com`;
 

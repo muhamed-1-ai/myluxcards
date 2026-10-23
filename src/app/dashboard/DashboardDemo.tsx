@@ -4892,6 +4892,10 @@ function AppearanceForm({
     update("profileAccent", accent);
     update("profileText", text);
     update("theme", "obsidian-luxe");
+    if (draft.modernConfig?.nameColor) {
+      const { nameColor, ...rest } = draft.modernConfig;
+      update("modernConfig", rest);
+    }
   };
 
   return (
@@ -5050,9 +5054,12 @@ function AppearanceForm({
         <div className="profile-theme-grid">
           {profileThemes.map((theme) => {
             const active =
-              draft.profileBackground?.toLowerCase() === theme.background.toLowerCase() &&
-              draft.profileAccent?.toLowerCase() === theme.accent.toLowerCase() &&
-              draft.profileText?.toLowerCase() === theme.text.toLowerCase();
+              (draft.theme?.toLowerCase() === theme.id.toLowerCase()) ||
+              (draft.profileBackground?.toLowerCase() === theme.background.toLowerCase() &&
+                draft.profileAccent?.toLowerCase() === theme.accent.toLowerCase() &&
+                (draft.profileText?.toLowerCase() === theme.text.toLowerCase() ||
+                  !draft.profileText ||
+                  draft.profileText.toLowerCase() === "#ffffff"));
 
             return (
               <button
@@ -5065,6 +5072,12 @@ function AppearanceForm({
                   update("profileAccent", theme.accent);
                   update("profileText", theme.text);
                   update("theme", theme.id);
+                  if (theme.nameColor) {
+                    update("modernConfig", { ...draft.modernConfig, nameColor: theme.nameColor });
+                  } else if (draft.modernConfig?.nameColor) {
+                    const { nameColor, ...rest } = draft.modernConfig;
+                    update("modernConfig", rest);
+                  }
                 }}
               >
                 {/* Visual Swatch representing theme relationship */}
@@ -5078,7 +5091,7 @@ function AppearanceForm({
                   />
                   <div
                     className="preset-preview-text-sample"
-                    style={{ color: theme.text }}
+                    style={{ color: theme.nameColor || theme.text }}
                   >
                     Aa
                   </div>

@@ -18,6 +18,7 @@ export interface ThemeTokens {
   secondaryBtnBorder: string;
   secondaryBtnText: string;
   accent: string;
+  nameColor: string;
   text: string;
   mutedText: string;
   iconColor: string;
@@ -46,6 +47,7 @@ export interface ProfileThemePreset {
   background: string;
   accent: string;
   text: string;
+  nameColor?: string;
   surface?: string;
   surfaceSecondary?: string;
   border?: string;
@@ -193,6 +195,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     primary: "#315D7A",
     secondary: "#1e3a4c",
     accent: "#0284c7",
+    nameColor: "#245B80",
     text: "#101820",
     mutedText: "#475569",
   },
@@ -207,6 +210,7 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     primary: "#8A6A3E",
     secondary: "#5c4526",
     accent: "#d97706",
+    nameColor: "#604622",
     text: "#17130E",
     mutedText: "#574c3e",
   },
@@ -386,30 +390,21 @@ export function resolveThemeTokens(card: {
   const themeId = (card.theme || card.profileTheme || "").toLowerCase();
   const bg = card.profileBackground || "#050B14";
   const accent = card.profileAccent || "#0066FF";
-  const text = card.profileText || "#FFFFFF";
   const mc = card.modernConfig || {};
 
   // Check matching preset:
-  // A preset ONLY dictates curated surface/secondary/primary tokens if the card's
-  // background and accent (and text if defined) actually match that preset.
-  // Whenever the user customizes any color, custom values are 100% authoritative!
+  // A preset dictates curated tokens if matching by themeId or by background/accent
   const matchingPreset = PROFILE_THEME_PRESETS.find(
     (p) =>
       p.background.toLowerCase() === bg.toLowerCase() &&
-      p.accent.toLowerCase() === accent.toLowerCase() &&
-      (!p.text || !text || p.text.toLowerCase() === text.toLowerCase())
+      p.accent.toLowerCase() === accent.toLowerCase()
   );
 
-  const preset = matchingPreset || (
+  const preset = (
     themeId && themeId !== "custom"
-      ? PROFILE_THEME_PRESETS.find(
-          (p) =>
-            p.id === themeId &&
-            p.background.toLowerCase() === bg.toLowerCase() &&
-            p.accent.toLowerCase() === accent.toLowerCase()
-        )
+      ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
       : undefined
-  );
+  ) || matchingPreset;
 
   const bgIsLight = isLightColor(bg);
 
@@ -456,9 +451,52 @@ export function resolveThemeTokens(card: {
   const secondaryBtnBorder =
     mc.secondaryBtnBorder ||
     (bgIsLight ? "rgba(0, 0, 0, 0.10)" : "rgba(255, 255, 255, 0.12)");
+
+  // 6. Typography, Text & Profile Name Tokens:
+  const presetDefaultNameColor =
+    preset?.nameColor ||
+    preset?.text ||
+    (bgIsLight ? "#0F172A" : "#FFFFFF");
+
+  const presetDefaultText =
+    preset?.text ||
+    (bgIsLight ? "#101820" : "#FFFFFF");
+
+  // Safeguard against stale white/near-white defaults on light backgrounds (e.g. #ffffff on #EEF3F7 is unreadable 1.1:1)
+  const rawText = card.profileText || presetDefaultText;
+  const isStaleWhiteOnLight =
+    bgIsLight &&
+    (rawText.toLowerCase() === "#ffffff" ||
+      rawText.toLowerCase() === "#f8fafc" ||
+      rawText.toLowerCase() === "#f9fafb" ||
+      getContrastRatio(rawText, surface) < 4.5);
+
+  const text = isStaleWhiteOnLight
+    ? presetDefaultText
+    : (getContrastRatio(rawText, surface) >= 4.5 ? rawText : ensureReadableTextColor(surface, rawText, 4.5));
+
   const secondaryBtnText = mc.secondaryBtnText || text;
 
-  // 6. Typography & Muted Text:
+  // Explicit user customization vs theme default for Profile Name:
+  const explicitName = card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor;
+  let resolvedNameColor: string;
+
+  if (explicitName && sanitizeHexColor(explicitName) !== sanitizeHexColor(presetDefaultNameColor)) {
+    // Intentional user custom name color: preserve it, ensuring readable contrast against surface
+    resolvedNameColor = ensureReadableTextColor(surface, explicitName, 4.5);
+  } else if (
+    card.profileText &&
+    !isStaleWhiteOnLight &&
+    card.profileText.toLowerCase() !== presetDefaultText.toLowerCase() &&
+    getContrastRatio(card.profileText, surface) >= 4.5
+  ) {
+    // User explicitly customized profileText to a non-default color
+    resolvedNameColor = card.profileText;
+  } else {
+    // Use theme-aware curated default (e.g. #245B80 for Arctic Pearl, #604622 for Ivory Estate)
+    resolvedNameColor = presetDefaultNameColor;
+  }
+
   const mutedText =
     mc.mutedText ||
     preset?.mutedText ||
@@ -552,6 +590,7 @@ export function resolveThemeTokens(card: {
     "--profile-secondary-border": secondaryBtnBorder,
     "--profile-secondary-text": secondaryBtnText,
     "--profile-accent": accent,
+    "--profile-name-color": resolvedNameColor,
     "--profile-text": text,
     "--profile-muted": mutedText,
     "--profile-icon": iconColor,
@@ -579,6 +618,7 @@ export function resolveThemeTokens(card: {
     // Public Card CSS compatibility variables:
     "--pc-bg": bg,
     "--pc-accent": primary,
+    "--pc-name-color": resolvedNameColor,
     "--pc-text": text,
     "--pc-surface": surface,
     "--pc-surface-secondary": surfaceSecondary,
@@ -603,6 +643,7 @@ export function resolveThemeTokens(card: {
     // Modern Profile CSS compatibility variables:
     "--mod-bg": bg,
     "--mod-accent": primary,
+    "--mod-name-color": resolvedNameColor,
     "--mod-text": text,
     "--mod-card-bg": surface,
     "--mod-card-border": border,
@@ -648,6 +689,7 @@ export function resolveThemeTokens(card: {
       secondaryBtnBorder,
       secondaryBtnText,
       accent,
+      nameColor: resolvedNameColor,
       text,
       mutedText,
       iconColor,
@@ -677,6 +719,7 @@ export function resolveThemeTokens(card: {
 export interface SimpleProfileThemeTokens {
   bg: string;
   cardBg: string;
+  nameColor: string;
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
@@ -735,6 +778,11 @@ export function resolveSimpleProfileTokens(card: {
   // 3. Resolve Primary Text with Readability / Contrast Protection
   // Target at least 4.5:1 contrast for normal text and 3:1 for large text.
   // Respect the user's chosen color whenever it is readable.
+  const presetDefaultNameColor =
+    preset?.nameColor ||
+    preset?.text ||
+    (bgIsLight ? "#0F172A" : "#F9FAFB");
+
   const fallbackText = preset?.text || (bgIsLight ? "#0F172A" : "#F9FAFB");
   const rawTextPrimary = sanitizeHexColor(card.profileText, fallbackText);
   const rawTextRatio = getContrastRatio(rawTextPrimary, bg);
@@ -742,6 +790,24 @@ export function resolveSimpleProfileTokens(card: {
   const textPrimary = textReadabilityAdjusted
     ? ensureReadableTextColor(bg, rawTextPrimary, 4.5)
     : rawTextPrimary;
+
+  // Explicit user customization vs theme default for Profile Name:
+  const explicitName = card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor;
+  let resolvedNameColor: string;
+
+  if (explicitName && sanitizeHexColor(explicitName) !== sanitizeHexColor(presetDefaultNameColor)) {
+    resolvedNameColor = ensureReadableTextColor(cardBg, explicitName, 4.5);
+  } else if (
+    card.profileText &&
+    !textReadabilityAdjusted &&
+    card.profileText.toLowerCase() !== "#ffffff" &&
+    card.profileText.toLowerCase() !== "#f8fafc" &&
+    card.profileText.toLowerCase() !== (preset?.text || "").toLowerCase()
+  ) {
+    resolvedNameColor = ensureReadableTextColor(cardBg, card.profileText, 4.5);
+  } else {
+    resolvedNameColor = presetDefaultNameColor;
+  }
 
   // 4. Derive Secondary & Muted Text consistently from textPrimary & bg:
   // Secondary text (bio, details, action items) - guaranteed >= 4.5:1
@@ -817,6 +883,7 @@ export function resolveSimpleProfileTokens(card: {
   const styleObj: Record<string, string> = {
     "--simple-bg": bg,
     "--simple-card-bg": cardBg,
+    "--simple-name-color": resolvedNameColor,
     "--simple-text-primary": textPrimary,
     "--simple-text-secondary": textSecondary,
     "--simple-text-muted": textMuted,
@@ -832,11 +899,13 @@ export function resolveSimpleProfileTokens(card: {
     "--simple-avatar-border": avatarBorder,
     "--simple-cover-fallback": coverFallback,
     "--simple-shadow": shadow,
+    "--profile-name-color": resolvedNameColor,
   };
 
   return {
     bg,
     cardBg,
+    nameColor: resolvedNameColor,
     textPrimary,
     textSecondary,
     textMuted,

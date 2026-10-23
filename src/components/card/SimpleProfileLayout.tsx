@@ -62,6 +62,8 @@ export interface SimpleProfileLayoutProps {
     profileBackground?: string;
     profileAccent?: string;
     profileText?: string;
+    nameColor?: string;
+    profileNameColor?: string;
     slug?: string;
     id?: string;
   };
@@ -256,7 +258,7 @@ export function SimpleProfileLayout({
 
         {/* ── 2. Name Heading, Job Title & Company ── */}
         <div className="zappit-simple-identity">
-          <h1 className="zappit-simple-name">{name}</h1>
+          <h1 className="zappit-simple-name" style={{ color: "var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)))" }}>{name}</h1>
 
           {(title || business) && (
             <p className="zappit-simple-subtitle">

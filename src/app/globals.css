@@ -6756,7 +6756,7 @@ body.dark-mode {
   font-size: 24px !important;
   font-weight: 600 !important;
   letter-spacing: -0.015em !important;
-  color: var(--profile-text, #F8FAFC) !important;
+  color: var(--profile-name-color, var(--mod-name-color, var(--profile-text, #F8FAFC))) !important;
   line-height: 1.25 !important;
   margin: 0 !important;
   word-break: break-word !important;
@@ -7273,11 +7273,6 @@ body.light-mode .zappit-modern-avatar-circle {
 [data-theme="light"] .zappit-modern-avatar-fallback,
 body.light-mode .zappit-modern-avatar-fallback {
   background: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-name,
-body.light-mode .zappit-modern-name {
   color: #0F172A !important;
 }
 

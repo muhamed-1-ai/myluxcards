@@ -563,4 +563,48 @@ body.light-mode .admin-owner-badge {
   opacity: 1 !important;
 }
 
+/* Credential Status Badges & Password Actions */
+.credential-status-pill {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+.credential-status-pill.enabled {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+
+.credential-status-pill.not-set {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #F59E0B !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+.admin-btn-setup-password {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #38bdf8 !important;
+  font-weight: 700 !important;
+}
+
+.admin-btn-setup-password:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+}
+
+.admin-btn-reset-password {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #94a3b8 !important;
+  border: 1px solid #334155 !important;
+}
+
+.admin-btn-reset-password:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
 
