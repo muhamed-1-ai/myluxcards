@@ -20,6 +20,7 @@ export interface FinancialAccount {
   subtype: string;
   current_balance_minor: number;
   is_active: boolean;
+  description?: string | null;
 }
 
 export interface Category {

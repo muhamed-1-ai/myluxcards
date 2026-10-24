@@ -7,6 +7,8 @@ export async function GET(req: Request) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(req.url);
+  const rawStatus = url.searchParams.get("status");
+  const status = rawStatus === "ALL" || rawStatus === "POSTED" || rawStatus === "VOIDED" ? rawStatus : undefined;
   const type = url.searchParams.get("type") || undefined;
   const categoryId = url.searchParams.get("categoryId") || undefined;
   const financialAccountId = url.searchParams.get("financialAccountId") || undefined;
@@ -18,6 +20,7 @@ export async function GET(req: Request) {
   const offset = url.searchParams.get("offset") ? parseInt(url.searchParams.get("offset")!, 10) : 0;
 
   const result = await listTransactions(context!.workspace.id, {
+    status,
     type,
     categoryId,
     financialAccountId,

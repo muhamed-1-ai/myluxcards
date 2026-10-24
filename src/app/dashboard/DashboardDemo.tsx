@@ -20,7 +20,7 @@ import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS } from "@/lib/cards";
+import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileContactNumbers } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
 
@@ -487,6 +487,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const lastSavedRef = useRef("");
+  const saveSeqRef = useRef(0);
 
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
@@ -938,6 +939,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const save = async (section: Tab, next?: Tab, silent = false) => {
     if (saving) return;
     if (!validate(section)) { setSaveStatus("error"); if (!silent) notify("Please fix the highlighted fields."); return; }
+    const currentSeq = ++saveSeqRef.current;
     setSaving(true);
     setSaveStatus("saving");
     if (!silent) notify("Saving your card…");
@@ -952,10 +954,24 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     setCards(saved);
     if (currentUser) cacheCards(currentUser.id, saved);
     try {
-      const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(optimizedDraft) });
+      // Filter empty draft rows for the network save payload ONLY
+      const payloadContactNumbers = Array.isArray(optimizedDraft.contactNumbers)
+        ? optimizedDraft.contactNumbers.filter((n, idx) => idx === 0 || Boolean((n.phoneNumber || "").trim()))
+        : optimizedDraft.contactNumbers;
+
+      const savePayload = {
+        ...optimizedDraft,
+        contactNumbers: payloadContactNumbers,
+      };
+
+      const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
       const payload = await response.json().catch(() => ({}));
       console.log("[ProfileImageDebug] SAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
       console.log("[MediaTrace] AUTOSAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
+      if (currentSeq !== saveSeqRef.current) {
+        // Discard stale in-flight response if a newer save was triggered
+        return;
+      }
       if (!response.ok) {
         if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); setSaving(false); return; }
         throw new Error(payload.message || "Cloud save failed.");
@@ -968,11 +984,22 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         const finalLogo = isLogoNewer ? currentDraft.logo : (cloudCard.logo || optimizedDraft.logo);
         const finalCover = isCoverNewer ? currentDraft.cover : (cloudCard.cover || optimizedDraft.cover);
 
+        // Reconcile contact numbers: do NOT write filtered collection back over editor draft rows!
+        const finalContactNumbers = reconcileContactNumbers(
+          currentDraft.contactNumbers,
+          cloudCard.contactNumbers
+        );
+
         const updated = {
-          ...currentDraft,
           ...cloudCard,
+          ...currentDraft,
+          id: cloudCard.id || currentDraft.id,
+          slug: cloudCard.slug || currentDraft.slug,
+          active: typeof cloudCard.active === "boolean" ? cloudCard.active : currentDraft.active,
+          activatedAt: cloudCard.activatedAt !== undefined ? cloudCard.activatedAt : currentDraft.activatedAt,
           logo: finalLogo,
           cover: finalCover,
+          contactNumbers: finalContactNumbers,
         };
 
         setCards((prevCards) => prevCards.map((c) => (c.id === updated.id ? updated : c)));

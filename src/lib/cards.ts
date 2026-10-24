@@ -30,6 +30,45 @@ export interface CardContactNumber {
 
 export const MAX_CONTACT_NUMBERS = 5;
 
+/**
+ * Reconciles draft contact numbers with server-persisted numbers.
+ *
+ * Guarantees that:
+ * 1. Empty, incomplete, or newly added draft rows are never erased by server responses.
+ * 2. Active user edits in draft rows (label, countryCode, phoneNumber) are never overwritten by stale responses.
+ * 3. Canonical order and row identity (stable id) are preserved.
+ * 4. Explicitly removed rows are not resurrected.
+ */
+export function reconcileContactNumbers(
+  draftRows: CardContactNumber[] | undefined,
+  savedRows: CardContactNumber[] | undefined
+): CardContactNumber[] {
+  if (!Array.isArray(draftRows) || draftRows.length === 0) {
+    return Array.isArray(savedRows) ? savedRows : [];
+  }
+  if (!Array.isArray(savedRows) || savedRows.length === 0) {
+    return draftRows;
+  }
+
+  const savedById = new Map<string, CardContactNumber>();
+  for (const row of savedRows) {
+    if (row && row.id) savedById.set(row.id, row);
+  }
+
+  return draftRows.map((draftRow) => {
+    const savedRow = savedById.get(draftRow.id);
+    if (!savedRow) {
+      // Row exists only in local draft (e.g. newly added row or empty/in-progress row)
+      return draftRow;
+    }
+    // Row exists in both: preserve user's local input while adopting any server metadata
+    return {
+      ...savedRow,
+      ...draftRow,
+    };
+  });
+}
+
 export interface SimpleConfig {
   coverScale?: number;
   coverRotation?: number;

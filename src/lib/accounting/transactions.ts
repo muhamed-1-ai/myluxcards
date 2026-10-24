@@ -4,8 +4,9 @@ import type { Queryable } from "@/lib/db/types";
 import type {
   UserTransactionRow,
   JournalEntryRow,
+  JournalLineRow,
 } from "./types";
-import { postJournalEntry, reverseJournalEntry } from "./ledger";
+import { postJournalEntry, reverseJournalEntry, type PostJournalLineInput } from "./ledger";
 import { getFinancialAccountByCode, getFinancialAccountById } from "./accounts";
 
 export interface CreateTransactionInput {
@@ -390,6 +391,7 @@ export async function createTransaction(
 
 export interface ListTransactionsFilter {
   type?: string;
+  status?: "POSTED" | "VOIDED" | "ALL";
   categoryId?: string;
   financialAccountId?: string;
   contactId?: string;
@@ -406,6 +408,13 @@ export async function listTransactions(
 ): Promise<{ transactions: UserTransactionRow[]; total: number }> {
   let where = `WHERE t.workspace_id = $1`;
   const params: unknown[] = [workspaceId];
+
+  // Default to POSTED if status is not explicitly provided, unless "ALL" is specified
+  const effectiveStatus = filter.status !== undefined ? filter.status : "POSTED";
+  if (effectiveStatus !== "ALL") {
+    params.push(effectiveStatus);
+    where += ` AND t.status = $${params.length}`;
+  }
 
   if (filter.type) {
     params.push(filter.type);
@@ -454,12 +463,15 @@ export async function listTransactions(
   params.push(limit, offset);
   const dataQuery = `
     SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
-           fa.name as account_name, c.name as contact_name
+           fa.name as account_name, c.name as contact_name,
+           u_void.name as voided_by_name, u_rest.name as restored_by_name
     FROM accounting_transactions t
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
     LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
     LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
     LEFT JOIN accounting_contacts c ON c.id = t.contact_id
+    LEFT JOIN users u_void ON u_void.id = t.voided_by
+    LEFT JOIN users u_rest ON u_rest.id = t.restored_by
     ${where}
     ORDER BY t.date DESC, t.created_at DESC
     LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -571,20 +583,186 @@ export async function voidTransaction(
     if (!tx) throw new Error("Transaction not found.");
     if (tx.status === "VOIDED") throw new Error("Transaction is already voided.");
 
-    // Reverse underlying journal entry
-    await reverseJournalEntry(workspaceId, tx.journal_entry_id, reason, userId);
+    // Reverse underlying journal entry (atomically reverses financial account balances)
+    await reverseJournalEntry(workspaceId, tx.journal_entry_id, reason, userId, client);
 
-    // Update transaction status
-    const updated = (
+    // Update transaction status and audit columns
+    await client.query(
+      `UPDATE accounting_transactions
+       SET status = 'VOIDED',
+           voided_at = NOW(),
+           voided_by = $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [userId || null, transactionId]
+    );
+
+    // Audit Log for the transaction entity
+    let actorId = userId || tx.created_by;
+    if (!actorId) {
+      const wsOwner = await client.query<{ owner_user_id: string }>(
+        `SELECT owner_user_id FROM accounting_workspaces WHERE id = $1`,
+        [workspaceId]
+      );
+      actorId = wsOwner.rows[0]?.owner_user_id || null;
+    }
+
+    if (actorId) {
+      await client.query(
+        `INSERT INTO accounting_audit_logs
+           (workspace_id, actor_id, actor_role, action, entity_type, entity_id, previous_state, new_state)
+         VALUES ($1, $2, 'STAFF', 'TRANSACTION_VOIDED', 'accounting_transactions', $3, $4, $5)`,
+        [
+          workspaceId,
+          actorId,
+          transactionId,
+          JSON.stringify({ status: tx.status }),
+          JSON.stringify({ status: "VOIDED", reason, voided_by: actorId }),
+        ]
+      );
+    }
+
+    const fullRes = await client.query<UserTransactionRow>(
+      `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
+              fa.name as account_name, c.name as contact_name,
+              u_void.name as voided_by_name, u_rest.name as restored_by_name
+       FROM accounting_transactions t
+       LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+       LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
+       LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
+       LEFT JOIN accounting_contacts c ON c.id = t.contact_id
+       LEFT JOIN users u_void ON u_void.id = t.voided_by
+       LEFT JOIN users u_rest ON u_rest.id = t.restored_by
+       WHERE t.id = $1 AND t.workspace_id = $2`,
+      [transactionId, workspaceId]
+    );
+
+    return fullRes.rows[0];
+  });
+}
+
+/**
+ * Restore a voided expense transaction atomically.
+ * Reinstates the double-entry accounting effect once, creates balanced journal entries,
+ * preserves full audit trail, and returns the transaction to All Transactions.
+ */
+export async function restoreTransaction(
+  workspaceId: string,
+  transactionId: string,
+  reason: string = "Expense restored by user",
+  userId?: string
+): Promise<UserTransactionRow> {
+  return withTransaction(async (client) => {
+    // 1. Fetch transaction with FOR UPDATE row lock to prevent race conditions & duplicate restorations
+    const tx = (
       await client.query<UserTransactionRow>(
-        `UPDATE accounting_transactions
-         SET status = 'VOIDED', updated_at = NOW()
-         WHERE id = $1
-         RETURNING *`,
-        [transactionId]
+        `SELECT * FROM accounting_transactions WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
+        [transactionId, workspaceId]
       )
     ).rows[0];
 
-    return updated;
+    if (!tx) throw new Error("Transaction not found.");
+    if (tx.status !== "VOIDED") throw new Error("Transaction is already active.");
+    if (tx.type !== "EXPENSE") throw new Error("Only voided expense transactions can be restored.");
+
+    // 2. Fetch the journal entry currently linked to this transaction
+    const journalRes = await client.query<JournalEntryRow>(
+      `SELECT * FROM accounting_journal_entries WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
+      [tx.journal_entry_id, workspaceId]
+    );
+    const origJournal = journalRes.rows[0];
+    if (!origJournal) {
+      throw new Error("Associated journal entry not found.");
+    }
+
+    // 3. Fetch lines for the original entry to reinstate exact debits and credits
+    const linesRes = await client.query<JournalLineRow>(
+      `SELECT * FROM accounting_journal_lines WHERE journal_entry_id = $1`,
+      [origJournal.id]
+    );
+    const lines = linesRes.rows;
+    if (!lines || lines.length === 0) {
+      throw new Error("Journal entry lines not found for reinstatement.");
+    }
+
+    // Reinstatement lines mirror the original debits and credits
+    const reinstatementLines: PostJournalLineInput[] = lines.map((l) => ({
+      financialAccountId: l.financial_account_id,
+      debitMinor: Number(l.debit_minor),
+      creditMinor: Number(l.credit_minor),
+      description: `Reinstatement of ${origJournal.entry_number}: ${l.description || "Restored expense"}`,
+    }));
+
+    // 4. Post balanced reinstatement entry (applies double-entry financial effect once)
+    const txDate = tx.date ? String(tx.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const { entry: reinstatement } = await postJournalEntry(
+      {
+        workspaceId,
+        entryType: "EXPENSE",
+        entryDate: txDate,
+        description: `Reinstatement of ${origJournal.entry_number}: ${reason}`,
+        reference: origJournal.entry_number,
+        sourceType: "TRANSACTION",
+        sourceId: tx.id,
+        lines: reinstatementLines,
+        userId,
+      },
+      client
+    );
+
+    // 5. Update transaction: return to POSTED, link new active journal entry, set restored audit info
+    await client.query(
+      `UPDATE accounting_transactions
+       SET status = 'POSTED',
+           journal_entry_id = $1,
+           restored_at = NOW(),
+           restored_by = $2,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [reinstatement.id, userId || null, transactionId]
+    );
+
+    // 6. Audit Log
+    let actorId = userId || tx.created_by;
+    if (!actorId) {
+      const wsOwner = await client.query<{ owner_user_id: string }>(
+        `SELECT owner_user_id FROM accounting_workspaces WHERE id = $1`,
+        [workspaceId]
+      );
+      actorId = wsOwner.rows[0]?.owner_user_id || null;
+    }
+
+    if (actorId) {
+      await client.query(
+        `INSERT INTO accounting_audit_logs
+           (workspace_id, actor_id, actor_role, action, entity_type, entity_id, previous_state, new_state)
+         VALUES ($1, $2, 'STAFF', 'TRANSACTION_RESTORED', 'accounting_transactions', $3, $4, $5)`,
+        [
+          workspaceId,
+          actorId,
+          tx.id,
+          JSON.stringify({ status: tx.status, previous_journal_entry_id: origJournal.id }),
+          JSON.stringify({ status: "POSTED", reinstatement_journal_id: reinstatement.id, reason, restored_by: actorId }),
+        ]
+      );
+    }
+
+    // 7. Return complete updated row with joined accounts, categories, and actor names
+    const fullRes = await client.query<UserTransactionRow>(
+      `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
+              fa.name as account_name, c.name as contact_name,
+              u_void.name as voided_by_name, u_rest.name as restored_by_name
+       FROM accounting_transactions t
+       LEFT JOIN accounting_categories cat ON cat.id = t.category_id
+       LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
+       LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
+       LEFT JOIN accounting_contacts c ON c.id = t.contact_id
+       LEFT JOIN users u_void ON u_void.id = t.voided_by
+       LEFT JOIN users u_rest ON u_rest.id = t.restored_by
+       WHERE t.id = $1 AND t.workspace_id = $2`,
+      [transactionId, workspaceId]
+    );
+
+    return fullRes.rows[0];
   });
 }

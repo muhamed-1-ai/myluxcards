@@ -108,6 +108,7 @@ export async function getDashboardMetrics(
      JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
      WHERE je.workspace_id = $1
        AND je.status = 'POSTED'
+       AND je.entry_type != 'REVERSAL'
        AND fa.subtype IN ('CASH', 'BANK', 'UPI')
        AND je.entry_date >= $2
        AND je.entry_date <= $3
@@ -127,6 +128,7 @@ export async function getDashboardMetrics(
      JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
      WHERE je.workspace_id = $1
        AND je.status = 'POSTED'
+       AND je.entry_type != 'REVERSAL'
        AND je.entry_date >= $2
        AND je.entry_date <= $3`,
     [workspaceId, start, end]
@@ -146,6 +148,7 @@ export async function getDashboardMetrics(
      JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
      WHERE je.workspace_id = $1
        AND je.status = 'POSTED'
+       AND je.entry_type != 'REVERSAL'
        AND fa.subtype IN ('CASH', 'BANK', 'UPI')
        AND je.entry_date >= (CURRENT_DATE - INTERVAL '6 months')
        AND je.entry_type != 'OPENING_BALANCE'
@@ -200,7 +203,7 @@ export async function getDashboardMetrics(
      LEFT JOIN accounting_categories cat ON cat.id = t.category_id
      LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
      LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
-     WHERE t.workspace_id = $1
+     WHERE t.workspace_id = $1 AND t.status = 'POSTED'
      ORDER BY t.date DESC, t.created_at DESC
      LIMIT 5`,
     [workspaceId]
@@ -378,13 +381,31 @@ export async function getReceivablesAging(workspaceId: string): Promise<Receivab
   }));
 }
 
+export interface ExportTransactionsOptions {
+  status?: "POSTED" | "VOIDED";
+  type?: string;
+}
+
 /**
  * Generate Excel / CSV export buffer for transactions or financial reports.
  */
 export async function generateTransactionsExport(
   workspaceId: string,
-  format: "xlsx" | "csv" = "xlsx"
+  format: "xlsx" | "csv" = "xlsx",
+  options: ExportTransactionsOptions = {}
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+  let where = `WHERE t.workspace_id = $1`;
+  const params: unknown[] = [workspaceId];
+
+  const status = options.status || "POSTED";
+  params.push(status);
+  where += ` AND t.status = $${params.length}`;
+
+  if (options.type) {
+    params.push(options.type);
+    where += ` AND t.type = $${params.length}`;
+  }
+
   const query = `
     SELECT
       t.date as "Date",
@@ -397,27 +418,36 @@ export async function generateTransactionsExport(
       fa.name as "Financial Account",
       (t.amount_minor::numeric / 100.0) as "Amount (INR)",
       t.status as "Status",
-      COALESCE(t.notes, '') as "Notes"
+      COALESCE(t.notes, '') as "Notes",
+      CASE
+        WHEN t.voided_at IS NOT NULL THEN TO_CHAR(t.voided_at, 'YYYY-MM-DD HH24:MI')
+        ELSE ''
+      END as "Voided At",
+      COALESCE(u_void.name, '') as "Voided By"
     FROM accounting_transactions t
     LEFT JOIN accounting_contacts c ON c.id = t.contact_id
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
     LEFT JOIN accounting_categories p ON p.id = cat.parent_id
     LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
-    WHERE t.workspace_id = $1
+    LEFT JOIN users u_void ON u_void.id = t.voided_by
+    ${where}
     ORDER BY t.date DESC, t.created_at DESC
   `;
-  const res = await pool.query(query, [workspaceId]);
+  const res = await pool.query(query, params);
+
+  const sheetName = status === "VOIDED" ? "Voided Expenses" : "Transactions";
+  const filePrefix = status === "VOIDED" ? "zappit_voided_expenses" : "zappit_transactions";
 
   const worksheet = XLSX.utils.json_to_sheet(res.rows);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
   const dateStr = new Date().toISOString().slice(0, 10);
   if (format === "csv") {
     const csvContent = XLSX.utils.sheet_to_csv(worksheet);
     return {
       buffer: Buffer.from(csvContent, "utf8"),
-      filename: `zappit_transactions_${dateStr}.csv`,
+      filename: `${filePrefix}_${dateStr}.csv`,
       contentType: "text/csv; charset=utf-8",
     };
   }
@@ -425,7 +455,7 @@ export async function generateTransactionsExport(
   const xlsxBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
   return {
     buffer: Buffer.from(xlsxBuffer),
-    filename: `zappit_transactions_${dateStr}.xlsx`,
+    filename: `${filePrefix}_${dateStr}.xlsx`,
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
 }

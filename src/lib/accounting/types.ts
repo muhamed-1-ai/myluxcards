@@ -251,6 +251,12 @@ export interface UserTransactionRow {
   parent_category_name?: string | null;
   account_name?: string | null;
   contact_name?: string | null;
+  voided_at?: Date | string | null;
+  voided_by?: string | null;
+  voided_by_name?: string | null;
+  restored_at?: Date | string | null;
+  restored_by?: string | null;
+  restored_by_name?: string | null;
 }
 
 export interface LoanRow {

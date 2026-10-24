@@ -48,6 +48,8 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
         return <TransactionsView initialSubtab="TRANSACTIONS" />;
       case "accounting-accounts-transfers":
         return <TransactionsView initialSubtab="BALANCES" />;
+      case "accounting-voided":
+        return <TransactionsView initialSubtab="VOIDED" />;
       case "accounting-people":
         return <PeopleView />;
       case "accounting-sales-invoices":
