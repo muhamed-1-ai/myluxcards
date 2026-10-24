@@ -125,6 +125,42 @@ export default function LeadContactCardDrawer({
       }
     }
   };
+  const allDrawerPhones: Array<{
+    id: string;
+    label: string;
+    displayNumber: string;
+    rawNumber: string;
+    telLink: string;
+    isValid: boolean;
+  }> = [];
+
+  if (Array.isArray(activeContact?.contactNumbers) && activeContact.contactNumbers.length > 0) {
+    for (const item of activeContact.contactNumbers) {
+      const raw = (item.phoneNumber || "").trim();
+      if (!raw) continue;
+      const parsed = normalizePhoneNumber(raw, item.countryCode || countryContext);
+      allDrawerPhones.push({
+        id: item.id || `phone-${allDrawerPhones.length}`,
+        label: item.label || (item.isPrimary ? "Mobile" : "Phone"),
+        displayNumber: parsed.isValid ? (parsed.displayFormatted || parsed.normalized) : raw,
+        rawNumber: raw,
+        telLink: parsed.telLink || (raw ? `tel:${raw}` : ""),
+        isValid: parsed.isValid,
+      });
+    }
+  }
+
+  if (allDrawerPhones.length === 0 && rawPhone) {
+    allDrawerPhones.push({
+      id: "primary",
+      label: "Mobile",
+      displayNumber: phone,
+      rawNumber: rawPhone,
+      telLink: telLink,
+      isValid: normPhone.isValid,
+    });
+  }
+
   const email = (activeContact?.email || "").trim();
   const company = (
     activeContact?.companyName ||
@@ -354,33 +390,40 @@ export default function LeadContactCardDrawer({
 
         {/* Contact Details Surface */}
         <div className="zappit-details-surface">
-          {rawPhone && (
-            <div className="zappit-detail-row">
+          {allDrawerPhones.map((p) => (
+            <div key={p.id} className="zappit-detail-row">
               <div className="zappit-detail-content">
-                <span className="zappit-detail-label">Mobile</span>
+                <span className="zappit-detail-label">{p.label}</span>
                 <a
-                  href={normPhone.isValid ? telLink : undefined}
-                  onClick={(e) => handlePhoneActionValidation(e, "Call")}
+                  href={p.isValid ? p.telLink : undefined}
+                  onClick={(e) => {
+                    if (!p.isValid) {
+                      e.preventDefault();
+                      if (onToastFeedback) {
+                        onToastFeedback(`Cannot call: invalid phone number.`, true);
+                      }
+                    }
+                  }}
                   className="zappit-detail-value"
                 >
-                  {phone}
+                  {p.displayNumber}
                 </a>
               </div>
               <button
                 type="button"
-                onClick={() => handleCopy(normPhone.normalized || rawPhone, "Mobile Number")}
+                onClick={() => handleCopy(p.displayNumber, `${p.label} Number`)}
                 className="zappit-copy-btn"
-                title="Copy Mobile Number"
-                aria-label="Copy Mobile Number"
+                title={`Copy ${p.label} Number`}
+                aria-label={`Copy ${p.label} Number`}
               >
-                {copiedField === "Mobile Number" ? (
+                {copiedField === `${p.label} Number` ? (
                   <Check className="w-4 h-4 text-emerald-500" />
                 ) : (
                   <Copy className="w-4 h-4" />
                 )}
               </button>
             </div>
-          )}
+          ))}
 
           {email && (
             <div className="zappit-detail-row">

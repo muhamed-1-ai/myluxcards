@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { normalizePhoneNumber } from "./phone";
 
 export function formatCountryCode(code?: string | null): string {
   if (!code) return "+";
@@ -15,7 +16,19 @@ export const CARD_FIELDS = [
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
   "profileFeatures","featureOrder","profileFormat","modernConfig","simpleConfig",
+  "contactNumbers",
 ] as const;
+
+export interface CardContactNumber {
+  id: string;
+  label: string;
+  countryCode: string;
+  phoneNumber: string;
+  isPrimary: boolean;
+  sortOrder?: number;
+}
+
+export const MAX_CONTACT_NUMBERS = 5;
 
 export interface SimpleConfig {
   coverScale?: number;
@@ -218,6 +231,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   profileFormat: "modern",
   modernConfig: {},
   simpleConfig: {},
+  contactNumbers: [] as CardContactNumber[],
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
   profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
   featureOrder: [ ...DEFAULT_FEATURE_ORDER ],
@@ -234,7 +248,49 @@ export function cleanCardProfile(input: Record<string, unknown>) {
   const output: Record<string, unknown> = {};
   for (const field of CARD_FIELDS) {
     const value = input[field];
-    if (field === "social" && value && typeof value === "object" && !Array.isArray(value)) {
+    if (field === "contactNumbers") {
+      if (Array.isArray(value)) {
+        const cleanedNumbers: CardContactNumber[] = [];
+        const seenNormalized = new Set<string>();
+        for (let i = 0; i < Math.min(value.length, MAX_CONTACT_NUMBERS); i++) {
+          const item = value[i];
+          if (!item || typeof item !== "object") continue;
+          const rawNum = String((item as any).phoneNumber || (item as any).number || (item as any).phone || "").trim();
+          const cleanPhone = rawNum.replace(/[^0-9+]/g, "").slice(0, 30);
+          if (!cleanPhone) continue;
+          const rawCc = String((item as any).countryCode || input.countryCode || "").trim().slice(0, 10);
+          const countryCode = /^\+?[0-9]{0,5}$/.test(rawCc) ? rawCc : "";
+          const norm = normalizePhoneNumber(cleanPhone, countryCode);
+          const numNormKey = norm.isValid ? norm.normalized : `${countryCode}:${cleanPhone.replace(/\D/g, "")}`;
+          if (seenNormalized.has(numNormKey)) continue;
+          seenNormalized.add(numNormKey);
+
+          const label = String((item as any).label || (i === 0 ? "Mobile" : "Other")).trim().slice(0, 40) || (i === 0 ? "Mobile" : "Other");
+          const isPrimary = (item as any).isPrimary === true || (cleanedNumbers.length === 0 && (item as any).isPrimary !== false);
+
+          cleanedNumbers.push({
+            id: String((item as any).id || `num_${i}_${Date.now()}`).slice(0, 50),
+            label,
+            countryCode,
+            phoneNumber: cleanPhone,
+            isPrimary,
+            sortOrder: typeof (item as any).sortOrder === "number" ? (item as any).sortOrder : i,
+          });
+        }
+        if (cleanedNumbers.length > 0) {
+          const hasPrimary = cleanedNumbers.some((n) => n.isPrimary);
+          if (!hasPrimary) cleanedNumbers[0].isPrimary = true;
+          output.contactNumbers = cleanedNumbers;
+          const primaryNumber = cleanedNumbers.find((n) => n.isPrimary) || cleanedNumbers[0];
+          output.mobile = primaryNumber.phoneNumber;
+          if (primaryNumber.countryCode) {
+            output.countryCode = primaryNumber.countryCode;
+          }
+        } else {
+          output.contactNumbers = [];
+        }
+      }
+    } else if (field === "social" && value && typeof value === "object" && !Array.isArray(value)) {
       output.social = Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 12)
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
     } else if (field === "services" && Array.isArray(value)) {
@@ -396,9 +452,25 @@ export function completeCardProfile(input: unknown) {
   const resolvedBg = isLegacyGoldDefault ? "#050B14" : (cleaned.profileBackground || "#050B14");
   const resolvedAccent = isLegacyGoldDefault ? "#0066FF" : (cleaned.profileAccent || "#0066FF");
 
+  const rawContactNumbers = Array.isArray(cleaned.contactNumbers) ? (cleaned.contactNumbers as CardContactNumber[]) : [];
+  let resolvedContactNumbers: CardContactNumber[] = rawContactNumbers;
+  if (resolvedContactNumbers.length === 0 && cleaned.mobile) {
+    resolvedContactNumbers = [
+      {
+        id: "primary_mobile",
+        label: "Mobile",
+        countryCode: (cleaned.countryCode as string) || "+91",
+        phoneNumber: cleaned.mobile as string,
+        isPrimary: true,
+        sortOrder: 0,
+      },
+    ];
+  }
+
   return {
     ...CARD_PROFILE_DEFAULTS,
     ...cleaned,
+    contactNumbers: resolvedContactNumbers,
     profileFormat: cleaned.profileFormat === "simple" ? "simple" : "modern",
     simpleConfig: cleaned.simpleConfig && typeof cleaned.simpleConfig === "object" ? cleaned.simpleConfig : {},
     profileBackground: resolvedBg,

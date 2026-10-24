@@ -20,7 +20,8 @@ import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode } from "@/lib/cards";
+import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS } from "@/lib/cards";
+import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
 
 const AccountingApp = dynamic(
@@ -167,6 +168,7 @@ type Card = {
   vehicleConnect?: VehicleConnectSettings;
   emergencyContact?: EmergencyContactSettings;
   lostAndFound?: LostAndFoundSettings;
+  contactNumbers?: CardContactNumber[];
   theme?: string;
   profileTheme?: string;
 };
@@ -305,6 +307,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     vehicleConnect: { vehicleMake: "", vehicleModel: "", vehicleColor: "", licensePlate: "", parkingNote: "If my vehicle is blocking traffic or parked improperly, please tap below to notify me immediately.", allowDirectCall: true, allowDirectMessage: true, showEmergencyContact: true },
     emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
     lostAndFound: { itemName: "", itemCategory: "Other", rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!", returnInstructions: "Please contact me using the form below or drop this item off at building reception.", allowAnonymousMessage: true },
+    contactNumbers: [],
   };
 };
 const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUser | null): Card => {
@@ -331,6 +334,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     vehicleConnect: { ...fallback.vehicleConnect, ...(card.vehicleConnect || {}) },
     emergencyContact: { ...fallback.emergencyContact, ...(card.emergencyContact || {}) },
     lostAndFound: { ...fallback.lostAndFound, ...(card.lostAndFound || {}) },
+    contactNumbers: Array.isArray(card.contactNumbers) ? card.contactNumbers : [],
   };
 };
 const emptyCard = createBlankCard({ id: "", name: "", email: "" });
@@ -911,6 +915,20 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       if (!fieldValue(draft.name)) next.name = "Card name is required.";
       if (draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) next.email = "Enter a valid email.";
       if (!validUrl(draft.website)) next.website = "Include http:// or https://.";
+      if (Array.isArray(draft.contactNumbers) && draft.contactNumbers.length > 1) {
+        const seen = new Set<string>();
+        for (const num of draft.contactNumbers) {
+          const raw = (num.phoneNumber || "").trim();
+          if (!raw) continue;
+          const norm = normalizePhoneNumber(raw, num.countryCode || draft.countryCode || "+91");
+          const key = norm.isValid ? norm.normalized : `${num.countryCode || draft.countryCode}:${raw}`;
+          if (seen.has(key)) {
+            next.phoneDuplicate = "Duplicate phone numbers detected. Each number must be unique.";
+            break;
+          }
+          seen.add(key);
+        }
+      }
     }
     if (section === "social" || section === "dashboard") socialFields.forEach((key) => {
       if (!validUrl(draft.social[key])) next[key] = "Include http:// or https://.";
@@ -4650,6 +4668,8 @@ function cleanNationalPhoneInput(val: string, countryCode?: string): string {
 function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) {
   const [dialCodes, setDialCodes] = useState<DialCode[]>([]);
   const [locationApi, setLocationApi] = useState<LocationApi | null>(null);
+  const [focusTargetId, setFocusTargetId] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([import("world-countries"), import("country-state-city")]).then(([countryModule, locationModule]) => {
@@ -4675,6 +4695,7 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
     });
     return () => { cancelled = true; };
   }, []);
+
   const selectedCountryIso = draft.countryIso || dialCodes.find((country) => country.code === draft.countryCode)?.iso || "";
   const selectedCountry = dialCodes.find((country) => country.iso === selectedCountryIso);
   const countryLabel = (country: DialCode) => `${country.flag} ${country.name} (${country.code})`;
@@ -4682,6 +4703,7 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
   useEffect(() => {
     setCountryQuery(selectedCountry ? countryLabel(selectedCountry) : "");
   }, [selectedCountryIso, selectedCountry?.name]);
+
   const availableStates = selectedCountryIso && locationApi ? locationApi.getStatesOfCountry(selectedCountryIso) : [];
   const selectedStateCode = draft.stateCode || availableStates.find((state) => state.name === draft.state)?.isoCode || "";
   const availableCities = selectedCountryIso && selectedStateCode && locationApi ? locationApi.getCitiesOfState(selectedCountryIso, selectedStateCode) : [];
@@ -4690,56 +4712,401 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
   const [cityQuery, setCityQuery] = useState(draft.city || "");
   useEffect(() => { setStateQuery(selectedState?.name || ""); }, [selectedCountryIso, selectedStateCode]);
   useEffect(() => { setCityQuery(draft.city || ""); }, [selectedCountryIso, selectedStateCode, draft.city]);
-  return <><div className="form-intro"><h2>Personal details</h2><p>Information visitors can use to connect with you.</p></div><div className="form-grid">
-    <Field label="Card Name *" error={errors.name}><input value={draft.name} onChange={(e) => update("name", e.target.value)} placeholder="Your full name" /></Field>
-    <Field label="Title / Job Description"><input value={draft.title} onChange={(e) => update("title", e.target.value)} placeholder="e.g. Creative Director" /></Field>
-    <Field label="Business Name"><input value={draft.business} onChange={(e) => update("business", e.target.value)} placeholder="Your company" /></Field>
-    <Field label="Country Code"><div className="country-search">
-      <span aria-hidden>⌕</span>
-      <input value={countryQuery} list="country-code-options" autoComplete="off" placeholder="Search country or calling code..." onChange={(e) => {
-        const query = e.target.value;
-        setCountryQuery(query);
-        const normalized = query.trim().toLowerCase();
-        const country = dialCodes.find((item) =>
-          countryLabel(item).toLowerCase() === normalized ||
-          item.name.toLowerCase() === normalized ||
-          item.iso.toLowerCase() === normalized ||
-          item.code.toLowerCase() === normalized
-        );
-        if (!country) return;
-        update("countryIso", country.iso); update("countryCode", country.code);
-        update("state", ""); update("stateCode", ""); update("city", "");
-      }} onBlur={() => setCountryQuery(selectedCountry ? countryLabel(selectedCountry) : "")} />
-      <datalist id="country-code-options">{dialCodes.map((country) => <option key={country.iso} value={countryLabel(country)} />)}</datalist>
-    </div></Field>
-    <Field label="Mobile Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.mobile} onChange={(e) => { const cleaned = cleanNationalPhoneInput(e.target.value, draft.countryCode); update("mobile", cleaned); if (same) update("whatsapp", cleaned); }} inputMode="tel" placeholder="e.g. 9555555345" /></div></Field>
-    <Field label="WhatsApp Number"><div className="phone"><span>{formatCountryCode(draft.countryCode)}</span><input value={draft.whatsapp} disabled={same} onChange={(e) => update("whatsapp", cleanNationalPhoneInput(e.target.value, draft.countryCode))} inputMode="tel" placeholder="e.g. 9555555345" /></div><label className="same"><input type="checkbox" checked={same} onChange={(e) => { setSame(e.target.checked); if (e.target.checked) update("whatsapp", draft.mobile); }} /> Same as mobile</label></Field>
-    <Field label="Email Address" error={errors.email}><input type="email" value={draft.email} onChange={(e) => update("email", e.target.value)} placeholder="name@company.com" /></Field>
-    <Field label="Website" error={errors.website}><input value={draft.website} onChange={(e) => update("website", e.target.value)} placeholder="https://example.com" /></Field>
-    <Field label="State / Province"><div className={`country-search ${!selectedCountryIso ? "is-disabled" : ""}`}>
-      <span aria-hidden>⌕</span>
-      <input value={stateQuery} list="state-options" autoComplete="off" disabled={!selectedCountryIso} placeholder={selectedCountryIso ? "Search state or province..." : "Select a country first"} onChange={(e) => {
-        const query = e.target.value; setStateQuery(query);
-        const normalized = query.trim().toLowerCase();
-        const state = availableStates.find((item) => item.name.toLowerCase() === normalized || item.isoCode.toLowerCase() === normalized);
-        if (!state) return;
-        update("stateCode", state.isoCode); update("state", state.name); update("city", "");
-      }} onBlur={() => setStateQuery(selectedState?.name || "")} />
-      <datalist id="state-options">{availableStates.map((state) => <option key={state.isoCode} value={state.name}>{state.isoCode}</option>)}</datalist>
-    </div></Field>
-    <Field label="City"><div className={`country-search ${!selectedStateCode ? "is-disabled" : ""}`}>
-      <span aria-hidden>⌕</span>
-      <input value={cityQuery} list="city-options" autoComplete="off" disabled={!selectedStateCode} placeholder={selectedStateCode ? "Search city..." : "Select a state first"} onChange={(e) => {
-        const query = e.target.value; setCityQuery(query);
-        const normalized = query.trim().toLowerCase();
-        const city = availableCities.find((item) => item.name.toLowerCase() === normalized);
-        if (city) update("city", city.name);
-      }} onBlur={() => setCityQuery(draft.city || "")} />
-      <datalist id="city-options">{availableCities.map((city) => <option key={`${city.name}-${city.latitude}-${city.longitude}`} value={city.name} />)}</datalist>
-    </div></Field>
-    <Field label="Address" wide><textarea rows={4} value={draft.address} onChange={(e) => update("address", e.target.value)} placeholder="Street, area and postal code" /></Field>
-    <Field label="Brochure (PDF, max 5 MB)" wide error={errors.brochure}><label className="file-pick"><input type="file" accept="application/pdf" onChange={(e) => handleFile(e, "brochure")} /><span>Choose PDF</span><b>{draft.brochure || "No file chosen"}</b></label></Field>
-  </div></>;
+
+  // Synchronize contact rows with fallback to draft.mobile
+  const contactRows: CardContactNumber[] = useMemo(() => {
+    if (Array.isArray(draft.contactNumbers) && draft.contactNumbers.length > 0) {
+      return draft.contactNumbers.map((row: CardContactNumber, idx: number) => {
+        if (idx === 0) {
+          return {
+            ...row,
+            phoneNumber: draft.mobile !== undefined ? draft.mobile : row.phoneNumber,
+            countryCode: draft.countryCode || row.countryCode || "+91",
+            isPrimary: true,
+          };
+        }
+        return row;
+      });
+    }
+    return [
+      {
+        id: "primary",
+        label: "Mobile",
+        countryCode: draft.countryCode || "+91",
+        phoneNumber: draft.mobile || "",
+        isPrimary: true,
+      },
+    ];
+  }, [draft.contactNumbers, draft.mobile, draft.countryCode]);
+
+  // Duplicate phone detection
+  const duplicateIds = useMemo(() => {
+    const seen = new Map<string, string>();
+    const dupes = new Set<string>();
+    for (const row of contactRows) {
+      const raw = (row.phoneNumber || "").trim();
+      if (!raw) continue;
+      const norm = normalizePhoneNumber(raw, row.countryCode || draft.countryCode || "+91");
+      const key = norm.isValid ? norm.normalized : `${row.countryCode || draft.countryCode}:${raw}`;
+      if (seen.has(key)) {
+        dupes.add(row.id);
+        dupes.add(seen.get(key)!);
+      } else {
+        seen.set(key, row.id);
+      }
+    }
+    return dupes;
+  }, [contactRows, draft.countryCode]);
+
+  const handlePrimaryPhoneChange = (val: string) => {
+    const cleaned = cleanNationalPhoneInput(val, draft.countryCode);
+    update("mobile", cleaned);
+    if (same) update("whatsapp", cleaned);
+
+    const nextRows = contactRows.map((r, i) =>
+      i === 0 ? { ...r, phoneNumber: cleaned, countryCode: draft.countryCode || "+91", isPrimary: true } : r
+    );
+    update("contactNumbers", nextRows);
+  };
+
+  const handleRemovePrimary = () => {
+    if (contactRows.length <= 1) return;
+    const nextPrimary = {
+      ...contactRows[1],
+      isPrimary: true,
+      label: contactRows[1].label || "Mobile",
+    };
+    const nextRows = [nextPrimary, ...contactRows.slice(2)];
+    update("mobile", nextPrimary.phoneNumber || "");
+    update("countryCode", nextPrimary.countryCode || draft.countryCode || "+91");
+    if (same) update("whatsapp", nextPrimary.phoneNumber || "");
+    update("contactNumbers", nextRows);
+  };
+
+  const handleAddRow = () => {
+    if (contactRows.length >= MAX_CONTACT_NUMBERS) return;
+    const newId = `phone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const newRow: CardContactNumber = {
+      id: newId,
+      label: "Work",
+      countryCode: draft.countryCode || "+91",
+      phoneNumber: "",
+      isPrimary: false,
+    };
+    const nextRows = [...contactRows, newRow];
+    setFocusTargetId(newId);
+    update("contactNumbers", nextRows);
+  };
+
+  const handleUpdateAdditionalRow = (id: string, field: keyof CardContactNumber, val: any) => {
+    const nextRows = contactRows.map((r) => {
+      if (r.id !== id) return r;
+      return { ...r, [field]: val };
+    });
+    update("contactNumbers", nextRows);
+  };
+
+  const handleRemoveAdditionalRow = (id: string) => {
+    const nextRows = contactRows.filter((r) => r.id !== id);
+    update("contactNumbers", nextRows);
+  };
+
+  return (
+    <>
+      <div className="form-intro">
+        <h2>Personal details</h2>
+        <p>Information visitors can use to connect with you.</p>
+      </div>
+      <div className="form-grid">
+        <Field label="Card Name *" error={errors.name}>
+          <input value={draft.name} onChange={(e) => update("name", e.target.value)} placeholder="Your full name" />
+        </Field>
+        <Field label="Title / Job Description">
+          <input value={draft.title} onChange={(e) => update("title", e.target.value)} placeholder="e.g. Creative Director" />
+        </Field>
+        <Field label="Business Name">
+          <input value={draft.business} onChange={(e) => update("business", e.target.value)} placeholder="Your company" />
+        </Field>
+        <Field label="Country Code">
+          <div className="country-search">
+            <span aria-hidden>⌕</span>
+            <input
+              value={countryQuery}
+              list="country-code-options"
+              autoComplete="off"
+              placeholder="Search country or calling code..."
+              onChange={(e) => {
+                const query = e.target.value;
+                setCountryQuery(query);
+                const normalized = query.trim().toLowerCase();
+                const country = dialCodes.find((item) =>
+                  countryLabel(item).toLowerCase() === normalized ||
+                  item.name.toLowerCase() === normalized ||
+                  item.iso.toLowerCase() === normalized ||
+                  item.code.toLowerCase() === normalized
+                );
+                if (!country) return;
+                update("countryIso", country.iso);
+                update("countryCode", country.code);
+                update("state", "");
+                update("stateCode", "");
+                update("city", "");
+                if (contactRows.length > 0) {
+                  const nextRows = contactRows.map((r, i) => (i === 0 ? { ...r, countryCode: country.code } : r));
+                  update("contactNumbers", nextRows);
+                }
+              }}
+              onBlur={() => setCountryQuery(selectedCountry ? countryLabel(selectedCountry) : "")}
+            />
+            <datalist id="country-code-options">
+              {dialCodes.map((country) => (
+                <option key={country.iso} value={countryLabel(country)} />
+              ))}
+            </datalist>
+          </div>
+        </Field>
+
+        <Field
+          label={
+            <span className="phone-field-header">
+              <span>Mobile Number</span>
+              {contactRows.length > 1 && <span className="zappit-primary-badge">Primary</span>}
+            </span>
+          }
+          error={duplicateIds.has(contactRows[0]?.id) ? "Duplicate phone number" : undefined}
+        >
+          <div className={`phone ${duplicateIds.has(contactRows[0]?.id) ? "is-duplicate" : ""}`}>
+            <span>{formatCountryCode(draft.countryCode)}</span>
+            <input
+              value={draft.mobile}
+              onChange={(e) => handlePrimaryPhoneChange(e.target.value)}
+              inputMode="tel"
+              placeholder="e.g. 9876543210"
+              aria-label="Primary mobile phone number"
+            />
+            {contactRows.length > 1 && (
+              <button
+                type="button"
+                className="primary-phone-remove-btn"
+                onClick={handleRemovePrimary}
+                title="Remove primary number and promote next number"
+                aria-label="Remove primary mobile number"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </Field>
+
+        <Field label="WhatsApp Number">
+          <div className="phone">
+            <span>{formatCountryCode(draft.countryCode)}</span>
+            <input
+              value={draft.whatsapp}
+              disabled={same}
+              onChange={(e) => update("whatsapp", cleanNationalPhoneInput(e.target.value, draft.countryCode))}
+              inputMode="tel"
+              placeholder="e.g. 9876543210"
+            />
+          </div>
+          <label className="same">
+            <input
+              type="checkbox"
+              checked={same}
+              onChange={(e) => {
+                setSame(e.target.checked);
+                if (e.target.checked) update("whatsapp", draft.mobile);
+              }}
+            />
+            Same as mobile
+          </label>
+        </Field>
+
+        {/* Additional Phone Numbers & Add Button Section */}
+        <div className="additional-phones-section wide">
+          {duplicateIds.size > 0 && (
+            <div className="phone-duplicate-warning" role="alert">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Duplicate phone number detected. Each number must be unique.
+            </div>
+          )}
+
+          {contactRows.slice(1).map((row, idx) => (
+            <div key={row.id} className="additional-phone-row">
+              <div className="phone-row-label">
+                <span className="phone-row-sublabel">Label</span>
+                <input
+                  type="text"
+                  value={row.label || ""}
+                  onChange={(e) => handleUpdateAdditionalRow(row.id, "label", e.target.value)}
+                  placeholder="e.g. Work, Office"
+                  list={`label-presets-${row.id}`}
+                  maxLength={30}
+                  aria-label={`Label for phone ${idx + 2}`}
+                />
+                <datalist id={`label-presets-${row.id}`}>
+                  <option value="Work" />
+                  <option value="Office" />
+                  <option value="Personal" />
+                  <option value="Home" />
+                  <option value="Direct" />
+                  <option value="Emergency" />
+                </datalist>
+              </div>
+
+              <div className="phone-row-country">
+                <span className="phone-row-sublabel">Country</span>
+                <div className="phone-country-select-wrap">
+                  <select
+                    value={row.countryCode || draft.countryCode || "+91"}
+                    onChange={(e) => handleUpdateAdditionalRow(row.id, "countryCode", e.target.value)}
+                    aria-label={`Country code for phone ${idx + 2}`}
+                  >
+                    {dialCodes.map((c) => (
+                      <option key={c.iso} value={c.code}>
+                        {c.flag} {c.code} ({c.name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="phone-row-number">
+                <span className="phone-row-sublabel">Phone Number</span>
+                <div className={`phone ${duplicateIds.has(row.id) ? "is-duplicate" : ""}`}>
+                  <span>{formatCountryCode(row.countryCode || draft.countryCode || "+91")}</span>
+                  <input
+                    ref={(el) => {
+                      if (el && focusTargetId === row.id) {
+                        el.focus();
+                        setFocusTargetId(null);
+                      }
+                    }}
+                    type="tel"
+                    inputMode="tel"
+                    value={row.phoneNumber || ""}
+                    onChange={(e) =>
+                      handleUpdateAdditionalRow(
+                        row.id,
+                        "phoneNumber",
+                        cleanNationalPhoneInput(e.target.value, row.countryCode || draft.countryCode)
+                      )
+                    }
+                    placeholder="e.g. 9876543210"
+                    aria-label={`Phone number for ${row.label || "additional phone"}`}
+                  />
+                </div>
+              </div>
+
+              <div className="phone-row-action">
+                <button
+                  type="button"
+                  className="phone-remove-btn"
+                  onClick={() => handleRemoveAdditionalRow(row.id)}
+                  aria-label={`Remove ${row.label || "additional"} phone number`}
+                  title="Remove this phone number"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {contactRows.length < MAX_CONTACT_NUMBERS ? (
+            <button
+              type="button"
+              className="add-phone-btn"
+              onClick={handleAddRow}
+            >
+              <span className="add-phone-icon" aria-hidden>＋</span>
+              <span>Add another number</span>
+            </button>
+          ) : (
+            <div className="max-phone-notice">Maximum {MAX_CONTACT_NUMBERS} phone numbers reached</div>
+          )}
+        </div>
+
+        <Field label="Email Address" error={errors.email}>
+          <input type="email" value={draft.email} onChange={(e) => update("email", e.target.value)} placeholder="name@company.com" />
+        </Field>
+        <Field label="Website" error={errors.website}>
+          <input value={draft.website} onChange={(e) => update("website", e.target.value)} placeholder="https://example.com" />
+        </Field>
+        <Field label="State / Province">
+          <div className={`country-search ${!selectedCountryIso ? "is-disabled" : ""}`}>
+            <span aria-hidden>⌕</span>
+            <input
+              value={stateQuery}
+              list="state-options"
+              autoComplete="off"
+              disabled={!selectedCountryIso}
+              placeholder={selectedCountryIso ? "Search state or province..." : "Select a country first"}
+              onChange={(e) => {
+                const query = e.target.value;
+                setStateQuery(query);
+                const normalized = query.trim().toLowerCase();
+                const state = availableStates.find((item) => item.name.toLowerCase() === normalized || item.isoCode.toLowerCase() === normalized);
+                if (!state) return;
+                update("stateCode", state.isoCode);
+                update("state", state.name);
+                update("city", "");
+              }}
+              onBlur={() => setStateQuery(selectedState?.name || "")}
+            />
+            <datalist id="state-options">
+              {availableStates.map((state) => (
+                <option key={state.isoCode} value={state.name}>
+                  {state.isoCode}
+                </option>
+              ))}
+            </datalist>
+          </div>
+        </Field>
+        <Field label="City">
+          <div className={`country-search ${!selectedStateCode ? "is-disabled" : ""}`}>
+            <span aria-hidden>⌕</span>
+            <input
+              value={cityQuery}
+              list="city-options"
+              autoComplete="off"
+              disabled={!selectedStateCode}
+              placeholder={selectedStateCode ? "Search city..." : "Select a state first"}
+              onChange={(e) => {
+                const query = e.target.value;
+                setCityQuery(query);
+                const normalized = query.trim().toLowerCase();
+                const city = availableCities.find((item) => item.name.toLowerCase() === normalized);
+                if (city) update("city", city.name);
+              }}
+              onBlur={() => setCityQuery(draft.city || "")}
+            />
+            <datalist id="city-options">
+              {availableCities.map((city) => (
+                <option key={`${city.name}-${city.latitude}-${city.longitude}`} value={city.name} />
+              ))}
+            </datalist>
+          </div>
+        </Field>
+        <Field label="Address" wide>
+          <textarea rows={4} value={draft.address} onChange={(e) => update("address", e.target.value)} placeholder="Street, area and postal code" />
+        </Field>
+        <Field label="Brochure (PDF, max 5 MB)" wide error={errors.brochure}>
+          <label className="file-pick">
+            <input type="file" accept="application/pdf" onChange={(e) => handleFile(e, "brochure")} />
+            <span>Choose PDF</span>
+            <b>{draft.brochure || "No file chosen"}</b>
+          </label>
+        </Field>
+      </div>
+    </>
+  );
 }
 function SocialForm({ draft, update, errors }: any) {
   return <><div className="form-intro"><h2>Apps &amp; links</h2><p>Add social profiles, your Google Maps location, and useful links for visitors.</p></div><div className="social-list">{socialFields.map((key) => <Field key={key} label={`${key} URL`} error={errors[key]}><div className="social-input"><span>{key === "Google Maps" ? "⌖" : key[0]}</span><input value={draft.social[key] || ""} onChange={(e) => update("social", { ...draft.social, [key]: e.target.value })} placeholder={key === "Google Maps" ? "Paste your Google Maps place or directions link" : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`} /></div></Field>)}</div></>;
@@ -4896,6 +5263,23 @@ function AppearanceForm({
       const { nameColor, ...rest } = draft.modernConfig;
       update("modernConfig", rest);
     }
+  };
+
+  const handleResetNameToTheme = () => {
+    const activeTheme =
+      profileThemes.find((t) => t.id === draft.theme) ||
+      profileThemes.find(
+        (t) =>
+          t.background.toLowerCase() === draft.profileBackground?.toLowerCase() &&
+          t.accent.toLowerCase() === draft.profileAccent?.toLowerCase()
+      ) ||
+      profileThemes[0];
+
+    if (draft.modernConfig?.nameColor) {
+      const { nameColor, ...rest } = draft.modernConfig;
+      update("modernConfig", rest);
+    }
+    update("profileText", activeTheme.text);
   };
 
   return (
@@ -5137,13 +5521,25 @@ function AppearanceForm({
           fallback="#F7F3EA"
           onColorChange={handleCustomColorChange}
         />
-        <button
-          type="button"
-          className="reset-profile-colours"
-          onClick={handleResetToObsidianLuxe}
-        >
-          Reset to Obsidian Luxe
-        </button>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", width: "100%", marginTop: "6px" }}>
+          <button
+            type="button"
+            className="reset-profile-colours"
+            style={{ marginTop: 0 }}
+            onClick={handleResetNameToTheme}
+            title="Reset profile name color to active theme default"
+          >
+            Reset Name to Theme
+          </button>
+          <button
+            type="button"
+            className="reset-profile-colours"
+            style={{ marginTop: 0 }}
+            onClick={handleResetToObsidianLuxe}
+          >
+            Reset to Obsidian Luxe
+          </button>
+        </div>
         {currentPreview === "simple" && resolveSimpleProfileTokens(draft).textReadabilityAdjusted && (
           <div
             className="profile-readability-notice"
@@ -5466,7 +5862,7 @@ function AppearanceForm({
 
 
 
-function Field({ label, error, wide, children }: { label: string; error?: string; wide?: boolean; children: React.ReactNode }) {
+function Field({ label, error, wide, children }: { label: React.ReactNode; error?: string; wide?: boolean; children: React.ReactNode }) {
   return <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}><span>{label}</span>{children}{error && <em>{error}</em>}</label>;
 }
 

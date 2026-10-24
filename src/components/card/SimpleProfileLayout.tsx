@@ -63,9 +63,15 @@ export interface SimpleProfileLayoutProps {
     profileAccent?: string;
     profileText?: string;
     nameColor?: string;
-    profileNameColor?: string;
     slug?: string;
     id?: string;
+    contactNumbers?: Array<{
+      id?: string;
+      label?: string;
+      countryCode?: string;
+      phoneNumber: string;
+      isPrimary?: boolean;
+    }>;
   };
   profileProducts?: CardProfileProduct[];
   onSaveContact?: () => void;
@@ -130,10 +136,53 @@ export function SimpleProfileLayout({
   const business = (card.business || "").trim();
   const about = (card.about || "").trim();
 
-  // Normalize phone & whatsapp
-  const normPhone = normalizePhoneNumber(card.mobile, card.countryCode || card.countryIso);
-  const fullPhone = normPhone.isValid ? (normPhone.displayFormatted || normPhone.normalized) : (card.mobile || "");
-  const telHref = normPhone.isValid ? `tel:${normPhone.normalized}` : (card.mobile ? `tel:${card.mobile}` : "");
+  // Multi-phone resolver
+  const allPhones: Array<{
+    id: string;
+    label?: string;
+    displayNumber: string;
+    telHref: string;
+    rawNumber: string;
+    isPrimary?: boolean;
+  }> = [];
+
+  if (Array.isArray(card.contactNumbers) && card.contactNumbers.length > 0) {
+    for (const item of card.contactNumbers) {
+      const raw = (item.phoneNumber || "").trim();
+      if (!raw) continue;
+      const parsed = normalizePhoneNumber(raw, item.countryCode || card.countryCode || card.countryIso);
+      const display = parsed.isValid ? (parsed.displayFormatted || parsed.normalized) : raw;
+      const tel = parsed.isValid ? `tel:${parsed.normalized}` : `tel:${raw}`;
+      allPhones.push({
+        id: item.id || `phone-${allPhones.length}`,
+        label: item.label || (item.isPrimary ? "Mobile" : "Phone"),
+        displayNumber: display,
+        telHref: tel,
+        rawNumber: raw,
+        isPrimary: item.isPrimary,
+      });
+    }
+  }
+
+  // Fallback to card.mobile if no contactNumbers provided
+  if (allPhones.length === 0 && card.mobile && card.mobile.trim()) {
+    const raw = card.mobile.trim();
+    const parsed = normalizePhoneNumber(raw, card.countryCode || card.countryIso);
+    const display = parsed.isValid ? (parsed.displayFormatted || parsed.normalized) : raw;
+    const tel = parsed.isValid ? `tel:${parsed.normalized}` : `tel:${raw}`;
+    allPhones.push({
+      id: "primary-phone",
+      label: "Mobile",
+      displayNumber: display,
+      telHref: tel,
+      rawNumber: raw,
+      isPrimary: true,
+    });
+  }
+
+  const primaryPhone = allPhones[0];
+  const fullPhone = primaryPhone ? primaryPhone.displayNumber : "";
+  const telHref = primaryPhone ? primaryPhone.telHref : "";
 
   const normWhatsapp = normalizePhoneNumber(card.whatsapp, card.countryCode || card.countryIso);
   const waDigits = normWhatsapp.isValid ? normWhatsapp.normalized.replace(/[^0-9]/g, "") : (card.whatsapp ? card.whatsapp.replace(/[^0-9]/g, "") : "");
@@ -258,7 +307,16 @@ export function SimpleProfileLayout({
 
         {/* ── 2. Name Heading, Job Title & Company ── */}
         <div className="zappit-simple-identity">
-          <h1 className="zappit-simple-name" style={{ color: "var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)))" }}>{name}</h1>
+          <h1
+            className="zappit-simple-name"
+            style={{
+              color: "var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)))",
+              WebkitTextFillColor: "var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)))",
+              opacity: 1,
+            }}
+          >
+            {name}
+          </h1>
 
           {(title || business) && (
             <p className="zappit-simple-subtitle">
@@ -343,32 +401,32 @@ export function SimpleProfileLayout({
         )}
 
         {/* ── 5. Detailed Direct Contacts (Copyable List) ── */}
-        {(fullPhone || card.email || websiteHref) && (
+        {(allPhones.length > 0 || card.email || websiteHref) && (
           <div className="zappit-simple-contact-list">
-            {fullPhone && (
-              <div className="zappit-simple-contact-row">
+            {allPhones.map((phone) => (
+              <div key={phone.id} className="zappit-simple-contact-row">
                 <div className="zappit-simple-contact-left">
                   <span className="zappit-simple-contact-icon">
                     <Phone className="w-4 h-4" />
                   </span>
                   <div className="zappit-simple-contact-text">
-                    <span className="zappit-simple-contact-label">Mobile</span>
-                    <a href={telHref} className="zappit-simple-contact-value">
-                      {fullPhone}
+                    <span className="zappit-simple-contact-label">{phone.label || "Phone"}</span>
+                    <a href={phone.telHref} className="zappit-simple-contact-value">
+                      {phone.displayNumber}
                     </a>
                   </div>
                 </div>
                 <button
                   type="button"
                   className="zappit-simple-copy-btn"
-                  onClick={() => handleCopy(fullPhone, "phone")}
-                  aria-label="Copy phone number"
-                  title="Copy phone"
+                  onClick={() => handleCopy(phone.displayNumber, `phone-${phone.id}`)}
+                  aria-label={`Copy ${phone.label || "phone"} number`}
+                  title={`Copy ${phone.label || "phone"}`}
                 >
-                  {copiedLabel === "phone" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedLabel === `phone-${phone.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
-            )}
+            ))}
 
             {card.email && (
               <div className="zappit-simple-contact-row">

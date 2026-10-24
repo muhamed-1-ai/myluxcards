@@ -57,7 +57,53 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       }
     }
 
-    const phone = safeCard.mobile || safeCard.whatsapp || safeCard.defaultContactPhone || "";
+    let contactNumbersList: Array<{ label?: string; phoneNumber?: string; number?: string; countryCode?: string; isPrimary?: boolean }> =
+      Array.isArray(safeCard.contactNumbers) ? safeCard.contactNumbers : [];
+
+    if (contactNumbersList.length === 0 && row.owner_id) {
+      try {
+        const contactNumsRes = await pool.query<{
+          label: string;
+          country_code: string;
+          phone_number: string;
+          is_primary: boolean;
+        }>(
+          `select label, country_code, phone_number, is_primary
+           from account_contact_numbers
+           where user_id = $1 and enabled = true
+           order by is_primary desc, sort_order asc, created_at asc`,
+          [row.owner_id]
+        );
+        contactNumbersList = contactNumsRes.rows.map((r) => ({
+          label: r.label,
+          countryCode: r.country_code,
+          phoneNumber: r.phone_number,
+          isPrimary: r.is_primary,
+        }));
+      } catch {
+        // fallback to safeCard.mobile
+      }
+    }
+
+    const primaryNumberObj = contactNumbersList.find((n) => n.isPrimary) || contactNumbersList[0];
+    const phone = primaryNumberObj
+      ? (primaryNumberObj.countryCode ? `${primaryNumberObj.countryCode}${primaryNumberObj.phoneNumber}` : primaryNumberObj.phoneNumber)
+      : (safeCard.mobile || safeCard.whatsapp || safeCard.defaultContactPhone || "");
+
+    const additionalPhones: Array<{ label?: string; number: string }> = [];
+    for (const num of contactNumbersList) {
+      if (num === primaryNumberObj) continue;
+      const raw = (num.phoneNumber || num.number || "").trim();
+      if (!raw) continue;
+      const formatted = num.countryCode ? `${num.countryCode}${raw}` : raw;
+      if (formatted && formatted !== phone) {
+        additionalPhones.push({
+          label: num.label || "WORK",
+          number: formatted,
+        });
+      }
+    }
+
     const email = safeCard.email || "";
     const company = safeCard.business || "";
     const title = safeCard.title || "";
@@ -74,6 +120,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       companyName: company,
       title,
       phone,
+      additionalPhones,
       email,
       website,
       address,

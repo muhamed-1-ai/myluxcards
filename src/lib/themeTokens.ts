@@ -343,11 +343,15 @@ export function getContrastRatio(hex1?: string, hex2?: string): number {
 export function ensureReadableTextColor(
   bgHex?: string,
   preferredHex?: string,
-  minRatio: number = 4.5
+  minRatio: number = 4.5,
+  defaultReadableFallback?: string
 ): string {
   if (!bgHex) return preferredHex || "#ffffff";
   if (preferredHex && getContrastRatio(preferredHex, bgHex) >= minRatio) {
     return preferredHex;
+  }
+  if (defaultReadableFallback && getContrastRatio(defaultReadableFallback, bgHex) >= minRatio) {
+    return defaultReadableFallback;
   }
   const whiteRatio = getContrastRatio("#ffffff", bgHex);
   const darkRatio = getContrastRatio("#0F172A", bgHex);
@@ -481,9 +485,21 @@ export function resolveThemeTokens(card: {
   const explicitName = card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor;
   let resolvedNameColor: string;
 
-  if (explicitName && sanitizeHexColor(explicitName) !== sanitizeHexColor(presetDefaultNameColor)) {
+  const isStaleWhiteExplicitName =
+    bgIsLight &&
+    explicitName &&
+    (explicitName.toLowerCase() === "#ffffff" ||
+      explicitName.toLowerCase() === "#fff" ||
+      explicitName.toLowerCase() === "#f8fafc" ||
+      explicitName.toLowerCase() === "#f5f6f8") &&
+    getContrastRatio(explicitName, surface) < 4.5;
+
+  if (isStaleWhiteExplicitName) {
+    // Stale/accidental white override on light background safely resolves to theme default
+    resolvedNameColor = presetDefaultNameColor;
+  } else if (explicitName && sanitizeHexColor(explicitName) !== sanitizeHexColor(presetDefaultNameColor)) {
     // Intentional user custom name color: preserve it, ensuring readable contrast against surface
-    resolvedNameColor = ensureReadableTextColor(surface, explicitName, 4.5);
+    resolvedNameColor = ensureReadableTextColor(surface, explicitName, 4.5, presetDefaultNameColor);
   } else if (
     card.profileText &&
     !isStaleWhiteOnLight &&
@@ -795,8 +811,19 @@ export function resolveSimpleProfileTokens(card: {
   const explicitName = card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor;
   let resolvedNameColor: string;
 
-  if (explicitName && sanitizeHexColor(explicitName) !== sanitizeHexColor(presetDefaultNameColor)) {
-    resolvedNameColor = ensureReadableTextColor(cardBg, explicitName, 4.5);
+  const isStaleWhiteExplicitName =
+    bgIsLight &&
+    explicitName &&
+    (explicitName.toLowerCase() === "#ffffff" ||
+      explicitName.toLowerCase() === "#fff" ||
+      explicitName.toLowerCase() === "#f8fafc" ||
+      explicitName.toLowerCase() === "#f5f6f8") &&
+    getContrastRatio(explicitName, cardBg) < 4.5;
+
+  if (isStaleWhiteExplicitName) {
+    resolvedNameColor = presetDefaultNameColor;
+  } else if (explicitName && sanitizeHexColor(explicitName) !== sanitizeHexColor(presetDefaultNameColor)) {
+    resolvedNameColor = ensureReadableTextColor(cardBg, explicitName, 4.5, presetDefaultNameColor);
   } else if (
     card.profileText &&
     !textReadabilityAdjusted &&
@@ -804,7 +831,7 @@ export function resolveSimpleProfileTokens(card: {
     card.profileText.toLowerCase() !== "#f8fafc" &&
     card.profileText.toLowerCase() !== (preset?.text || "").toLowerCase()
   ) {
-    resolvedNameColor = ensureReadableTextColor(cardBg, card.profileText, 4.5);
+    resolvedNameColor = ensureReadableTextColor(cardBg, card.profileText, 4.5, presetDefaultNameColor);
   } else {
     resolvedNameColor = presetDefaultNameColor;
   }

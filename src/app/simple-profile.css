@@ -548,15 +548,21 @@
   width: 100%;
 }
 
-.zappit-simple-name {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)));
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-  margin: 0;
-  word-break: break-word;
-  max-width: 100%;
+.zappit-simple-name,
+h1.zappit-simple-name {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary))) !important;
+  -webkit-text-fill-color: var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary))) !important;
+  opacity: 1 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 !important;
+  word-break: break-word !important;
+  max-width: 100% !important;
 }
 
 .zappit-simple-subtitle {

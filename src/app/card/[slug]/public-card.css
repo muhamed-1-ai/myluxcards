@@ -1887,4 +1887,17 @@ body.light-mode .pc-mode-switch-btn.active {
   }
 }
 
+/* ── Profile Name Color Isolation for Public Card ── */
+.zappit-modern-name,
+h1.zappit-modern-name,
+.zappit-simple-name,
+h1.zappit-simple-name {
+  color: var(--profile-name-color, var(--mod-name-color, var(--simple-name-color, var(--profile-text)))) !important;
+  -webkit-text-fill-color: var(--profile-name-color, var(--mod-name-color, var(--simple-name-color, var(--profile-text)))) !important;
+  opacity: 1 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+}
+
 

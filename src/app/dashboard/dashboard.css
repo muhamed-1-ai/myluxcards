@@ -6197,13 +6197,13 @@ body.light-mode .mode-settings-block {
   color: #0F172A !important;
 }
 
-[data-theme="light"] h1,
+[data-theme="light"] h1:not(.zappit-modern-name):not(.zappit-simple-name),
 [data-theme="light"] h2,
 [data-theme="light"] h3,
 [data-theme="light"] h4,
 [data-theme="light"] h5,
 [data-theme="light"] h6,
-body.light-mode h1,
+body.light-mode h1:not(.zappit-modern-name):not(.zappit-simple-name),
 body.light-mode h2,
 body.light-mode h3,
 body.light-mode h4,
@@ -6319,19 +6319,41 @@ body.dark-mode .mode-settings-block {
   color: #F5F6F8 !important;
 }
 
-[data-theme="dark"] h1,
+[data-theme="dark"] h1:not(.zappit-modern-name):not(.zappit-simple-name),
 [data-theme="dark"] h2,
 [data-theme="dark"] h3,
 [data-theme="dark"] h4,
 [data-theme="dark"] h5,
 [data-theme="dark"] h6,
-body.dark-mode h1,
+body.dark-mode h1:not(.zappit-modern-name):not(.zappit-simple-name),
 body.dark-mode h2,
 body.dark-mode h3,
 body.dark-mode h4,
 body.dark-mode h5,
 body.dark-mode h6 {
   color: #F5F6F8 !important;
+}
+
+/* Profile Name Color Isolation inside Card Preview:
+   Prevents dashboard dark/light theme overrides from forcing white/dark text into profile previews */
+.preview-card .zappit-modern-name,
+.preview-card h1.zappit-modern-name,
+[data-theme="dark"] .preview-card h1.zappit-modern-name,
+[data-theme="light"] .preview-card h1.zappit-modern-name,
+body.dark-mode .preview-card h1.zappit-modern-name,
+body.light-mode .preview-card h1.zappit-modern-name,
+.preview-card .zappit-simple-name,
+.preview-card h1.zappit-simple-name,
+[data-theme="dark"] .preview-card h1.zappit-simple-name,
+[data-theme="light"] .preview-card h1.zappit-simple-name,
+body.dark-mode .preview-card h1.zappit-simple-name,
+body.light-mode .preview-card h1.zappit-simple-name {
+  color: var(--profile-name-color, var(--mod-name-color, var(--simple-name-color, var(--profile-text)))) !important;
+  -webkit-text-fill-color: var(--profile-name-color, var(--mod-name-color, var(--simple-name-color, var(--profile-text)))) !important;
+  opacity: 1 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
 }
 
 [data-theme="dark"] input,
@@ -8709,5 +8731,219 @@ body.light-mode .qr-download-btn.svg-btn {
   background: #F1F5F9 !important;
   border: 1px solid #CBD5E1 !important;
   color: #0F172A !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MULTI-PHONE NUMBERS SECTION IN CONTACT INFO EDITOR
+   ───────────────────────────────────────────────────────────── */
+.phone-field-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zappit-primary-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(0, 102, 255, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  line-height: 1.2;
+}
+
+.primary-phone-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--input-border, var(--border-color));
+  color: var(--text-dim, #94a3b8);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  height: 100%;
+}
+
+.primary-phone-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.additional-phones-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: -6px;
+  margin-bottom: 8px;
+}
+
+.phone-duplicate-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.phone.is-duplicate {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
+}
+
+.additional-phone-row {
+  display: grid;
+  grid-template-columns: 140px 170px 1fr 42px;
+  gap: 12px;
+  align-items: end;
+}
+
+.phone-row-sublabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim, #94a3b8);
+  margin-bottom: 6px;
+}
+
+.phone-row-label input {
+  width: 100%;
+  border: 1px solid var(--input-border, var(--border-color));
+  border-radius: 8px;
+  background: var(--input-bg, var(--surface));
+  color: inherit;
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.phone-row-label input:focus {
+  border-color: var(--primary, #0066FF);
+}
+
+.phone-country-select-wrap select {
+  width: 100%;
+  border: 1px solid var(--input-border, var(--border-color));
+  border-radius: 8px;
+  background: var(--input-bg, var(--surface));
+  color: inherit;
+  padding: 10px 8px;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.phone-country-select-wrap select:focus {
+  border-color: var(--primary, #0066FF);
+}
+
+.phone-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--input-border, var(--border-color));
+  background: var(--input-bg, var(--surface));
+  color: var(--text-dim, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.phone-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.add-phone-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary, #0066FF);
+  background: rgba(0, 102, 255, 0.08);
+  border: 1px dashed rgba(0, 102, 255, 0.35);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-phone-btn:hover {
+  background: rgba(0, 102, 255, 0.16);
+  border-color: var(--primary, #0066FF);
+}
+
+.add-phone-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.max-phone-notice {
+  font-size: 12px;
+  color: var(--text-dim, #94a3b8);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+@media (max-width: 640px) {
+  .additional-phone-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--input-border, var(--border-color));
+    border-radius: 10px;
+  }
+  .phone-row-action {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .zappit-primary-badge,
+body.light-mode .zappit-primary-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+[data-theme="light"] .phone-duplicate-warning,
+body.light-mode .phone-duplicate-warning {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+[data-theme="light"] .add-phone-btn,
+body.light-mode .add-phone-btn {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+[data-theme="light"] .add-phone-btn:hover,
+body.light-mode .add-phone-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
 }
 

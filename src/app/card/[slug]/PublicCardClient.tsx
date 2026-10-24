@@ -209,6 +209,7 @@ type Card = {
   emergencyContact?: EmergencyContactSettings;
   lostAndFound?: LostAndFoundSettings;
   hasEmergencyPhone?: boolean;
+  contactNumbers?: ContactNumberItem[];
 };
 
 type PublicProfileView = "profile" | "vehicle" | "lost_found";
@@ -1305,6 +1306,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           phone,
           mobile: card.mobile,
           whatsapp: card.whatsapp,
+          contactNumbers: card.contactNumbers,
           countryCode: card.countryCode,
           countryIso: card.countryIso,
           email: card.email,

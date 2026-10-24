@@ -38,6 +38,8 @@ export interface ContactData {
   state?: string | null;
   country?: string | null;
   website?: string | null;
+  contactNumbers?: Array<{ id?: string; label?: string; phoneNumber?: string; number?: string; countryCode?: string; isPrimary?: boolean }> | null;
+  additionalPhones?: Array<{ label?: string; number: string }> | null;
 }
 
 export type ContactExportLead = ContactData;
@@ -90,12 +92,41 @@ export function serializeContactToVCard(contact: ContactData): string {
   const norm = normalizePhoneNumber(rawPhone, countryContext);
   const phone = norm.isValid ? norm.normalized : rawPhone;
 
+  const additionalPhones: Array<{ label?: string; number: string }> = [];
+  if (Array.isArray(contact.contactNumbers)) {
+    for (const item of contact.contactNumbers) {
+      if (item.isPrimary) continue;
+      const numRaw = (item.phoneNumber || item.number || "").trim();
+      if (!numRaw) continue;
+      const cc = item.countryCode || countryContext;
+      const normAdd = normalizePhoneNumber(numRaw, cc);
+      const val = normAdd.isValid ? normAdd.normalized : (cc ? `${cc}${numRaw}` : numRaw);
+      if (val && val !== phone) {
+        additionalPhones.push({
+          label: item.label || "WORK",
+          number: val,
+        });
+      }
+    }
+  } else if (Array.isArray(contact.additionalPhones)) {
+    for (const item of contact.additionalPhones) {
+      const numRaw = (item.number || "").trim();
+      if (numRaw && numRaw !== phone) {
+        additionalPhones.push({
+          label: item.label || "WORK",
+          number: numRaw,
+        });
+      }
+    }
+  }
+
   const vcardInput: VCardInput = {
     profileName: contact.name,
     cardName: contact.name,
     companyName: contact.companyName || contact.company_name || contact.business,
     title: contact.jobTitle || contact.job_title || contact.title,
     phone: phone || undefined,
+    additionalPhones: additionalPhones.length > 0 ? additionalPhones : undefined,
     email: contact.email || undefined,
     address: contact.address || undefined,
     city: contact.city || undefined,

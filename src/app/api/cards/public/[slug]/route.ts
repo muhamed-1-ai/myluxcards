@@ -568,8 +568,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       sortOrder: c.sort_order,
     }));
 
+    const effectiveContactNumbers = (Array.isArray(safeCard.contactNumbers) && safeCard.contactNumbers.length > 0)
+      ? safeCard.contactNumbers
+      : allAccountNumbers;
+
     return Response.json({
-      card: { ...safeCard, previewAuthorized },
+      card: { ...safeCard, contactNumbers: effectiveContactNumbers, previewAuthorized },
+      contactNumbers: effectiveContactNumbers,
       vehicles,
       lostItems,
       profileProducts,

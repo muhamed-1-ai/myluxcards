@@ -246,14 +246,20 @@ export async function PUT(request: Request) {
 
     const slug = cleanSlug(body.slug);
     if (slug.length < 3) return Response.json({ message: "Choose a valid card URL." }, { status: 400 });
-    const profile = cleanCardProfile(body);
 
     // slug=eq.${encodeURIComponent(statusSlug)}&owner_id=eq.${identity.id}
     let foundRes = body.id && /^[0-9a-f-]{36}$/i.test(body.id)
-      ? await pool.query<{ id: string; active: boolean; activated_at: Date | null }>(`select id, active, activated_at from digital_cards where id = $1 and owner_id = $2`, [body.id, identity.id])
-      : await pool.query<{ id: string; active: boolean; activated_at: Date | null }>(`select id, active, activated_at from digital_cards where slug = $1 and owner_id = $2`, [slug, identity.id]);
+      ? await pool.query<{ id: string; active: boolean; activated_at: Date | null; profile: unknown }>(`select id, active, activated_at, profile from digital_cards where id = $1 and owner_id = $2`, [body.id, identity.id])
+      : await pool.query<{ id: string; active: boolean; activated_at: Date | null; profile: unknown }>(`select id, active, activated_at, profile from digital_cards where slug = $1 and owner_id = $2`, [slug, identity.id]);
 
     const found = foundRes.rows[0];
+    const existingProfile = (found?.profile && typeof found.profile === "object" ? found.profile : {}) as Record<string, unknown>;
+    const mergedInput: Record<string, unknown> = { ...existingProfile, ...body };
+    if (body.contactNumbers === undefined && existingProfile.contactNumbers !== undefined) {
+      mergedInput.contactNumbers = existingProfile.contactNumbers;
+    }
+    const profile = cleanCardProfile(mergedInput);
+
     let row;
     if (found) {
       const stateChange = body.updateActive === true;
@@ -270,7 +276,31 @@ export async function PUT(request: Request) {
       );
       row = inserted.rows[0];
     }
-    return Response.json({ card: { id: row.id, ownerId: identity.id, slug: row.slug, ...(row.profile as any), active: row.active, activatedAt: row.activated_at } });
+
+    if (Array.isArray(profile.contactNumbers) && profile.contactNumbers.length > 0) {
+      try {
+        await pool.query("delete from account_contact_numbers where user_id = $1", [identity.id]);
+        for (let idx = 0; idx < profile.contactNumbers.length; idx++) {
+          const numItem = profile.contactNumbers[idx] as any;
+          await pool.query(
+            `insert into account_contact_numbers (user_id, label, country_code, phone_number, is_primary, enabled, sort_order)
+             values ($1, $2, $3, $4, $5, true, $6)`,
+            [
+              identity.id,
+              numItem.label || (idx === 0 ? "Mobile" : "Other"),
+              numItem.countryCode || "",
+              numItem.phoneNumber,
+              numItem.isPrimary === true,
+              idx,
+            ]
+          );
+        }
+      } catch (err) {
+        console.error("[account_contact_numbers sync error]", err);
+      }
+    }
+
+    return Response.json({ card: { id: row.id, ownerId: identity.id, slug: row.slug, ...completeCardProfile(row.profile), active: row.active, activatedAt: row.activated_at } });
   } catch (error: any) {
     if (error?.code === "23505") return Response.json({ message: "That card URL is already taken." }, { status: 409 });
     return safeError(error);

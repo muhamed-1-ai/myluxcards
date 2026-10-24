@@ -89,10 +89,16 @@ export interface ModernProfileLayoutProps {
     profileAccent?: string;
     profileText?: string;
     nameColor?: string;
-    profileNameColor?: string;
     modernConfig?: ModernProfileConfig;
     slug?: string;
     id?: string;
+    contactNumbers?: Array<{
+      id?: string;
+      label?: string;
+      countryCode?: string;
+      phoneNumber: string;
+      isPrimary?: boolean;
+    }>;
   };
   profileProducts?: CardProfileProduct[];
   onSaveContact?: () => void;
@@ -173,6 +179,41 @@ export function ModernProfileLayout({
   const fullPhone = normPhone.isValid ? (normPhone.displayFormatted || normPhone.normalized) : (card.mobile || "");
   const normWhatsapp = normalizePhoneNumber(card.whatsapp, card.countryCode || card.countryIso);
   const fullWhatsapp = normWhatsapp.isValid ? (normWhatsapp.displayFormatted || normWhatsapp.normalized) : (card.whatsapp || "");
+  // Resolve all contact numbers to display
+  const allPhones: Array<{
+    id: string;
+    label: string;
+    displayFormatted: string;
+    telLink?: string;
+    rawNormalized: string;
+  }> = [];
+
+  if (Array.isArray(card.contactNumbers) && card.contactNumbers.length > 0) {
+    for (let idx = 0; idx < card.contactNumbers.length; idx++) {
+      const item = card.contactNumbers[idx];
+      const rawNum = (item.phoneNumber || "").trim();
+      if (!rawNum) continue;
+      const cc = item.countryCode || card.countryCode || card.countryIso;
+      const norm = normalizePhoneNumber(rawNum, cc);
+      const displayFormatted = norm.isValid ? (norm.displayFormatted || norm.normalized) : (cc ? `${formatCountryCode(cc)} ${rawNum}` : rawNum);
+      allPhones.push({
+        id: item.id || `phone_${idx}`,
+        label: item.label || (idx === 0 ? "Mobile" : "Other"),
+        displayFormatted,
+        telLink: norm.isValid ? norm.telLink : `tel:${rawNum}`,
+        rawNormalized: norm.normalized || rawNum,
+      });
+    }
+  } else if (fullPhone) {
+    allPhones.push({
+      id: "primary_mobile",
+      label: "Mobile",
+      displayFormatted: fullPhone,
+      telLink: normPhone.isValid ? normPhone.telLink : `tel:${card.mobile}`,
+      rawNormalized: normPhone.normalized || card.mobile || "",
+    });
+  }
+
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
   const socialLinks = [
@@ -279,7 +320,7 @@ export function ModernProfileLayout({
 
         {/* ── 3. CENTERED PROFILE HEADER (Always stays below avatar) ── */}
         <div className="zappit-modern-header">
-          <h1 className="zappit-modern-name" style={{ color: "var(--profile-name-color, var(--mod-name-color, var(--profile-text)))" }}>{name}</h1>
+          <h1 className="zappit-modern-name">{name}</h1>
           {subtitle && <p className="zappit-modern-subtitle">{subtitle}</p>}
         </div>
 
@@ -295,7 +336,7 @@ export function ModernProfileLayout({
         />
 
         {/* ── 4. CONTACT DETAILS CARD ── */}
-        {(fullPhone || card.email || fullWhatsapp) && (
+        {(allPhones.length > 0 || card.email || fullWhatsapp) && (
           <div className="zappit-modern-card">
             <div className="zappit-modern-card-header">
               <User className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
@@ -303,9 +344,9 @@ export function ModernProfileLayout({
             </div>
 
             <div className="zappit-modern-contact-list">
-              {/* Phone Row */}
-              {fullPhone && (
-                <div className="zappit-modern-contact-row">
+              {/* Phone Rows */}
+              {allPhones.map((p) => (
+                <div key={p.id} className="zappit-modern-contact-row">
                   <div
                     className="zappit-modern-icon-circle"
                     style={{
@@ -316,21 +357,22 @@ export function ModernProfileLayout({
                     <Phone className="w-4 h-4" style={{ color: "var(--profile-primary-text, #ffffff)" }} />
                   </div>
                   <div className="zappit-modern-contact-body">
-                    <span className="zappit-modern-label">Mobile</span>
-                    <a href={normPhone.isValid ? normPhone.telLink : undefined} className="zappit-modern-val">
-                      {fullPhone}
+                    <span className="zappit-modern-label">{p.label}</span>
+                    <a href={p.telLink} className="zappit-modern-val">
+                      {p.displayFormatted}
                     </a>
                   </div>
                   <button
                     type="button"
                     className="zappit-modern-copy-btn"
-                    onClick={() => handleCopy(normPhone.normalized || fullPhone, "phone")}
-                    title="Copy phone"
+                    onClick={() => handleCopy(p.rawNormalized || p.displayFormatted, p.id)}
+                    title={`Copy ${p.label} phone`}
+                    aria-label={`Copy ${p.label} phone number`}
                   >
-                    {copiedField === "phone" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    {copiedField === p.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
-              )}
+              ))}
 
               {/* Email Row */}
               {card.email && (
