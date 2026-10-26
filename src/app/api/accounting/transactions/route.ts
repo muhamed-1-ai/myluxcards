@@ -59,6 +59,7 @@ export async function POST(req: Request) {
       dueDate: body.dueDate,
       notes: body.notes,
       attachmentUrl: body.attachmentUrl,
+      attachmentIds: Array.isArray(body.attachmentIds) ? body.attachmentIds : undefined,
       tags: body.tags,
       isRecurring: body.isRecurring,
       userId: context!.identity.id,

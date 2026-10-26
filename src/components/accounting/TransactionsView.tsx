@@ -5,6 +5,10 @@ import { useAccounting, type FinancialAccount } from "./AccountingContext";
 import type { AccountHistoryItem } from "@/lib/accounting/types";
 import { resolveTransactionCategory } from "@/lib/accounting/categoryResolver";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
+import { Paperclip } from "lucide-react";
+import TransactionAttachmentsDropzone from "./TransactionAttachmentsDropzone";
+import TransactionAttachmentViewerModal from "./TransactionAttachmentViewerModal";
+import type { TransactionAttachmentRow } from "@/lib/accounting/types";
 
 interface TransactionItem {
   id: string;
@@ -27,6 +31,8 @@ interface TransactionItem {
   restored_at?: string | null;
   restored_by?: string | null;
   restored_by_name?: string | null;
+  attachment_count?: number;
+  attachments?: TransactionAttachmentRow[];
 }
 
 interface TransactionsViewProps {
@@ -82,8 +88,16 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
   const [editSubCatId, setEditSubCatId] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editAttachments, setEditAttachments] = useState<TransactionAttachmentRow[]>([]);
+  const [editAttachmentIds, setEditAttachmentIds] = useState<string[]>([]);
+  const [editAttachmentsBusy, setEditAttachmentsBusy] = useState(false);
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Attachment Viewer Modal State
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerAttachments, setViewerAttachments] = useState<TransactionAttachmentRow[]>([]);
+  const [viewerTx, setViewerTx] = useState<TransactionItem | null>(null);
 
   // Void modal state
   const [voidingTx, setVoidingTx] = useState<TransactionItem | null>(null);
@@ -444,11 +458,41 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     }
   };
 
+  const openAttachmentViewer = async (tx: TransactionItem) => {
+    setViewerTx(tx);
+    setViewerOpen(true);
+    try {
+      const res = await fetch(`/api/accounting/transactions/${tx.id}/attachments`);
+      if (res.ok) {
+        const data = await res.json();
+        setViewerAttachments(data.attachments || []);
+      } else {
+        setViewerAttachments([]);
+      }
+    } catch {
+      setViewerAttachments([]);
+    }
+  };
+
   const openEditTx = (tx: TransactionItem) => {
     setEditingTx(tx);
     setEditError(null);
     setEditDate(tx.date || new Date().toISOString().split("T")[0]);
     setEditNotes(tx.notes || "");
+    setEditAttachments([]);
+    setEditAttachmentIds([]);
+    setEditAttachmentsBusy(false);
+
+    // Load saved attachments for editing
+    fetch(`/api/accounting/transactions/${tx.id}/attachments`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.attachments) {
+          setEditAttachments(data.attachments);
+          setEditAttachmentIds(data.attachments.map((a: any) => a.id));
+        }
+      })
+      .catch(() => {});
 
     const cat = categories.find((c) => c.id === tx.category_id);
     if (cat) {
@@ -469,6 +513,11 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     e.preventDefault();
     if (!editingTx) return;
 
+    if (editAttachmentsBusy) {
+      setEditError("Please wait for all file uploads to finish, or remove failed files.");
+      return;
+    }
+
     setSubmittingEdit(true);
     setEditError(null);
     try {
@@ -482,6 +531,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           subcategoryId: editSubCatId || null,
           date: editDate,
           notes: editNotes,
+          attachmentIds: editAttachmentIds,
         }),
       });
 
@@ -743,8 +793,24 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                       return (
                         <tr key={tx.id}>
                           <td>
-                            <div style={{ fontWeight: 600 }}>
-                              {tx.contact_name || tx.notes || "General Entry"}
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                              <span style={{ fontWeight: 600 }}>
+                                {tx.contact_name || tx.notes || "General Entry"}
+                              </span>
+                              {Boolean(tx.attachment_count && tx.attachment_count > 0) && (
+                                <button
+                                  type="button"
+                                  className="acc-tx-attachment-badge"
+                                  title={`View ${tx.attachment_count} attachment${(tx.attachment_count || 0) > 1 ? "s" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openAttachmentViewer(tx);
+                                  }}
+                                >
+                                  <Paperclip size={12} />
+                                  <span>{tx.attachment_count}</span>
+                                </button>
+                              )}
                             </div>
                             {tx.notes && tx.contact_name && (
                               <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
@@ -1110,8 +1176,24 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                       return (
                         <tr key={tx.id} style={{ opacity: 1 }}>
                           <td>
-                            <div style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
-                              {tx.contact_name || tx.notes || "General Entry"}
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                              <span style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
+                                {tx.contact_name || tx.notes || "General Entry"}
+                              </span>
+                              {Boolean(tx.attachment_count && tx.attachment_count > 0) && (
+                                <button
+                                  type="button"
+                                  className="acc-tx-attachment-badge"
+                                  title={`View ${tx.attachment_count} attachment${(tx.attachment_count || 0) > 1 ? "s" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openAttachmentViewer(tx);
+                                  }}
+                                >
+                                  <Paperclip size={12} />
+                                  <span>{tx.attachment_count}</span>
+                                </button>
+                              )}
                             </div>
                             {tx.notes && tx.contact_name && (
                               <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
@@ -1579,6 +1661,18 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 />
               </div>
 
+              {/* Attachments Section */}
+              <div className="acc-form-group">
+                <TransactionAttachmentsDropzone
+                  key={editingTx.id}
+                  transactionId={editingTx.id}
+                  initialAttachments={editAttachments}
+                  onChange={(ids) => setEditAttachmentIds(ids)}
+                  onErrorStateChange={(busy) => setEditAttachmentsBusy(busy)}
+                  disabled={submittingEdit}
+                />
+              </div>
+
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
                 <button
                   type="button"
@@ -1608,11 +1702,13 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           <div
             className="acc-modal-content acc-history-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "880px" }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="history-modal-title"
           >
-            <div className="acc-modal-header">
+            <div className="acc-modal-header acc-history-header">
               <div>
-                <h3 className="acc-modal-title">
+                <h3 id="history-modal-title" className="acc-modal-title">
                   Account History — {selectedHistoryAccount.name} ({selectedHistoryAccount.code})
                 </h3>
                 <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
@@ -1632,7 +1728,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
             <div className="acc-history-meta">
               <div className="acc-history-meta-item">
                 <span className="acc-history-meta-label">Account Code & Name</span>
-                <span className="acc-history-meta-value">
+                <span className="acc-history-meta-value" title={`${selectedHistoryAccount.code} · ${selectedHistoryAccount.name}`}>
                   {selectedHistoryAccount.code} · {selectedHistoryAccount.name}
                 </span>
               </div>
@@ -1664,138 +1760,220 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
               </div>
             </div>
 
-            {loadingHistory ? (
-              <div style={{ textAlign: "center", padding: "2.5rem", color: "var(--acc-text-muted)" }}>
-                Loading account history from general ledger...
-              </div>
-            ) : historyError ? (
-              <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
-                {historyError}
-              </div>
-            ) : historyItems.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "2.5rem", color: "var(--acc-text-muted)" }}>
-                No journal entries or funding records found for this account.
-              </div>
-            ) : (
-              <div className="acc-table-wrapper" style={{ maxHeight: "55vh", overflowY: "auto" }}>
-                <table className="acc-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: "95px", whiteSpace: "nowrap" }}>Date</th>
-                      <th style={{ width: "130px", whiteSpace: "nowrap" }}>Entry / Type</th>
-                      <th>Description & Counterpart</th>
-                      <th className="acc-align-right" style={{ width: "120px", whiteSpace: "nowrap" }}>Amount</th>
-                      <th style={{ width: "110px", whiteSpace: "nowrap" }}>Status</th>
-                      <th style={{ width: "130px", whiteSpace: "nowrap" }}>Recorded By</th>
-                      {canMutate && <th className="acc-align-right" style={{ width: "135px", whiteSpace: "nowrap" }}>Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
+            <div className="acc-history-body">
+              {loadingHistory ? (
+                <div className="acc-history-state-message">
+                  Loading account history from general ledger...
+                </div>
+              ) : historyError ? (
+                <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                  {historyError}
+                </div>
+              ) : historyItems.length === 0 ? (
+                <div className="acc-history-state-message">
+                  No journal entries or funding records found for this account.
+                </div>
+              ) : (
+                <>
+                  {/* Desktop & Tablet Table (>= 768px) with contained horizontal scroll and sticky actions */}
+                  <div className="acc-table-wrapper acc-history-table-wrapper">
+                    <table className="acc-table acc-history-table" aria-label="Account ledger history table">
+                      <thead>
+                        <tr>
+                          <th className="acc-history-th-date">Date</th>
+                          <th className="acc-history-th-entry">Entry / Type</th>
+                          <th className="acc-history-th-desc">Description & Counterpart</th>
+                          <th className="acc-align-right acc-history-th-amount">Amount</th>
+                          <th className="acc-history-th-status">Status</th>
+                          <th className="acc-history-th-recorder">Recorded By</th>
+                          {canMutate && <th className="acc-align-right acc-col-action acc-history-th-action">Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historyItems.map((entry) => (
+                          <tr key={entry.lineId}>
+                            <td className="acc-history-td-date">
+                              {entry.entryDate}
+                            </td>
+                            <td className="acc-history-td-entry">
+                              <div className="acc-history-entry-num">
+                                {entry.entryNumber}
+                              </div>
+                              <span
+                                className="acc-badge acc-badge-neutral"
+                                style={{ fontSize: "0.625rem", padding: "0.1rem 0.35rem" }}
+                              >
+                                {entry.displayType}
+                              </span>
+                            </td>
+                            <td className="acc-history-td-desc">
+                              <div className="acc-history-desc-title">
+                                {entry.description || "General ledger movement"}
+                              </div>
+                              <div className="acc-history-desc-sub">
+                                Counterpart: {entry.counterpartAccount}
+                              </div>
+                            </td>
+                            <td
+                              className={`acc-align-right tabular-nums acc-history-td-amount ${
+                                entry.direction === "INFLOW" ? "acc-direction-inflow" : "acc-direction-outflow"
+                              }`}
+                            >
+                              {entry.direction === "INFLOW" ? "+" : "-"}
+                              {formatMoney(entry.amountMinor, activeWorkspace?.currency)}
+                            </td>
+                            <td className="acc-history-td-status">
+                              {entry.status === "ACTIVE" ? (
+                                <span className="acc-badge acc-badge-success" style={{ fontSize: "0.6875rem" }}>
+                                  Active
+                                </span>
+                              ) : entry.status === "REVERSED" ? (
+                                <span
+                                  className="acc-badge acc-badge-neutral"
+                                  style={{ fontSize: "0.6875rem", opacity: 0.7 }}
+                                  title={entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed"}
+                                >
+                                  Reversed
+                                </span>
+                              ) : (
+                                <span className="acc-badge acc-badge-info" style={{ fontSize: "0.6875rem" }}>
+                                  Reversal
+                                </span>
+                              )}
+                            </td>
+                            <td className="acc-history-td-recorder">
+                              <div style={{ fontWeight: 500, color: "var(--acc-text-main)" }}>{entry.createdBy}</div>
+                              <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>{formatVoidDate(entry.createdAt)}</div>
+                            </td>
+                            {canMutate && (
+                              <td className="acc-align-right acc-col-action acc-history-td-action">
+                                {entry.isEligibleForCorrection ? (
+                                  <div className="acc-history-action-buttons">
+                                    <button
+                                      type="button"
+                                      className="acc-btn acc-btn-sm acc-btn-primary"
+                                      onClick={() => handleStartCorrection(entry)}
+                                    >
+                                      Correct
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="acc-btn acc-btn-sm acc-btn-outline acc-btn-danger-outline"
+                                      onClick={() => handleStartReversal(entry)}
+                                    >
+                                      Reverse
+                                    </button>
+                                  </div>
+                                ) : entry.status === "REVERSED" ? (
+                                  <span className="acc-history-status-subtext">
+                                    {entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed"}
+                                  </span>
+                                ) : entry.status === "REVERSAL" ? (
+                                  <span className="acc-history-status-subtext">
+                                    {entry.reversalOfEntryNumber ? `Reversal of ${entry.reversalOfEntryNumber}` : "Reversal entry"}
+                                  </span>
+                                ) : (
+                                  <span className="acc-history-status-subtext">
+                                    Managed via Transactions
+                                  </span>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card List (< 768px) */}
+                  <div className="acc-history-card-list">
                     {historyItems.map((entry) => (
-                      <tr key={entry.lineId}>
-                        <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
-                          {entry.entryDate}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, fontSize: "0.75rem" }}>
-                            {entry.entryNumber}
+                      <div key={`card-${entry.lineId}`} className="acc-history-card">
+                        <div className="acc-history-card-top">
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <span className="acc-history-card-entry">{entry.entryNumber}</span>
+                            <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.625rem" }}>
+                              {entry.displayType}
+                            </span>
+                            {entry.status === "ACTIVE" ? (
+                              <span className="acc-badge acc-badge-success" style={{ fontSize: "0.625rem" }}>Active</span>
+                            ) : entry.status === "REVERSED" ? (
+                              <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.625rem", opacity: 0.7 }}>Reversed</span>
+                            ) : (
+                              <span className="acc-badge acc-badge-info" style={{ fontSize: "0.625rem" }}>Reversal</span>
+                            )}
                           </div>
-                          <span
-                            className="acc-badge acc-badge-neutral"
-                            style={{ fontSize: "0.625rem", padding: "0.1rem 0.35rem" }}
-                          >
-                            {entry.displayType}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontSize: "0.8125rem", color: "var(--acc-text-main)" }}>
+                          <span className="acc-history-card-date">{entry.entryDate}</span>
+                        </div>
+
+                        <div className="acc-history-card-body">
+                          <div className="acc-history-card-desc">
                             {entry.description || "General ledger movement"}
                           </div>
-                          <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                            Counterpart: {entry.counterpartAccount}
+                          <div className="acc-history-card-counterpart">
+                            Counterpart: <strong>{entry.counterpartAccount}</strong>
                           </div>
-                        </td>
-                        <td
-                          className={`acc-align-right tabular-nums ${
-                            entry.direction === "INFLOW" ? "acc-direction-inflow" : "acc-direction-outflow"
-                          }`}
-                          style={{ whiteSpace: "nowrap" }}
-                        >
-                          {entry.direction === "INFLOW" ? "+" : "-"}
-                          {formatMoney(entry.amountMinor, activeWorkspace?.currency)}
-                        </td>
-                        <td>
-                          {entry.status === "ACTIVE" ? (
-                            <span className="acc-badge acc-badge-success" style={{ fontSize: "0.6875rem" }}>
-                              Active
-                            </span>
-                          ) : entry.status === "REVERSED" ? (
+                        </div>
+
+                        <div className="acc-history-card-row">
+                          <div className="acc-history-card-field">
+                            <span className="acc-history-card-field-label">Amount</span>
                             <span
-                              className="acc-badge acc-badge-neutral"
-                              style={{ fontSize: "0.6875rem", opacity: 0.7 }}
-                              title={entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed"}
+                              className={`acc-history-card-amount tabular-nums ${
+                                entry.direction === "INFLOW" ? "acc-direction-inflow" : "acc-direction-outflow"
+                              }`}
                             >
-                              Reversed
+                              {entry.direction === "INFLOW" ? "+" : "-"}
+                              {formatMoney(entry.amountMinor, activeWorkspace?.currency)}
                             </span>
-                          ) : (
-                            <span className="acc-badge acc-badge-info" style={{ fontSize: "0.6875rem" }}>
-                              Reversal
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
-                          <div>{entry.createdBy}</div>
-                          <div>{formatVoidDate(entry.createdAt)}</div>
-                        </td>
+                          </div>
+                          <div className="acc-history-card-field" style={{ textAlign: "right" }}>
+                            <span className="acc-history-card-field-label">Recorded By</span>
+                            <span className="acc-history-card-field-value">{entry.createdBy}</span>
+                            <span className="acc-history-card-date" style={{ display: "block" }}>{formatVoidDate(entry.createdAt)}</span>
+                          </div>
+                        </div>
+
                         {canMutate && (
-                          <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
+                          <div className="acc-history-card-footer">
                             {entry.isEligibleForCorrection ? (
-                              <div style={{ display: "inline-flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                              <div className="acc-history-card-actions">
                                 <button
                                   type="button"
                                   className="acc-btn acc-btn-sm acc-btn-primary"
-                                  style={{ padding: "0.2rem 0.45rem", fontSize: "0.75rem" }}
+                                  style={{ flex: 1, minHeight: "36px" }}
                                   onClick={() => handleStartCorrection(entry)}
                                 >
                                   Correct
                                 </button>
                                 <button
                                   type="button"
-                                  className="acc-btn acc-btn-sm acc-btn-outline"
-                                  style={{
-                                    padding: "0.2rem 0.45rem",
-                                    fontSize: "0.75rem",
-                                    borderColor: "var(--acc-danger)",
-                                    color: "var(--acc-danger)",
-                                  }}
+                                  className="acc-btn acc-btn-sm acc-btn-outline acc-btn-danger-outline"
+                                  style={{ flex: 1, minHeight: "36px" }}
                                   onClick={() => handleStartReversal(entry)}
                                 >
                                   Reverse
                                 </button>
                               </div>
-                            ) : entry.status === "REVERSED" ? (
-                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                                {entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed"}
-                              </span>
-                            ) : entry.status === "REVERSAL" ? (
-                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                                {entry.reversalOfEntryNumber ? `Reversal of ${entry.reversalOfEntryNumber}` : "Reversal entry"}
-                              </span>
                             ) : (
-                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                                Managed via Transactions
+                              <span className="acc-history-status-subtext" style={{ textAlign: "center", width: "100%", display: "block" }}>
+                                {entry.status === "REVERSED"
+                                  ? (entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed")
+                                  : entry.status === "REVERSAL"
+                                  ? (entry.reversalOfEntryNumber ? `Reversal of ${entry.reversalOfEntryNumber}` : "Reversal entry")
+                                  : "Managed via Transactions"}
                               </span>
                             )}
-                          </td>
+                          </div>
                         )}
-                      </tr>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  </div>
+                </>
+              )}
+            </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+            <div className="acc-history-footer">
               <button
                 type="button"
                 className="acc-btn acc-btn-outline"
@@ -1810,7 +1988,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
 
       {/* Correct Entry Modal */}
       {correctingEntry && selectedHistoryAccount && (
-        <div className="acc-modal-backdrop" onClick={() => setCorrectingEntry(null)}>
+        <div className="acc-modal-backdrop acc-modal-backdrop-elevated" onClick={() => setCorrectingEntry(null)}>
           <div
             className="acc-modal-content"
             onClick={(e) => e.stopPropagation()}
@@ -2002,7 +2180,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
 
       {/* Reverse Entry Modal */}
       {reversingEntry && selectedHistoryAccount && (
-        <div className="acc-modal-backdrop" onClick={() => setReversingEntry(null)}>
+        <div className="acc-modal-backdrop acc-modal-backdrop-elevated" onClick={() => setReversingEntry(null)}>
           <div
             className="acc-modal-content"
             onClick={(e) => e.stopPropagation()}
@@ -2090,6 +2268,21 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
             </form>
           </div>
         </div>
+      )}
+
+      {/* Transaction Attachment Lightbox Viewer Modal */}
+      {viewerOpen && viewerTx && (
+        <TransactionAttachmentViewerModal
+          isOpen={viewerOpen}
+          onClose={() => {
+            setViewerOpen(false);
+            setViewerTx(null);
+            setViewerAttachments([]);
+          }}
+          transactionTitle={viewerTx.contact_name || viewerTx.notes || "Transaction"}
+          transactionSubtitle={`${viewerTx.type} • ${formatMoney(viewerTx.amount_minor, activeWorkspace?.currency)} • ${viewerTx.date}`}
+          attachments={viewerAttachments}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput, { formatAmountWithCommas, stripCommas } from "../ui/FormattedMoneyInput";
 import PaymentAccountPicker from "./PaymentAccountPicker";
+import TransactionAttachmentsDropzone from "./TransactionAttachmentsDropzone";
 
 export default function FastTransactionModal() {
   const {
@@ -39,6 +40,8 @@ export default function FastTransactionModal() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [notes, setNotes] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
+  const [attachmentsBusy, setAttachmentsBusy] = useState(false);
   const [tagsStr, setTagsStr] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
 
@@ -58,6 +61,8 @@ export default function FastTransactionModal() {
       setContactName("");
       setNotes("");
       setAttachmentUrl("");
+      setAttachmentIds([]);
+      setAttachmentsBusy(false);
       setTagsStr("");
       setIsRecurring(false);
       setShowAdvanced(false);
@@ -99,6 +104,11 @@ export default function FastTransactionModal() {
 
     if (parsedTotal <= 0) {
       setErrorMsg("Please enter an amount greater than ₹0.");
+      return;
+    }
+
+    if (attachmentsBusy) {
+      setErrorMsg("Please wait for all file uploads to finish, or remove failed files.");
       return;
     }
 
@@ -154,6 +164,7 @@ export default function FastTransactionModal() {
         date,
         notes: notes.trim() || undefined,
         attachmentUrl: attachmentUrl.trim() || undefined,
+        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
         tags: tagsStr.split(",").map((t) => t.trim()).filter(Boolean),
         isRecurring,
       };
@@ -538,7 +549,12 @@ export default function FastTransactionModal() {
               onClick={() => setShowAdvanced((p) => !p)}
             >
               <span>{showAdvanced ? "▲" : "▼"}</span>
-              <span>{showAdvanced ? "Hide optional details" : "Add details / More options (Notes, Receipt, Tags)"}</span>
+              <span>{showAdvanced ? "Hide optional details" : "Add details / More options (Notes, Attachments, Tags)"}</span>
+              {attachmentIds.length > 0 && (
+                <span className="acc-attachments-limits-badge" style={{ marginLeft: "0.4rem" }}>
+                  📎 {attachmentIds.length} attached
+                </span>
+              )}
             </button>
           </div>
 
@@ -575,16 +591,10 @@ export default function FastTransactionModal() {
               </div>
 
               <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="fast-attachment">
-                  Receipt / Attachment URL
-                </label>
-                <input
-                  id="fast-attachment"
-                  type="url"
-                  className="acc-form-input"
-                  placeholder="https://... link to receipt or image"
-                  value={attachmentUrl}
-                  onChange={(e) => setAttachmentUrl(e.target.value)}
+                <TransactionAttachmentsDropzone
+                  onChange={(ids) => setAttachmentIds(ids)}
+                  onErrorStateChange={(busy) => setAttachmentsBusy(busy)}
+                  disabled={submitting}
                 />
               </div>
 

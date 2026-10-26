@@ -283,6 +283,23 @@ export interface UserTransactionRow {
   restored_at?: Date | string | null;
   restored_by?: string | null;
   restored_by_name?: string | null;
+  attachment_count?: number;
+  attachments?: TransactionAttachmentRow[];
+}
+
+export interface TransactionAttachmentRow {
+  id: string;
+  workspace_id: string;
+  transaction_id: string;
+  storage_key: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  created_by?: string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+  url?: string;
+  download_url?: string;
 }
 
 export interface LoanRow {

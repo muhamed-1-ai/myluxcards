@@ -473,7 +473,12 @@ export async function getDashboardMetrics(
               WHEN parent_cat.id IS NOT NULL THEN cat.name
               ELSE NULL
             END as subcategory_name,
-            fa.name as account_name
+            fa.name as account_name,
+            COALESCE((
+              SELECT COUNT(*)
+              FROM accounting_transaction_attachments att
+              WHERE att.transaction_id = t.id
+            ), 0)::int as attachment_count
      FROM accounting_transactions t
      LEFT JOIN accounting_contacts c ON c.id = t.contact_id
      LEFT JOIN accounting_categories cat ON cat.id = t.category_id

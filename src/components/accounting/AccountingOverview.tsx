@@ -17,9 +17,12 @@ import {
   BarChart3,
   Table as TableIcon,
   ChevronRight,
+  Paperclip,
 } from "lucide-react";
 import "./accounting.css";
 import { resolveTransactionCategory } from "@/lib/accounting/categoryResolver";
+import TransactionAttachmentViewerModal from "./TransactionAttachmentViewerModal";
+import type { TransactionAttachmentRow } from "@/lib/accounting/types";
 
 interface DashboardMetrics {
   period?: string;
@@ -48,6 +51,7 @@ interface DashboardMetrics {
     contact_name?: string;
     notes?: string;
     status: string;
+    attachment_count?: number;
   }>;
   upcomingCommitments: Array<{
     id: string;
@@ -289,6 +293,27 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
+
+  // Attachment Viewer State
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerAttachments, setViewerAttachments] = useState<TransactionAttachmentRow[]>([]);
+  const [viewerTx, setViewerTx] = useState<{ id: string; notes?: string; contact_name?: string; type?: string; amount_minor?: number; date?: string } | null>(null);
+
+  const openAttachmentViewer = async (tx: { id: string; notes?: string; contact_name?: string; type?: string; amount_minor?: number; date?: string }) => {
+    setViewerTx(tx);
+    setViewerOpen(true);
+    try {
+      const res = await fetch(`/api/accounting/transactions/${tx.id}/attachments`);
+      if (res.ok) {
+        const data = await res.json();
+        setViewerAttachments(data.attachments || []);
+      } else {
+        setViewerAttachments([]);
+      }
+    } catch {
+      setViewerAttachments([]);
+    }
+  };
 
   // Cash-flow chart view: line chart or accessible data table
   const [chartViewMode, setChartViewMode] = useState<"chart" | "table">("chart");
@@ -1524,8 +1549,24 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                   return (
                     <tr key={tx.id}>
                       <td>
-                        <div style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
-                          {tx.contact_name || tx.notes || "General Entry"}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
+                            {tx.contact_name || tx.notes || "General Entry"}
+                          </span>
+                          {Boolean(tx.attachment_count && tx.attachment_count > 0) && (
+                            <button
+                              type="button"
+                              className="acc-tx-attachment-badge"
+                              title={`View ${tx.attachment_count} attachment${(tx.attachment_count || 0) > 1 ? "s" : ""}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAttachmentViewer(tx);
+                              }}
+                            >
+                              <Paperclip size={12} />
+                              <span>{tx.attachment_count}</span>
+                            </button>
+                          )}
                         </div>
                         {tx.notes && tx.contact_name && (
                           <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>{tx.notes}</div>
@@ -1586,6 +1627,21 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
           </div>
         )}
       </div>
+
+      {/* Transaction Attachment Lightbox Viewer Modal */}
+      {viewerOpen && viewerTx && (
+        <TransactionAttachmentViewerModal
+          isOpen={viewerOpen}
+          onClose={() => {
+            setViewerOpen(false);
+            setViewerTx(null);
+            setViewerAttachments([]);
+          }}
+          transactionTitle={viewerTx.contact_name || viewerTx.notes || "Transaction"}
+          transactionSubtitle={`${viewerTx.type} • ${formatMoney(viewerTx.amount_minor || 0, activeWorkspace?.currency)} • ${viewerTx.date}`}
+          attachments={viewerAttachments}
+        />
+      )}
     </div>
   );
 }

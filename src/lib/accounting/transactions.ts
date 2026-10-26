@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { postJournalEntry, reverseJournalEntry, type PostJournalLineInput } from "./ledger";
 import { getFinancialAccountByCode, getFinancialAccountById } from "./accounts";
+import { syncTransactionAttachments } from "./attachments";
 
 export interface CreateTransactionInput {
   workspaceId: string;
@@ -27,6 +28,7 @@ export interface CreateTransactionInput {
   dueDate?: string | null;
   notes?: string | null;
   attachmentUrl?: string | null;
+  attachmentIds?: string[];
   tags?: string[];
   isRecurring?: boolean;
   userId?: string;
@@ -190,6 +192,16 @@ export async function createTransaction(
           input.userId || null,
         ]
       );
+
+      if (input.attachmentIds && input.attachmentIds.length > 0) {
+        await db.query(
+          `UPDATE accounting_transaction_attachments
+           SET transaction_id = $1, updated_at = NOW()
+           WHERE id = ANY($2::uuid[]) AND workspace_id = $3`,
+          [txRes.rows[0].id, input.attachmentIds.slice(0, 5), input.workspaceId]
+        );
+      }
+
       return { transaction: txRes.rows[0], journalEntry: entry };
     }
 
@@ -305,6 +317,15 @@ export async function createTransaction(
         ]
       );
 
+      if (input.attachmentIds && input.attachmentIds.length > 0) {
+        await db.query(
+          `UPDATE accounting_transaction_attachments
+           SET transaction_id = $1, updated_at = NOW()
+           WHERE id = ANY($2::uuid[]) AND workspace_id = $3`,
+          [txRes.rows[0].id, input.attachmentIds.slice(0, 5), input.workspaceId]
+        );
+      }
+
       const enrichRes = await db.query<UserTransactionRow>(
         `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
                 CASE
@@ -315,7 +336,12 @@ export async function createTransaction(
                   WHEN parent_cat.id IS NOT NULL THEN cat.name
                   ELSE NULL
                 END as subcategory_name,
-                fa.name as account_name, c.name as contact_name
+                fa.name as account_name, c.name as contact_name,
+                COALESCE((
+                  SELECT COUNT(*)
+                  FROM accounting_transaction_attachments att
+                  WHERE att.transaction_id = t.id
+                ), 0)::int as attachment_count
          FROM accounting_transactions t
          LEFT JOIN accounting_categories cat ON cat.id = t.category_id
          LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
@@ -437,6 +463,15 @@ export async function createTransaction(
         ]
       );
 
+      if (input.attachmentIds && input.attachmentIds.length > 0) {
+        await db.query(
+          `UPDATE accounting_transaction_attachments
+           SET transaction_id = $1, updated_at = NOW()
+           WHERE id = ANY($2::uuid[]) AND workspace_id = $3`,
+          [txRes.rows[0].id, input.attachmentIds.slice(0, 5), input.workspaceId]
+        );
+      }
+
       const enrichRes = await db.query<UserTransactionRow>(
         `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
                 CASE
@@ -447,7 +482,12 @@ export async function createTransaction(
                   WHEN parent_cat.id IS NOT NULL THEN cat.name
                   ELSE NULL
                 END as subcategory_name,
-                fa.name as account_name, c.name as contact_name
+                fa.name as account_name, c.name as contact_name,
+                COALESCE((
+                  SELECT COUNT(*)
+                  FROM accounting_transaction_attachments att
+                  WHERE att.transaction_id = t.id
+                ), 0)::int as attachment_count
          FROM accounting_transactions t
          LEFT JOIN accounting_categories cat ON cat.id = t.category_id
          LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
@@ -546,7 +586,12 @@ export async function listTransactions(
              ELSE NULL
            END as subcategory_name,
            fa.name as account_name, c.name as contact_name,
-           u_void.name as voided_by_name, u_rest.name as restored_by_name
+           u_void.name as voided_by_name, u_rest.name as restored_by_name,
+           COALESCE((
+             SELECT COUNT(*)
+             FROM accounting_transaction_attachments att
+             WHERE att.transaction_id = t.id
+           ), 0)::int as attachment_count
     FROM accounting_transactions t
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
     LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
@@ -576,6 +621,7 @@ export async function updateTransaction(
     date?: string;
     notes?: string | null;
     tags?: string[];
+    attachmentIds?: string[];
   }
 ): Promise<UserTransactionRow> {
   return withTransaction(async (db) => {
@@ -662,6 +708,10 @@ export async function updateTransaction(
       [categoryId, date, notes, tags, transactionId, workspaceId]
     );
 
+    if (input.attachmentIds !== undefined) {
+      await syncTransactionAttachments(workspaceId, transactionId, input.attachmentIds, db);
+    }
+
     const fullRes = await db.query<UserTransactionRow>(
       `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
               CASE
@@ -672,7 +722,12 @@ export async function updateTransaction(
                 WHEN parent_cat.id IS NOT NULL THEN cat.name
                 ELSE NULL
               END as subcategory_name,
-              fa.name as account_name, c.name as contact_name
+              fa.name as account_name, c.name as contact_name,
+              COALESCE((
+                SELECT COUNT(*)
+                FROM accounting_transaction_attachments att
+                WHERE att.transaction_id = t.id
+              ), 0)::int as attachment_count
        FROM accounting_transactions t
        LEFT JOIN accounting_categories cat ON cat.id = t.category_id
        LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id

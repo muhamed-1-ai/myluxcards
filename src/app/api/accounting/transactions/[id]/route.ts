@@ -25,7 +25,12 @@ export async function GET(
                 WHEN parent_cat.id IS NOT NULL THEN cat.name
                 ELSE NULL
               END as subcategory_name,
-              fa.name as account_name, c.name as contact_name
+              fa.name as account_name, c.name as contact_name,
+              COALESCE((
+                SELECT COUNT(*)
+                FROM accounting_transaction_attachments att
+                WHERE att.transaction_id = t.id
+              ), 0)::int as attachment_count
        FROM accounting_transactions t
        LEFT JOIN accounting_categories cat ON cat.id = t.category_id
        LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
@@ -39,7 +44,16 @@ export async function GET(
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ transaction: res.rows[0] });
+    const { getTransactionAttachments } = await import("@/lib/accounting/attachments");
+    const attachments = await getTransactionAttachments(context!.workspace.id, transactionId);
+
+    return NextResponse.json({
+      transaction: {
+        ...res.rows[0],
+        attachment_count: attachments.length,
+        attachments,
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to fetch transaction" }, { status: 500 });
   }
@@ -64,9 +78,19 @@ export async function PATCH(
       date: body.date,
       notes: body.notes,
       tags: body.tags,
+      attachmentIds: Array.isArray(body.attachmentIds) ? body.attachmentIds : undefined,
     });
 
-    return NextResponse.json({ transaction });
+    const { getTransactionAttachments } = await import("@/lib/accounting/attachments");
+    const attachments = await getTransactionAttachments(context!.workspace.id, transactionId);
+
+    return NextResponse.json({
+      transaction: {
+        ...transaction,
+        attachment_count: attachments.length,
+        attachments,
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to update transaction" }, { status: 400 });
   }
