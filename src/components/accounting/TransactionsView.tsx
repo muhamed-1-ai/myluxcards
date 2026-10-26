@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAccounting } from "./AccountingContext";
+import { useAccounting, type FinancialAccount } from "./AccountingContext";
+import type { AccountHistoryItem } from "@/lib/accounting/types";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface TransactionItem {
@@ -97,6 +98,27 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
   const [openingBalanceStr, setOpeningBalanceStr] = useState("");
   const [submittingOpening, setSubmittingOpening] = useState(false);
 
+  // Account History Drawer/Modal State
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedHistoryAccount, setSelectedHistoryAccount] = useState<FinancialAccount | null>(null);
+  const [historyItems, setHistoryItems] = useState<AccountHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // Correction Modal State
+  const [correctingEntry, setCorrectingEntry] = useState<AccountHistoryItem | null>(null);
+  const [correctAmountStr, setCorrectAmountStr] = useState("");
+  const [correctTargetAccountId, setCorrectTargetAccountId] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [submittingCorrection, setSubmittingCorrection] = useState(false);
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
+
+  // Reversal Modal State
+  const [reversingEntry, setReversingEntry] = useState<AccountHistoryItem | null>(null);
+  const [reversalReason, setReversalReason] = useState("");
+  const [submittingReversal, setSubmittingReversal] = useState(false);
+  const [reversalError, setReversalError] = useState<string | null>(null);
+
   useEffect(() => {
     setSubtab(initialSubtab);
   }, [initialSubtab]);
@@ -116,11 +138,28 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
         if (restoringTx && !submittingRestore) setRestoringTx(null);
         if (editingTx && !submittingEdit) setEditingTx(null);
         if (openingModalOpen && !submittingOpening) setOpeningModalOpen(false);
+        if (correctingEntry && !submittingCorrection) setCorrectingEntry(null);
+        else if (reversingEntry && !submittingReversal) setReversingEntry(null);
+        else if (historyModalOpen) setHistoryModalOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [voidingTx, submittingVoid, restoringTx, submittingRestore, editingTx, submittingEdit, openingModalOpen, submittingOpening]);
+  }, [
+    voidingTx,
+    submittingVoid,
+    restoringTx,
+    submittingRestore,
+    editingTx,
+    submittingEdit,
+    openingModalOpen,
+    submittingOpening,
+    historyModalOpen,
+    correctingEntry,
+    submittingCorrection,
+    reversingEntry,
+    submittingReversal,
+  ]);
 
   // Load active transactions and voided expenses from server
   useEffect(() => {
@@ -275,6 +314,130 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
       }
     } finally {
       setSubmittingOpening(false);
+    }
+  };
+
+  const loadAccountHistory = async (accountId: string) => {
+    setLoadingHistory(true);
+    setHistoryError(null);
+    try {
+      const res = await fetch(`/api/accounting/accounts/${accountId}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryItems(data.history || []);
+      } else {
+        const err = await res.json();
+        setHistoryError(err.error || "Failed to load account history");
+      }
+    } catch {
+      setHistoryError("Network error loading account history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleOpenHistory = (acc: FinancialAccount) => {
+    setSelectedHistoryAccount(acc);
+    setHistoryModalOpen(true);
+    loadAccountHistory(acc.id);
+  };
+
+  const handleStartCorrection = (entry: AccountHistoryItem) => {
+    setCorrectingEntry(entry);
+    setCorrectAmountStr((entry.amountMinor / 100).toString());
+    setCorrectTargetAccountId(selectedHistoryAccount?.id || "");
+    setCorrectionReason("");
+    setCorrectionError(null);
+  };
+
+  const handleConfirmCorrection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!correctingEntry || !selectedHistoryAccount) return;
+    const amt = parseFloat(correctAmountStr);
+    if (isNaN(amt) || amt <= 0) {
+      setCorrectionError("Please enter a valid positive amount.");
+      return;
+    }
+    if (!correctTargetAccountId) {
+      setCorrectionError("Please choose a destination account.");
+      return;
+    }
+    if (!correctionReason.trim()) {
+      setCorrectionError("Please provide a reason for the correction.");
+      return;
+    }
+
+    setSubmittingCorrection(true);
+    setCorrectionError(null);
+    try {
+      const res = await fetch("/api/accounting/accounts/correction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryId: correctingEntry.id,
+          correctAmountMinor: Math.round(amt * 100),
+          correctAccountId: correctTargetAccountId,
+          reason: correctionReason.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        setCorrectingEntry(null);
+        setFeedbackToast({
+          type: "success",
+          message: "Funding entry corrected successfully. Reversal and replacement postings recorded.",
+        });
+        loadAccountHistory(selectedHistoryAccount.id);
+        triggerRefresh();
+      } else {
+        const err = await res.json();
+        setCorrectionError(err.error || "Failed to correct entry");
+      }
+    } catch {
+      setCorrectionError("Network error while submitting correction.");
+    } finally {
+      setSubmittingCorrection(false);
+    }
+  };
+
+  const handleStartReversal = (entry: AccountHistoryItem) => {
+    setReversingEntry(entry);
+    setReversalReason("");
+    setReversalError(null);
+  };
+
+  const handleConfirmReversal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reversingEntry || !selectedHistoryAccount) return;
+
+    setSubmittingReversal(true);
+    setReversalError(null);
+    try {
+      const res = await fetch("/api/accounting/accounts/reversal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryId: reversingEntry.id,
+          reason: reversalReason.trim() || "User requested entry reversal",
+        }),
+      });
+
+      if (res.ok) {
+        setReversingEntry(null);
+        setFeedbackToast({
+          type: "success",
+          message: "Entry reversed successfully. Account balance effect has been undone.",
+        });
+        loadAccountHistory(selectedHistoryAccount.id);
+        triggerRefresh();
+      } else {
+        const err = await res.json();
+        setReversalError(err.error || "Failed to reverse entry");
+      }
+    } catch {
+      setReversalError("Network error while submitting reversal.");
+    } finally {
+      setSubmittingReversal(false);
     }
   };
 
@@ -692,11 +855,11 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
               <table className="acc-table">
                 <thead>
                   <tr>
-                    <th className="acc-col-code" style={{ width: "70px", whiteSpace: "nowrap" }}>Code</th>
+                    <th className="acc-col-code" style={{ width: "50px", whiteSpace: "nowrap" }}>Code</th>
                     <th className="acc-col-name">Account Name</th>
-                    <th style={{ width: "110px", whiteSpace: "nowrap" }}>Subtype</th>
-                    <th className="acc-align-right acc-col-balance" style={{ width: "150px", whiteSpace: "nowrap" }}>Current Balance</th>
-                    {canMutate && <th className="acc-align-right acc-col-action" style={{ width: "120px", whiteSpace: "nowrap" }}>Action</th>}
+                    <th style={{ width: "80px", whiteSpace: "nowrap" }}>Subtype</th>
+                    <th className="acc-align-right acc-col-balance" style={{ width: "125px", whiteSpace: "nowrap" }}>Current Balance</th>
+                    <th className="acc-align-right acc-col-action" style={{ width: "145px", whiteSpace: "nowrap" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -719,22 +882,33 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                       <td className="acc-align-right tabular-nums font-bold acc-col-balance" style={{ color: Number(acc.current_balance_minor) >= 0 ? "var(--acc-text-main)" : "var(--acc-danger)" }}>
                         {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                       </td>
-                      {canMutate && (
-                        <td className="acc-align-right acc-col-action">
+                      <td className="acc-align-right acc-col-action" style={{ whiteSpace: "nowrap" }}>
+                        <div style={{ display: "inline-flex", gap: "0.35rem", justifyContent: "flex-end" }}>
                           <button
                             type="button"
                             className="acc-btn acc-btn-sm acc-btn-outline"
-                            style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => {
-                              setSelectedAccountId(acc.id);
-                              setOpeningBalanceStr((acc.current_balance_minor / 100).toString());
-                              setOpeningModalOpen(true);
-                            }}
+                            style={{ padding: "0.2rem 0.45rem", fontSize: "0.75rem" }}
+                            onClick={() => handleOpenHistory(acc)}
+                            title="View balance and funding history"
                           >
-                            Set Opening
+                            📜 History
                           </button>
-                        </td>
-                      )}
+                          {canMutate && (
+                            <button
+                              type="button"
+                              className="acc-btn acc-btn-sm acc-btn-outline"
+                              style={{ padding: "0.2rem 0.45rem", fontSize: "0.75rem" }}
+                              onClick={() => {
+                                setSelectedAccountId(acc.id);
+                                setOpeningBalanceStr((Number(acc.opening_balance_minor || 0) / 100).toString());
+                                setOpeningModalOpen(true);
+                              }}
+                            >
+                              Set Opening
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -755,10 +929,11 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
               <table className="acc-table">
                 <thead>
                   <tr>
-                    <th className="acc-col-code" style={{ width: "70px", whiteSpace: "nowrap" }}>Code</th>
+                    <th className="acc-col-code" style={{ width: "50px", whiteSpace: "nowrap" }}>Code</th>
                     <th className="acc-col-name">Account Name</th>
-                    <th style={{ width: "110px", whiteSpace: "nowrap" }}>Subtype</th>
-                    <th className="acc-align-right acc-col-balance" style={{ width: "150px", whiteSpace: "nowrap" }}>Current Balance</th>
+                    <th style={{ width: "80px", whiteSpace: "nowrap" }}>Subtype</th>
+                    <th className="acc-align-right acc-col-balance" style={{ width: "125px", whiteSpace: "nowrap" }}>Current Balance</th>
+                    <th className="acc-align-right acc-col-action" style={{ width: "100px", whiteSpace: "nowrap" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -780,6 +955,17 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                       </td>
                       <td className="acc-align-right tabular-nums font-bold acc-col-balance" style={{ color: "var(--acc-warning)" }}>
                         {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
+                      </td>
+                      <td className="acc-align-right acc-col-action" style={{ whiteSpace: "nowrap" }}>
+                        <button
+                          type="button"
+                          className="acc-btn acc-btn-sm acc-btn-outline"
+                          style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                          onClick={() => handleOpenHistory(acc)}
+                          title="View balance and funding history"
+                        >
+                          📜 History
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1033,9 +1219,38 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 />
               </div>
 
-              <p style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", marginTop: "0.5rem" }}>
-                Setting an opening balance automatically posts a balanced double-entry journal against Owner Equity (Account 3000).
-              </p>
+              {(() => {
+                const selAcc = accounts.find((a) => a.id === selectedAccountId);
+                if (!selAcc) return null;
+                const recOpening = Number(selAcc.opening_balance_minor || 0);
+                if (recOpening > 0) {
+                  return (
+                    <div className="acc-preview-box" style={{ marginTop: "0.75rem", marginBottom: "0.75rem" }}>
+                      <div className="acc-preview-title">Existing Account Record</div>
+                      <div className="acc-preview-row">
+                        <span>Recorded Opening:</span>
+                        <span className="tabular-nums font-bold">
+                          {formatMoney(recOpening, activeWorkspace?.currency)}
+                        </span>
+                      </div>
+                      <div className="acc-preview-row">
+                        <span>Current Total Balance:</span>
+                        <span className="tabular-nums font-bold">
+                          {formatMoney(selAcc.current_balance_minor, activeWorkspace?.currency)}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", margin: "0.5rem 0 0 0" }}>
+                        Submitting adjusts the opening balance by the difference against Owner Equity (Account 3000). Later transactions remain intact. If you entered the wrong account or want to undo this entry, use <strong>Account History → Correct / Reverse</strong>.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <p style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", marginTop: "0.5rem" }}>
+                    Setting an initial opening balance automatically posts a balanced double-entry journal against Owner Equity (Account 3000).
+                  </p>
+                );
+              })()}
 
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
                 <button
@@ -1357,6 +1572,496 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                   disabled={submittingEdit}
                 >
                   {submittingEdit ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Account Balance & Funding History Modal */}
+      {historyModalOpen && selectedHistoryAccount && (
+        <div className="acc-modal-backdrop" onClick={() => setHistoryModalOpen(false)}>
+          <div
+            className="acc-modal-content acc-history-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "880px" }}
+          >
+            <div className="acc-modal-header">
+              <div>
+                <h3 className="acc-modal-title">
+                  Account History — {selectedHistoryAccount.name} ({selectedHistoryAccount.code})
+                </h3>
+                <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                  General ledger postings, funding history, and corrections
+                </span>
+              </div>
+              <button
+                type="button"
+                className="acc-modal-close"
+                onClick={() => setHistoryModalOpen(false)}
+                aria-label="Close history modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="acc-history-meta">
+              <div className="acc-history-meta-item">
+                <span className="acc-history-meta-label">Account Code & Name</span>
+                <span className="acc-history-meta-value">
+                  {selectedHistoryAccount.code} · {selectedHistoryAccount.name}
+                </span>
+              </div>
+              <div className="acc-history-meta-item">
+                <span className="acc-history-meta-label">Recorded Opening</span>
+                <span className="acc-history-meta-value tabular-nums">
+                  {formatMoney(Number(selectedHistoryAccount.opening_balance_minor || 0), activeWorkspace?.currency)}
+                </span>
+              </div>
+              <div className="acc-history-meta-item">
+                <span className="acc-history-meta-label">Current Liquid Balance</span>
+                <span
+                  className="acc-history-meta-value tabular-nums"
+                  style={{
+                    color:
+                      Number(selectedHistoryAccount.current_balance_minor) >= 0
+                        ? "var(--acc-text-main)"
+                        : "var(--acc-danger)",
+                  }}
+                >
+                  {formatMoney(selectedHistoryAccount.current_balance_minor, activeWorkspace?.currency)}
+                </span>
+              </div>
+              <div className="acc-history-meta-item">
+                <span className="acc-history-meta-label">Classification</span>
+                <span className="acc-history-meta-value">
+                  {selectedHistoryAccount.type} ({selectedHistoryAccount.subtype})
+                </span>
+              </div>
+            </div>
+
+            {loadingHistory ? (
+              <div style={{ textAlign: "center", padding: "2.5rem", color: "var(--acc-text-muted)" }}>
+                Loading account history from general ledger...
+              </div>
+            ) : historyError ? (
+              <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                {historyError}
+              </div>
+            ) : historyItems.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "2.5rem", color: "var(--acc-text-muted)" }}>
+                No journal entries or funding records found for this account.
+              </div>
+            ) : (
+              <div className="acc-table-wrapper" style={{ maxHeight: "55vh", overflowY: "auto" }}>
+                <table className="acc-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "95px", whiteSpace: "nowrap" }}>Date</th>
+                      <th style={{ width: "130px", whiteSpace: "nowrap" }}>Entry / Type</th>
+                      <th>Description & Counterpart</th>
+                      <th className="acc-align-right" style={{ width: "120px", whiteSpace: "nowrap" }}>Amount</th>
+                      <th style={{ width: "110px", whiteSpace: "nowrap" }}>Status</th>
+                      <th style={{ width: "130px", whiteSpace: "nowrap" }}>Recorded By</th>
+                      {canMutate && <th className="acc-align-right" style={{ width: "135px", whiteSpace: "nowrap" }}>Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyItems.map((entry) => (
+                      <tr key={entry.lineId}>
+                        <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
+                          {entry.entryDate}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, fontSize: "0.75rem" }}>
+                            {entry.entryNumber}
+                          </div>
+                          <span
+                            className="acc-badge acc-badge-neutral"
+                            style={{ fontSize: "0.625rem", padding: "0.1rem 0.35rem" }}
+                          >
+                            {entry.displayType}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: "0.8125rem", color: "var(--acc-text-main)" }}>
+                            {entry.description || "General ledger movement"}
+                          </div>
+                          <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                            Counterpart: {entry.counterpartAccount}
+                          </div>
+                        </td>
+                        <td
+                          className={`acc-align-right tabular-nums ${
+                            entry.direction === "INFLOW" ? "acc-direction-inflow" : "acc-direction-outflow"
+                          }`}
+                          style={{ whiteSpace: "nowrap" }}
+                        >
+                          {entry.direction === "INFLOW" ? "+" : "-"}
+                          {formatMoney(entry.amountMinor, activeWorkspace?.currency)}
+                        </td>
+                        <td>
+                          {entry.status === "ACTIVE" ? (
+                            <span className="acc-badge acc-badge-success" style={{ fontSize: "0.6875rem" }}>
+                              Active
+                            </span>
+                          ) : entry.status === "REVERSED" ? (
+                            <span
+                              className="acc-badge acc-badge-neutral"
+                              style={{ fontSize: "0.6875rem", opacity: 0.7 }}
+                              title={entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed"}
+                            >
+                              Reversed
+                            </span>
+                          ) : (
+                            <span className="acc-badge acc-badge-info" style={{ fontSize: "0.6875rem" }}>
+                              Reversal
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
+                          <div>{entry.createdBy}</div>
+                          <div>{formatVoidDate(entry.createdAt)}</div>
+                        </td>
+                        {canMutate && (
+                          <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
+                            {entry.isEligibleForCorrection ? (
+                              <div style={{ display: "inline-flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                                <button
+                                  type="button"
+                                  className="acc-btn acc-btn-sm acc-btn-primary"
+                                  style={{ padding: "0.2rem 0.45rem", fontSize: "0.75rem" }}
+                                  onClick={() => handleStartCorrection(entry)}
+                                >
+                                  Correct
+                                </button>
+                                <button
+                                  type="button"
+                                  className="acc-btn acc-btn-sm acc-btn-outline"
+                                  style={{
+                                    padding: "0.2rem 0.45rem",
+                                    fontSize: "0.75rem",
+                                    borderColor: "var(--acc-danger)",
+                                    color: "var(--acc-danger)",
+                                  }}
+                                  onClick={() => handleStartReversal(entry)}
+                                >
+                                  Reverse
+                                </button>
+                              </div>
+                            ) : entry.status === "REVERSED" ? (
+                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                {entry.reversedByEntryNumber ? `Reversed by ${entry.reversedByEntryNumber}` : "Reversed"}
+                              </span>
+                            ) : entry.status === "REVERSAL" ? (
+                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                {entry.reversalOfEntryNumber ? `Reversal of ${entry.reversalOfEntryNumber}` : "Reversal entry"}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                Managed via Transactions
+                              </span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+              <button
+                type="button"
+                className="acc-btn acc-btn-outline"
+                onClick={() => setHistoryModalOpen(false)}
+              >
+                Close History
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Correct Entry Modal */}
+      {correctingEntry && selectedHistoryAccount && (
+        <div className="acc-modal-backdrop" onClick={() => setCorrectingEntry(null)}>
+          <div
+            className="acc-modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "520px" }}
+          >
+            <div className="acc-modal-header">
+              <h3 className="acc-modal-title">Correct Funding Entry</h3>
+              <button
+                type="button"
+                className="acc-modal-close"
+                onClick={() => setCorrectingEntry(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmCorrection}>
+              <div className="acc-preview-box">
+                <div className="acc-preview-title">Original Entry to Correct</div>
+                <div className="acc-preview-row">
+                  <span>Entry:</span>
+                  <span className="tabular-nums font-bold">
+                    {correctingEntry.entryNumber} ({correctingEntry.displayType})
+                  </span>
+                </div>
+                <div className="acc-preview-row">
+                  <span>Current Account:</span>
+                  <span className="font-bold">
+                    {selectedHistoryAccount.name} ({selectedHistoryAccount.code})
+                  </span>
+                </div>
+                <div className="acc-preview-row">
+                  <span>Original Amount:</span>
+                  <span className="tabular-nums font-bold">
+                    {formatMoney(correctingEntry.amountMinor, activeWorkspace?.currency)}
+                  </span>
+                </div>
+                <div className="acc-preview-row">
+                  <span>Date:</span>
+                  <span>{correctingEntry.entryDate}</span>
+                </div>
+              </div>
+
+              {correctionError && (
+                <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                  {correctionError}
+                </div>
+              )}
+
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="correct-amount-input">
+                  Correct Amount (₹) *
+                </label>
+                <FormattedMoneyInput
+                  id="correct-amount-input"
+                  required
+                  className="acc-form-input acc-amount-hero-input tabular-nums"
+                  placeholder="0.00"
+                  value={correctAmountStr}
+                  onChange={(e) => setCorrectAmountStr(e.target.value)}
+                />
+              </div>
+
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="correct-dest-account">
+                  Correct Destination Account *
+                </label>
+                <select
+                  id="correct-dest-account"
+                  required
+                  className="acc-form-select"
+                  value={correctTargetAccountId}
+                  onChange={(e) => setCorrectTargetAccountId(e.target.value)}
+                >
+                  {accounts
+                    .filter((a) => a.is_active && (a.type === "ASSET" || a.type === "LIABILITY"))
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} - {a.name} ({a.subtype})
+                      </option>
+                    ))}
+                </select>
+                <small style={{ color: "var(--acc-text-muted)", fontSize: "0.6875rem", display: "block", marginTop: "0.25rem" }}>
+                  If the money was mistakenly deposited into the wrong account, select the correct account here.
+                </small>
+              </div>
+
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="correct-reason-input">
+                  Correction Reason *
+                </label>
+                <input
+                  id="correct-reason-input"
+                  type="text"
+                  required
+                  className="acc-form-input"
+                  placeholder="e.g. Correcting typo in initial funding amount"
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                />
+              </div>
+
+              {/* Live Proposed Effects Preview */}
+              {(() => {
+                const newAmt = Math.round((parseFloat(correctAmountStr) || 0) * 100);
+                const target = accounts.find((a) => a.id === correctTargetAccountId) || selectedHistoryAccount;
+                const isDifferentAccount = target.id !== selectedHistoryAccount.id;
+
+                return (
+                  <div className="acc-preview-box">
+                    <div className="acc-preview-title">Proposed Balance Effects</div>
+                    {isDifferentAccount ? (
+                      <>
+                        <div className="acc-preview-row">
+                          <span>{selectedHistoryAccount.name}:</span>
+                          <span className="tabular-nums acc-direction-outflow">
+                            -{formatMoney(correctingEntry.amountMinor, activeWorkspace?.currency)} (reversal)
+                          </span>
+                        </div>
+                        <div className="acc-preview-row">
+                          <span>{target.name}:</span>
+                          <span className="tabular-nums acc-direction-inflow">
+                            +{formatMoney(newAmt, activeWorkspace?.currency)} (replacement)
+                          </span>
+                        </div>
+                        <div className="acc-preview-row">
+                          <span>Owner Equity:</span>
+                          <span className="tabular-nums">
+                            Net adjustment of{" "}
+                            {formatMoney(Math.abs(newAmt - correctingEntry.amountMinor), activeWorkspace?.currency)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="acc-preview-row">
+                          <span>{selectedHistoryAccount.name}:</span>
+                          <span className="tabular-nums font-bold">
+                            {formatMoney(
+                              selectedHistoryAccount.current_balance_minor + (newAmt - correctingEntry.amountMinor),
+                              activeWorkspace?.currency
+                            )}
+                          </span>
+                        </div>
+                        <div className="acc-preview-row">
+                          <span>Net Adjustment:</span>
+                          <span
+                            className={`tabular-nums ${
+                              newAmt >= correctingEntry.amountMinor
+                                ? "acc-direction-inflow"
+                                : "acc-direction-outflow"
+                            }`}
+                          >
+                            {newAmt >= correctingEntry.amountMinor ? "+" : "-"}
+                            {formatMoney(
+                              Math.abs(newAmt - correctingEntry.amountMinor),
+                              activeWorkspace?.currency
+                            )}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-outline"
+                  style={{ flex: 1 }}
+                  onClick={() => setCorrectingEntry(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="acc-btn acc-btn-primary"
+                  style={{ flex: 1.5 }}
+                  disabled={submittingCorrection}
+                >
+                  {submittingCorrection ? "Posting Correction..." : "Confirm Correction"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reverse Entry Modal */}
+      {reversingEntry && selectedHistoryAccount && (
+        <div className="acc-modal-backdrop" onClick={() => setReversingEntry(null)}>
+          <div
+            className="acc-modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "480px" }}
+          >
+            <div className="acc-modal-header">
+              <h3 className="acc-modal-title">Reverse this entry?</h3>
+              <button
+                type="button"
+                className="acc-modal-close"
+                onClick={() => setReversingEntry(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: "0.875rem", color: "var(--acc-text-main)", marginBottom: "1rem" }}>
+              This will undo this entry’s effect on the account balance. The original record will remain in history.
+            </p>
+
+            <div className="acc-preview-box" style={{ marginBottom: "1.25rem" }}>
+              <div className="acc-preview-row">
+                <span>Account:</span>
+                <span className="font-bold">{selectedHistoryAccount.name} ({selectedHistoryAccount.code})</span>
+              </div>
+              <div className="acc-preview-row">
+                <span>Amount:</span>
+                <span className="tabular-nums font-bold">
+                  {formatMoney(reversingEntry.amountMinor, activeWorkspace?.currency)}
+                </span>
+              </div>
+              <div className="acc-preview-row">
+                <span>Date:</span>
+                <span>{reversingEntry.entryDate}</span>
+              </div>
+              <div className="acc-preview-row">
+                <span>Entry Number:</span>
+                <span className="tabular-nums">{reversingEntry.entryNumber}</span>
+              </div>
+            </div>
+
+            {reversalError && (
+              <div className="acc-alert acc-alert-danger" style={{ marginBottom: "1rem" }}>
+                {reversalError}
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmReversal}>
+              <div className="acc-form-group">
+                <label className="acc-form-label" htmlFor="reversal-reason-input">
+                  Reason (Optional)
+                </label>
+                <input
+                  id="reversal-reason-input"
+                  type="text"
+                  className="acc-form-input"
+                  placeholder="Reason for reversal (optional)"
+                  value={reversalReason}
+                  onChange={(e) => setReversalReason(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-outline"
+                  style={{ flex: 1 }}
+                  onClick={() => setReversingEntry(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="acc-btn acc-btn-primary"
+                  style={{
+                    flex: 1.5,
+                    backgroundColor: "var(--acc-danger, #EF4444)",
+                    borderColor: "var(--acc-danger, #EF4444)",
+                  }}
+                  disabled={submittingReversal}
+                >
+                  {submittingReversal ? "Reversing..." : "Yes, reverse entry"}
                 </button>
               </div>
             </form>

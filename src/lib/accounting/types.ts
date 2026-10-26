@@ -139,6 +139,30 @@ export interface JournalLineRow {
   account_type?: FinancialAccountType;
 }
 
+export interface AccountHistoryItem {
+  id: string;
+  lineId: string;
+  entryNumber: string;
+  entryDate: string;
+  entryType: string;
+  displayType: string;
+  description: string;
+  debitMinor: number;
+  creditMinor: number;
+  direction: "INFLOW" | "OUTFLOW";
+  amountMinor: number;
+  counterpartAccount: string;
+  status: "ACTIVE" | "REVERSED" | "REVERSAL";
+  isEligibleForCorrection: boolean;
+  isEligibleForReversal: boolean;
+  createdBy: string;
+  createdAt: string;
+  reversedByEntryId: string | null;
+  reversedByEntryNumber: string | null;
+  reversalOfEntryId: string | null;
+  reversalOfEntryNumber: string | null;
+}
+
 export interface InvoiceRow {
   id: string;
   workspace_id: string;

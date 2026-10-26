@@ -220,7 +220,7 @@ export default function SettingsView() {
                           style={{ padding: "0.2rem 0.5rem" }}
                           onClick={() => {
                             setSelectedAccountId(a.id);
-                            setOpeningBalanceStr((a.current_balance_minor / 100).toString());
+                            setOpeningBalanceStr((Number(a.opening_balance_minor || 0) / 100).toString());
                             setOpeningModalOpen(true);
                           }}
                         >

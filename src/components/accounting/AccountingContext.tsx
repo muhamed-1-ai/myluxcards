@@ -18,6 +18,7 @@ export interface FinancialAccount {
   name: string;
   type: string;
   subtype: string;
+  opening_balance_minor?: number | string;
   current_balance_minor: number;
   is_active: boolean;
   description?: string | null;
