@@ -1,12 +1,21 @@
 import "server-only";
 import { pool } from "@/lib/db";
 import type { Queryable } from "@/lib/db/types";
-import { getStorageProvider, sanitizeStorageKey } from "@/lib/storage";
+import { getStorageProvider, sanitizeStorageKey, normalizeRootPrefix } from "@/lib/storage";
 import type { TransactionAttachmentRow } from "./types";
 import { randomUUID } from "node:crypto";
 
 export const MAX_ATTACHMENTS_PER_TRANSACTION = 5;
 export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export class AttachmentValidationError extends Error {
+  public readonly statusCode: number;
+  constructor(message: string, statusCode = 400) {
+    super(message);
+    this.name = "AttachmentValidationError";
+    this.statusCode = statusCode;
+  }
+}
 
 export interface ValidatedFileResult {
   isValid: boolean;
@@ -133,13 +142,19 @@ export async function saveAttachmentFile(params: {
 
   // 1. Validate file size
   if (buffer.length > MAX_ATTACHMENT_SIZE_BYTES) {
-    throw new Error(`File exceeds maximum size of 10MB (${(buffer.length / (1024 * 1024)).toFixed(1)}MB).`);
+    throw new AttachmentValidationError(
+      `File exceeds maximum size of 10MB (${(buffer.length / (1024 * 1024)).toFixed(1)}MB).`,
+      413
+    );
   }
 
   // 2. Validate binary content
   const validation = validateFileContent(buffer);
   if (!validation.isValid || !validation.detectedMime || !validation.extension) {
-    throw new Error(validation.error || "Invalid file content.");
+    throw new AttachmentValidationError(
+      validation.error || "Unsupported file format. Only JPEG, PNG, WebP, and PDF documents are allowed.",
+      400
+    );
   }
 
   // 3. If transactionId is given, verify it belongs to this workspace and check attachment count
@@ -149,7 +164,7 @@ export async function saveAttachmentFile(params: {
       [transactionId, workspaceId]
     );
     if (txCheck.rows.length === 0) {
-      throw new Error("Transaction does not exist in this workspace.");
+      throw new AttachmentValidationError("Transaction does not exist in this workspace.", 404);
     }
 
     const countRes = await pool.query<{ count: string }>(
@@ -158,7 +173,10 @@ export async function saveAttachmentFile(params: {
     );
     const currentCount = parseInt(countRes.rows[0]?.count || "0", 10);
     if (currentCount >= MAX_ATTACHMENTS_PER_TRANSACTION) {
-      throw new Error(`Maximum of ${MAX_ATTACHMENTS_PER_TRANSACTION} attachments reached for this transaction.`);
+      throw new AttachmentValidationError(
+        `Maximum of ${MAX_ATTACHMENTS_PER_TRANSACTION} attachments reached for this transaction.`,
+        400
+      );
     }
   }
 
@@ -172,8 +190,10 @@ export async function saveAttachmentFile(params: {
     ? sanitizedName
     : `${sanitizedName}.${validation.extension}`;
 
+  const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
+  const prefixSegment = rootPrefix ? `${rootPrefix}/` : "";
   const storageKey = sanitizeStorageKey(
-    `accounting/private/workspaces/${workspaceId}/attachments/${attachmentId}-${safeName}`
+    `${prefixSegment}accounting/private/workspaces/${workspaceId}/attachments/${attachmentId}-${safeName}`
   );
 
   // 5. Upload privately to Wasabi storage (isPublic: false)

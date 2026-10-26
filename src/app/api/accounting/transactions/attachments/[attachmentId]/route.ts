@@ -41,8 +41,14 @@ export async function GET(
       },
     });
   } catch (err: any) {
+    console.error("[Attachment GET Error]", {
+      attachmentId,
+      workspaceId: context?.workspace.id,
+      errorName: err?.name,
+      errorMessage: err?.message,
+    });
     return NextResponse.json(
-      { error: err.message || "Failed to retrieve attachment file." },
+      { error: "Failed to retrieve attachment file from storage." },
       { status: 500 }
     );
   }

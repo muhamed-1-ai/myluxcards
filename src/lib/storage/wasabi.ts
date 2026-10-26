@@ -113,6 +113,16 @@ export class WasabiStorageProvider implements StorageProvider {
     return { client: this.client, bucket, endpoint };
   }
 
+  public resolveKey(rawKey: string): string {
+    const cleanKey = sanitizeStorageKey(rawKey);
+    const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
+    if (!rootPrefix) return cleanKey;
+    if (cleanKey === rootPrefix || cleanKey.startsWith(`${rootPrefix}/`)) {
+      return cleanKey;
+    }
+    return `${rootPrefix}/${cleanKey}`;
+  }
+
   public isConfigured(): boolean {
     const accessKey = process.env.WASABI_ACCESS_KEY || process.env.WASABI_ACCESS_KEY_ID;
     const secretKey = process.env.WASABI_SECRET_KEY || process.env.WASABI_SECRET_ACCESS_KEY;
@@ -121,13 +131,13 @@ export class WasabiStorageProvider implements StorageProvider {
   }
 
   public getPublicUrl(key: string): string {
-    const cleanKey = sanitizeStorageKey(key);
+    const cleanKey = this.resolveKey(key);
     return resolveMediaUrl(cleanKey);
   }
 
   public async uploadObject(params: UploadObjectParams): Promise<UploadObjectResult> {
     const { client, bucket } = this.getClient();
-    const key = sanitizeStorageKey(params.key);
+    const key = this.resolveKey(params.key);
 
     const size = params.buffer.byteLength || params.buffer.length;
 
@@ -149,19 +159,27 @@ export class WasabiStorageProvider implements StorageProvider {
           await client.send(new PutObjectCommand(baseInput));
         } catch (fallbackError: any) {
           const errMessage = fallbackError?.message || primaryError?.message || "";
+          const statusCode = fallbackError?.$metadata?.httpStatusCode || primaryError?.$metadata?.httpStatusCode;
           console.error("[Wasabi Storage] Upload failed:", key, {
             message: errMessage,
-            statusCode: fallbackError?.$metadata?.httpStatusCode,
+            statusCode,
           });
-          throw new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+          const error: any = new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+          error.statusCode = statusCode || 500;
+          error.providerCode = fallbackError?.name || primaryError?.name || "StorageError";
+          throw error;
         }
       } else {
         const errMessage = primaryError?.message || "";
+        const statusCode = primaryError?.$metadata?.httpStatusCode;
         console.error("[Wasabi Storage] Upload failed:", key, {
           message: errMessage,
-          statusCode: primaryError?.$metadata?.httpStatusCode,
+          statusCode,
         });
-        throw new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+        const error: any = new Error(`Storage upload failed: ${errMessage || "Internal S3 error"}`);
+        error.statusCode = statusCode || 500;
+        error.providerCode = primaryError?.name || "StorageError";
+        throw error;
       }
     }
 
@@ -176,7 +194,7 @@ export class WasabiStorageProvider implements StorageProvider {
 
   public async deleteObject(key: string): Promise<boolean> {
     const { client, bucket } = this.getClient();
-    const cleanKey = sanitizeStorageKey(key);
+    const cleanKey = this.resolveKey(key);
 
     const command = new DeleteObjectCommand({
       Bucket: bucket,
@@ -194,7 +212,7 @@ export class WasabiStorageProvider implements StorageProvider {
 
   public async getObject(key: string): Promise<Uint8Array | null> {
     const { client, bucket } = this.getClient();
-    const cleanKey = sanitizeStorageKey(key);
+    const cleanKey = this.resolveKey(key);
 
     try {
       const command = new GetObjectCommand({
@@ -215,7 +233,7 @@ export class WasabiStorageProvider implements StorageProvider {
 
   public async headObject(key: string): Promise<StorageObjectMetadata | null> {
     const { client, bucket } = this.getClient();
-    const cleanKey = sanitizeStorageKey(key);
+    const cleanKey = this.resolveKey(key);
 
     try {
       const command = new HeadObjectCommand({
@@ -246,7 +264,7 @@ export class WasabiStorageProvider implements StorageProvider {
 
   public async createPresignedUploadUrl(params: PresignedUploadParams): Promise<PresignedUrlResult> {
     const { client, bucket } = this.getClient();
-    const key = sanitizeStorageKey(params.key);
+    const key = this.resolveKey(params.key);
     const expiresInSeconds = params.expiresInSeconds || 900; // 15 minutes default
 
     const command = new PutObjectCommand({
@@ -273,7 +291,7 @@ export class WasabiStorageProvider implements StorageProvider {
 
   public async createPresignedDownloadUrl(key: string, expiresInSeconds = 3600): Promise<string> {
     const { client, bucket } = this.getClient();
-    const cleanKey = sanitizeStorageKey(key);
+    const cleanKey = this.resolveKey(key);
 
     const command = new GetObjectCommand({
       Bucket: bucket,

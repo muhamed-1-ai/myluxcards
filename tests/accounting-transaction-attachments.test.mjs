@@ -29,7 +29,18 @@ async function runTests() {
     validateFileContent,
     MAX_ATTACHMENTS_PER_TRANSACTION,
     MAX_ATTACHMENT_SIZE_BYTES,
+    saveAttachmentFile,
+    getAttachmentById,
+    deleteTransactionAttachment,
+    syncTransactionAttachments,
+    AttachmentValidationError,
   } = await import("../src/lib/accounting/attachments.ts");
+
+  const {
+    getStorageProvider,
+    WasabiStorageProvider,
+    normalizeRootPrefix,
+  } = await import("../src/lib/storage/index.ts");
 
   // 1. UNIT TEST: Binary Magic Bytes Validation
   console.log("\n[Test 1] Binary Magic Bytes Validation:");
@@ -89,8 +100,22 @@ async function runTests() {
   assert.equal(MAX_ATTACHMENT_SIZE_BYTES, 10 * 1024 * 1024, "Must enforce 10MB max per attachment");
   console.log("  ✓ Constants conform to requirements (5 files max, 10MB each)");
 
-  // 3. INTEGRATION TEST: Database Table & Schema Invariants
-  console.log("\n[Test 3] Database Schema and Invariants:");
+  // 3. UNIT TEST: Wasabi Storage Provider resolveKey
+  console.log("\n[Test 3] WasabiStorageProvider Key Resolution:");
+  const provider = new WasabiStorageProvider();
+  const rootPrefix = normalizeRootPrefix(process.env.WASABI_ROOT_PREFIX);
+  console.log(`  Configured WASABI_ROOT_PREFIX: "${rootPrefix}"`);
+
+  const resolvedWithPrefix = provider.resolveKey(`${rootPrefix}/accounting/private/test.png`);
+  assert.equal(resolvedWithPrefix, `${rootPrefix}/accounting/private/test.png`, "Should not double prefix");
+
+  const resolvedWithoutPrefix = provider.resolveKey(`accounting/private/test.png`);
+  assert.equal(resolvedWithoutPrefix, `${rootPrefix}/accounting/private/test.png`, "Should automatically add root prefix");
+
+  console.log("  ✓ resolveKey correctly resolves keys with and without prefix without duplicating");
+
+  // 4. INTEGRATION TEST: Database Table & Schema Invariants
+  console.log("\n[Test 4] Database Schema and Invariants:");
   const columnsRes = await pool.query(`
     SELECT column_name, is_nullable, data_type
     FROM information_schema.columns
@@ -110,27 +135,73 @@ async function runTests() {
   assert.equal(colMap.get("transaction_id").is_nullable, "YES", "transaction_id must be nullable for pending uploads");
   console.log("  ✓ accounting_transaction_attachments schema verified (all required fields + nullable transaction_id)");
 
-  // 4. INTEGRATION TEST: Full Lifecycle (Pending Upload -> Link to Transaction -> Edit -> Financial Invariance)
-  console.log("\n[Test 4] Full Transaction Attachment Lifecycle & Financial Invariance:");
-
-  // Pick an existing workspace or test workspace
+  // 5. INTEGRATION TEST: Real Wasabi Uploads (PNG, JPEG, PDF)
+  console.log("\n[Test 5] Real Wasabi Uploads with Real Files (PNG, JPEG, PDF):");
   const wsRes = await pool.query(`SELECT id FROM accounting_workspaces LIMIT 1`);
   assert(wsRes.rows.length > 0, "At least one workspace must exist");
   const testWorkspaceId = wsRes.rows[0].id;
 
-  // Insert a pending attachment (simulating upload prior to saving form)
-  const pendingAttId = (await pool.query(`
-    INSERT INTO accounting_transaction_attachments
-      (workspace_id, transaction_id, storage_key, file_name, file_size, file_type)
-    VALUES
-      ($1, NULL, $2, 'invoice_receipt.pdf', 10240, 'application/pdf')
-    RETURNING id
-  `, [testWorkspaceId, `accounting/private/workspaces/${testWorkspaceId}/attachments/test-inv.pdf`])).rows[0].id;
+  // A. Upload PNG
+  console.log("  -> Testing PNG upload to Wasabi...");
+  const pngRecord = await saveAttachmentFile({
+    workspaceId: testWorkspaceId,
+    buffer: pngBuffer,
+    originalFileName: "receipt-sample.png",
+  });
+  assert(pngRecord.id, "Attachment ID must be generated");
+  assert(pngRecord.storage_key.includes("receipt-sample.png"), "Storage key should include file name");
+  assert(pngRecord.storage_key.startsWith(rootPrefix), "Storage key must include rootPrefix");
 
-  assert(pendingAttId, "Pending attachment inserted successfully");
-  console.log("  ✓ Pending attachment created without transaction_id");
+  // Verify object is actually stored in Wasabi
+  const storage = getStorageProvider();
+  const pngHead = await storage.headObject(pngRecord.storage_key);
+  assert(pngHead !== null, "Object must exist in Wasabi storage");
+  assert.equal(pngHead.size, pngBuffer.length, "Stored size must match original buffer");
 
-  // Pick an existing transaction in this workspace to link to
+  const pngBytes = await storage.getObject(pngRecord.storage_key);
+  assert(pngBytes !== null, "Must retrieve bytes from Wasabi storage");
+  assert.deepEqual(Buffer.from(pngBytes), pngBuffer, "Downloaded bytes must match uploaded bytes exactly");
+  console.log("  ✓ Real PNG successfully uploaded and verified in Wasabi!");
+
+  // B. Upload JPEG
+  console.log("  -> Testing JPEG upload to Wasabi...");
+  const jpegRecord = await saveAttachmentFile({
+    workspaceId: testWorkspaceId,
+    buffer: jpegBuffer,
+    originalFileName: "bill-photo.jpg",
+  });
+  const jpegHead = await storage.headObject(jpegRecord.storage_key);
+  assert(jpegHead !== null, "JPEG object must exist in Wasabi");
+  assert.equal(jpegHead.size, jpegBuffer.length, "JPEG size must match");
+  console.log("  ✓ Real JPEG successfully uploaded and verified in Wasabi!");
+
+  // C. Upload PDF
+  console.log("  -> Testing PDF upload to Wasabi...");
+  const pdfRecord = await saveAttachmentFile({
+    workspaceId: testWorkspaceId,
+    buffer: pdfBuffer,
+    originalFileName: "tax-invoice.pdf",
+  });
+  const pdfHead = await storage.headObject(pdfRecord.storage_key);
+  assert(pdfHead !== null, "PDF object must exist in Wasabi");
+  assert.equal(pdfHead.size, pdfBuffer.length, "PDF size must match");
+  console.log("  ✓ Real PDF successfully uploaded and verified in Wasabi!");
+
+  // 6. INTEGRATION TEST: Metadata Linking & Workspace Isolation
+  console.log("\n[Test 6] Metadata Linking & Workspace Isolation:");
+  const fetchedAtt = await getAttachmentById(testWorkspaceId, pngRecord.id);
+  assert(fetchedAtt !== null, "Must be retrievable by ID in workspace");
+  assert.equal(fetchedAtt.file_name, pngRecord.file_name);
+  assert.equal(fetchedAtt.file_type, "image/png");
+
+  // Rejection of unauthorized workspace access
+  const fakeWorkspaceId = "00000000-0000-0000-0000-000000000000";
+  const crossTenantAtt = await getAttachmentById(fakeWorkspaceId, pngRecord.id);
+  assert.equal(crossTenantAtt, null, "Cross-workspace access must be rejected (returns null)");
+  console.log("  ✓ Cross-workspace unauthorized access strictly rejected");
+
+  // 7. INTEGRATION TEST: Financial Invariance & Transaction Linking
+  console.log("\n[Test 7] Transaction Linking & Financial Invariance:");
   const txRes = await pool.query(`
     SELECT t.id, t.journal_entry_id, t.amount_minor
     FROM accounting_transactions t
@@ -141,7 +212,6 @@ async function runTests() {
   if (txRes.rows.length > 0) {
     const tx = txRes.rows[0];
 
-    // Record initial financial state: journal entry lines and amounts
     const initialLinesRes = await pool.query(`
       SELECT id, financial_account_id, debit_minor, credit_minor
       FROM accounting_journal_lines
@@ -150,26 +220,10 @@ async function runTests() {
     `, [tx.journal_entry_id]);
     const initialLines = initialLinesRes.rows;
 
-    // Link attachment to transaction
-    await pool.query(`
-      UPDATE accounting_transaction_attachments
-      SET transaction_id = $1, updated_at = NOW()
-      WHERE id = $2 AND workspace_id = $3
-    `, [tx.id, pendingAttId, testWorkspaceId]);
+    // Sync attachment to transaction
+    await syncTransactionAttachments(testWorkspaceId, tx.id, [pngRecord.id]);
 
-    // Check attachment count query
-    const countCheck = await pool.query(`
-      SELECT COALESCE((
-        SELECT COUNT(*)
-        FROM accounting_transaction_attachments att
-        WHERE att.transaction_id = $1
-      ), 0)::int as attachment_count
-    `, [tx.id]);
-    assert(countCheck.rows[0].attachment_count >= 1, "Attachment count must reflect linked attachment");
-    console.log(`  ✓ Attachment linked to transaction ${tx.id}; count = ${countCheck.rows[0].attachment_count}`);
-
-    // Verify FINANCIAL INVARIANCE:
-    // Journal entry lines, debits, credits, and transaction amount must be 100% IDENTICAL
+    // Verify financial lines and balances are identical
     const afterLinesRes = await pool.query(`
       SELECT id, financial_account_id, debit_minor, credit_minor
       FROM accounting_journal_lines
@@ -184,21 +238,64 @@ async function runTests() {
     assert.equal(afterTxRes.rows[0].amount_minor, tx.amount_minor, "Transaction amount must not change");
     assert.equal(afterTxRes.rows[0].status, "POSTED", "Transaction status must remain POSTED");
     console.log("  ✓ Financial invariance verified: zero ledger changes, zero balance changes when attachments are linked");
-
-    // Clean up test attachment
-    await pool.query(`DELETE FROM accounting_transaction_attachments WHERE id = $1`, [pendingAttId]);
-    console.log("  ✓ Test attachment cleaned up");
-  } else {
-    console.log("  (Skipped transaction link test - no posted transactions in workspace)");
-    await pool.query(`DELETE FROM accounting_transaction_attachments WHERE id = $1`, [pendingAttId]);
   }
 
-  // 5. SECURITY & WORKSPACE ISOLATION TEST
-  console.log("\n[Test 5] Workspace Isolation & Privacy:");
-  const fakeKey = `accounting/private/workspaces/${testWorkspaceId}/attachments/123-receipt.png`;
-  assert(fakeKey.startsWith("accounting/private/workspaces/"), "Key must follow private workspace prefix convention");
-  assert(!fakeKey.includes(".."), "Key must not contain path traversal");
-  console.log("  ✓ Private storage key format strictly isolated per workspace");
+  // 8. ERROR STATUS CODES & VALIDATION
+  console.log("\n[Test 8] Error Status Codes & Validation Handling:");
+
+  // File too large (>10MB) -> status 413
+  const hugeBuffer = Buffer.alloc(10 * 1024 * 1024 + 100);
+  try {
+    await saveAttachmentFile({
+      workspaceId: testWorkspaceId,
+      buffer: hugeBuffer,
+      originalFileName: "too-large.png",
+    });
+    assert.fail("Should have thrown error for oversized file");
+  } catch (err) {
+    assert(err instanceof AttachmentValidationError, "Should be AttachmentValidationError");
+    assert.equal(err.statusCode, 413, "Should have status code 413");
+    console.log("  ✓ Oversized file throws AttachmentValidationError with statusCode 413");
+  }
+
+  // Unsupported file format -> status 400
+  try {
+    await saveAttachmentFile({
+      workspaceId: testWorkspaceId,
+      buffer: Buffer.from("bad binary"),
+      originalFileName: "bad.exe",
+    });
+    assert.fail("Should have thrown error for bad file type");
+  } catch (err) {
+    assert(err instanceof AttachmentValidationError, "Should be AttachmentValidationError");
+    assert.equal(err.statusCode, 400, "Should have status code 400");
+    console.log("  ✓ Invalid file content throws AttachmentValidationError with statusCode 400");
+  }
+
+  // Nonexistent transaction -> status 404
+  try {
+    await saveAttachmentFile({
+      workspaceId: testWorkspaceId,
+      transactionId: "00000000-0000-0000-0000-000000000000",
+      buffer: pngBuffer,
+      originalFileName: "test.png",
+    });
+    assert.fail("Should have thrown error for nonexistent transaction");
+  } catch (err) {
+    assert(err instanceof AttachmentValidationError, "Should be AttachmentValidationError");
+    assert.equal(err.statusCode, 404, "Should have status code 404");
+    console.log("  ✓ Nonexistent transaction throws AttachmentValidationError with statusCode 404");
+  }
+
+  // 9. CLEANUP: Delete attachments from Wasabi & DB
+  console.log("\n[Test 9] Storage and Database Cleanup:");
+  for (const att of [pngRecord, jpegRecord, pdfRecord]) {
+    const deleted = await deleteTransactionAttachment(testWorkspaceId, att.id);
+    assert.equal(deleted, true, `Attachment ${att.id} must be deleted`);
+    const exists = await storage.objectExists(att.storage_key);
+    assert.equal(exists, false, `Wasabi object ${att.storage_key} must be deleted`);
+  }
+  console.log("  ✓ All test objects cleanly deleted from both database and Wasabi S3 storage");
 
   console.log("\n=== All Transaction Attachments Tests Passed Successfully! ===");
 }
