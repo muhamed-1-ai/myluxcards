@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import "./accounting.css";
+import { resolveTransactionCategory } from "@/lib/accounting/categoryResolver";
 
 interface DashboardMetrics {
   period?: string;
@@ -1508,28 +1509,40 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             <table className="acc-table" aria-label="Recent Transactions">
               <thead>
                 <tr>
-                  <th>Description / Contact</th>
-                  <th>Category</th>
-                  <th>Date</th>
-                  <th>Account</th>
-                  <th>Status</th>
-                  <th className="acc-align-right">Amount</th>
+                  <th style={{ minWidth: "160px" }}>Description / Contact</th>
+                  <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Category</th>
+                  <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Subcategory</th>
+                  <th style={{ minWidth: "90px", whiteSpace: "nowrap" }}>Date</th>
+                  <th style={{ minWidth: "110px", whiteSpace: "nowrap" }}>Account</th>
+                  <th style={{ minWidth: "80px", whiteSpace: "nowrap" }}>Status</th>
+                  <th className="acc-align-right" style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {(metrics?.recentTransactions || []).slice(0, 5).map((tx) => (
-                  <tr key={tx.id}>
-                    <td>
-                      <div style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
-                        {tx.contact_name || tx.notes || "General Entry"}
-                      </div>
-                      {tx.notes && tx.contact_name && (
-                        <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>{tx.notes}</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className="acc-badge acc-badge-neutral">{tx.category_name || tx.type}</span>
-                    </td>
+                {(metrics?.recentTransactions || []).slice(0, 5).map((tx) => {
+                  const catInfo = resolveTransactionCategory(tx);
+                  return (
+                    <tr key={tx.id}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
+                          {tx.contact_name || tx.notes || "General Entry"}
+                        </div>
+                        {tx.notes && tx.contact_name && (
+                          <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>{tx.notes}</div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="acc-badge acc-badge-neutral">{catInfo.category}</span>
+                      </td>
+                      <td>
+                        {catInfo.hasSubcategory ? (
+                          <span className="acc-badge acc-badge-neutral" style={{ fontWeight: 600 }}>
+                            {catInfo.subcategory}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--acc-text-muted)" }}>—</span>
+                        )}
+                      </td>
                     <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
                       {tx.date}
                     </td>
@@ -1566,8 +1579,9 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                       {formatMoney(tx.amount_minor, activeWorkspace.currency)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                );
+              })}
+            </tbody>
             </table>
           </div>
         )}

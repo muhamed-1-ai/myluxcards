@@ -47,6 +47,8 @@ export async function POST(req: Request) {
       amountMinor: body.amountMinor,
       date: body.date,
       categoryId: body.categoryId,
+      mainCategoryId: body.mainCategoryId,
+      subcategoryId: body.subcategoryId,
       financialAccountId: body.financialAccountId,
       destinationAccountId: body.destinationAccountId,
       contactId: body.contactId,

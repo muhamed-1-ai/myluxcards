@@ -273,6 +273,8 @@ export interface UserTransactionRow {
   updated_at: Date;
   category_name?: string | null;
   parent_category_name?: string | null;
+  main_category_name?: string | null;
+  subcategory_name?: string | null;
   account_name?: string | null;
   contact_name?: string | null;
   voided_at?: Date | string | null;

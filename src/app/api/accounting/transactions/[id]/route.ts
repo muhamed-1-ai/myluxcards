@@ -17,6 +17,14 @@ export async function GET(
   try {
     const res = await pool.query<UserTransactionRow>(
       `SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
+              CASE
+                WHEN parent_cat.id IS NOT NULL THEN parent_cat.name
+                ELSE cat.name
+              END as main_category_name,
+              CASE
+                WHEN parent_cat.id IS NOT NULL THEN cat.name
+                ELSE NULL
+              END as subcategory_name,
               fa.name as account_name, c.name as contact_name
        FROM accounting_transactions t
        LEFT JOIN accounting_categories cat ON cat.id = t.category_id
@@ -51,6 +59,8 @@ export async function PATCH(
     const body = await req.json();
     const transaction = await updateTransaction(context!.workspace.id, transactionId, {
       categoryId: body.categoryId,
+      mainCategoryId: body.mainCategoryId,
+      subcategoryId: body.subcategoryId,
       date: body.date,
       notes: body.notes,
       tags: body.tags,

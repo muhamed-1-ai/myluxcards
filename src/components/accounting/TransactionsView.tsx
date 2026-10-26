@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAccounting, type FinancialAccount } from "./AccountingContext";
 import type { AccountHistoryItem } from "@/lib/accounting/types";
+import { resolveTransactionCategory } from "@/lib/accounting/categoryResolver";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 
 interface TransactionItem {
@@ -15,6 +16,8 @@ interface TransactionItem {
   category_id?: string | null;
   category_name?: string;
   parent_category_name?: string;
+  main_category_name?: string;
+  subcategory_name?: string;
   account_name?: string;
   status: string;
   journal_entry_id?: string;
@@ -475,6 +478,8 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categoryId: targetCatId,
+          mainCategoryId: editMainCatId || null,
+          subcategoryId: editSubCatId || null,
           date: editDate,
           notes: editNotes,
         }),
@@ -722,102 +727,109 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 <table className="acc-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Description / Contact</th>
-                      <th>Category</th>
-                      <th>Account</th>
-                      <th className="acc-align-right">Amount</th>
-                      {canMutate && <th className="acc-align-right">Action</th>}
+                      <th style={{ minWidth: "160px" }}>Description / Contact</th>
+                      <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Category</th>
+                      <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Subcategory</th>
+                      <th style={{ minWidth: "90px", whiteSpace: "nowrap" }}>Date</th>
+                      <th style={{ minWidth: "110px", whiteSpace: "nowrap" }}>Account</th>
+                      <th style={{ minWidth: "80px", whiteSpace: "nowrap" }}>Status</th>
+                      <th className="acc-align-right" style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Amount</th>
+                      {canMutate && <th className="acc-align-right" style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Action</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTransactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
-                          {tx.date}
-                        </td>
-                        <td>
-                          <span
-                            className={`acc-badge ${
-                              tx.type === "INCOME"
-                                ? "acc-badge-success"
-                                : tx.type === "EXPENSE"
-                                ? "acc-badge-danger"
-                                : "acc-badge-primary"
-                            }`}
-                          >
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>
-                            {tx.contact_name || tx.notes || "General Entry"}
-                          </div>
-                          {tx.notes && tx.contact_name && (
-                            <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                              {tx.notes}
+                    {filteredTransactions.map((tx) => {
+                      const catInfo = resolveTransactionCategory(tx);
+                      return (
+                        <tr key={tx.id}>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>
+                              {tx.contact_name || tx.notes || "General Entry"}
                             </div>
-                          )}
-                        </td>
-                        <td>
-                          {tx.parent_category_name ? (
-                            <span className="acc-badge acc-badge-neutral" title={`${tx.parent_category_name} → ${tx.category_name}`}>
-                              <span style={{ opacity: 0.7 }}>{tx.parent_category_name} → </span>
-                              <span style={{ fontWeight: 600 }}>{tx.category_name}</span>
-                            </span>
-                          ) : (
-                            <span className="acc-badge acc-badge-neutral">
-                              {tx.category_name || "—"}
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
-                          {tx.account_name || "—"}
-                        </td>
-                        <td
-                          className="acc-align-right tabular-nums font-bold"
-                          style={{
-                            color:
-                              tx.type === "INCOME"
-                                ? "var(--acc-success)"
-                                : tx.type === "EXPENSE"
-                                ? "var(--acc-danger)"
-                                : "var(--acc-text-main)",
-                          }}
-                        >
-                          {tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "-" : ""}
-                          {formatMoney(tx.amount_minor, activeWorkspace?.currency)}
-                        </td>
-                        {canMutate && (
-                          <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
-                            {tx.status === "POSTED" && (
-                              <div style={{ display: "inline-flex", gap: "0.35rem" }}>
-                                <button
-                                  type="button"
-                                  className="acc-btn acc-btn-sm acc-btn-outline"
-                                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
-                                  onClick={() => openEditTx(tx)}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  className="acc-btn acc-btn-sm acc-btn-outline"
-                                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", color: "var(--acc-danger)" }}
-                                  onClick={() => {
-                                    setVoidingTx(tx);
-                                    setVoidError(null);
-                                  }}
-                                >
-                                  Void
-                                </button>
+                            {tx.notes && tx.contact_name && (
+                              <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                {tx.notes}
                               </div>
                             )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td>
+                            <span className="acc-badge acc-badge-neutral">
+                              {catInfo.category}
+                            </span>
+                          </td>
+                          <td>
+                            {catInfo.hasSubcategory ? (
+                              <span className="acc-badge acc-badge-neutral" style={{ fontWeight: 600 }}>
+                                {catInfo.subcategory}
+                              </span>
+                            ) : (
+                              <span style={{ color: "var(--acc-text-muted)" }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
+                            {tx.date}
+                          </td>
+                          <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
+                            {tx.account_name || "—"}
+                          </td>
+                          <td>
+                            <span
+                              className={`acc-badge ${
+                                tx.status === "POSTED"
+                                  ? "acc-badge-success"
+                                  : tx.status === "VOIDED"
+                                  ? "acc-badge-danger"
+                                  : "acc-badge-neutral"
+                              }`}
+                              style={{ fontSize: "0.6875rem" }}
+                            >
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td
+                            className="acc-align-right tabular-nums font-bold"
+                            style={{
+                              color:
+                                tx.type === "INCOME"
+                                  ? "var(--acc-success)"
+                                  : tx.type === "EXPENSE"
+                                  ? "var(--acc-danger)"
+                                  : "var(--acc-blue)",
+                            }}
+                          >
+                            {tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "-" : ""}
+                            {formatMoney(tx.amount_minor, activeWorkspace?.currency)}
+                          </td>
+                          {canMutate && (
+                            <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
+                              {tx.status === "POSTED" && (
+                                <div style={{ display: "inline-flex", gap: "0.35rem" }}>
+                                  <button
+                                    type="button"
+                                    className="acc-btn acc-btn-sm acc-btn-outline"
+                                    style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                                    onClick={() => openEditTx(tx)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="acc-btn acc-btn-sm acc-btn-outline"
+                                    style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", color: "var(--acc-danger)" }}
+                                    onClick={() => {
+                                      setVoidingTx(tx);
+                                      setVoidError(null);
+                                    }}
+                                  >
+                                    Void
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1082,84 +1094,85 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 <table className="acc-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Description / Contact</th>
-                      <th>Category</th>
-                      <th>Account</th>
-                      <th className="acc-align-right">Amount</th>
-                      {canMutate && <th className="acc-align-right">Action</th>}
+                      <th style={{ minWidth: "160px" }}>Description / Contact</th>
+                      <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Category</th>
+                      <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Subcategory</th>
+                      <th style={{ minWidth: "90px", whiteSpace: "nowrap" }}>Date</th>
+                      <th style={{ minWidth: "110px", whiteSpace: "nowrap" }}>Account</th>
+                      <th style={{ minWidth: "80px", whiteSpace: "nowrap" }}>Status</th>
+                      <th className="acc-align-right" style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Amount</th>
+                      {canMutate && <th className="acc-align-right" style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Action</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredVoided.map((tx) => (
-                      <tr key={tx.id} style={{ opacity: 1 }}>
-                        <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
-                          {tx.date}
-                        </td>
-                        <td>
-                          <span className="acc-badge acc-badge-danger">
-                            EXPENSE
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
-                            {tx.contact_name || tx.notes || "General Entry"}
-                          </div>
-                          {tx.notes && tx.contact_name && (
-                            <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                              {tx.notes}
+                    {filteredVoided.map((tx) => {
+                      const catInfo = resolveTransactionCategory(tx);
+                      return (
+                        <tr key={tx.id} style={{ opacity: 1 }}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
+                              {tx.contact_name || tx.notes || "General Entry"}
                             </div>
-                          )}
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "0.25rem", flexWrap: "wrap" }}>
-                            <span className="acc-badge acc-badge-danger">
+                            {tx.notes && tx.contact_name && (
+                              <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                {tx.notes}
+                              </div>
+                            )}
+                            {(tx.voided_at || tx.voided_by_name) && (
+                              <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)", marginTop: "0.2rem" }}>
+                                Voided {formatVoidDate(tx.voided_at)}{tx.voided_by_name ? ` by ${tx.voided_by_name}` : ""}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span className="acc-badge acc-badge-neutral">
+                              {catInfo.category}
+                            </span>
+                          </td>
+                          <td>
+                            {catInfo.hasSubcategory ? (
+                              <span className="acc-badge acc-badge-neutral" style={{ fontWeight: 600 }}>
+                                {catInfo.subcategory}
+                              </span>
+                            ) : (
+                              <span style={{ color: "var(--acc-text-muted)" }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
+                            {tx.date}
+                          </td>
+                          <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
+                            {tx.account_name || "—"}
+                          </td>
+                          <td>
+                            <span className="acc-badge acc-badge-danger" style={{ fontSize: "0.6875rem" }}>
                               VOIDED
                             </span>
-                            {(tx.voided_at || tx.voided_by_name) && (
-                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                                Voided {formatVoidDate(tx.voided_at)}{tx.voided_by_name ? ` by ${tx.voided_by_name}` : ""}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          {tx.parent_category_name ? (
-                            <span className="acc-badge acc-badge-neutral" title={`${tx.parent_category_name} → ${tx.category_name}`}>
-                              <span style={{ opacity: 0.7 }}>{tx.parent_category_name} → </span>
-                              <span style={{ fontWeight: 600 }}>{tx.category_name}</span>
-                            </span>
-                          ) : (
-                            <span className="acc-badge acc-badge-neutral">
-                              {tx.category_name || "—"}
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
-                          {tx.account_name || "—"}
-                        </td>
-                        <td
-                          className="acc-align-right tabular-nums font-bold"
-                          style={{ color: "var(--acc-danger)" }}
-                        >
-                          -{formatMoney(tx.amount_minor, activeWorkspace?.currency)}
-                        </td>
-                        {canMutate && (
-                          <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
-                            <button
-                              type="button"
-                              className="acc-btn acc-btn-sm acc-btn-outline"
-                              style={{ padding: "0.2rem 0.65rem", fontSize: "0.75rem", fontWeight: 600 }}
-                              onClick={() => {
-                                setRestoringTx(tx);
-                                setRestoreError(null);
-                              }}
-                            >
-                              Restore
-                            </button>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td
+                            className="acc-align-right tabular-nums font-bold"
+                            style={{ color: "var(--acc-danger)" }}
+                          >
+                            -{formatMoney(tx.amount_minor, activeWorkspace?.currency)}
+                          </td>
+                          {canMutate && (
+                            <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
+                              <button
+                                type="button"
+                                className="acc-btn acc-btn-sm acc-btn-outline"
+                                style={{ padding: "0.2rem 0.65rem", fontSize: "0.75rem", fontWeight: 600 }}
+                                onClick={() => {
+                                  setRestoringTx(tx);
+                                  setRestoreError(null);
+                                }}
+                              >
+                                ↺ Restore
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1330,7 +1343,12 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
                   {voidingTx.account_name && <span>Account: <strong>{voidingTx.account_name}</strong></span>}
-                  {voidingTx.category_name && <span>Category: <strong>{voidingTx.category_name}</strong></span>}
+                  {(() => {
+                    const cInfo = resolveTransactionCategory(voidingTx);
+                    return cInfo.hasCategory ? (
+                      <span>Category: <strong>{cInfo.category}</strong>{cInfo.hasSubcategory ? <> → <strong>{cInfo.subcategory}</strong></> : null}</span>
+                    ) : null;
+                  })()}
                   <span>Date: <strong>{voidingTx.date}</strong></span>
                 </div>
               </div>
@@ -1417,7 +1435,12 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
                   {restoringTx.account_name && <span>Account: <strong>{restoringTx.account_name}</strong></span>}
-                  {restoringTx.category_name && <span>Category: <strong>{restoringTx.category_name}</strong></span>}
+                  {(() => {
+                    const cInfo = resolveTransactionCategory(restoringTx);
+                    return cInfo.hasCategory ? (
+                      <span>Category: <strong>{cInfo.category}</strong>{cInfo.hasSubcategory ? <> → <strong>{cInfo.subcategory}</strong></> : null}</span>
+                    ) : null;
+                  })()}
                   <span>Date: <strong>{restoringTx.date}</strong></span>
                 </div>
               </div>

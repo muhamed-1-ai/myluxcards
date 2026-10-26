@@ -161,9 +161,10 @@ export default function FastTransactionModal() {
       if (isTransfer) {
         payload.financialAccountId = accountId;
         payload.destinationAccountId = toAccountId;
-      } else {
         // Canonical classification: store subcategory if chosen, else main category
-        payload.categoryId = subcategoryId || mainCategoryId;
+        payload.categoryId = subcategoryId || mainCategoryId || undefined;
+        payload.mainCategoryId = mainCategoryId || undefined;
+        payload.subcategoryId = subcategoryId || undefined;
         payload.paymentStatus = paymentStatus;
         payload.contactName = contactName.trim() || undefined;
 

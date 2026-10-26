@@ -465,6 +465,14 @@ export async function getDashboardMetrics(
     `SELECT t.*, c.name as contact_name,
             cat.name as category_name,
             parent_cat.name as parent_category_name,
+            CASE
+              WHEN parent_cat.id IS NOT NULL THEN parent_cat.name
+              ELSE cat.name
+            END as main_category_name,
+            CASE
+              WHEN parent_cat.id IS NOT NULL THEN cat.name
+              ELSE NULL
+            END as subcategory_name,
             fa.name as account_name
      FROM accounting_transactions t
      LEFT JOIN accounting_contacts c ON c.id = t.contact_id
@@ -703,9 +711,13 @@ export async function generateTransactionsExport(
       t.type as "Type",
       COALESCE(c.name, '') as "Contact / Person",
       CASE
-        WHEN p.name IS NOT NULL THEN (p.name || ' → ' || cat.name)
+        WHEN p.name IS NOT NULL THEN p.name
         ELSE COALESCE(cat.name, '')
       END as "Category",
+      CASE
+        WHEN p.name IS NOT NULL THEN cat.name
+        ELSE ''
+      END as "Subcategory",
       fa.name as "Financial Account",
       (t.amount_minor::numeric / 100.0) as "Amount (INR)",
       t.status as "Status",
