@@ -665,7 +665,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
 
       {/* VIEW 2: Account Balances & Opening Balances */}
       {subtab === "BALANCES" && (
-        <div>
+        <div className="acc-two-col-equal">
           {/* Asset Accounts */}
           <div className="acc-card" style={{ marginBottom: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
@@ -705,7 +705,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                       <td className="acc-col-code" style={{ fontSize: "0.75rem", fontFamily: "monospace", color: "var(--acc-text-muted)" }}>
                         {acc.code}
                       </td>
-                      <td className="acc-col-name" style={{ fontWeight: 600 }}>
+                      <td className="acc-col-name" style={{ fontWeight: 600, overflowWrap: "break-word" }}>
                         {acc.name}
                         {acc.description && (
                           <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)", fontWeight: "normal" }}>

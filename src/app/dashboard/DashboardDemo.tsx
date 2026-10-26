@@ -23,6 +23,7 @@ import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileContactNumbers } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
+import "@/components/accounting/accounting.css";
 
 const AccountingApp = dynamic(
   () => import("@/components/accounting/AccountingApp"),

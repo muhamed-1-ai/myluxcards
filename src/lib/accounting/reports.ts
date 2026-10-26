@@ -46,6 +46,7 @@ export interface DashboardMetrics {
   periodStart: string;
   periodEnd: string;
   availableBalanceMinor: number;
+  liquidAccountsCount?: number;
   moneyReceivedMinor: number;
   moneyPaidMinor: number;
   owedToMeMinor: number;
@@ -53,9 +54,18 @@ export interface DashboardMetrics {
   earnedIncomeMinor: number;
   earnedRevenueMinor?: number;
   incurredExpenseMinor: number;
+  previousIncurredExpenseMinor?: number | null;
   netSurplusMinor: number;
   monthlyTrend: Array<{ month: string; cashInMinor: number; cashOutMinor: number }>;
-  cashFlowTrend?: Array<{ label: string; inflow_minor: number; outflow_minor: number }>;
+  cashFlowTrend?: Array<{
+    label: string;
+    sublabel?: string;
+    date?: string;
+    inflow_minor: number;
+    outflow_minor: number;
+    net_minor?: number;
+  }>;
+  expenseSparkline?: number[];
   categoryBreakdown: Array<{ categoryName: string; amountMinor: number; percent: number }>;
   categorySpending?: Array<{ category_id: string; category_name: string; spent_minor: number; percentage: number }>;
   recentTransactions: UserTransactionRow[];
@@ -70,8 +80,8 @@ export async function getDashboardMetrics(
   const asOfDate = new Date().toISOString().slice(0, 10);
 
   // 1. Available Balance from Cash & Bank accounts (1010, 1020, 1030)
-  const cashAccountsRes = await pool.query<{ total: string }>(
-    `SELECT COALESCE(SUM(current_balance_minor), 0) as total
+  const cashAccountsRes = await pool.query<{ total: string; count: string }>(
+    `SELECT COALESCE(SUM(current_balance_minor), 0) as total, COUNT(*)::text as count
      FROM accounting_financial_accounts
      WHERE workspace_id = $1
        AND is_active = true
@@ -79,6 +89,7 @@ export async function getDashboardMetrics(
     [workspaceId]
   );
   const availableBalanceMinor = parseInt(cashAccountsRes.rows[0]?.total || "0", 10);
+  const liquidAccountsCount = parseInt(cashAccountsRes.rows[0]?.count || "0", 10);
 
   // 2. Owed to Me (Accounts Receivable 1200 balance)
   const arRes = await pool.query<{ total: string }>(
@@ -137,7 +148,264 @@ export async function getDashboardMetrics(
   const incurredExpenseMinor = parseInt(accrualRes.rows[0]?.expense || "0", 10);
   const netSurplusMinor = earnedIncomeMinor - incurredExpenseMinor;
 
-  // 6. Monthly Cash In vs Out Trend for the last 6 months
+  // Prior period range calculation for honest comparison
+  let prevStart = "";
+  let prevEnd = "";
+  const now = new Date();
+  const periodType = filter.period || "month";
+  if (periodType === "today") {
+    const yest = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
+    prevStart = yest.toISOString().slice(0, 10);
+    prevEnd = prevStart;
+  } else if (periodType === "week") {
+    const pEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 8));
+    const pStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 14));
+    prevStart = pStart.toISOString().slice(0, 10);
+    prevEnd = pEnd.toISOString().slice(0, 10);
+  } else if (periodType === "month") {
+    const pStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const pEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+    prevStart = pStart.toISOString().slice(0, 10);
+    prevEnd = pEnd.toISOString().slice(0, 10);
+  } else if (periodType === "year") {
+    const prevYear = now.getUTCFullYear() - 1;
+    prevStart = `${prevYear}-01-01`;
+    prevEnd = `${prevYear}-12-31`;
+  }
+
+  let previousIncurredExpenseMinor: number | null = null;
+  if (prevStart && prevEnd) {
+    const prevExpRes = await pool.query<{ expense: string }>(
+      `SELECT COALESCE(SUM(jl.debit_minor - jl.credit_minor), 0) as expense
+       FROM accounting_journal_lines jl
+       JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+       JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+       WHERE je.workspace_id = $1
+         AND je.status = 'POSTED'
+         AND je.entry_type != 'REVERSAL'
+         AND fa.type = 'EXPENSE'
+         AND je.entry_date >= $2
+         AND je.entry_date <= $3`,
+      [workspaceId, prevStart, prevEnd]
+    );
+    previousIncurredExpenseMinor = parseInt(prevExpRes.rows[0]?.expense || "0", 10);
+  }
+
+  // 6-Month historical expense data for Card B sparkline
+  const sparklineRes = await pool.query<{ expense: string }>(
+    `SELECT
+       COALESCE(SUM(jl.debit_minor - jl.credit_minor), 0) as expense
+     FROM accounting_journal_lines jl
+     JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+     JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+     WHERE je.workspace_id = $1
+       AND je.status = 'POSTED'
+       AND je.entry_type != 'REVERSAL'
+       AND fa.type = 'EXPENSE'
+       AND je.entry_date >= (CURRENT_DATE - INTERVAL '6 months')
+     GROUP BY DATE_TRUNC('month', je.entry_date)
+     ORDER BY DATE_TRUNC('month', je.entry_date) ASC`,
+    [workspaceId]
+  );
+  const expenseSparkline = sparklineRes.rows.map((r) => Math.max(0, parseInt(r.expense || "0", 10)));
+
+  // 6. Cash Flow Trend Aggregation matching the selected period filter
+  // Query daily cash flow within the resolved [start, end] window
+  const dailyCashFlowRes = await pool.query<{
+    day_str: string;
+    cash_in: string;
+    cash_out: string;
+  }>(
+    `SELECT
+       TO_CHAR(je.entry_date, 'YYYY-MM-DD') as day_str,
+       COALESCE(SUM(jl.debit_minor), 0) as cash_in,
+       COALESCE(SUM(jl.credit_minor), 0) as cash_out
+     FROM accounting_journal_lines jl
+     JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+     JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+     WHERE je.workspace_id = $1
+       AND je.status = 'POSTED'
+       AND je.entry_type != 'REVERSAL'
+       AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+       AND je.entry_date >= $2
+       AND je.entry_date <= $3
+       AND je.entry_type != 'OPENING_BALANCE'
+     GROUP BY TO_CHAR(je.entry_date, 'YYYY-MM-DD')
+     ORDER BY day_str ASC`,
+    [workspaceId, start, end]
+  );
+
+  const dayMap = new Map<string, { cash_in: number; cash_out: number }>();
+  for (const row of dailyCashFlowRes.rows) {
+    dayMap.set(row.day_str, {
+      cash_in: parseInt(row.cash_in || "0", 10),
+      cash_out: parseInt(row.cash_out || "0", 10),
+    });
+  }
+
+  const cashFlowTrend: Array<{
+    label: string;
+    sublabel?: string;
+    date?: string;
+    inflow_minor: number;
+    outflow_minor: number;
+    net_minor: number;
+  }> = [];
+
+  const periodMode = filter.period || "month";
+
+  if (periodMode === "today") {
+    // Single daily bucket for Today
+    const dayData = dayMap.get(start) || { cash_in: moneyReceivedMinor, cash_out: moneyPaidMinor };
+    const dateObj = new Date(start + "T00:00:00Z");
+    const label = "Today";
+    const sublabel = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    cashFlowTrend.push({
+      label,
+      sublabel,
+      date: start,
+      inflow_minor: dayData.cash_in,
+      outflow_minor: dayData.cash_out,
+      net_minor: dayData.cash_in - dayData.cash_out,
+    });
+  } else if (periodMode === "week") {
+    // 7 Daily buckets from start to end
+    const curr = new Date(start + "T00:00:00Z");
+    const endDate = new Date(end + "T00:00:00Z");
+    while (curr <= endDate) {
+      const dayStr = curr.toISOString().slice(0, 10);
+      const dayData = dayMap.get(dayStr) || { cash_in: 0, cash_out: 0 };
+      const dayName = curr.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+      const dayNum = curr.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+      cashFlowTrend.push({
+        label: `${dayName}`,
+        sublabel: dayNum,
+        date: dayStr,
+        inflow_minor: dayData.cash_in,
+        outflow_minor: dayData.cash_out,
+        net_minor: dayData.cash_in - dayData.cash_out,
+      });
+      curr.setUTCDate(curr.getUTCDate() + 1);
+    }
+  } else if (periodMode === "month") {
+    // Daily totals through the selected cutoff date
+    const startObj = new Date(start + "T00:00:00Z");
+    const endObj = new Date(end + "T00:00:00Z");
+    const year = startObj.getUTCFullYear();
+    const month = startObj.getUTCMonth();
+
+    // Days in this month
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const currentMaxDay = Math.min(daysInMonth, endObj.getUTCDate());
+
+    for (let d = 1; d <= currentMaxDay; d++) {
+      const dStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dayData = dayMap.get(dStr) || { cash_in: 0, cash_out: 0 };
+      const dateObj = new Date(Date.UTC(year, month, d));
+      const label = `${d}`;
+      const sublabel = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+      cashFlowTrend.push({
+        label,
+        sublabel,
+        date: dStr,
+        inflow_minor: dayData.cash_in,
+        outflow_minor: dayData.cash_out,
+        net_minor: dayData.cash_in - dayData.cash_out,
+      });
+    }
+  } else if (periodMode === "year") {
+    // Monthly buckets for the year up to current month (no future months)
+    const startObj = new Date(start + "T00:00:00Z");
+    const endObj = new Date(end + "T00:00:00Z");
+    const year = startObj.getUTCFullYear();
+    const currentMonth = endObj.getUTCMonth();
+
+    for (let m = 0; m <= currentMonth; m++) {
+      const monthPrefix = `${year}-${String(m + 1).padStart(2, "0")}`;
+      let mInflow = 0;
+      let mOutflow = 0;
+
+      for (const [dayKey, val] of dayMap.entries()) {
+        if (dayKey.startsWith(monthPrefix)) {
+          mInflow += val.cash_in;
+          mOutflow += val.cash_out;
+        }
+      }
+
+      const mDate = new Date(Date.UTC(year, m, 1));
+      const mLabel = mDate.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+
+      cashFlowTrend.push({
+        label: mLabel,
+        sublabel: `${year}`,
+        date: `${monthPrefix}-01`,
+        inflow_minor: mInflow,
+        outflow_minor: mOutflow,
+        net_minor: mInflow - mOutflow,
+      });
+    }
+  } else {
+    // All or custom range
+    const startObj = new Date(start + "T00:00:00Z");
+    const endObj = new Date(end + "T00:00:00Z");
+    const diffDays = Math.max(1, Math.round((endObj.getTime() - startObj.getTime()) / (1000 * 60 * 60 * 24)));
+
+    if (diffDays <= 14) {
+      const curr = new Date(startObj);
+      while (curr <= endObj) {
+        const dayStr = curr.toISOString().slice(0, 10);
+        const dayData = dayMap.get(dayStr) || { cash_in: 0, cash_out: 0 };
+        const label = curr.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+        cashFlowTrend.push({
+          label,
+          sublabel: dayStr,
+          date: dayStr,
+          inflow_minor: dayData.cash_in,
+          outflow_minor: dayData.cash_out,
+          net_minor: dayData.cash_in - dayData.cash_out,
+        });
+        curr.setUTCDate(curr.getUTCDate() + 1);
+      }
+    } else {
+      const months = Array.from(
+        new Set(Array.from(dayMap.keys()).map((k) => k.slice(0, 7)))
+      ).sort();
+      if (months.length === 0) {
+        cashFlowTrend.push({
+          label: startObj.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
+          sublabel: String(startObj.getUTCFullYear()),
+          date: start,
+          inflow_minor: 0,
+          outflow_minor: 0,
+          net_minor: 0,
+        });
+      } else {
+        for (const ym of months) {
+          let mInflow = 0;
+          let mOutflow = 0;
+          for (const [dayKey, val] of dayMap.entries()) {
+            if (dayKey.startsWith(ym)) {
+              mInflow += val.cash_in;
+              mOutflow += val.cash_out;
+            }
+          }
+          const [yStr, mStr] = ym.split("-");
+          const mDate = new Date(Date.UTC(Number(yStr), Number(mStr) - 1, 1));
+          cashFlowTrend.push({
+            label: mDate.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
+            sublabel: yStr,
+            date: `${ym}-01`,
+            inflow_minor: mInflow,
+            outflow_minor: mOutflow,
+            net_minor: mInflow - mOutflow,
+          });
+        }
+      }
+    }
+  }
+
+  // Backwards-compatible 6-month monthlyTrend
   const trendRes = await pool.query<{ month_str: string; cash_in: string; cash_out: string }>(
     `SELECT
        TO_CHAR(je.entry_date, 'Mon YYYY') as month_str,
@@ -216,6 +484,8 @@ export async function getDashboardMetrics(
     due_date: string;
     amount_minor: string;
     type: string;
+    entity_type: string | null;
+    entity_id: string | null;
     is_overdue: boolean;
   }>(
     `SELECT
@@ -224,12 +494,14 @@ export async function getDashboardMetrics(
        TO_CHAR(r.due_date, 'YYYY-MM-DD') as due_date,
        COALESCE(inv.amount_due_minor, 0) as amount_minor,
        r.type,
+       r.entity_type,
+       r.entity_id,
        (r.due_date < CURRENT_DATE) as is_overdue
      FROM accounting_reminders r
      LEFT JOIN accounting_invoices inv ON r.entity_type = 'INVOICE' AND r.entity_id = inv.id
      WHERE r.workspace_id = $1 AND r.status = 'PENDING'
      ORDER BY r.due_date ASC
-     LIMIT 5`,
+     LIMIT 10`,
     [workspaceId]
   );
 
@@ -254,7 +526,7 @@ export async function getDashboardMetrics(
        AND inv.status IN ('ISSUED', 'PARTIALLY_PAID')
        AND inv.amount_due_minor > 0
      ORDER BY inv.due_date ASC
-     LIMIT 5`,
+     LIMIT 10`,
     [workspaceId]
   );
 
@@ -270,27 +542,43 @@ export async function getDashboardMetrics(
     });
   }
   for (const rem of remindersRes.rows) {
-    if (rem.type === "INVOICE_DUE" && rem.id && commitmentsMap.has(`inv_${rem.id}`)) {
+    // Avoid double-counting if reminder references an already-included invoice
+    if (rem.entity_id && commitmentsMap.has(`inv_${rem.entity_id}`)) {
       continue;
     }
+    if (rem.type === "INVOICE_DUE" && commitmentsMap.has(`inv_${rem.id}`)) {
+      continue;
+    }
+
+    let amt = parseInt(rem.amount_minor || "0", 10);
+    if (amt <= 0 && rem.title) {
+      const match = rem.title.match(/(?:₹|\$|Rs\.?)\s*([\d,]+(?:\.\d+)?)/i);
+      if (match && match[1]) {
+        amt = Math.round(parseFloat(match[1].replace(/,/g, "")) * 100);
+      }
+    }
+
     commitmentsMap.set(`rem_${rem.id}`, {
       id: rem.id,
       title: rem.title,
       due_date: rem.due_date,
-      amount_minor: parseInt(rem.amount_minor || "0", 10),
+      amount_minor: amt,
       type: rem.type,
       is_overdue: Boolean(rem.is_overdue),
     });
   }
+
+  // Prioritize overdue items first, then nearest due date
   const upcomingCommitments = Array.from(commitmentsMap.values())
-    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+    .sort((a, b) => {
+      if (a.is_overdue !== b.is_overdue) {
+        return a.is_overdue ? -1 : 1;
+      }
+      return a.due_date.localeCompare(b.due_date);
+    })
     .slice(0, 5);
 
-  const cashFlowTrend = monthlyTrend.map((t) => ({
-    label: t.month,
-    inflow_minor: t.cashInMinor,
-    outflow_minor: t.cashOutMinor,
-  }));
+  // cashFlowTrend is built above matching the selected period filter
 
   const categorySpending = categoryBreakdown.map((c) => ({
     category_id: c.categoryName,
@@ -304,6 +592,7 @@ export async function getDashboardMetrics(
     periodStart: start,
     periodEnd: end,
     availableBalanceMinor,
+    liquidAccountsCount,
     moneyReceivedMinor,
     moneyPaidMinor,
     owedToMeMinor,
@@ -311,6 +600,8 @@ export async function getDashboardMetrics(
     earnedIncomeMinor,
     earnedRevenueMinor: earnedIncomeMinor,
     incurredExpenseMinor,
+    previousIncurredExpenseMinor,
+    expenseSparkline,
     netSurplusMinor,
     monthlyTrend,
     cashFlowTrend,

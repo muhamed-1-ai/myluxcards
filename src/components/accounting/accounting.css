@@ -21,6 +21,12 @@
   --acc-warning-soft: #FFFBEB;
   --acc-danger: #DC2626;
   --acc-danger-soft: #FEF2F2;
+  --acc-lime: #84CC16;
+  --acc-lime-text: #3F6212;
+  --acc-lime-soft: rgba(132, 204, 22, 0.15);
+  --acc-card-dark: #121316;
+  --acc-card-dark-border: #23242A;
+  --acc-card-dark-text: #FFFFFF;
   --acc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --acc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
   --acc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
@@ -32,27 +38,42 @@
 [data-theme="dark"],
 .dark,
 [data-theme="dark"] .accounting-root {
-  --acc-page: #050505;
-  --acc-surface: #1B1C21;
-  --acc-raised: #23252C;
-  --acc-text-main: #F5F6F8;
-  --acc-text-muted: #B5B8C2;
-  --acc-border: #343740;
-  --acc-border-light: #343740;
-  --acc-blue: #0967D2;
-  --acc-blue-hover: #075BBE;
-  --acc-blue-soft: #14263A;
-  --acc-blue-border: rgba(22, 139, 255, 0.3);
-  --acc-input-bg: #111216;
+  --acc-page: #000000;
+  --acc-surface: #141414;
+  --acc-raised: #1C1C1C;
+  --acc-hover: #252525;
+  --acc-text-main: #F5F5F5;
+  --acc-text-muted: #A3A3A3;
+  --acc-border: #303030;
+  --acc-border-light: #252525;
+  --acc-border-hover: #404040;
+  --acc-blue: #174EA6;
+  --acc-blue-hover: #1D5FC4;
+  --acc-blue-accent: #2583FF;
+  --acc-blue-soft: rgba(23, 78, 166, 0.2);
+  --acc-blue-border: #303030;
+  --acc-input-bg: #1C1C1C;
   --acc-success: #10B981;
   --acc-success-soft: rgba(16, 185, 129, 0.15);
   --acc-warning: #F59E0B;
   --acc-warning-soft: rgba(245, 158, 11, 0.15);
   --acc-danger: #EF4444;
   --acc-danger-soft: rgba(239, 68, 68, 0.15);
+  --acc-lime: #84CC16;
+  --acc-lime-text: #D9F99D;
+  --acc-lime-soft: rgba(132, 204, 22, 0.15);
+  --acc-card-dark: #141414;
+  --acc-card-dark-border: #303030;
+  --acc-card-dark-text: #F5F5F5;
   --acc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --acc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
   --acc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* Dark mode dashboard shell background isolation */
+[data-theme="dark"] .dash-shell:has(.accounting-root),
+[data-theme="dark"] .dash-shell:has(.accounting-root) .dash-main {
+  background-color: #000000;
 }
 
 /* ==========================================================================
@@ -188,6 +209,20 @@
 
 .acc-btn-outline:hover {
   background-color: var(--acc-raised);
+}
+
+[data-theme="dark"] .acc-btn-outline,
+.dark .acc-btn-outline {
+  background-color: #1C1C1C;
+  color: #F5F5F5;
+  border-color: #303030;
+}
+
+[data-theme="dark"] .acc-btn-outline:hover,
+.dark .acc-btn-outline:hover {
+  background-color: #252525;
+  color: #F5F5F5;
+  border-color: #303030;
 }
 
 .acc-btn-sm {
@@ -338,6 +373,822 @@
   word-break: break-word;
 }
 
+/* ==========================================================================
+   DASHBOARD OVERVIEW V2 (Reference 2: Compact Black-and-Blue Layout)
+   ========================================================================== */
+
+/* Deliberate Header Layout: Title & Selectors Top, Actions Grouped Together */
+.acc-header-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.acc-header-top-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .acc-header-top-tier {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+}
+
+.acc-header-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.acc-header-actions-tier {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@media (min-width: 768px) {
+  .acc-header-actions-tier {
+    justify-content: flex-end;
+  }
+}
+
+.acc-actions-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 639px) {
+  .acc-header-controls-group {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .acc-header-controls-group > * {
+    width: 100%;
+  }
+
+  .acc-period-pills {
+    width: 100%;
+    display: flex;
+  }
+
+  .acc-period-pill {
+    flex: 1;
+    text-align: center;
+    padding: 0.35rem 0.25rem;
+  }
+
+  .acc-header-actions-tier {
+    width: 100%;
+  }
+
+  .acc-actions-btn-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .acc-actions-btn-group .acc-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Header Period Pill Segmented Control */
+.acc-period-pills {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--acc-raised);
+  border: 1px solid var(--acc-border);
+  border-radius: var(--acc-radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+.acc-period-pill {
+  border: none;
+  background: transparent;
+  color: var(--acc-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--acc-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.acc-period-pill:hover {
+  color: var(--acc-text-main);
+}
+
+.acc-period-pill.is-active {
+  background-color: var(--acc-blue);
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
+}
+
+[data-theme="dark"] .acc-period-pill:hover:not(.is-active),
+.dark .acc-period-pill:hover:not(.is-active) {
+  background-color: #252525;
+  color: #F5F5F5;
+}
+
+[data-theme="dark"] .acc-period-pill.is-active,
+.dark .acc-period-pill.is-active {
+  background-color: #174EA6;
+  color: #F5F5F5;
+  box-shadow: none;
+}
+
+/* Row 1: Three Primary Cards Side-by-Side (Available Balance, Money Received, Money Paid) */
+.acc-top-three-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.125rem;
+  margin-bottom: 1.125rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@container accountingRoot (min-width: 768px) {
+  .acc-top-three-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .acc-top-three-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Primary Top Cards (Height ~150-175px, Content-Driven Growth) */
+.acc-primary-card {
+  background-color: var(--acc-surface, #141414);
+  color: var(--acc-text-main, #F5F5F5);
+  border: 1px solid var(--acc-border, #303030);
+  border-radius: var(--acc-radius-lg, 14px);
+  padding: 1.25rem 1.375rem;
+  box-shadow: var(--acc-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 155px;
+  box-sizing: border-box;
+  min-width: 0;
+  position: relative;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.acc-primary-card:hover {
+  border-color: var(--acc-border-hover, #404040);
+}
+
+.acc-card-balance {
+  background-color: var(--acc-card-dark, #141414);
+  border-color: var(--acc-card-dark-border, #303030);
+}
+
+.acc-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.acc-card-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--acc-text-muted, #A3A3A3);
+  letter-spacing: 0.01em;
+}
+
+.acc-card-amount {
+  font-size: 2.125rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--acc-text-main, #F5F5F5);
+  margin: 0.45rem 0;
+  line-height: 1.15;
+}
+
+.acc-card-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--acc-border, #303030);
+  font-size: 0.75rem;
+  color: var(--acc-text-muted, #A3A3A3);
+}
+
+.acc-card-sublabel {
+  font-size: 0.75rem;
+  color: var(--acc-text-muted, #A3A3A3);
+  line-height: 1.3;
+}
+
+.acc-card-action-link {
+  background: transparent;
+  border: none;
+  color: var(--acc-text-main, #F5F5F5);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.acc-card-action-link:hover {
+  opacity: 1;
+  color: var(--acc-blue-accent, #2583FF);
+}
+
+/* Stat Pill Badges for Cash Inflow and Outflow */
+.acc-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.acc-stat-inflow {
+  background-color: var(--acc-success-soft, rgba(16, 185, 129, 0.15));
+  color: var(--acc-success, #10B981);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.acc-stat-outflow {
+  background-color: var(--acc-danger-soft, rgba(239, 68, 68, 0.15));
+  color: var(--acc-danger, #EF4444);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* Accounts Count Pill */
+.acc-accounts-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  background-color: #1C1C1C;
+  color: #F5F5F5;
+  border: 1px solid #303030;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.acc-accounts-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #2583FF;
+  flex-shrink: 0;
+}
+
+/* Row 2: Two Compact Outstanding-Money Cards (Owed to Me, I Owe - Height ~100-120px) */
+.acc-outstanding-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.125rem;
+  margin-bottom: 1.125rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@container accountingRoot (min-width: 640px) {
+  .acc-outstanding-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 640px) {
+  .acc-outstanding-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.acc-compact-card {
+  background-color: var(--acc-surface, #141414);
+  color: var(--acc-text-main, #F5F5F5);
+  border: 1px solid var(--acc-border, #303030);
+  border-radius: var(--acc-radius-md, 10px);
+  padding: 0.95rem 1.25rem;
+  box-shadow: var(--acc-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 105px;
+  box-sizing: border-box;
+  min-width: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.acc-compact-card:hover {
+  border-color: var(--acc-border-hover, #404040);
+}
+
+.acc-compact-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--acc-text-main, #F5F5F5);
+  margin: 0.3rem 0;
+  line-height: 1.2;
+}
+
+/* Row 3: Main Split (Cash Flow ~60-62% Width + Upcoming Bills ~38-40% Width) */
+.acc-main-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.125rem;
+  margin-bottom: 1.125rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@container accountingRoot (min-width: 960px) {
+  .acc-main-split {
+    grid-template-columns: minmax(0, 61fr) minmax(0, 39fr);
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 1024px) {
+  .acc-main-split {
+    grid-template-columns: minmax(0, 61fr) minmax(0, 39fr);
+    align-items: stretch;
+  }
+}
+
+/* Upcoming Bills Card and Rows */
+.acc-commitments-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 360px;
+  box-sizing: border-box;
+}
+
+.acc-bill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--acc-radius-md, 10px);
+  background-color: var(--acc-raised, #1C1C1C);
+  border: 1px solid var(--acc-border, #303030);
+  min-width: 0;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+
+.acc-bill-row:hover {
+  background-color: var(--acc-hover, #252525);
+  border-color: var(--acc-border-hover, #404040);
+}
+
+.acc-bill-row.is-overdue {
+  border-color: rgba(239, 68, 68, 0.4);
+  background-color: var(--acc-danger-soft, rgba(239, 68, 68, 0.15));
+}
+
+.acc-bill-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.acc-bill-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.acc-bill-name {
+  font-size: 0.84375rem;
+  font-weight: 600;
+  color: var(--acc-text-main, #F5F5F5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acc-bill-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.71875rem;
+  color: var(--acc-text-muted, #A3A3A3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acc-bill-amount {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--acc-text-main, #F5F5F5);
+  white-space: nowrap;
+}
+
+/* Upcoming Commitments Rows & Initials Avatar */
+.acc-payment-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--acc-radius-md);
+  background-color: var(--acc-raised);
+  border: 1px solid var(--acc-border);
+  min-width: 0;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.acc-payment-compact-row:hover {
+  background-color: var(--acc-surface);
+  border-color: var(--acc-blue-border);
+}
+
+[data-theme="dark"] .acc-payment-compact-row:hover,
+.dark .acc-payment-compact-row:hover {
+  background-color: #252525;
+  border-color: #303030;
+}
+
+.acc-payment-compact-row.is-overdue {
+  border-color: rgba(239, 68, 68, 0.4);
+  background-color: var(--acc-danger-soft);
+}
+
+.acc-initials-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--acc-blue-soft);
+  color: var(--acc-blue);
+  border: 1px solid var(--acc-blue-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .acc-initials-avatar,
+.dark .acc-initials-avatar {
+  background-color: #1C1C1C;
+  color: #2583FF;
+  border-color: #303030;
+}
+
+/* Dashboard Performance 3-Card Grid (Accrual Metrics) */
+.acc-performance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@container accountingRoot (min-width: 768px) {
+  .acc-performance-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .acc-performance-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Section Header and Scope Badges */
+.acc-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.5rem 0 0.875rem 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.acc-section-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--acc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acc-badge-scope {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--acc-raised);
+  color: var(--acc-text-muted);
+  border: 1px solid var(--acc-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Card Accent Variations */
+.acc-card-accent-blue {
+  border-top: 3px solid var(--acc-blue);
+}
+
+.acc-card-accent-success {
+  border-top: 3px solid var(--acc-success);
+}
+
+.acc-card-accent-danger {
+  border-top: 3px solid var(--acc-danger);
+}
+
+.acc-card-accent-warning {
+  border-top: 3px solid var(--acc-warning);
+}
+
+/* Cash Flow Chart Presentation */
+.acc-chart-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .acc-chart-card {
+    min-height: 360px;
+  }
+}
+
+.acc-chart-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.acc-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--acc-text-muted);
+}
+
+.acc-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+}
+
+.acc-chart-legend-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.acc-chart-svg-wrap {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  min-height: 220px;
+}
+
+@media (min-width: 768px) {
+  .acc-chart-svg-wrap {
+    height: 250px;
+    min-height: 240px;
+  }
+}
+
+.acc-chart-empty-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2.25rem 1rem;
+  min-height: 220px;
+  box-sizing: border-box;
+}
+
+.acc-chart-empty-icon-pill {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--acc-raised);
+  border: 1px solid var(--acc-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--acc-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.acc-chart-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.acc-chart-gridline {
+  stroke: var(--acc-border);
+  stroke-dasharray: 4 4;
+  opacity: 0.45;
+}
+
+.acc-chart-axis-text {
+  fill: var(--acc-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.acc-chart-bar {
+  transition: opacity 0.15s ease, filter 0.15s ease;
+  cursor: pointer;
+}
+
+.acc-chart-bar:hover,
+.acc-chart-bar:focus {
+  filter: brightness(1.15);
+  opacity: 0.95;
+  outline: none;
+}
+
+.acc-chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background-color: var(--acc-surface);
+  border: 1px solid var(--acc-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  border-radius: var(--acc-radius-md);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  z-index: 20;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  transition: opacity 0.1s ease;
+}
+
+[data-theme="dark"] .acc-chart-tooltip,
+.dark .acc-chart-tooltip {
+  background-color: #141414;
+  border-color: #303030;
+  color: #F5F5F5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+}
+
+.acc-chart-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--acc-border);
+  font-size: 0.75rem;
+  color: var(--acc-text-muted);
+  flex-shrink: 0;
+}
+
+/* Upcoming Commitments Items */
+.acc-commitment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acc-commitment-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+  border-radius: var(--acc-radius-md);
+  background-color: var(--acc-raised);
+  border: 1px solid var(--acc-border);
+  gap: 0.875rem;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.acc-commitment-card:hover {
+  border-color: var(--acc-blue);
+}
+
+.acc-commitment-card.is-overdue {
+  border-color: var(--acc-danger);
+  background-color: var(--acc-danger-soft);
+}
+
+/* Upcoming Commitments Card & Top Alignment */
+.acc-commitments-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 1rem 1.25rem;
+  box-sizing: border-box;
+}
+
+.acc-commitments-footer {
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--acc-border);
+  text-align: right;
+}
+
+/* Compact Reassuring Empty State */
+.acc-empty-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.25rem 0.75rem;
+  gap: 0.5rem;
+  color: var(--acc-text-muted);
+}
+
+.acc-empty-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.25rem;
+}
+
+/* Accessible reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+
+  .acc-chart-bar,
+  .acc-chart-tooltip,
+  .acc-commitment-card,
+  .acc-btn {
+    transition: none !important;
+  }
+}
+
 /* Dashboard Two-Column Rows */
 .acc-two-col,
 .acc-two-col-equal {
@@ -415,6 +1266,11 @@
 
 .acc-table tr:hover td {
   background-color: var(--acc-raised);
+}
+
+[data-theme="dark"] .acc-table tr:hover td,
+.dark .acc-table tr:hover td {
+  background-color: #252525;
 }
 
 .acc-table th.acc-align-right,
@@ -605,6 +1461,33 @@
 .acc-form-textarea:focus {
   border-color: var(--acc-blue);
   box-shadow: 0 0 0 2px var(--acc-blue-soft);
+}
+
+[data-theme="dark"] .acc-form-input,
+[data-theme="dark"] .acc-form-select,
+[data-theme="dark"] .acc-form-textarea,
+.dark .acc-form-input,
+.dark .acc-form-select,
+.dark .acc-form-textarea {
+  background-color: #1C1C1C;
+  border-color: #303030;
+  color: #F5F5F5;
+}
+
+[data-theme="dark"] .acc-form-select option,
+.dark .acc-form-select option {
+  background-color: #1C1C1C;
+  color: #F5F5F5;
+}
+
+[data-theme="dark"] .acc-form-input:focus,
+[data-theme="dark"] .acc-form-select:focus,
+[data-theme="dark"] .acc-form-textarea:focus,
+.dark .acc-form-input:focus,
+.dark .acc-form-select:focus,
+.dark .acc-form-textarea:focus {
+  border-color: #174EA6;
+  box-shadow: 0 0 0 2px rgba(23, 78, 166, 0.35);
 }
 
 .acc-amount-hero-input {
@@ -1227,6 +2110,7 @@
     opacity: 0;
     transform: scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -1393,7 +2277,7 @@
   .acc-picker-trigger {
     padding: 0.5rem 0.625rem;
   }
-  
+
   .acc-picker-trigger.has-selected {
     flex-wrap: wrap;
     align-items: flex-start;
@@ -1407,7 +2291,8 @@
     flex: 1 0 100%;
     justify-content: space-between;
     margin-top: 0.25rem;
-    padding-left: 2.625rem; /* align below account name */
+    padding-left: 2.625rem;
+    /* align below account name */
   }
 
   .acc-picker-trigger.has-selected .acc-picker-balance-container {
@@ -1431,7 +2316,8 @@
     flex: 1 0 100%;
     justify-content: space-between;
     margin-top: 0.25rem;
-    padding-left: 2.625rem; /* align below account name */
+    padding-left: 2.625rem;
+    /* align below account name */
   }
 
   .acc-picker-option .acc-picker-balance-container {
@@ -1656,12 +2542,15 @@
   .acc-item-fields-grid {
     grid-template-columns: 1fr 1fr;
   }
+
   .acc-item-col-desc {
     grid-column: 1 / -1;
   }
+
   .acc-item-col-amount {
     grid-column: 1 / 2;
   }
+
   .acc-item-col-remove {
     grid-column: 2 / 3;
     display: flex;
