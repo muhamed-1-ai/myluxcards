@@ -647,44 +647,6 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
           </div>
 
           <div className="acc-header-controls-group">
-            {/* Workspace Switcher */}
-            {workspaces.length > 1 ? (
-              <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                <select
-                  className="acc-form-select"
-                  aria-label="Accounting Workspace"
-                  style={{
-                    width: "auto",
-                    minHeight: "36px",
-                    fontSize: "0.8125rem",
-                    fontWeight: 600,
-                    paddingRight: "2rem",
-                  }}
-                  value={activeWorkspace.id}
-                  onChange={(e) => {
-                    const found = workspaces.find((w) => w.id === e.target.value);
-                    if (found) setActiveWorkspace(found);
-                  }}
-                >
-                  {workspaces.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.type === "BUSINESS" ? "Business" : "Personal"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div
-                className="acc-badge-scope"
-                style={{ minHeight: "36px", boxSizing: "border-box", padding: "0 0.875rem" }}
-              >
-                <Building2 size={14} />
-                <span>
-                  {activeWorkspace.name} ({activeWorkspace.type === "BUSINESS" ? "Business" : "Personal"})
-                </span>
-              </div>
-            )}
-
             {/* Period Selector: Segmented Pill Control */}
             <div className="acc-period-pills" role="radiogroup" aria-label="Select Date Period">
               {(["today", "week", "month", "year"] as const).map((p) => (
