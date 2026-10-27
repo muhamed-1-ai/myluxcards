@@ -26,9 +26,8 @@ export default function FastTransactionModal() {
   const [toAccountId, setToAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   
-  // 3-way payment status: PAID | PARTLY_PAID | UNPAID
-  const [paymentStatus, setPaymentStatus] = useState<"PAID" | "PARTLY_PAID" | "UNPAID">("PAID");
-  const [paidAmountStr, setPaidAmountStr] = useState("");
+  // 2-way payment status: PAID | UNPAID
+  const [paymentStatus, setPaymentStatus] = useState<"PAID" | "UNPAID">("PAID");
   const [contactName, setContactName] = useState("");
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
@@ -57,7 +56,6 @@ export default function FastTransactionModal() {
       setSubcategoryId("");
       setToAccountId("");
       setPaymentStatus("PAID");
-      setPaidAmountStr("");
       setContactName("");
       setNotes("");
       setAttachmentUrl("");
@@ -95,8 +93,6 @@ export default function FastTransactionModal() {
     : [];
 
   const parsedTotal = parseFloat(stripCommas(amountStr)) || 0;
-  const parsedPaid = parseFloat(stripCommas(paidAmountStr)) || 0;
-  const remainingBalance = Math.max(0, parsedTotal - parsedPaid);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,19 +130,6 @@ export default function FastTransactionModal() {
           setErrorMsg("Please select the payment account (Cash, Bank, UPI).");
           return;
         }
-      } else if (paymentStatus === "PARTLY_PAID") {
-        if (parsedPaid <= 0 || parsedPaid >= parsedTotal) {
-          setErrorMsg("Partly paid amount must be greater than ₹0 and less than total amount.");
-          return;
-        }
-        if (!accountId) {
-          setErrorMsg("Please select the account where partial payment was settled.");
-          return;
-        }
-        if (!contactName.trim()) {
-          setErrorMsg(isIncome ? "Customer name is required for outstanding balance." : "Supplier / Payee name is required for unpaid balance.");
-          return;
-        }
       } else if (paymentStatus === "UNPAID") {
         if (!contactName.trim()) {
           setErrorMsg(isIncome ? "Customer name is required for unpaid credit sale." : "Supplier / Payee name is required for unpaid bill.");
@@ -172,6 +155,7 @@ export default function FastTransactionModal() {
       if (isTransfer) {
         payload.financialAccountId = accountId;
         payload.destinationAccountId = toAccountId;
+      } else {
         // Canonical classification: store subcategory if chosen, else main category
         payload.categoryId = subcategoryId || mainCategoryId || undefined;
         payload.mainCategoryId = mainCategoryId || undefined;
@@ -182,10 +166,6 @@ export default function FastTransactionModal() {
         if (paymentStatus === "PAID") {
           payload.financialAccountId = accountId;
           payload.paidAmountMinor = amountMinor;
-        } else if (paymentStatus === "PARTLY_PAID") {
-          payload.financialAccountId = accountId;
-          payload.paidAmountMinor = Math.round(parsedPaid * 100);
-          payload.dueDate = dueDate || undefined;
         } else if (paymentStatus === "UNPAID") {
           payload.financialAccountId = undefined; // No fictitious cash payment!
           payload.paidAmountMinor = 0;
@@ -359,28 +339,16 @@ export default function FastTransactionModal() {
                 </select>
               </div>
 
-              {/* Payment Status Segmented Control (Paid / Partly Paid / Unpaid) */}
+              {/* Payment Status Segmented Control (Paid / Unpaid) */}
               <div className="acc-form-group">
                 <label className="acc-form-label">Payment Status *</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                   <button
                     type="button"
                     className={`acc-btn acc-btn-sm ${paymentStatus === "PAID" ? "acc-btn-primary" : "acc-btn-outline"}`}
                     onClick={() => setPaymentStatus("PAID")}
                   >
                     ✓ Paid
-                  </button>
-                  <button
-                    type="button"
-                    className={`acc-btn acc-btn-sm ${paymentStatus === "PARTLY_PAID" ? "acc-btn-primary" : "acc-btn-outline"}`}
-                    onClick={() => {
-                      setPaymentStatus("PARTLY_PAID");
-                      if (!paidAmountStr && parsedTotal > 0) {
-                        setPaidAmountStr((parsedTotal / 2).toString());
-                      }
-                    }}
-                  >
-                    🌗 Partly Paid
                   </button>
                   <button
                     type="button"
@@ -391,74 +359,6 @@ export default function FastTransactionModal() {
                   </button>
                 </div>
               </div>
-
-              {/* Conditional: Partly Paid details */}
-              {paymentStatus === "PARTLY_PAID" && (
-                <div style={{ padding: "0.875rem", backgroundColor: "var(--acc-raised)", borderRadius: "8px", marginBottom: "1rem", border: "1px solid var(--acc-border)" }}>
-                  <div className="acc-form-group">
-                    <label className="acc-form-label" htmlFor="fast-paid-amount">
-                      Amount Paid Now (₹) *
-                    </label>
-                    <FormattedMoneyInput
-                      id="fast-paid-amount"
-                      required
-                      className="acc-form-input tabular-nums"
-                      placeholder="0.00"
-                      value={paidAmountStr}
-                      onChange={(e) => setPaidAmountStr(e.target.value)}
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", backgroundColor: "var(--acc-surface)", borderRadius: "6px", fontSize: "0.8125rem", marginBottom: "0.75rem" }}>
-                    <span style={{ color: "var(--acc-text-muted)" }}>Remaining Balance:</span>
-                    <span className="tabular-nums font-bold" style={{ color: isIncome ? "var(--acc-blue)" : "var(--acc-danger)", fontSize: "0.9375rem" }}>
-                      ₹{formatAmountWithCommas(remainingBalance.toFixed(2))} ({isIncome ? "Owed to Me" : "I Owe"})
-                    </span>
-                  </div>
-
-                  <div className="acc-form-group">
-                    <label className="acc-form-label" htmlFor="fast-partial-account">
-                      {isIncome ? "Deposit Paid Portion To Account *" : "Pay Partial Amount From Account *"}
-                    </label>
-                    <PaymentAccountPicker
-                      id="fast-partial-account"
-                      value={accountId}
-                      onChange={setAccountId}
-                      accounts={liquidAccounts}
-                      placeholder="Select payment account..."
-                      required
-                    />
-                  </div>
-
-                  <div className="acc-form-group">
-                    <label className="acc-form-label" htmlFor="fast-contact-partial">
-                      {isIncome ? "Customer Name (Who owes balance) *" : "Vendor / Supplier Name (Who you owe) *"}
-                    </label>
-                    <input
-                      id="fast-contact-partial"
-                      type="text"
-                      required
-                      className="acc-form-input"
-                      placeholder="e.g. Ramesh Traders, John Doe"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="acc-form-group" style={{ marginBottom: 0 }}>
-                    <label className="acc-form-label" htmlFor="fast-due-date-partial">
-                      Due Date for Remaining Balance
-                    </label>
-                    <input
-                      id="fast-due-date-partial"
-                      type="date"
-                      className="acc-form-input"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Conditional: Unpaid details (NO payment account required!) */}
               {paymentStatus === "UNPAID" && (
