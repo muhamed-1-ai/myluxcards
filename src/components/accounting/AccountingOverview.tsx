@@ -18,10 +18,14 @@ import {
   Table as TableIcon,
   ChevronRight,
   Paperclip,
+  Trash2,
+  RotateCcw,
+  CheckCircle,
 } from "lucide-react";
 import "./accounting.css";
 import { resolveTransactionCategory } from "@/lib/accounting/categoryResolver";
 import TransactionAttachmentViewerModal from "./TransactionAttachmentViewerModal";
+import WipeAccountingModal from "./WipeAccountingModal";
 import type { TransactionAttachmentRow } from "@/lib/accounting/types";
 
 interface DashboardMetrics {
@@ -296,6 +300,8 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     refreshKey,
     accounts,
     categories,
+    userRole,
+    triggerRefresh,
   } = useAccounting();
 
   const [period, setPeriod] = useState<"today" | "week" | "month" | "year">("month");
@@ -306,6 +312,21 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
+
+  // Wipe Accounting Data states
+  const [wipeModalOpen, setWipeModalOpen] = useState(false);
+  const [wipeSuccessMessage, setWipeSuccessMessage] = useState<string | null>(null);
+
+  const handleWipeSuccess = (versionNumber: number) => {
+    setWipeModalOpen(false);
+    setWipeSuccessMessage(
+      `Accounting workspace reset successfully! Reversible recovery snapshot #${versionNumber} has been safely archived.`
+    );
+    triggerRefresh();
+    setTimeout(() => {
+      setWipeSuccessMessage(null);
+    }, 12000);
+  };
 
   const prevWorkspaceIdRef = useRef<string | undefined>(activeWorkspace?.id);
   const reqCounterRef = useRef<number>(0);
@@ -679,6 +700,23 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                 </button>
               ))}
             </div>
+
+            {/* Wipe Accounting Data Button */}
+            <button
+              type="button"
+              id="wipe-accounting-data-btn"
+              className="acc-wipe-data-btn"
+              onClick={() => setWipeModalOpen(true)}
+              title={
+                userRole !== "OWNER"
+                  ? "Only workspace OWNER can wipe accounting data"
+                  : "Wipe and reset active accounting records"
+              }
+              disabled={userRole !== "OWNER"}
+            >
+              <Trash2 size={16} strokeWidth={2.2} />
+              <span>Wipe Accounting Data</span>
+            </button>
           </div>
         </div>
 
@@ -716,6 +754,49 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
           </div>
         </div>
       </div>
+
+      {/* Wipe Accounting Data Success Banner */}
+      {wipeSuccessMessage && (
+        <div
+          style={{
+            padding: "0.875rem 1.25rem",
+            marginBottom: "1.25rem",
+            borderRadius: "var(--acc-radius-md)",
+            backgroundColor: "rgba(16, 185, 129, 0.12)",
+            color: "#10B981",
+            border: "1px solid rgba(16, 185, 129, 0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.75rem",
+            fontWeight: 500,
+            fontSize: "0.875rem",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <CheckCircle size={18} />
+            <span>{wipeSuccessMessage}</span>
+          </div>
+          {onNavigateTab && (
+            <button
+              type="button"
+              className="acc-btn acc-btn-outline acc-btn-sm"
+              style={{
+                borderColor: "#10B981",
+                color: "#10B981",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+              }}
+              onClick={() => onNavigateTab("accounting-settings")}
+            >
+              <RotateCcw size={14} />
+              <span>Restore Previous Data</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Offline / Error Banner */}
       {error && (
@@ -1875,6 +1956,15 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
           attachments={viewerAttachments}
         />
       )}
+
+      {/* Wipe Accounting Confirmation Modal */}
+      <WipeAccountingModal
+        isOpen={wipeModalOpen}
+        onClose={() => setWipeModalOpen(false)}
+        workspace={activeWorkspace}
+        onSuccess={handleWipeSuccess}
+        formatMoney={formatMoney}
+      />
     </div>
   );
 }

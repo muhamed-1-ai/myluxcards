@@ -384,3 +384,57 @@ export interface ReminderRow {
   created_at: Date;
   updated_at: Date;
 }
+
+export type RecoveryReason = "PRE_RESET" | "PRE_RESTORE" | "MANUAL";
+export type RecoveryStatus = "AVAILABLE" | "RESTORED" | "EXPIRED" | "CORRUPTED";
+
+export interface RecoveryRecordCounts {
+  financialAccounts: number;
+  categories: number;
+  contacts: number;
+  products: number;
+  journalEntries: number;
+  journalLines: number;
+  invoices: number;
+  invoiceLines: number;
+  invoiceSequences: number;
+  sales: number;
+  payments: number;
+  paymentAllocations: number;
+  transactions: number;
+  transactionAttachments: number;
+  loans: number;
+  loanInstallments: number;
+  budgets: number;
+  recurringRules: number;
+  reminders: number;
+}
+
+export interface FinancialSummary {
+  accountsCount: number;
+  netBalanceMinor: number;
+  totalInflowMinor: number;
+  totalOutflowMinor: number;
+  receivableMinor: number;
+  payableMinor: number;
+  unpaidInvoicesCount: number;
+  currency: string;
+}
+
+export interface RecoveryVersionRow {
+  id: string;
+  workspace_id: string;
+  version_number: number;
+  name: string;
+  reason: RecoveryReason;
+  status: RecoveryStatus;
+  checksum: string;
+  data_payload: Record<string, unknown>;
+  record_counts: RecoveryRecordCounts;
+  financial_summary: FinancialSummary;
+  created_by: string | null;
+  created_at: Date;
+  expires_at: Date;
+  restored_at: Date | null;
+  restored_by: string | null;
+}

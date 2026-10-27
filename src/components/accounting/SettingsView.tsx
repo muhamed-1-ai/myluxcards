@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 import SecuritySettingsView from "../security/SecuritySettingsView";
+import DataManagementView from "./DataManagementView";
 
 export default function SettingsView() {
   const {
@@ -19,7 +20,7 @@ export default function SettingsView() {
   } = useAccounting();
 
   const [activeSection, setActiveSection] = useState<
-    "ACCOUNTS" | "WORKSPACE" | "PERMISSIONS" | "NOTIFICATIONS" | "INTEGRATIONS" | "SECURITY"
+    "ACCOUNTS" | "WORKSPACE" | "PERMISSIONS" | "NOTIFICATIONS" | "INTEGRATIONS" | "SECURITY" | "DATA_MANAGEMENT"
   >("ACCOUNTS");
 
   // Set Balance State
@@ -162,6 +163,13 @@ export default function SettingsView() {
           onClick={() => setActiveSection("SECURITY")}
         >
           🛡️ Security &amp; Password
+        </button>
+        <button
+          type="button"
+          className={`acc-btn acc-btn-sm ${activeSection === "DATA_MANAGEMENT" ? "acc-btn-primary" : "acc-btn-outline"}`}
+          onClick={() => setActiveSection("DATA_MANAGEMENT")}
+        >
+          💾 Data Management
         </button>
       </div>
 
@@ -433,6 +441,11 @@ export default function SettingsView() {
         <div className="acc-card" style={{ padding: "0" }}>
           <SecuritySettingsView user={null} />
         </div>
+      )}
+
+      {/* SECTION 8: Data Management, Reset & Restore */}
+      {activeSection === "DATA_MANAGEMENT" && (
+        <DataManagementView />
       )}
 
       {/* Set Opening Balance Modal */}
