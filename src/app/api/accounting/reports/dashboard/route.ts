@@ -15,6 +15,8 @@ export async function GET(req: Request) {
     const periodParam = url.searchParams.get("period");
     const startDate = url.searchParams.get("startDate") || undefined;
     const endDate = url.searchParams.get("endDate") || undefined;
+    const categoryId = url.searchParams.get("categoryId") || undefined;
+    const subcategoryId = url.searchParams.get("subcategoryId") || undefined;
 
     if (periodParam && !VALID_PERIODS.has(periodParam)) {
       return NextResponse.json(
@@ -40,16 +42,79 @@ export async function GET(req: Request) {
       );
     }
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (
+      categoryId &&
+      categoryId !== "all" &&
+      categoryId !== "uncategorized" &&
+      !UUID_REGEX.test(categoryId)
+    ) {
+      return NextResponse.json(
+        {
+          error: "INVALID_CATEGORY_ID",
+          message: "categoryId must be a valid UUID, 'all', or 'uncategorized'.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      subcategoryId &&
+      subcategoryId !== "all" &&
+      !UUID_REGEX.test(subcategoryId)
+    ) {
+      return NextResponse.json(
+        {
+          error: "INVALID_SUBCATEGORY_ID",
+          message: "subcategoryId must be a valid UUID or 'all'.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if ((!categoryId || categoryId === "all") && subcategoryId && subcategoryId !== "all") {
+      return NextResponse.json(
+        {
+          error: "INVALID_FILTER_COMBINATION",
+          message: "A main category must be selected to filter by subcategory.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (categoryId === "uncategorized" && subcategoryId && subcategoryId !== "all") {
+      return NextResponse.json(
+        {
+          error: "INVALID_FILTER_COMBINATION",
+          message: "Subcategories are not applicable for uncategorized transactions.",
+        },
+        { status: 400 }
+      );
+    }
+
     const period = (periodParam as PeriodFilter["period"]) || "month";
 
     const metrics = await getDashboardMetrics(context!.workspace.id, {
       period,
       startDate,
       endDate,
+      categoryId,
+      subcategoryId,
     });
 
     return NextResponse.json(metrics);
-  } catch (err: unknown) {
+  } catch (err: any) {
+    if (err && typeof err === "object" && typeof err.statusCode === "number") {
+      return NextResponse.json(
+        {
+          error: err.name || "VALIDATION_ERROR",
+          message: err.message,
+        },
+        { status: err.statusCode }
+      );
+    }
+
     console.error("[Accounting Dashboard API] Unexpected error:", err instanceof Error ? err.message : err);
     return NextResponse.json(
       {

@@ -34,6 +34,7 @@ export interface Category {
   color?: string;
   icon?: string;
   is_archived: boolean;
+  sort_order?: number;
 }
 
 interface AccountingContextType {

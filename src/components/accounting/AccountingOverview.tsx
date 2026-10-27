@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useAccounting } from "./AccountingContext";
 import {
   ArrowDownLeft,
@@ -69,6 +69,16 @@ interface DashboardMetrics {
     outflow_minor: number;
     net_minor?: number;
   }>;
+  cashFlowInflowMinor?: number;
+  cashFlowOutflowMinor?: number;
+  cashFlowNetMinor?: number;
+  cashFlowFilter?: {
+    categoryId?: string | null;
+    subcategoryId?: string | null;
+    categoryName?: string;
+    subcategoryName?: string;
+    filterLabel?: string;
+  };
   monthlyTrend?: Array<{
     month: string;
     cashInMinor: number;
@@ -285,14 +295,111 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     openFastModal,
     refreshKey,
     accounts,
+    categories,
   } = useAccounting();
 
   const [period, setPeriod] = useState<"today" | "week" | "month" | "year">("month");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>("all");
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
+
+  const prevWorkspaceIdRef = useRef<string | undefined>(activeWorkspace?.id);
+  const reqCounterRef = useRef<number>(0);
+
+  // Reset category filters when switching workspaces
+  useEffect(() => {
+    if (activeWorkspace?.id && prevWorkspaceIdRef.current !== activeWorkspace.id) {
+      prevWorkspaceIdRef.current = activeWorkspace.id;
+      setSelectedCategoryId("all");
+      setSelectedSubcategoryId("all");
+    }
+  }, [activeWorkspace?.id]);
+
+  // Derived category hierarchy
+  const mainCategories = useMemo(() => {
+    return categories
+      .filter((c) => !c.parent_id && !c.is_archived)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+  }, [categories]);
+
+  const incomeCategories = useMemo(() => {
+    return mainCategories.filter((c) => c.type === "INCOME");
+  }, [mainCategories]);
+
+  const expenseCategories = useMemo(() => {
+    return mainCategories.filter((c) => c.type === "EXPENSE");
+  }, [mainCategories]);
+
+  const selectedMainCategory = useMemo(() => {
+    if (selectedCategoryId === "all" || selectedCategoryId === "uncategorized") return null;
+    return categories.find((c) => c.id === selectedCategoryId && !c.parent_id) || null;
+  }, [categories, selectedCategoryId]);
+
+  const availableSubcategories = useMemo(() => {
+    if (!selectedMainCategory) return [];
+    return categories
+      .filter((c) => c.parent_id === selectedMainCategory.id && !c.is_archived)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+  }, [categories, selectedMainCategory]);
+
+  const selectedSubcategory = useMemo(() => {
+    if (selectedSubcategoryId === "all") return null;
+    return availableSubcategories.find((s) => s.id === selectedSubcategoryId) || null;
+  }, [availableSubcategories, selectedSubcategoryId]);
+
+  const isFilterActive = selectedCategoryId !== "all" || selectedSubcategoryId !== "all";
+
+  const isSubcategoryDisabled =
+    selectedCategoryId === "all" ||
+    selectedCategoryId === "uncategorized" ||
+    availableSubcategories.length === 0;
+
+  const activeFilterLabel = useMemo(() => {
+    if (selectedCategoryId === "uncategorized") {
+      return "Uncategorized";
+    }
+    if (selectedMainCategory) {
+      if (selectedSubcategory) {
+        return `${selectedMainCategory.name} → ${selectedSubcategory.name}`;
+      }
+      return `${selectedMainCategory.name} (All subcategories)`;
+    }
+    return "All Categories";
+  }, [selectedCategoryId, selectedMainCategory, selectedSubcategory]);
+
+  // Cleanly handle category deletion/archival after cache refreshes
+  useEffect(() => {
+    if (selectedCategoryId !== "all" && selectedCategoryId !== "uncategorized") {
+      const exists = categories.some((c) => c.id === selectedCategoryId && !c.parent_id);
+      if (!exists && categories.length > 0) {
+        setSelectedCategoryId("all");
+        setSelectedSubcategoryId("all");
+      }
+    }
+  }, [categories, selectedCategoryId]);
+
+  useEffect(() => {
+    if (selectedSubcategoryId !== "all") {
+      const exists = availableSubcategories.some((s) => s.id === selectedSubcategoryId);
+      if (!exists) {
+        setSelectedSubcategoryId("all");
+      }
+    }
+  }, [availableSubcategories, selectedSubcategoryId]);
+
+  const handleCategoryChange = (catId: string) => {
+    setSelectedCategoryId(catId);
+    setSelectedSubcategoryId("all");
+  };
+
+  const handleClearFilters = () => {
+    setSelectedCategoryId("all");
+    setSelectedSubcategoryId("all");
+  };
 
   // Attachment Viewer State
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -352,7 +459,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     }
   }, [chartViewMode, metrics]);
 
-  // Cache partitioned strictly by workspace ID and period to avoid cross-tenant bleeding
+  // Cache partitioned strictly by workspace ID, period, category, and subcategory
   const cacheRef = useRef<Map<string, { metrics: DashboardMetrics; timestamp: Date }>>(new Map());
 
   // Invalidate cache when financial transactions change
@@ -369,7 +476,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   useEffect(() => {
     if (!activeWorkspace) return;
 
-    const cacheKey = `${activeWorkspace.id}:${period}`;
+    const cacheKey = `${activeWorkspace.id}:${period}:${selectedCategoryId}:${selectedSubcategoryId}`;
     const cached = cacheRef.current.get(cacheKey);
 
     if (cached) {
@@ -385,18 +492,27 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     }
 
     const controller = new AbortController();
+    const currentReqId = ++reqCounterRef.current;
 
     async function fetchDashboard() {
       try {
         setLoading(true);
         setError("");
-        const res = await fetch(
-          `/api/accounting/reports/dashboard?workspaceId=${activeWorkspace?.id}&period=${period}`,
-          { signal: controller.signal }
-        );
+        let url = `/api/accounting/reports/dashboard?workspaceId=${activeWorkspace?.id}&period=${period}`;
+        if (selectedCategoryId && selectedCategoryId !== "all") {
+          url += `&categoryId=${encodeURIComponent(selectedCategoryId)}`;
+          if (selectedSubcategoryId && selectedSubcategoryId !== "all") {
+            url += `&subcategoryId=${encodeURIComponent(selectedSubcategoryId)}`;
+          }
+        }
+
+        const res = await fetch(url, { signal: controller.signal });
+
+        if (currentReqId !== reqCounterRef.current) return;
 
         if (res.ok) {
           const data: DashboardMetrics = await res.json();
+          if (currentReqId !== reqCounterRef.current) return;
           const now = new Date();
           cacheRef.current.set(cacheKey, { metrics: data, timestamp: now });
           setMetrics(data);
@@ -404,15 +520,19 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
           setError("");
         } else {
           const errData = await res.json().catch(() => null);
+          if (currentReqId !== reqCounterRef.current) return;
           const errorMsg =
             errData?.message || "Failed to load financial records. Please try again.";
           setError(errorMsg);
         }
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
+        if (currentReqId !== reqCounterRef.current) return;
         setError(err instanceof Error ? err.message : "Network error loading dashboard");
       } finally {
-        setLoading(false);
+        if (currentReqId === reqCounterRef.current) {
+          setLoading(false);
+        }
       }
     }
 
@@ -421,7 +541,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     return () => {
       controller.abort();
     };
-  }, [activeWorkspace?.id, period, refreshKey, retryTrigger]);
+  }, [activeWorkspace?.id, period, selectedCategoryId, selectedSubcategoryId, refreshKey, retryTrigger]);
 
   const handleRetry = () => {
     setRetryTrigger((prev) => prev + 1);
@@ -487,6 +607,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
 
   // Give 10% headroom above the peak so top markers are never clipped by the top border
   const maxSeriesVal = rawMaxVal > 0 ? Math.ceil((rawMaxVal * 1.1) / 1000) * 1000 : 0;
+
+  // Filtered cash flow totals strictly for Cash Flow Panel & Table view
+  const currentInflow = metrics?.cashFlowInflowMinor ?? metrics?.moneyReceivedMinor ?? 0;
+  const currentOutflow = metrics?.cashFlowOutflowMinor ?? metrics?.moneyPaidMinor ?? 0;
+  const currentNet = metrics?.cashFlowNetMinor ?? (currentInflow - currentOutflow);
 
   return (
     <div>
@@ -808,6 +933,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                   : period === "year"
                   ? `Monthly cash movements for ${activePeriodLabel.toLowerCase()}`
                   : `Cash movements for ${activePeriodLabel.toLowerCase()}`}
+                {isFilterActive && (
+                  <span style={{ color: "var(--acc-blue-accent, #2583FF)", fontWeight: 600 }}>
+                    {" "}• {activeFilterLabel}
+                  </span>
+                )}
               </span>
             </div>
 
@@ -869,6 +999,100 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             </div>
           </div>
 
+          {/* Category & Subcategory Filter Toolbar */}
+          <div className="acc-chart-toolbar">
+            <div className="acc-chart-filters">
+              {/* Main Category */}
+              <div className="acc-chart-filter-item">
+                <label htmlFor="cashflow-filter-category" className="acc-chart-filter-label">
+                  Category
+                </label>
+                <select
+                  id="cashflow-filter-category"
+                  className="acc-chart-filter-select"
+                  value={selectedCategoryId}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  aria-label="Filter cash flow by category"
+                >
+                  <option value="all">All Categories</option>
+                  {incomeCategories.length > 0 && (
+                    <optgroup label="Income Categories">
+                      {incomeCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {expenseCategories.length > 0 && (
+                    <optgroup label="Expense Categories">
+                      {expenseCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <option value="uncategorized">Uncategorized</option>
+                </select>
+              </div>
+
+              {/* Subcategory */}
+              <div className="acc-chart-filter-item">
+                <label htmlFor="cashflow-filter-subcategory" className="acc-chart-filter-label">
+                  Subcategory
+                </label>
+                <select
+                  id="cashflow-filter-subcategory"
+                  className="acc-chart-filter-select"
+                  value={selectedSubcategoryId}
+                  onChange={(e) => setSelectedSubcategoryId(e.target.value)}
+                  disabled={isSubcategoryDisabled}
+                  aria-label="Filter cash flow by subcategory"
+                >
+                  {selectedCategoryId === "all" ? (
+                    <option value="all">All Subcategories</option>
+                  ) : selectedCategoryId === "uncategorized" ? (
+                    <option value="all">No subcategories</option>
+                  ) : availableSubcategories.length === 0 ? (
+                    <option value="all">No subcategories</option>
+                  ) : (
+                    <>
+                      <option value="all">All Subcategories</option>
+                      {availableSubcategories.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Clear Filters Action */}
+              {isFilterActive && (
+                <button
+                  type="button"
+                  className="acc-chart-filter-clear-btn"
+                  onClick={handleClearFilters}
+                  title="Clear active category filters"
+                  aria-label="Clear active category filters"
+                >
+                  <span aria-hidden="true" style={{ fontSize: "0.875rem", lineHeight: 1 }}>✕</span>
+                  <span>Clear filter</span>
+                </button>
+              )}
+            </div>
+
+            {/* Active Filter Pill */}
+            {isFilterActive && (
+              <div className="acc-chart-active-filter-pill" title={`Active filter: ${activeFilterLabel}`}>
+                <span className="acc-chart-filter-pill-dot" />
+                <span>{activeFilterLabel}</span>
+              </div>
+            )}
+          </div>
+
           {/* SVG Dual-Line Chart or Accessible Table View */}
           {isLoadingInitial ? (
             <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
@@ -893,7 +1117,9 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                 <BarChart3 size={20} />
               </div>
               <div style={{ fontWeight: 600, fontSize: "0.9375rem", color: "var(--acc-text-main)" }}>
-                {period === "today"
+                {isFilterActive
+                  ? "No cash activity for this selection."
+                  : period === "today"
                   ? "No cash activity today"
                   : period === "week"
                   ? "No cash activity this week"
@@ -904,7 +1130,9 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                   : `No cash activity for ${activePeriodLabel.toLowerCase()}`}
               </div>
               <div style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", maxWidth: "320px", textAlign: "center", lineHeight: 1.4 }}>
-                Recorded receipts and payments will appear here.
+                {isFilterActive
+                  ? "No recorded money movements found matching this category filter and date range."
+                  : "Recorded receipts and payments will appear here."}
               </div>
             </div>
           ) : chartViewMode === "table" ? (
@@ -919,37 +1147,45 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                   </tr>
                 </thead>
                 <tbody>
-                  {trendBars.map((bar, idx) => {
-                    const net = bar.inflow_minor - bar.outflow_minor;
-                    return (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: 500 }}>
-                          <div>{bar.label}</div>
-                          {bar.sublabel && (
-                            <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                              {bar.sublabel}
-                            </span>
-                          )}
-                        </td>
-                        <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-success)", fontWeight: 600 }}>
-                          {formatMoney(bar.inflow_minor, activeWorkspace.currency)}
-                        </td>
-                        <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-danger)", fontWeight: 600 }}>
-                          {formatMoney(bar.outflow_minor, activeWorkspace.currency)}
-                        </td>
-                        <td
-                          className="acc-align-right tabular-nums"
-                          style={{
-                            fontWeight: 700,
-                            color: net >= 0 ? "var(--acc-text-main)" : "var(--acc-danger)",
-                          }}
-                        >
-                          {net >= 0 ? "+" : ""}
-                          {formatMoney(net, activeWorkspace.currency)}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {trendBars.length === 0 || !hasCashActivity ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                        {isFilterActive ? "No cash activity for this selection." : "No cash activity for this period."}
+                      </td>
+                    </tr>
+                  ) : (
+                    trendBars.map((bar, idx) => {
+                      const net = bar.inflow_minor - bar.outflow_minor;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 500 }}>
+                            <div>{bar.label}</div>
+                            {bar.sublabel && (
+                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                {bar.sublabel}
+                              </span>
+                            )}
+                          </td>
+                          <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-success)", fontWeight: 600 }}>
+                            {formatMoney(bar.inflow_minor, activeWorkspace.currency)}
+                          </td>
+                          <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-danger)", fontWeight: 600 }}>
+                            {formatMoney(bar.outflow_minor, activeWorkspace.currency)}
+                          </td>
+                          <td
+                            className="acc-align-right tabular-nums"
+                            style={{
+                              fontWeight: 700,
+                              color: net >= 0 ? "var(--acc-text-main)" : "var(--acc-danger)",
+                            }}
+                          >
+                            {net >= 0 ? "+" : ""}
+                            {formatMoney(net, activeWorkspace.currency)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1294,13 +1530,13 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               <span>
                 Total Inflow:{" "}
                 <strong className="tabular-nums" style={{ color: "var(--acc-text-main)" }}>
-                  {formatMoney(metrics?.moneyReceivedMinor ?? 0, activeWorkspace.currency)}
+                  {formatMoney(currentInflow, activeWorkspace.currency)}
                 </strong>
               </span>
               <span>
                 Total Outflow:{" "}
                 <strong className="tabular-nums" style={{ color: "var(--acc-text-muted)" }}>
-                  {formatMoney(metrics?.moneyPaidMinor ?? 0, activeWorkspace.currency)}
+                  {formatMoney(currentOutflow, activeWorkspace.currency)}
                 </strong>
               </span>
             </div>
@@ -1311,16 +1547,13 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                   className="tabular-nums"
                   style={{
                     color:
-                      (metrics?.moneyReceivedMinor ?? 0) >= (metrics?.moneyPaidMinor ?? 0)
+                      currentNet >= 0
                         ? "var(--acc-text-main)"
                         : "var(--acc-danger)",
                   }}
                 >
-                  {(metrics?.moneyReceivedMinor ?? 0) >= (metrics?.moneyPaidMinor ?? 0) ? "+" : ""}
-                  {formatMoney(
-                    (metrics?.moneyReceivedMinor ?? 0) - (metrics?.moneyPaidMinor ?? 0),
-                    activeWorkspace.currency
-                  )}
+                  {currentNet >= 0 ? "+" : ""}
+                  {formatMoney(currentNet, activeWorkspace.currency)}
                 </strong>
               </span>
             </div>

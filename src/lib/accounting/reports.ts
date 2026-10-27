@@ -8,6 +8,8 @@ export interface PeriodFilter {
   period?: "today" | "week" | "month" | "year" | "all" | "custom";
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+  categoryId?: string | null;    // UUID, "all", or "uncategorized"
+  subcategoryId?: string | null; // UUID or "all"
 }
 
 function resolveDateRange(filter: PeriodFilter): { start: string; end: string } {
@@ -65,6 +67,16 @@ export interface DashboardMetrics {
     outflow_minor: number;
     net_minor?: number;
   }>;
+  cashFlowInflowMinor?: number;
+  cashFlowOutflowMinor?: number;
+  cashFlowNetMinor?: number;
+  cashFlowFilter?: {
+    categoryId?: string | null;
+    subcategoryId?: string | null;
+    categoryName?: string;
+    subcategoryName?: string;
+    filterLabel?: string;
+  };
   expenseSparkline?: number[];
   categoryBreakdown: Array<{ categoryName: string; amountMinor: number; percent: number }>;
   categorySpending?: Array<{ category_id: string; category_name: string; spent_minor: number; percentage: number }>;
@@ -210,33 +222,215 @@ export async function getDashboardMetrics(
   const expenseSparkline = sparklineRes.rows.map((r) => Math.max(0, parseInt(r.expense || "0", 10)));
 
   // 6. Cash Flow Trend Aggregation matching the selected period filter
-  // Query daily cash flow within the resolved [start, end] window
-  const dailyCashFlowRes = await pool.query<{
-    day_str: string;
-    cash_in: string;
-    cash_out: string;
-  }>(
-    `SELECT
-       TO_CHAR(je.entry_date, 'YYYY-MM-DD') as day_str,
-       COALESCE(SUM(jl.debit_minor), 0) as cash_in,
-       COALESCE(SUM(jl.credit_minor), 0) as cash_out
-     FROM accounting_journal_lines jl
-     JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
-     JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
-     WHERE je.workspace_id = $1
-       AND je.status = 'POSTED'
-       AND je.entry_type != 'REVERSAL'
-       AND fa.subtype IN ('CASH', 'BANK', 'UPI')
-       AND je.entry_date >= $2
-       AND je.entry_date <= $3
-       AND je.entry_type != 'OPENING_BALANCE'
-     GROUP BY TO_CHAR(je.entry_date, 'YYYY-MM-DD')
-     ORDER BY day_str ASC`,
-    [workspaceId, start, end]
-  );
+  // Parse and validate category filtering
+  const rawCategoryId = (filter.categoryId || "").trim();
+  const rawSubcategoryId = (filter.subcategoryId || "").trim();
+
+  let isCategoryFiltered = false;
+  let resolvedCategoryName: string | undefined = undefined;
+  let resolvedSubcategoryName: string | undefined = undefined;
+  let filterLabel = "All Categories";
+  let categoryFilterClause: string | null = null;
+  const filteredQueryParams: unknown[] = [workspaceId, start, end];
+
+  if ((!rawCategoryId || rawCategoryId === "all") && rawSubcategoryId && rawSubcategoryId !== "all") {
+    const error: any = new Error("A main category must be selected to filter by subcategory.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (rawCategoryId && rawCategoryId !== "all") {
+    isCategoryFiltered = true;
+    if (rawCategoryId === "uncategorized") {
+      if (rawSubcategoryId && rawSubcategoryId !== "all") {
+        const error: any = new Error("Subcategories are not applicable for uncategorized transactions.");
+        error.statusCode = 400;
+        throw error;
+      }
+      resolvedCategoryName = "Uncategorized";
+      filterLabel = "Uncategorized";
+      categoryFilterClause = `t.category_id IS NULL AND t.type != 'TRANSFER'`;
+    } else {
+      // Validate category in workspace
+      const catCheck = await pool.query<{ id: string; name: string; type: string; parent_id: string | null }>(
+        `SELECT id, name, type, parent_id FROM accounting_categories WHERE id = $1 AND workspace_id = $2 LIMIT 1`,
+        [rawCategoryId, workspaceId]
+      );
+      if (catCheck.rows.length === 0) {
+        const error: any = new Error("Selected category does not exist in this workspace.");
+        error.statusCode = 404;
+        throw error;
+      }
+      const mainCat = catCheck.rows[0];
+      if (mainCat.parent_id !== null) {
+        const error: any = new Error("Selected category is a subcategory. Please select a main category.");
+        error.statusCode = 400;
+        throw error;
+      }
+      resolvedCategoryName = mainCat.name;
+
+      if (rawSubcategoryId && rawSubcategoryId !== "all") {
+        // Validate subcategory belongs to workspace
+        const subCheck = await pool.query<{ id: string; name: string; type: string; parent_id: string | null }>(
+          `SELECT id, name, type, parent_id FROM accounting_categories WHERE id = $1 AND workspace_id = $2 LIMIT 1`,
+          [rawSubcategoryId, workspaceId]
+        );
+        if (subCheck.rows.length === 0) {
+          const error: any = new Error("Selected subcategory does not exist in this workspace.");
+          error.statusCode = 404;
+          throw error;
+        }
+        const subCat = subCheck.rows[0];
+
+        // Check that subCat is a descendant of mainCat
+        const ancestorCheck = await pool.query<{ is_child: boolean }>(
+          `WITH RECURSIVE cat_tree AS (
+             SELECT id, parent_id FROM accounting_categories WHERE id = $1 AND workspace_id = $3
+             UNION ALL
+             SELECT c.id, c.parent_id FROM accounting_categories c
+             JOIN cat_tree ct ON c.parent_id = ct.id
+             WHERE c.workspace_id = $3
+           )
+           SELECT EXISTS(SELECT 1 FROM cat_tree WHERE id = $2) as is_child`,
+          [mainCat.id, subCat.id, workspaceId]
+        );
+
+        if (!ancestorCheck.rows[0]?.is_child) {
+          const error: any = new Error(`Selected subcategory "${subCat.name}" does not belong to category "${mainCat.name}".`);
+          error.statusCode = 400;
+          throw error;
+        }
+
+        resolvedSubcategoryName = subCat.name;
+        filterLabel = `${mainCat.name} → ${subCat.name}`;
+        filteredQueryParams.push(subCat.id);
+        const pIndex = filteredQueryParams.length;
+        categoryFilterClause = `t.category_id IN (
+          WITH RECURSIVE cat_tree AS (
+            SELECT id FROM accounting_categories WHERE id = $${pIndex} AND workspace_id = $1
+            UNION ALL
+            SELECT c.id FROM accounting_categories c
+            JOIN cat_tree ct ON c.parent_id = ct.id
+            WHERE c.workspace_id = $1
+          )
+          SELECT id FROM cat_tree
+        )`;
+      } else {
+        // Main category + All subcategories
+        filterLabel = `${mainCat.name} (All subcategories)`;
+        filteredQueryParams.push(mainCat.id);
+        const pIndex = filteredQueryParams.length;
+        categoryFilterClause = `t.category_id IN (
+          WITH RECURSIVE cat_tree AS (
+            SELECT id FROM accounting_categories WHERE id = $${pIndex} AND workspace_id = $1
+            UNION ALL
+            SELECT c.id FROM accounting_categories c
+            JOIN cat_tree ct ON c.parent_id = ct.id
+            WHERE c.workspace_id = $1
+          )
+          SELECT id FROM cat_tree
+        )`;
+      }
+    }
+  }
+
+  let cashFlowInflowMinor = moneyReceivedMinor;
+  let cashFlowOutflowMinor = moneyPaidMinor;
+  let dailyCashFlowRows: Array<{ day_str: string; cash_in: string; cash_out: string }> = [];
+
+  if (!isCategoryFiltered) {
+    const dailyCashFlowRes = await pool.query<{
+      day_str: string;
+      cash_in: string;
+      cash_out: string;
+    }>(
+      `SELECT
+         TO_CHAR(je.entry_date, 'YYYY-MM-DD') as day_str,
+         COALESCE(SUM(jl.debit_minor), 0) as cash_in,
+         COALESCE(SUM(jl.credit_minor), 0) as cash_out
+       FROM accounting_journal_lines jl
+       JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+       JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+       WHERE je.workspace_id = $1
+         AND je.status = 'POSTED'
+         AND je.entry_type != 'REVERSAL'
+         AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+         AND je.entry_date >= $2
+         AND je.entry_date <= $3
+         AND je.entry_type != 'OPENING_BALANCE'
+       GROUP BY TO_CHAR(je.entry_date, 'YYYY-MM-DD')
+       ORDER BY day_str ASC`,
+      [workspaceId, start, end]
+    );
+    dailyCashFlowRows = dailyCashFlowRes.rows;
+  } else {
+    // Filtered total cash in and cash out for period
+    const filteredTotalsRes = await pool.query<{ cash_in: string; cash_out: string }>(
+      `SELECT
+         COALESCE(SUM(jl.debit_minor), 0) as cash_in,
+         COALESCE(SUM(jl.credit_minor), 0) as cash_out
+       FROM accounting_journal_lines jl
+       JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+       JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+       WHERE je.workspace_id = $1
+         AND je.status = 'POSTED'
+         AND je.entry_type != 'REVERSAL'
+         AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+         AND je.entry_date >= $2
+         AND je.entry_date <= $3
+         AND je.entry_type != 'OPENING_BALANCE'
+         AND je.id IN (
+           SELECT t.journal_entry_id
+           FROM accounting_transactions t
+           WHERE t.workspace_id = $1
+             AND t.date >= $2
+             AND t.date <= $3
+             AND t.status = 'POSTED'
+             AND ${categoryFilterClause}
+         )`,
+      filteredQueryParams
+    );
+    cashFlowInflowMinor = parseInt(filteredTotalsRes.rows[0]?.cash_in || "0", 10);
+    cashFlowOutflowMinor = parseInt(filteredTotalsRes.rows[0]?.cash_out || "0", 10);
+
+    // Filtered daily cash flow trend
+    const filteredDailyRes = await pool.query<{
+      day_str: string;
+      cash_in: string;
+      cash_out: string;
+    }>(
+      `SELECT
+         TO_CHAR(je.entry_date, 'YYYY-MM-DD') as day_str,
+         COALESCE(SUM(jl.debit_minor), 0) as cash_in,
+         COALESCE(SUM(jl.credit_minor), 0) as cash_out
+       FROM accounting_journal_lines jl
+       JOIN accounting_journal_entries je ON je.id = jl.journal_entry_id
+       JOIN accounting_financial_accounts fa ON fa.id = jl.financial_account_id
+       WHERE je.workspace_id = $1
+         AND je.status = 'POSTED'
+         AND je.entry_type != 'REVERSAL'
+         AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+         AND je.entry_date >= $2
+         AND je.entry_date <= $3
+         AND je.entry_type != 'OPENING_BALANCE'
+         AND je.id IN (
+           SELECT t.journal_entry_id
+           FROM accounting_transactions t
+           WHERE t.workspace_id = $1
+             AND t.date >= $2
+             AND t.date <= $3
+             AND t.status = 'POSTED'
+             AND ${categoryFilterClause}
+         )
+       GROUP BY TO_CHAR(je.entry_date, 'YYYY-MM-DD')
+       ORDER BY day_str ASC`,
+      filteredQueryParams
+    );
+    dailyCashFlowRows = filteredDailyRes.rows;
+  }
 
   const dayMap = new Map<string, { cash_in: number; cash_out: number }>();
-  for (const row of dailyCashFlowRes.rows) {
+  for (const row of dailyCashFlowRows) {
     dayMap.set(row.day_str, {
       cash_in: parseInt(row.cash_in || "0", 10),
       cash_out: parseInt(row.cash_out || "0", 10),
@@ -256,7 +450,7 @@ export async function getDashboardMetrics(
 
   if (periodMode === "today") {
     // Single daily bucket for Today
-    const dayData = dayMap.get(start) || { cash_in: moneyReceivedMinor, cash_out: moneyPaidMinor };
+    const dayData = dayMap.get(start) || { cash_in: cashFlowInflowMinor, cash_out: cashFlowOutflowMinor };
     const dateObj = new Date(start + "T00:00:00Z");
     const label = "Today";
     const sublabel = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -608,6 +802,22 @@ export async function getDashboardMetrics(
     liquidAccountsCount,
     moneyReceivedMinor,
     moneyPaidMinor,
+    cashFlowInflowMinor,
+    cashFlowOutflowMinor,
+    cashFlowNetMinor: cashFlowInflowMinor - cashFlowOutflowMinor,
+    cashFlowFilter: isCategoryFiltered
+      ? {
+          categoryId: rawCategoryId,
+          subcategoryId: rawSubcategoryId || "all",
+          categoryName: resolvedCategoryName,
+          subcategoryName: resolvedSubcategoryName,
+          filterLabel,
+        }
+      : {
+          categoryId: "all",
+          subcategoryId: "all",
+          filterLabel: "All Categories",
+        },
     owedToMeMinor,
     iOweMinor,
     earnedIncomeMinor,
