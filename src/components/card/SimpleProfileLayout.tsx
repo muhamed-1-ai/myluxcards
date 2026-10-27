@@ -220,9 +220,17 @@ export function SimpleProfileLayout({
     const currentDevice = detectUserDevice();
     if (hasApple && hasGoogle) {
       if (currentDevice === "android" && appDownload?.playStoreUrl) {
+        if (e.currentTarget.getAttribute("href") !== appDownload.playStoreUrl) {
+          e.preventDefault();
+          window.open(appDownload.playStoreUrl, "_blank", "noopener,noreferrer");
+        }
         return;
       }
       if (currentDevice === "ios" && appDownload?.appStoreUrl) {
+        if (e.currentTarget.getAttribute("href") !== appDownload.appStoreUrl) {
+          e.preventDefault();
+          window.open(appDownload.appStoreUrl, "_blank", "noopener,noreferrer");
+        }
         return;
       }
       e.preventDefault();
@@ -231,7 +239,7 @@ export function SimpleProfileLayout({
     }
 
     if (hasApple && !hasGoogle) {
-      if (currentDevice === "ios") {
+      if (currentDevice === "ios" && appDownload?.appStoreUrl) {
         return;
       }
       e.preventDefault();
@@ -240,7 +248,7 @@ export function SimpleProfileLayout({
     }
 
     if (!hasApple && hasGoogle) {
-      if (currentDevice === "android") {
+      if (currentDevice === "android" && appDownload?.playStoreUrl) {
         return;
       }
       e.preventDefault();
@@ -551,43 +559,27 @@ export function SimpleProfileLayout({
             <h2 className="zappit-simple-section-title">Connect &amp; Social</h2>
             <div className="zappit-simple-social-grid">
               {socialLinks.map((item) => (
-                <div key={item.key} style={{ display: "flex", flexDirection: "column", position: "relative" }}>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="zappit-simple-social-card"
-                    aria-label={`Visit ${item.name}`}
-                    onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
-                  >
-                    <span className="zappit-simple-social-icon">
-                      <BrandLogo brand={item.brand} name={item.name} size={26} />
-                    </span>
-                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
-                      <span className="zappit-simple-social-name">{item.name}</span>
-                      {item.subText && (
-                        <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {item.subText}
-                        </span>
-                      )}
-                    </div>
-                  </a>
-                  {item.isAppDownload && item.hasBothStores && (
-                    <button
-                      type="button"
-                      className="zappit-choose-store-action simple"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setStoreChooserOpen(true);
-                      }}
-                      title="Choose store manually"
-                      aria-label="Choose store manually"
-                    >
-                      Choose store
-                    </button>
-                  )}
-                </div>
+                <a
+                  key={item.key}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="zappit-simple-social-card"
+                  aria-label={`Visit ${item.name}`}
+                  onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
+                >
+                  <span className="zappit-simple-social-icon">
+                    <BrandLogo brand={item.brand} name={item.name} size={26} />
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                    <span className="zappit-simple-social-name">{item.name}</span>
+                    {item.subText && (
+                      <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.subText}
+                      </span>
+                    )}
+                  </div>
+                </a>
               ))}
             </div>
           </div>

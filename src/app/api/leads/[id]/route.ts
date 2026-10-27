@@ -148,9 +148,42 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const resolvedAdvanceAmount = lead.advanceAmount !== null && lead.advanceAmount !== undefined
       ? Number(lead.advanceAmount)
       : (Number(customFieldValuesMap["advanceAmount"] || customFieldValuesMap["Advance Amount"]) || 0);
-    const resolvedPaymentInfo = lead.paymentInformation && Object.keys(lead.paymentInformation).length > 0
-      ? lead.paymentInformation
-      : (customFieldValuesMap["paymentInformation"] || customFieldValuesMap["Payment Information"] || { totalAmount: resolvedTotalAmount, advanceAmount: resolvedAdvanceAmount, balanceAmount: Math.max(0, resolvedTotalAmount - resolvedAdvanceAmount) });
+
+    let resolvedPaymentInfo = lead.paymentInformation && Object.keys(lead.paymentInformation).length > 0
+      ? { ...lead.paymentInformation }
+      : (customFieldValuesMap["paymentInformation"] || customFieldValuesMap["Payment Information"] || null);
+
+    if (!resolvedPaymentInfo || typeof resolvedPaymentInfo !== "object") {
+      resolvedPaymentInfo = {
+        totalAmount: resolvedTotalAmount,
+        advanceAmount: resolvedAdvanceAmount,
+        balanceAmount: resolvedTotalAmount - resolvedAdvanceAmount,
+        advanceRecords: resolvedAdvanceAmount > 0 ? [
+          {
+            id: "adv-init",
+            amount: resolvedAdvanceAmount,
+            note: "Recorded advance",
+            createdAt: new Date().toLocaleDateString("en-IN"),
+            status: "RECEIVED",
+          }
+        ] : [],
+      };
+    } else {
+      if ((!resolvedPaymentInfo.advanceRecords || !Array.isArray(resolvedPaymentInfo.advanceRecords) || resolvedPaymentInfo.advanceRecords.length === 0) && resolvedAdvanceAmount > 0) {
+        resolvedPaymentInfo.advanceRecords = [
+          {
+            id: "adv-init",
+            amount: resolvedAdvanceAmount,
+            note: "Recorded advance",
+            createdAt: new Date().toLocaleDateString("en-IN"),
+            status: "RECEIVED",
+          }
+        ];
+      }
+      resolvedPaymentInfo.totalAmount = resolvedTotalAmount;
+      resolvedPaymentInfo.advanceAmount = resolvedAdvanceAmount;
+      resolvedPaymentInfo.balanceAmount = resolvedTotalAmount - resolvedAdvanceAmount;
+    }
 
     return Response.json({
       success: true,
@@ -292,8 +325,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       follow_up_type: string | null;
       follow_up_note: string | null;
       next_follow_up_at: Date | null;
+      payment_information: any;
+      products: any;
     }>(
-      `SELECT id, owner_user_id, status, total_amount, advance_amount, address, contact_number, contact_number_normalized, follow_up_type, follow_up_note, next_follow_up_at FROM leads WHERE id = $1 AND ${accessClause}`,
+      `SELECT id, owner_user_id, status, total_amount, advance_amount, address, contact_number, contact_number_normalized, follow_up_type, follow_up_note, next_follow_up_at, payment_information, products FROM leads WHERE id = $1 AND ${accessClause}`,
       identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
     );
 
@@ -360,24 +395,67 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
+    // Helper for robust monetary input parsing (handles numbers, formatted "1,199", "₹1,199", etc.)
+    const parseMonetaryValue = (val: any, fallback = 0): number => {
+      if (val === undefined || val === null || val === "") return fallback;
+      if (typeof val === "number") return isNaN(val) ? fallback : val;
+      const str = String(val).replace(/[^\d.-]/g, "").trim();
+      const num = Number(str);
+      return isNaN(num) ? fallback : num;
+    };
+
     // Resolve update values for address, totalAmount, advanceAmount, paymentInformation, products
+    // Omitted fields are preserved from existingLead so unrelated edits don't reset payments
     const safeAddress = body.address !== undefined ? (body.address ? String(body.address).trim() : "") : (existingLead.address || null);
     const safeTotalAmount = body.totalAmount !== undefined
-      ? Number(body.totalAmount)
-      : (body.expectedRevenue !== undefined ? Number(body.expectedRevenue) : Number(existingLead.total_amount || 0));
+      ? parseMonetaryValue(body.totalAmount, 0)
+      : (body.expectedRevenue !== undefined 
+          ? parseMonetaryValue(body.expectedRevenue, 0) 
+          : parseMonetaryValue(existingLead.total_amount, 0));
     const safeAdvanceAmount = body.advanceAmount !== undefined
-      ? Number(body.advanceAmount)
-      : Number(existingLead.advance_amount || 0);
+      ? parseMonetaryValue(body.advanceAmount, 0)
+      : parseMonetaryValue(existingLead.advance_amount, 0);
 
-    const paymentInfo = body.paymentInformation && typeof body.paymentInformation === "object"
-      ? body.paymentInformation
-      : {
-          totalAmount: safeTotalAmount,
-          advanceAmount: safeAdvanceAmount,
-          balanceAmount: Math.max(0, safeTotalAmount - safeAdvanceAmount),
-        };
+    let paymentInfo: any;
+    if (body.paymentInformation && typeof body.paymentInformation === "object") {
+      paymentInfo = {
+        ...body.paymentInformation,
+        totalAmount: safeTotalAmount,
+        advanceAmount: safeAdvanceAmount,
+        balanceAmount: safeTotalAmount - safeAdvanceAmount,
+      };
+      if (Array.isArray(body.paymentInformation.advanceRecords)) {
+        paymentInfo.advanceRecords = body.paymentInformation.advanceRecords;
+      } else if (existingLead.payment_information?.advanceRecords) {
+        paymentInfo.advanceRecords = existingLead.payment_information.advanceRecords;
+      }
+    } else if (existingLead.payment_information && typeof existingLead.payment_information === "object" && Object.keys(existingLead.payment_information).length > 0) {
+      paymentInfo = {
+        ...existingLead.payment_information,
+        totalAmount: safeTotalAmount,
+        advanceAmount: safeAdvanceAmount,
+        balanceAmount: safeTotalAmount - safeAdvanceAmount,
+      };
+    } else {
+      paymentInfo = {
+        totalAmount: safeTotalAmount,
+        advanceAmount: safeAdvanceAmount,
+        balanceAmount: safeTotalAmount - safeAdvanceAmount,
+        advanceRecords: safeAdvanceAmount > 0 ? [
+          {
+            id: "adv-init",
+            amount: safeAdvanceAmount,
+            note: "Recorded advance",
+            createdAt: new Date().toLocaleDateString("en-IN"),
+            status: "RECEIVED",
+          }
+        ] : [],
+      };
+    }
 
-    const products = Array.isArray(body.products) ? body.products : [];
+    const products = body.products !== undefined 
+      ? (Array.isArray(body.products) ? body.products : [])
+      : (Array.isArray(existingLead.products) ? existingLead.products : []);
 
     // Database Update for core lead record including address, total_amount, advance_amount, remarks, payment_information, products
     const result = await pool.query(

@@ -78,6 +78,8 @@ interface LeadData {
   activities?: ActivityData[];
   customFields?: Record<string, string>;
   isStarred?: boolean;
+  paymentInformation?: any;
+  products?: any[];
 }
 
 interface LeadDetailsDrawerProps {
@@ -265,6 +267,18 @@ export default function LeadDetailsDrawer({
     }
   };
 
+  const highlightedFollowUp = useMemo(() => {
+    if (!followUpId || !lead) return null;
+    if (lead.followUps && Array.isArray(lead.followUps)) {
+      const match = lead.followUps.find((f) => f.id === followUpId);
+      if (match) return match;
+    }
+    if (lead.nextFollowUp && lead.nextFollowUp.id === followUpId) {
+      return lead.nextFollowUp;
+    }
+    return null;
+  }, [followUpId, lead]);
+
   if (!leadId || !mounted) return null;
 
   // Helper formatting routines
@@ -313,18 +327,6 @@ export default function LeadDetailsDrawer({
   };
 
   const followUpPill = getFollowUpStatusPill(lead?.nextFollowUp);
-
-  const highlightedFollowUp = useMemo(() => {
-    if (!followUpId || !lead) return null;
-    if (lead.followUps && Array.isArray(lead.followUps)) {
-      const match = lead.followUps.find((f) => f.id === followUpId);
-      if (match) return match;
-    }
-    if (lead.nextFollowUp && lead.nextFollowUp.id === followUpId) {
-      return lead.nextFollowUp;
-    }
-    return null;
-  }, [followUpId, lead]);
 
   return createPortal(
     <div className="lead-drawer-container">
@@ -895,7 +897,7 @@ export default function LeadDetailsDrawer({
                         <div style={{ display: "flex", flexDirection: "column" }}>
                           <span className="lead-drawer-pipeline-label" style={{ fontSize: 12 }}>Total Amount</span>
                           <span className="lead-drawer-revenue-val">
-                            {formatCurrency(lead.totalAmount || lead.expectedRevenue)}
+                            {formatCurrency(lead.totalAmount || lead.expectedRevenue || 0)}
                           </span>
                         </div>
                       </div>
@@ -906,11 +908,64 @@ export default function LeadDetailsDrawer({
                         </div>
                         <div style={{ padding: "8px 12px", borderRadius: 10, background: "var(--ld-inset-bg)", border: "1px solid var(--ld-card-border)" }}>
                           <div style={{ fontSize: 11, color: "var(--ld-text-subtle)", fontWeight: 600 }}>BALANCE DUE</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#F59E0B", marginTop: 2 }}>
-                            {formatCurrency(Math.max(0, (lead.totalAmount || lead.expectedRevenue || 0) - (lead.advanceAmount || 0)))}
+                          <div style={{ fontSize: 14, fontWeight: 700, color: ((lead.totalAmount || lead.expectedRevenue || 0) - (lead.advanceAmount || 0)) < 0 ? "#10B981" : "#F59E0B", marginTop: 2 }}>
+                            {(() => {
+                              const balance = (lead.totalAmount || lead.expectedRevenue || 0) - (lead.advanceAmount || 0);
+                              return balance < 0 ? `-${formatCurrency(Math.abs(balance))}` : formatCurrency(balance);
+                            })()}
                           </div>
                         </div>
                       </div>
+
+                      {/* Advance Records Breakdown */}
+                      {lead.paymentInformation?.advanceRecords && Array.isArray(lead.paymentInformation.advanceRecords) && lead.paymentInformation.advanceRecords.length > 0 && (
+                        <div style={{ borderTop: "1px solid var(--ld-card-border)", paddingTop: 10, marginTop: 4, display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ld-text-subtle)", textTransform: "uppercase" }}>
+                            Advance Records ({lead.paymentInformation.advanceRecords.length})
+                          </div>
+                          {lead.paymentInformation.advanceRecords.map((r: any) => {
+                            const isPending = r.status === "REQUESTED";
+                            return (
+                              <div
+                                key={r.id || r.amount}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  padding: "6px 10px",
+                                  borderRadius: 8,
+                                  backgroundColor: "var(--ld-inset-bg)",
+                                  border: "1px solid var(--ld-card-border)",
+                                  fontSize: 12,
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ fontWeight: 700, color: "var(--ld-text-title)" }}>
+                                      {formatCurrency(r.amount || 0)}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: 9.5,
+                                        fontWeight: 700,
+                                        padding: "1px 6px",
+                                        borderRadius: 4,
+                                        backgroundColor: isPending ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                                        color: isPending ? "#F59E0B" : "#10B981",
+                                      }}
+                                    >
+                                      {isPending ? "REQUESTED" : "RECEIVED"}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "var(--ld-text-muted)", marginTop: 2 }}>
+                                    {r.note || "Recorded advance"} • {r.createdAt}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </section>
                 </>

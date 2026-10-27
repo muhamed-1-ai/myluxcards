@@ -1193,7 +1193,14 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         isOpen={isAddOpen}
         mode="create"
         onClose={() => setIsAddOpen(false)}
-        onSuccess={() => { setIsAddOpen(false); fetchLeads(); }}
+        onSuccess={(newLead?: any) => {
+          setIsAddOpen(false);
+          if (newLead?.id) {
+            setLeads((prev) => [newLead, ...prev]);
+            setTotal((prev) => prev + 1);
+          }
+          fetchLeads();
+        }}
         identity={identity}
       />
 
@@ -1203,8 +1210,13 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
           mode="edit"
           leadData={editingLead}
           onClose={() => setEditingLead(null)}
-          onSuccess={() => {
+          onSuccess={(savedLead?: any) => {
             setEditingLead(null);
+            if (savedLead?.id) {
+              setLeads((prev) =>
+                prev.map((l) => (l.id === savedLead.id ? { ...l, ...savedLead } : l))
+              );
+            }
             fetchLeads();
             if (selectedLeadId) {
               const currentId = selectedLeadId;

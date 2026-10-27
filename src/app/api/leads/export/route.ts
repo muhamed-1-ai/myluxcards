@@ -266,6 +266,8 @@ export async function POST(request: Request) {
       source: "l.source",
       created_at: "l.created_at",
       createdAt: "l.created_at",
+      totalAmount: "COALESCE(l.total_amount, 0)",
+      advanceAmount: "COALESCE(l.advance_amount, 0)",
     };
     const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
 
@@ -282,9 +284,9 @@ export async function POST(request: Request) {
         COALESCE(l.products, '[]'::jsonb) as "products",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
         u_owner.name as "createdByName", u_owner.email as "createdByEmail",
-        ''::text as "address",
-        0::float as "totalAmount",
-        0::float as "advanceAmount",
+        COALESCE(l.address, '')::text as "address",
+        COALESCE(l.total_amount, 0)::float as "totalAmount",
+        COALESCE(l.advance_amount, 0)::float as "advanceAmount",
         (SELECT f.note FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
         (SELECT f.scheduled_at FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
         (SELECT COALESCE(f.type, l.follow_up_type, 'CALL') FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpType",

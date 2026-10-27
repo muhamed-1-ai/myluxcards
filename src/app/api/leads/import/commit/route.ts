@@ -63,8 +63,9 @@ export async function POST(request: Request) {
           `INSERT INTO leads (
             owner_user_id, card_id, assigned_user_id, name, company_name,
             contact_number, contact_number_normalized, email, status, source,
+            address, total_amount, advance_amount, payment_information, products,
             submission_count, first_submitted_at, last_submitted_at, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, NOW(), NOW(), NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 1, NOW(), NOW(), NOW(), NOW())
           RETURNING id`,
           [
             ownerUserId,
@@ -77,6 +78,11 @@ export async function POST(request: Request) {
             email,
             stage,
             source,
+            address,
+            totalAmount,
+            advanceAmount,
+            paymentInformation ? JSON.stringify(paymentInformation) : null,
+            products ? JSON.stringify(products) : null,
           ]
         );
 

@@ -190,6 +190,7 @@ export function BrandLogo({
       );
 
     case "google":
+    case "reviews":
       return (
         <svg {...commonSvgProps}>
           <circle cx="12" cy="12" r="12" fill="#FFFFFF" />
@@ -224,25 +225,6 @@ export function BrandLogo({
           />
         </svg>
       );
-
-    case "reviews": {
-      const gradId = `star-grad-${uniqueId}`;
-      return (
-        <svg {...commonSvgProps}>
-          <defs>
-            <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FFC107" />
-              <stop offset="100%" stopColor="#FF9800" />
-            </linearGradient>
-          </defs>
-          <circle cx="12" cy="12" r="12" fill="#FFFFFF" />
-          <path
-            fill={`url(#${gradId})`}
-            d="M12 4.2l2.35 4.76 5.25.76-3.8 3.7 0.9 5.23L12 16.18l-4.7 2.47 0.9-5.23-3.8-3.7 5.25-.76L12 4.2z"
-          />
-        </svg>
-      );
-    }
 
     case "download": {
       const gradId = `dl-grad-${uniqueId}`;

@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
     source: "l.source",
     created_at: "l.created_at",
     createdAt: "l.created_at",
-    totalAmount: "0",
+    totalAmount: "COALESCE(l.total_amount, 0)",
+    advanceAmount: "COALESCE(l.advance_amount, 0)",
   };
 
   const sortColumn = allowedSortColumns[sortBy] || "l.created_at";
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         SUM(CASE WHEN l.status NOT IN ('WON', 'LOST', 'CLOSED') THEN 1 ELSE 0 END)::int as open_pipeline,
         SUM(CASE WHEN l.status = 'WON' THEN 1 ELSE 0 END)::int as won_leads,
-        0::float as expected_revenue,
+        COALESCE(SUM(l.total_amount), 0)::float as expected_revenue,
         (SELECT COUNT(*)::int FROM lead_follow_ups f WHERE ${followUpOwnerFilter} AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
       FROM leads l
       WHERE ${whereClause}
@@ -162,9 +163,11 @@ export async function GET(request: NextRequest) {
         l.email, l.status as "stage", l.source, l.created_at as "createdAt",
         l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
-        ''::text as "address",
-        0::float as "totalAmount",
-        0::float as "advanceAmount",
+        COALESCE(l.address, '')::text as "address",
+        COALESCE(l.total_amount, 0)::float as "totalAmount",
+        COALESCE(l.advance_amount, 0)::float as "advanceAmount",
+        COALESCE(l.payment_information, '{}'::jsonb) as "paymentInformation",
+        COALESCE(l.products, '[]'::jsonb) as "products",
         (SELECT f.note FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpNote",
         (SELECT f.scheduled_at FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpAt",
         (SELECT COALESCE(f.type, l.follow_up_type, 'CALL') FROM lead_follow_ups f WHERE f.lead_id = l.id AND ${followUpOwnerFilter} AND f.status = 'SCHEDULED' ORDER BY f.scheduled_at ASC LIMIT 1) as "nextFollowUpType",

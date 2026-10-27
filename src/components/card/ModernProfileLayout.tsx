@@ -244,9 +244,17 @@ export function ModernProfileLayout({
     const currentDevice = detectUserDevice();
     if (hasApple && hasGoogle) {
       if (currentDevice === "android" && appDownload?.playStoreUrl) {
+        if (e.currentTarget.getAttribute("href") !== appDownload.playStoreUrl) {
+          e.preventDefault();
+          window.open(appDownload.playStoreUrl, "_blank", "noopener,noreferrer");
+        }
         return;
       }
       if (currentDevice === "ios" && appDownload?.appStoreUrl) {
+        if (e.currentTarget.getAttribute("href") !== appDownload.appStoreUrl) {
+          e.preventDefault();
+          window.open(appDownload.appStoreUrl, "_blank", "noopener,noreferrer");
+        }
         return;
       }
       e.preventDefault();
@@ -255,7 +263,7 @@ export function ModernProfileLayout({
     }
 
     if (hasApple && !hasGoogle) {
-      if (currentDevice === "ios") {
+      if (currentDevice === "ios" && appDownload?.appStoreUrl) {
         return;
       }
       e.preventDefault();
@@ -264,7 +272,7 @@ export function ModernProfileLayout({
     }
 
     if (!hasApple && hasGoogle) {
-      if (currentDevice === "android") {
+      if (currentDevice === "android" && appDownload?.playStoreUrl) {
         return;
       }
       e.preventDefault();
@@ -623,41 +631,25 @@ export function ModernProfileLayout({
 
             <div className="zappit-modern-apps-grid">
               {socialLinks.map((item) => (
-                <div key={item.key} className="zappit-modern-app-item-wrap" style={{ display: "flex", flexDirection: "column", position: "relative" }}>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`zappit-modern-app-tile ${item.isAppDownload ? "zappit-app-tile" : ""}`}
-                    onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
-                  >
-                    <div className={`zappit-modern-app-icon ${item.brand}`}>
-                      <BrandLogo brand={item.brand} name={item.name} size={30} />
-                    </div>
-                    <span className="zappit-modern-app-name">{item.name}</span>
-                    {item.subText && (
-                      <span className="zappit-modern-app-subtext" style={{ fontSize: "9.5px", color: "var(--profile-muted, #94a3b8)", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {item.subText}
-                      </span>
-                    )}
-                    <span className="zappit-modern-app-arrow">→</span>
-                  </a>
-                  {item.isAppDownload && item.hasBothStores && (
-                    <button
-                      type="button"
-                      className="zappit-choose-store-action"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setStoreChooserOpen(true);
-                      }}
-                      title="Choose store manually"
-                      aria-label="Choose store manually"
-                    >
-                      Choose store
-                    </button>
+                <a
+                  key={item.key}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`zappit-modern-app-tile ${item.isAppDownload ? "zappit-app-tile" : ""}`}
+                  onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
+                >
+                  <div className={`zappit-modern-app-icon ${item.brand}`}>
+                    <BrandLogo brand={item.brand} name={item.name} size={30} />
+                  </div>
+                  <span className="zappit-modern-app-name">{item.name}</span>
+                  {item.subText && (
+                    <span className="zappit-modern-app-subtext" style={{ fontSize: "9.5px", color: "var(--profile-muted, #94a3b8)", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.subText}
+                    </span>
                   )}
-                </div>
+                  <span className="zappit-modern-app-arrow">→</span>
+                </a>
               ))}
             </div>
           </div>

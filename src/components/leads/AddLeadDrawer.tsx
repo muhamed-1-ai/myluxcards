@@ -31,7 +31,7 @@ export interface AddLeadDrawerProps {
   mode?: "create" | "edit";
   leadData?: any;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (lead?: any) => void;
   identity?: { id: string; name: string | null; email: string; role: string };
 }
 
@@ -61,6 +61,7 @@ interface AdvancePaymentRecord {
   amount: number;
   note: string;
   createdAt: string;
+  status?: "RECEIVED" | "REQUESTED";
 }
 
 interface CustomField {
@@ -154,6 +155,7 @@ export default function AddLeadDrawer({
   const [isRequestingAdvance, setIsRequestingAdvance] = useState(false);
   const [newAdvanceAmount, setNewAdvanceAmount] = useState("");
   const [newAdvanceNote, setNewAdvanceNote] = useState("");
+  const [newAdvanceStatus, setNewAdvanceStatus] = useState<"RECEIVED" | "REQUESTED">("RECEIVED");
 
   interface DynamicFieldDef {
     id: string;
@@ -198,10 +200,19 @@ export default function AddLeadDrawer({
   const calculatedProductTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
   const totalAmount = selectedProducts.length > 0 
     ? calculatedProductTotal 
-    : (formData.customTotalAmount ? Number(stripCommas(formData.customTotalAmount)) : 0);
+    : (formData.customTotalAmount ? (Number(stripCommas(formData.customTotalAmount)) || 0) : 0);
 
-  const totalAdvanceFromRecords = advanceRecords.reduce((sum, r) => sum + r.amount, 0);
-  const balanceAmount = Math.max(0, totalAmount - totalAdvanceFromRecords);
+  // Distinguish received advances from pending advance requests
+  const totalAdvanceReceived = advanceRecords
+    .filter(r => r.status !== "REQUESTED")
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  const totalAdvanceRequested = advanceRecords
+    .filter(r => r.status === "REQUESTED")
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  // Balance amount is read-only: totalAmount - received advances (preserves credit behavior)
+  const balanceAmount = totalAmount - totalAdvanceReceived;
 
   // Handle ESC key to dismiss dialog
   useEffect(() => {
@@ -415,13 +426,17 @@ export default function AddLeadDrawer({
         customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : (leadData.expectedRevenue ? String(leadData.expectedRevenue) : ""),
       });
 
-      if (leadData.advanceAmount && Number(leadData.advanceAmount) > 0) {
+      const initPaymentInfo = leadData.paymentInformation || leadData.payment_information;
+      if (initPaymentInfo?.advanceRecords && Array.isArray(initPaymentInfo.advanceRecords) && initPaymentInfo.advanceRecords.length > 0) {
+        setAdvanceRecords(initPaymentInfo.advanceRecords);
+      } else if (leadData.advanceAmount && Number(leadData.advanceAmount) > 0) {
         setAdvanceRecords([
           {
             id: "adv-init",
             amount: Number(leadData.advanceAmount),
             note: "Recorded advance",
             createdAt: new Date().toLocaleDateString("en-IN"),
+            status: "RECEIVED",
           }
         ]);
       } else {
@@ -493,15 +508,21 @@ export default function AddLeadDrawer({
                 followUpNote: resolvedApiFuCleanNote !== undefined ? resolvedApiFuCleanNote : prev.followUpNote,
               }));
 
-              if (resolvedAdvance > 0) {
+              const apiPaymentInfo = fullLead.paymentInformation;
+              if (apiPaymentInfo?.advanceRecords && Array.isArray(apiPaymentInfo.advanceRecords) && apiPaymentInfo.advanceRecords.length > 0) {
+                setAdvanceRecords(apiPaymentInfo.advanceRecords);
+              } else if (resolvedAdvance > 0) {
                 setAdvanceRecords([
                   {
                     id: "adv-init",
                     amount: Number(resolvedAdvance),
                     note: "Recorded advance",
                     createdAt: new Date().toLocaleDateString("en-IN"),
+                    status: "RECEIVED",
                   }
                 ]);
+              } else {
+                setAdvanceRecords([]);
               }
 
               if (fullLead.products && Array.isArray(fullLead.products) && fullLead.products.length > 0) {
@@ -600,14 +621,20 @@ export default function AddLeadDrawer({
     const newRecord: AdvancePaymentRecord = {
       id: `adv-${Date.now()}`,
       amount: amt,
-      note: newAdvanceNote.trim() || "Advance payment requested",
+      note: newAdvanceNote.trim() || (newAdvanceStatus === "REQUESTED" ? "Advance payment requested" : "Recorded advance"),
       createdAt: new Date().toLocaleDateString("en-IN"),
+      status: newAdvanceStatus,
     };
 
     setAdvanceRecords(prev => [...prev, newRecord]);
     setNewAdvanceAmount("");
     setNewAdvanceNote("");
+    setNewAdvanceStatus("RECEIVED");
     setIsRequestingAdvance(false);
+  };
+
+  const handleMarkAdvanceReceived = (id: string) => {
+    setAdvanceRecords(prev => prev.map(r => r.id === id ? { ...r, status: "RECEIVED" } : r));
   };
 
   // Custom Field File Upload Handler
@@ -710,7 +737,7 @@ export default function AddLeadDrawer({
       lifeCycle: formData.lifeCycle || undefined,
       totalAmount,
       expectedRevenue: totalAmount,
-      advanceAmount: totalAdvanceFromRecords,
+      advanceAmount: totalAdvanceReceived,
       balanceAmount,
       remarks: formData.remark.trim(),
       remark: formData.remark.trim(),
@@ -727,8 +754,10 @@ export default function AddLeadDrawer({
       products: selectedProducts,
       paymentInformation: {
         totalAmount,
-        advanceAmount: totalAdvanceFromRecords,
+        advanceAmount: totalAdvanceReceived,
+        requestedAmount: totalAdvanceRequested,
         balanceAmount,
+        advanceRecords,
       },
       customFields: safeCustomFields,
       customFieldValues: safeCustomFields,
@@ -743,6 +772,7 @@ export default function AddLeadDrawer({
     console.log("UPDATE LEAD PAYLOAD", payload);
 
     try {
+      let savedLead: any = null;
       if (mode === "edit" && leadData?.id) {
         const res = await fetch(`/api/leads/${leadData.id}`, {
           method: "PATCH",
@@ -754,6 +784,7 @@ export default function AddLeadDrawer({
         if (!res.ok || data.success === false || data.ok === false) {
           throw new Error(data.error || data.message || "Failed to update lead.");
         }
+        savedLead = data.lead;
       } else {
         const res = await fetch("/api/leads", {
           method: "POST",
@@ -765,12 +796,13 @@ export default function AddLeadDrawer({
         if (!res.ok || data.success === false || data.ok === false) {
           throw new Error(data.error || data.message || "Failed to create lead.");
         }
+        savedLead = data.lead;
       }
 
       try {
         router.refresh();
       } catch {}
-      onSuccess();
+      onSuccess(savedLead);
     } catch (err: any) {
       setFormError(err.message || "Operation failed. Please try again.");
     } finally {
@@ -1306,9 +1338,18 @@ export default function AddLeadDrawer({
                 <input 
                   type="text" 
                   readOnly
-                  value={balanceAmount ? formatAmountWithCommas(balanceAmount.toFixed(2)) : "0.00"}
+                  value={
+                    balanceAmount < 0 
+                      ? `-₹${formatAmountWithCommas(Math.abs(balanceAmount).toFixed(2))}`
+                      : (balanceAmount !== undefined ? formatAmountWithCommas(balanceAmount.toFixed(2)) : "0.00")
+                  }
                   className="add-lead-input font-bold opacity-80 cursor-not-allowed"
                 />
+                {totalAdvanceRequested > 0 && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                    ₹{totalAdvanceRequested.toLocaleString("en-IN")} requested advance pending collection
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1334,24 +1375,38 @@ export default function AddLeadDrawer({
 
             {/* Inline Request Advance Form */}
             {isRequestingAdvance && (
-              <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col sm:flex-row items-center gap-3">
-                <FormattedMoneyInput
-                  placeholder="Advance Amount (₹)"
-                  value={newAdvanceAmount}
-                  onChange={e => setNewAdvanceAmount(e.target.value)}
-                  className="add-lead-input sm:w-44 !h-10 !text-xs font-bold"
-                />
-                <input
-                  type="text"
-                  placeholder="Advance note (e.g. Booking token)"
-                  value={newAdvanceNote}
-                  onChange={e => setNewAdvanceNote(e.target.value)}
-                  className="add-lead-input flex-1 !h-10 !text-xs"
-                />
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <FormattedMoneyInput
+                    placeholder="Advance Amount (₹)"
+                    value={newAdvanceAmount}
+                    onChange={e => setNewAdvanceAmount(e.target.value)}
+                    className="add-lead-input sm:w-44 !h-10 !text-xs font-bold"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Advance note (e.g. Booking token)"
+                    value={newAdvanceNote}
+                    onChange={e => setNewAdvanceNote(e.target.value)}
+                    className="add-lead-input flex-1 !h-10 !text-xs"
+                  />
+                  <select
+                    value={newAdvanceStatus}
+                    onChange={e => setNewAdvanceStatus(e.target.value as "RECEIVED" | "REQUESTED")}
+                    className="add-lead-select sm:w-48 !h-10 !text-xs font-semibold"
+                  >
+                    <option value="RECEIVED">Payment Received</option>
+                    <option value="REQUESTED">Requested (Pending)</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 w-full justify-end">
                   <button
                     type="button"
-                    onClick={() => setIsRequestingAdvance(false)}
+                    onClick={() => {
+                      setIsRequestingAdvance(false);
+                      setNewAdvanceAmount("");
+                      setNewAdvanceNote("");
+                    }}
                     className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
                   >
                     Cancel
@@ -1361,7 +1416,7 @@ export default function AddLeadDrawer({
                     onClick={handleSaveAdvanceRequest}
                     className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
                   >
-                    Record
+                    {newAdvanceStatus === "REQUESTED" ? "Record Request" : "Record Payment"}
                   </button>
                 </div>
               </div>
@@ -1374,28 +1429,53 @@ export default function AddLeadDrawer({
               </div>
             ) : (
               <div className="space-y-2">
-                {advanceRecords.map(r => (
-                  <div 
-                    key={r.id}
-                    className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        ₹{r.amount.toLocaleString("en-IN")}
+                {advanceRecords.map(r => {
+                  const isPending = r.status === "REQUESTED";
+                  return (
+                    <div 
+                      key={r.id}
+                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            ₹{r.amount.toLocaleString("en-IN")}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            isPending
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                          }`}>
+                            {isPending ? "Pending Request" : "Received"}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {r.note} • {r.createdAt}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {r.note} • {r.createdAt}
+                      <div className="flex items-center gap-2">
+                        {isPending && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkAdvanceReceived(r.id)}
+                            className="px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30 rounded-lg transition-colors"
+                            title="Mark as received money"
+                          >
+                            Mark Received
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAdvanceRecord(r.id)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          title="Remove record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAdvanceRecord(r.id)}
-                      className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

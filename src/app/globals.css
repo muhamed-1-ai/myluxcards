@@ -7151,6 +7151,8 @@ a.zappit-modern-val:hover {
   justify-content: center;
   text-decoration: none;
   transition: all 0.15s ease;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .zappit-modern-app-tile:hover {
@@ -7197,32 +7199,6 @@ a.zappit-modern-val:hover {
 
 .zappit-modern-app-arrow {
   display: none;
-}
-
-.zappit-choose-store-action {
-  font-size: 10px;
-  color: #60a5fa;
-  cursor: pointer;
-  text-decoration: underline;
-  background: transparent;
-  border: none;
-  margin-top: 4px;
-  padding: 2px 4px;
-  text-align: center;
-  width: 100%;
-  opacity: 0.85;
-  transition: opacity 0.15s ease, color 0.15s ease;
-}
-
-.zappit-choose-store-action:hover {
-  opacity: 1;
-  color: #93c5fd;
-}
-
-.zappit-choose-store-action.simple {
-  margin-top: 2px;
-  text-align: left;
-  padding-left: 36px;
 }
 
 /* 10. About Me */

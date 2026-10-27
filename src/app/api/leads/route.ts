@@ -152,6 +152,14 @@ export async function POST(request: Request) {
       );
     }
 
+function parseMonetaryValue(val: any, fallback = 0): number {
+  if (val === undefined || val === null || val === "") return fallback;
+  if (typeof val === "number") return isNaN(val) ? fallback : val;
+  const str = String(val).replace(/[^\d.-]/g, "").trim();
+  const num = Number(str);
+  return isNaN(num) ? fallback : num;
+}
+
     const result = await createManualLead(ownerUserId, cardId, {
       name: body.name,
       companyName: body.companyName,
@@ -165,11 +173,36 @@ export async function POST(request: Request) {
 
     const leadId = result.lead.id;
 
+    // Resolve and save standard financial & metadata fields to leads table
+    const safeAddress = body.address ? String(body.address).trim() : ((result.lead as any).address || "");
+    const safeTotalAmount = parseMonetaryValue(body.totalAmount ?? body.expectedRevenue, 0);
+    const safeAdvanceAmount = parseMonetaryValue(body.advanceAmount, 0);
+    const safePaymentInfo = body.paymentInformation && typeof body.paymentInformation === "object"
+      ? body.paymentInformation
+      : {
+          totalAmount: safeTotalAmount,
+          advanceAmount: safeAdvanceAmount,
+          balanceAmount: safeTotalAmount - safeAdvanceAmount,
+        };
+    const safeProducts = Array.isArray(body.products) ? body.products : [];
+
+    await pool.query(
+      `UPDATE leads 
+       SET address = $1,
+           total_amount = $2,
+           advance_amount = $3,
+           payment_information = $4,
+           products = $5,
+           updated_at = NOW()
+       WHERE id = $6`,
+      [safeAddress, safeTotalAmount, safeAdvanceAmount, JSON.stringify(safePaymentInfo), JSON.stringify(safeProducts), leadId]
+    );
+
     console.log("CREATE LEAD:", {
       createdLeadId: leadId,
       ownerId: ownerUserId,
       userId: identity.id,
-      leadData: { name: body.name, email: body.email, contactNumber: body.contactNumber, status: body.status, source: body.source }
+      leadData: { name: body.name, email: body.email, contactNumber: body.contactNumber, status: body.status, source: body.source, totalAmount: safeTotalAmount, advanceAmount: safeAdvanceAmount }
     });
 
     // Save validated custom field values
@@ -262,6 +295,11 @@ export async function POST(request: Request) {
         message: "Lead added successfully.",
         lead: {
           ...result.lead,
+          address: safeAddress,
+          totalAmount: safeTotalAmount,
+          advanceAmount: safeAdvanceAmount,
+          paymentInformation: safePaymentInfo,
+          products: safeProducts,
           followUpType: fuType,
           nextFollowUpType: fuType,
           nextFollowUpAt: scheduledAt ? scheduledAt.toISOString() : null,
