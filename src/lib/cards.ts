@@ -16,8 +16,52 @@ export const CARD_FIELDS = [
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
   "profileFeatures","featureOrder","profileFormat","modernConfig","simpleConfig",
-  "contactNumbers",
+  "contactNumbers","appDownload",
 ] as const;
+
+export interface AppDownloadSettings {
+  appName?: string;
+  appStoreUrl?: string;
+  playStoreUrl?: string;
+}
+
+export function isValidStoreUrl(value: string, store: "apple" | "google"): boolean {
+  if (!value || typeof value !== "string") return false;
+  let trimmed = value.trim();
+  if (!trimmed) return false;
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+    const host = parsed.hostname.toLowerCase();
+    if (store === "apple") {
+      const allowedAppleHosts = new Set(["apps.apple.com", "itunes.apple.com", "testflight.apple.com"]);
+      return allowedAppleHosts.has(host) && parsed.pathname.length > 1;
+    }
+    if (store === "google") {
+      const allowedGoogleHosts = new Set(["play.google.com", "market.android.com"]);
+      return allowedGoogleHosts.has(host) && parsed.pathname.length > 1;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function cleanStoreUrl(value: unknown, store: "apple" | "google"): string {
+  if (!value || typeof value !== "string") return "";
+  let trimmed = value.trim().slice(0, 1000);
+  if (!trimmed) return "";
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  } else if (trimmed.startsWith("http://")) {
+    trimmed = `https://${trimmed.slice(7)}`;
+  }
+  if (!isValidStoreUrl(trimmed, store)) return "";
+  return trimmed;
+}
 
 export interface CardContactNumber {
   id: string;
@@ -277,6 +321,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT },
   emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT },
   lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
+  appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "" },
 };
 
 export function cleanSlug(value: unknown) {
@@ -330,8 +375,18 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         }
       }
     } else if (field === "social" && value && typeof value === "object" && !Array.isArray(value)) {
-      output.social = Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 12)
+      output.social = Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 24)
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
+    } else if (field === "appDownload" && value && typeof value === "object" && !Array.isArray(value)) {
+      const ad = value as Record<string, unknown>;
+      const appName = typeof ad.appName === "string" ? ad.appName.trim().slice(0, 100) : "";
+      const appStoreUrl = cleanStoreUrl(ad.appStoreUrl, "apple");
+      const playStoreUrl = cleanStoreUrl(ad.playStoreUrl, "google");
+      output.appDownload = {
+        appName,
+        appStoreUrl,
+        playStoreUrl,
+      };
     } else if (field === "services" && Array.isArray(value)) {
       output.services = value.slice(0, 30).map(item => String(item).trim().slice(0, 120)).filter(Boolean);
     } else if (field === "profileMode") {
@@ -523,6 +578,7 @@ export function completeCardProfile(input: unknown) {
     vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT, ...(cleaned.vehicleConnect as object) },
     emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT, ...(cleaned.emergencyContact as object) },
     lostAndFound: { ...DEFAULT_LOST_AND_FOUND, ...(cleaned.lostAndFound as object) },
+    appDownload: cleaned.appDownload && typeof cleaned.appDownload === "object" ? cleaned.appDownload : { appName: "", appStoreUrl: "", playStoreUrl: "" },
   };
 }
 

@@ -121,6 +121,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
 
     async function loadWorkspaceData() {
       try {
+        setLoading(true);
         const [accRes, catRes] = await Promise.all([
           fetch(`/api/accounting/accounts?workspaceId=${wsId}`, {
             headers: { "x-workspace-id": wsId },
@@ -140,6 +141,8 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         }
       } catch (err) {
         console.error("Error loading workspace accounts and categories:", err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     }
 

@@ -20,7 +20,7 @@ import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileContactNumbers } from "@/lib/cards";
+import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileContactNumbers, AppDownloadSettings, isValidStoreUrl } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
 import "@/components/accounting/accounting.css";
@@ -172,6 +172,7 @@ type Card = {
   contactNumbers?: CardContactNumber[];
   theme?: string;
   profileTheme?: string;
+  appDownload?: AppDownloadSettings;
 };
 type Lead = { id: string; card_id: string; name: string; email?: string; phone?: string; company?: string; message?: string; status: string; created_at: string };
 type CurrentUser = { id: string; name: string; email: string; role?: string; featurePermissions?: Record<string, boolean> };
@@ -251,7 +252,7 @@ function MyLuxModal({
 }
 
 const STORE_PREFIX = "mylux-dashboard-cards-v2:";
-const socialFields = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps"];
+const socialFields = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "Google Reviews"];
 type DialCode = { flag: string; code: string; name: string; iso: string };
 type LocationState = { name: string; isoCode: string };
 type LocationCity = { name: string; latitude?: string | null; longitude?: string | null };
@@ -309,6 +310,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
     lostAndFound: { itemName: "", itemCategory: "Other", rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!", returnInstructions: "Please contact me using the form below or drop this item off at building reception.", allowAnonymousMessage: true },
     contactNumbers: [],
+    appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "" },
   };
 };
 const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUser | null): Card => {
@@ -336,6 +338,11 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     emergencyContact: { ...fallback.emergencyContact, ...(card.emergencyContact || {}) },
     lostAndFound: { ...fallback.lostAndFound, ...(card.lostAndFound || {}) },
     contactNumbers: Array.isArray(card.contactNumbers) ? card.contactNumbers : [],
+    appDownload: {
+      appName: String(card.appDownload?.appName || "").trim(),
+      appStoreUrl: String(card.appDownload?.appStoreUrl || "").trim(),
+      playStoreUrl: String(card.appDownload?.playStoreUrl || "").trim(),
+    },
   };
 };
 const emptyCard = createBlankCard({ id: "", name: "", email: "" });
@@ -932,9 +939,17 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         }
       }
     }
-    if (section === "social" || section === "dashboard") socialFields.forEach((key) => {
-      if (!validUrl(draft.social[key])) next[key] = "Include http:// or https://.";
-    });
+    if (section === "social" || section === "dashboard") {
+      socialFields.forEach((key) => {
+        if (!validUrl(draft.social[key])) next[key] = "Include http:// or https://.";
+      });
+      if (draft.appDownload?.appStoreUrl && !isValidStoreUrl(draft.appDownload.appStoreUrl, "apple")) {
+        next.appStoreUrl = "Enter a valid Apple App Store URL (e.g. https://apps.apple.com/app/...)";
+      }
+      if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
+        next.playStoreUrl = "Enter a valid Google Play Store URL (e.g. https://play.google.com/store/apps/...)";
+      }
+    }
     setErrors(next); return Object.keys(next).length === 0;
   };
   const save = async (section: Tab, next?: Tab, silent = false) => {
@@ -1001,6 +1016,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           logo: finalLogo,
           cover: finalCover,
           contactNumbers: finalContactNumbers,
+          appDownload: currentDraft.appDownload || cloudCard.appDownload || { appName: "", appStoreUrl: "", playStoreUrl: "" },
         };
 
         setCards((prevCards) => prevCards.map((c) => (c.id === updated.id ? updated : c)));
@@ -5137,7 +5153,131 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
   );
 }
 function SocialForm({ draft, update, errors }: any) {
-  return <><div className="form-intro"><h2>Apps &amp; links</h2><p>Add social profiles, your Google Maps location, and useful links for visitors.</p></div><div className="social-list">{socialFields.map((key) => <Field key={key} label={`${key} URL`} error={errors[key]}><div className="social-input"><span>{key === "Google Maps" ? "⌖" : key[0]}</span><input value={draft.social[key] || ""} onChange={(e) => update("social", { ...draft.social, [key]: e.target.value })} placeholder={key === "Google Maps" ? "Paste your Google Maps place or directions link" : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`} /></div></Field>)}</div></>;
+  return (
+    <>
+      <div className="form-intro">
+        <h2>Apps &amp; links</h2>
+        <p>Add social profiles, your Google Maps location, and useful links for visitors.</p>
+      </div>
+      <div className="social-list">
+        {socialFields.map((key) => {
+          const isReviews = key === "Google Reviews";
+          const isMaps = key === "Google Maps";
+          return (
+            <Field
+              key={key}
+              label={`${key} URL`}
+              error={errors[key]}
+              hint={
+                isReviews
+                  ? "Paste your business’s Google review link so visitors can read or leave a review."
+                  : undefined
+              }
+            >
+              <div className="social-input">
+                <span title={key}>
+                  {isMaps ? (
+                    "⌖"
+                  ) : isReviews ? (
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    </svg>
+                  ) : (
+                    key[0]
+                  )}
+                </span>
+                <input
+                  value={draft.social[key] || ""}
+                  onChange={(e) => update("social", { ...draft.social, [key]: e.target.value })}
+                  placeholder={
+                    isMaps
+                      ? "Paste your Google Maps place or directions link"
+                      : isReviews
+                      ? "Paste your Google review link (e.g. https://g.page/r/.../review)"
+                      : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`
+                  }
+                />
+              </div>
+            </Field>
+          );
+        })}
+      </div>
+
+      <div className="form-intro" style={{ marginTop: "32px", paddingTop: "24px", borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.08))" }}>
+        <h2>Download Our App</h2>
+        <p>Add your app’s store links. Visitors will see one download button that opens the appropriate store for their device.</p>
+      </div>
+
+      <div className="social-list">
+        <Field label="App Name">
+          <div className="social-input">
+            <span title="App Name">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                <line x1="12" y1="18" x2="12.01" y2="18" />
+              </svg>
+            </span>
+            <input
+              value={draft.appDownload?.appName || ""}
+              onChange={(e) =>
+                update("appDownload", {
+                  ...(draft.appDownload || {}),
+                  appName: e.target.value,
+                })
+              }
+              placeholder="e.g. My App (optional)"
+            />
+          </div>
+        </Field>
+
+        <Field
+          label="Apple App Store URL"
+          error={errors.appStoreUrl}
+        >
+          <div className="social-input">
+            <span title="Apple App Store">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.99.6-2.63 1.35-.57.66-.99 1.74-.86 2.76 1 .08 1.94-.51 2.56-1.26z" />
+              </svg>
+            </span>
+            <input
+              value={draft.appDownload?.appStoreUrl || ""}
+              onChange={(e) =>
+                update("appDownload", {
+                  ...(draft.appDownload || {}),
+                  appStoreUrl: e.target.value,
+                })
+              }
+              placeholder="https://apps.apple.com/app/your-app/id..."
+            />
+          </div>
+        </Field>
+
+        <Field
+          label="Google Play Store URL"
+          error={errors.playStoreUrl}
+        >
+          <div className="social-input">
+            <span title="Google Play Store">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M3.609 1.814L13.792 12 3.61 22.186a2.38 2.38 0 01-.61-1.637V3.451c0-.626.228-1.21.609-1.637zm11.242 11.245l2.454 2.454-12.04 6.953 9.586-9.407zm0-2.118L5.265 1.534l12.04 6.953-2.454 2.454zm1.464 1.059l3.524 2.035c.983.568.983 1.492 0 2.06l-3.524 2.035-2.222-2.222 2.222-2.908z" />
+              </svg>
+            </span>
+            <input
+              value={draft.appDownload?.playStoreUrl || ""}
+              onChange={(e) =>
+                update("appDownload", {
+                  ...(draft.appDownload || {}),
+                  playStoreUrl: e.target.value,
+                })
+              }
+              placeholder="https://play.google.com/store/apps/details?id=..."
+            />
+          </div>
+        </Field>
+      </div>
+    </>
+  );
 }
 function CompanyForm({ draft, update, service, setService, notify }: any) {
   const add = () => { if (!service.trim()) { notify("Enter a service or product name."); return; } update("services", [...draft.services, service.trim()]); setService(""); };
@@ -5890,8 +6030,15 @@ function AppearanceForm({
 
 
 
-function Field({ label, error, wide, children }: { label: React.ReactNode; error?: string; wide?: boolean; children: React.ReactNode }) {
-  return <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}><span>{label}</span>{children}{error && <em>{error}</em>}</label>;
+function Field({ label, error, wide, hint, children }: { label: React.ReactNode; error?: string; wide?: boolean; hint?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <label className={`field ${wide ? "wide" : ""} ${error ? "has-error" : ""}`}>
+      <span>{label}</span>
+      {children}
+      {hint && <small className="field-hint" style={{ display: "block", marginTop: "6px", fontSize: "12px", color: "var(--foreground-muted, #94a3b8)", lineHeight: "1.4" }}>{hint}</small>}
+      {error && <em>{error}</em>}
+    </label>
+  );
 }
 
 function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => void }) {

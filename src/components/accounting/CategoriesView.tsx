@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { FolderPlus } from "lucide-react";
 import { useAccounting } from "./AccountingContext";
 
 export default function CategoriesView() {
@@ -10,6 +11,7 @@ export default function CategoriesView() {
     setCategories,
     triggerRefresh,
     canMutate,
+    loading,
   } = useAccounting();
 
   // Filter & Search State
@@ -243,10 +245,26 @@ export default function CategoriesView() {
     }
   };
 
-  // Filtered and searched list
-  const parentCategories = useMemo(() => {
-    return categories.filter((c) => !c.parent_id);
+  // Track whether to show archived categories (default false: only show active customer categories)
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Active root categories
+  const activeParentCategories = useMemo(() => {
+    return categories.filter((c) => !c.parent_id && !c.is_archived);
   }, [categories]);
+
+  // Archived root categories count
+  const archivedParentCount = useMemo(() => {
+    return categories.filter((c) => !c.parent_id && c.is_archived).length;
+  }, [categories]);
+
+  // Visible root categories based on active state or explicit archived view
+  const parentCategories = useMemo(() => {
+    if (showArchived) {
+      return categories.filter((c) => !c.parent_id);
+    }
+    return activeParentCategories;
+  }, [categories, showArchived, activeParentCategories]);
 
   const filteredParents = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -261,19 +279,19 @@ export default function CategoriesView() {
       if (!q) return true;
 
       const mainMatches = mainCat.name.toLowerCase().includes(q);
-      const subcategories = categories.filter((c) => c.parent_id === mainCat.id);
+      const subcategories = categories.filter((c) => c.parent_id === mainCat.id && (showArchived ? true : !c.is_archived));
       const subMatches = subcategories.some((sub) => sub.name.toLowerCase().includes(q));
 
       return mainMatches || subMatches;
     });
-  }, [parentCategories, categories, typeFilter, searchTerm]);
+  }, [parentCategories, categories, typeFilter, searchTerm, showArchived]);
 
   // Check if a category is expanded:
   // If user is searching and a subcategory matches, auto-expand the parent!
   const isCategoryExpanded = (catId: string) => {
     const q = searchTerm.trim().toLowerCase();
     if (q) {
-      const subcategories = categories.filter((c) => c.parent_id === catId);
+      const subcategories = categories.filter((c) => c.parent_id === catId && (showArchived ? true : !c.is_archived));
       const hasMatchingSub = subcategories.some((sub) => sub.name.toLowerCase().includes(q));
       if (hasMatchingSub) return true;
     }
@@ -311,7 +329,7 @@ export default function CategoriesView() {
                 setAddCatOpen(true);
               }}
             >
-              + Add Category
+              + Create Category
             </button>
           )}
         </div>
@@ -391,22 +409,34 @@ export default function CategoriesView() {
               className={`acc-btn acc-btn-sm ${typeFilter === "ALL" ? "acc-btn-primary" : "acc-btn-outline"}`}
               onClick={() => setTypeFilter("ALL")}
             >
-              All ({parentCategories.length})
+              All ({activeParentCategories.length})
             </button>
             <button
               type="button"
               className={`acc-btn acc-btn-sm ${typeFilter === "INCOME" ? "acc-btn-primary" : "acc-btn-outline"}`}
               onClick={() => setTypeFilter("INCOME")}
             >
-              Income ({parentCategories.filter((c) => c.type === "INCOME").length})
+              Income ({activeParentCategories.filter((c) => c.type === "INCOME").length})
             </button>
             <button
               type="button"
               className={`acc-btn acc-btn-sm ${typeFilter === "EXPENSE" ? "acc-btn-primary" : "acc-btn-outline"}`}
               onClick={() => setTypeFilter("EXPENSE")}
             >
-              Expense ({parentCategories.filter((c) => c.type === "EXPENSE").length})
+              Expense ({activeParentCategories.filter((c) => c.type === "EXPENSE").length})
             </button>
+
+            {archivedParentCount > 0 && (
+              <button
+                type="button"
+                className={`acc-btn acc-btn-sm ${showArchived ? "acc-btn-primary" : "acc-btn-outline"}`}
+                onClick={() => setShowArchived((prev) => !prev)}
+                title="Toggle display of archived categories"
+                style={{ fontSize: "0.75rem" }}
+              >
+                Archived ({archivedParentCount})
+              </button>
+            )}
 
             {/* Quick Expand / Collapse All */}
             <div style={{ display: "flex", gap: "0.25rem", marginLeft: "0.5rem" }}>
@@ -414,8 +444,14 @@ export default function CategoriesView() {
                 type="button"
                 className="acc-btn acc-btn-outline acc-btn-sm"
                 onClick={handleExpandAll}
+                disabled={parentCategories.length === 0}
                 title="Expand all categories"
-                style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "0.25rem 0.5rem",
+                  opacity: parentCategories.length === 0 ? 0.35 : 1,
+                  cursor: parentCategories.length === 0 ? "not-allowed" : "pointer",
+                }}
               >
                 Expand all
               </button>
@@ -423,8 +459,14 @@ export default function CategoriesView() {
                 type="button"
                 className="acc-btn acc-btn-outline acc-btn-sm"
                 onClick={handleCollapseAll}
+                disabled={parentCategories.length === 0}
                 title="Collapse all categories"
-                style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "0.25rem 0.5rem",
+                  opacity: parentCategories.length === 0 ? 0.35 : 1,
+                  cursor: parentCategories.length === 0 ? "not-allowed" : "pointer",
+                }}
               >
                 Collapse all
               </button>
@@ -435,26 +477,89 @@ export default function CategoriesView() {
 
       {/* Categories Hierarchy List */}
       <div className="acc-card">
-        {filteredParents.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "3.5rem 1.5rem", color: "var(--acc-text-muted)" }}>
+            <div
+              style={{
+                width: "28px",
+                height: "28px",
+                margin: "0 auto 1rem auto",
+                border: "3px solid var(--acc-border)",
+                borderTopColor: "var(--acc-blue)",
+                borderRadius: "50%",
+                animation: "acc-spin 0.8s linear infinite",
+              }}
+            />
+            <p style={{ margin: 0, fontSize: "0.875rem" }}>Loading categories...</p>
+          </div>
+        ) : filteredParents.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "3.5rem 1.5rem" }}>
             {searchTerm || typeFilter !== "ALL" ? (
-              <p style={{ margin: "0 0 1rem 0" }}>No categories match your search and filter criteria.</p>
+              <div style={{ color: "var(--acc-text-muted)" }}>
+                <p style={{ margin: "0 0 1rem 0", fontSize: "0.9375rem" }}>No categories match your search and filter criteria.</p>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-outline acc-btn-sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setTypeFilter("ALL");
+                  }}
+                >
+                  Clear search
+                </button>
+              </div>
             ) : (
-              <>
-                <p style={{ margin: "0 0 1rem 0" }}>No categories configured in this workspace yet.</p>
+              <div>
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(59, 130, 246, 0.12)",
+                    color: "var(--acc-blue)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 1.25rem auto",
+                  }}
+                >
+                  <FolderPlus size={26} />
+                </div>
+                <h3
+                  style={{
+                    fontSize: "1.25rem",
+                    fontWeight: 700,
+                    margin: "0 0 0.5rem 0",
+                    color: "var(--acc-text)",
+                  }}
+                >
+                  No categories yet
+                </h3>
+                <p
+                  style={{
+                    margin: "0 auto 1.5rem auto",
+                    color: "var(--acc-text-muted)",
+                    maxWidth: "420px",
+                    fontSize: "0.875rem",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Create your own income and expense categories to organize your transactions.
+                </p>
                 {canMutate && (
                   <button
                     type="button"
-                    className="acc-btn acc-btn-primary acc-btn-sm"
+                    className="acc-btn acc-btn-primary"
                     onClick={() => {
                       setCatError(null);
                       setAddCatOpen(true);
                     }}
+                    style={{ padding: "0.625rem 1.25rem", fontWeight: 600 }}
                   >
-                    + Add First Category
+                    + Create Category
                   </button>
                 )}
-              </>
+              </div>
             )}
           </div>
         ) : (

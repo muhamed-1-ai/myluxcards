@@ -14,6 +14,7 @@ export default function FastTransactionModal() {
     activeWorkspace,
     accounts,
     categories,
+    setCategories,
     formatMoney,
     triggerRefresh,
   } = useAccounting();
@@ -25,6 +26,11 @@ export default function FastTransactionModal() {
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  
+  // Inline category creation state
+  const [creatingInlineCat, setCreatingInlineCat] = useState(false);
+  const [inlineCatName, setInlineCatName] = useState("");
+  const [savingInlineCat, setSavingInlineCat] = useState(false);
   
   // 2-way payment status: PAID | UNPAID
   const [paymentStatus, setPaymentStatus] = useState<"PAID" | "UNPAID">("PAID");
@@ -58,6 +64,8 @@ export default function FastTransactionModal() {
       setPaymentStatus("PAID");
       setContactName("");
       setNotes("");
+      setCreatingInlineCat(false);
+      setInlineCatName("");
       setAttachmentUrl("");
       setAttachmentIds([]);
       setAttachmentsBusy(false);
@@ -93,6 +101,42 @@ export default function FastTransactionModal() {
     : [];
 
   const parsedTotal = parseFloat(stripCommas(amountStr)) || 0;
+
+  const handleCreateInlineCategory = async () => {
+    const trimmed = inlineCatName.trim();
+    if (!trimmed || !activeWorkspace) return;
+
+    setSavingInlineCat(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch(`/api/accounting/categories?workspaceId=${activeWorkspace.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": activeWorkspace.id,
+        },
+        body: JSON.stringify({
+          workspaceId: activeWorkspace.id,
+          name: trimmed,
+          type: isIncome ? "INCOME" : "EXPENSE",
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.category) {
+        setCategories((prev) => [...prev, data.category]);
+        setMainCategoryId(data.category.id);
+        setInlineCatName("");
+        setCreatingInlineCat(false);
+      } else {
+        setErrorMsg(data.error || "Failed to create category");
+      }
+    } catch {
+      setErrorMsg("Failed to create category");
+    } finally {
+      setSavingInlineCat(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,26 +334,111 @@ export default function FastTransactionModal() {
             <>
               {/* Category (Main) */}
               <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="fast-category">
-                  Category *
-                </label>
-                <select
-                  id="fast-category"
-                  className="acc-form-select"
-                  value={mainCategoryId}
-                  onChange={(e) => {
-                    setMainCategoryId(e.target.value);
-                    setSubcategoryId(""); // Changing category must clear an incompatible subcategory
-                  }}
-                  required
-                >
-                  <option value="">Select {isIncome ? "income" : "expense"} category...</option>
-                  {availableMainCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                  <label className="acc-form-label" htmlFor="fast-category" style={{ margin: 0 }}>
+                    Category *
+                  </label>
+                  {!creatingInlineCat && (
+                    <button
+                      type="button"
+                      onClick={() => setCreatingInlineCat(true)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--acc-blue)",
+                        fontSize: "0.75rem",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        padding: 0,
+                      }}
+                    >
+                      + Create Category
+                    </button>
+                  )}
+                </div>
+
+                {creatingInlineCat ? (
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+                    <input
+                      type="text"
+                      className="acc-form-input"
+                      placeholder={`New ${isIncome ? "Income" : "Expense"} Category name...`}
+                      value={inlineCatName}
+                      onChange={(e) => setInlineCatName(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateInlineCategory();
+                        } else if (e.key === "Escape") {
+                          setCreatingInlineCat(false);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-primary acc-btn-sm"
+                      onClick={handleCreateInlineCategory}
+                      disabled={savingInlineCat || !inlineCatName.trim()}
+                    >
+                      {savingInlineCat ? "Saving..." : "Add"}
+                    </button>
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-outline acc-btn-sm"
+                      onClick={() => {
+                        setCreatingInlineCat(false);
+                        setInlineCatName("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    id="fast-category"
+                    className="acc-form-select"
+                    value={mainCategoryId}
+                    onChange={(e) => {
+                      setMainCategoryId(e.target.value);
+                      setSubcategoryId(""); // Changing category must clear an incompatible subcategory
+                    }}
+                    required
+                  >
+                    <option value="">
+                      {availableMainCategories.length === 0
+                        ? `No ${isIncome ? "income" : "expense"} categories yet`
+                        : `Select ${isIncome ? "income" : "expense"} category...`}
                     </option>
-                  ))}
-                </select>
+                    {availableMainCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {availableMainCategories.length === 0 && !creatingInlineCat && (
+                  <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", marginTop: "0.35rem" }}>
+                    No categories exist yet. Click{" "}
+                    <button
+                      type="button"
+                      onClick={() => setCreatingInlineCat(true)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--acc-blue)",
+                        padding: 0,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        fontSize: "inherit",
+                      }}
+                    >
+                      + Create Category
+                    </button>{" "}
+                    to add one now.
+                  </div>
+                )}
               </div>
 
               {/* Subcategory (Optional, dependent on Main Category) */}

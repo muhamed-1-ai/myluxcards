@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { CardProfileProduct } from "@/lib/cards";
+import { CardProfileProduct, isValidStoreUrl } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { BrandLogo } from "./BrandLogo";
+import { AppStoreChooserModal, type AppDownloadSettings } from "./AppStoreChooserModal";
+import { detectUserDevice, type DetectedOS } from "@/lib/device";
 import {
   resolveSimpleProfileTokens,
   isLightColor,
@@ -65,6 +67,7 @@ export interface SimpleProfileLayoutProps {
     nameColor?: string;
     slug?: string;
     id?: string;
+    appDownload?: AppDownloadSettings;
     contactNumbers?: Array<{
       id?: string;
       label?: string;
@@ -100,6 +103,12 @@ export function SimpleProfileLayout({
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
   const [imgError, setImgError] = useState(false);
   const [coverImgError, setCoverImgError] = useState(false);
+  const [storeChooserOpen, setStoreChooserOpen] = useState(false);
+  const [detectedOS, setDetectedOS] = useState<DetectedOS>("unknown");
+
+  useEffect(() => {
+    setDetectedOS(detectUserDevice());
+  }, []);
 
   useEffect(() => {
     if (profileProducts !== undefined) return;
@@ -192,6 +201,54 @@ export function SimpleProfileLayout({
   const websiteHref = card.website && card.website.trim() ? card.website.trim() : "";
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
+  const appDownload = card.appDownload;
+  const hasApple = Boolean(appDownload?.appStoreUrl && isValidStoreUrl(appDownload.appStoreUrl, "apple"));
+  const hasGoogle = Boolean(appDownload?.playStoreUrl && isValidStoreUrl(appDownload.playStoreUrl, "google"));
+  const hasAppDownload = hasApple || hasGoogle;
+
+  const appTileLabel = hasApple && hasGoogle
+    ? "Download Our App"
+    : hasApple
+    ? "Download on App Store"
+    : "Get it on Google Play";
+
+  const defaultAppUrl = hasApple && hasGoogle
+    ? (detectedOS === "android" ? appDownload?.playStoreUrl : appDownload?.appStoreUrl) || ""
+    : (hasApple ? appDownload?.appStoreUrl : appDownload?.playStoreUrl) || "";
+
+  const handleAppDownloadClick = (e: React.MouseEvent) => {
+    const currentDevice = detectUserDevice();
+    if (hasApple && hasGoogle) {
+      if (currentDevice === "android" && appDownload?.playStoreUrl) {
+        return;
+      }
+      if (currentDevice === "ios" && appDownload?.appStoreUrl) {
+        return;
+      }
+      e.preventDefault();
+      setStoreChooserOpen(true);
+      return;
+    }
+
+    if (hasApple && !hasGoogle) {
+      if (currentDevice === "ios") {
+        return;
+      }
+      e.preventDefault();
+      setStoreChooserOpen(true);
+      return;
+    }
+
+    if (!hasApple && hasGoogle) {
+      if (currentDevice === "android") {
+        return;
+      }
+      e.preventDefault();
+      setStoreChooserOpen(true);
+      return;
+    }
+  };
+
   // Social links
   const socialLinks = [
     { key: "instagram", name: "Instagram", url: card.social?.Instagram || card.social?.instagram, brand: "instagram" },
@@ -201,7 +258,18 @@ export function SimpleProfileLayout({
     { key: "facebook", name: "Facebook", url: card.social?.Facebook || card.social?.facebook, brand: "facebook" },
     { key: "twitter", name: "X", url: card.social?.Twitter || card.social?.twitter, brand: "twitter" },
     { key: "github", name: "GitHub", url: card.social?.GitHub || card.social?.github, brand: "github" },
-    { key: "google", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.google || card.social?.["Google Business"], brand: "maps" },
+    { key: "google-business", name: "Google Business", url: card.social?.["Google Business"] || card.social?.googlebusiness, brand: "google" },
+    { key: "google-maps", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.googlemaps || (!card.social?.["Google Business"] && !card.social?.googlebusiness ? card.social?.google : undefined), brand: "maps" },
+    { key: "google-reviews", name: "Google Reviews", url: card.social?.["Google Reviews"] || card.social?.["google-reviews"] || card.social?.["google_reviews"] || card.social?.googlereviews || card.social?.reviews, brand: "reviews" },
+    ...(hasAppDownload ? [{
+      key: "app-download",
+      name: appTileLabel,
+      subText: card.appDownload?.appName,
+      url: defaultAppUrl,
+      brand: "download",
+      isAppDownload: true,
+      hasBothStores: hasApple && hasGoogle,
+    }] : []),
     { key: "whatsapp", name: "WhatsApp", url: card.social?.WhatsApp || card.social?.whatsapp, brand: "whatsapp" },
   ].filter((item) => item.url && item.url.trim().length > 0);
 
@@ -307,16 +375,7 @@ export function SimpleProfileLayout({
 
         {/* ── 2. Name Heading, Job Title & Company ── */}
         <div className="zappit-simple-identity">
-          <h1
-            className="zappit-simple-name"
-            style={{
-              color: "var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)))",
-              WebkitTextFillColor: "var(--simple-name-color, var(--profile-name-color, var(--simple-text-primary)))",
-              opacity: 1,
-            }}
-          >
-            {name}
-          </h1>
+          <h1 className="zappit-simple-name">{name}</h1>
 
           {(title || business) && (
             <p className="zappit-simple-subtitle">
@@ -492,19 +551,43 @@ export function SimpleProfileLayout({
             <h2 className="zappit-simple-section-title">Connect &amp; Social</h2>
             <div className="zappit-simple-social-grid">
               {socialLinks.map((item) => (
-                <a
-                  key={item.key}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="zappit-simple-social-card"
-                  aria-label={`Visit ${item.name}`}
-                >
-                  <span className="zappit-simple-social-icon">
-                    <BrandLogo brand={item.brand} name={item.name} size={26} />
-                  </span>
-                  <span className="zappit-simple-social-name">{item.name}</span>
-                </a>
+                <div key={item.key} style={{ display: "flex", flexDirection: "column", position: "relative" }}>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="zappit-simple-social-card"
+                    aria-label={`Visit ${item.name}`}
+                    onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
+                  >
+                    <span className="zappit-simple-social-icon">
+                      <BrandLogo brand={item.brand} name={item.name} size={26} />
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                      <span className="zappit-simple-social-name">{item.name}</span>
+                      {item.subText && (
+                        <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.subText}
+                        </span>
+                      )}
+                    </div>
+                  </a>
+                  {item.isAppDownload && item.hasBothStores && (
+                    <button
+                      type="button"
+                      className="zappit-choose-store-action simple"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setStoreChooserOpen(true);
+                      }}
+                      title="Choose store manually"
+                      aria-label="Choose store manually"
+                    >
+                      Choose store
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -608,6 +691,14 @@ export function SimpleProfileLayout({
 
         </div>{/* End zappit-simple-body */}
       </div>{/* End zappit-simple-card */}
+
+      {/* ── STORE CHOOSER MODAL ── */}
+      <AppStoreChooserModal
+        isOpen={storeChooserOpen}
+        onClose={() => setStoreChooserOpen(false)}
+        appDownload={card.appDownload}
+        detectedOS={detectedOS}
+      />
     </div>
   );
 }

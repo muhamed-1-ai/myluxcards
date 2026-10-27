@@ -8,7 +8,6 @@ import type {
   ProfileTemplate,
 } from "./types";
 import { seedDefaultChartOfAccounts } from "./accounts";
-import { seedDefaultCategories } from "./categories";
 
 const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
   OWNER: 4,
@@ -98,9 +97,6 @@ export async function ensureDefaultWorkspace(
     // 3. Seed Chart of Accounts
     await seedDefaultChartOfAccounts(workspace.id, client);
 
-    // 4. Seed Dynamic Categories
-    await seedDefaultCategories(workspace.id, template, client);
-
     return { ...workspace, role: "OWNER" as WorkspaceRole };
   });
 }
@@ -141,7 +137,6 @@ export async function createWorkspace(
     );
 
     await seedDefaultChartOfAccounts(workspace.id, client);
-    await seedDefaultCategories(workspace.id, template, client);
 
     return { ...workspace, role: "OWNER" as WorkspaceRole };
   });

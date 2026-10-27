@@ -9,7 +9,6 @@ import type {
   ProfileTemplate,
 } from "./types";
 import { seedDefaultChartOfAccounts } from "./accounts";
-import { seedDefaultCategories } from "./categories";
 
 /**
  * Deterministic canonicalization for consistent SHA-256 payload hashing.
@@ -483,11 +482,10 @@ export async function wipeActiveAccountingRecords(
  */
 export async function reinitializeCleanAccountingState(
   workspaceId: string,
-  template: ProfileTemplate,
+  _template: ProfileTemplate,
   client: Queryable
 ): Promise<void> {
   await seedDefaultChartOfAccounts(workspaceId, client);
-  await seedDefaultCategories(workspaceId, template, client);
 }
 
 /**

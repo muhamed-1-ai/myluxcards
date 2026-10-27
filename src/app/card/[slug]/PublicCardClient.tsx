@@ -572,7 +572,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const normalizedWhatsapp = normalizePhoneNumber(card.whatsapp, card.countryCode || card.countryIso);
   const whatsapp = normalizedWhatsapp.isValid ? normalizedWhatsapp.normalized : (card.whatsapp ? `${formatCountryCode(card.countryCode)}${card.whatsapp}` : "");
   const location = [card.address, card.city, card.state].filter(Boolean).join(", ");
-  const preferredSocialOrder = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "WhatsApp", "Threads"];
+  const preferredSocialOrder = ["Instagram", "Facebook", "YouTube", "LinkedIn", "Twitter", "Google Business", "Google Maps", "Google Reviews", "WhatsApp", "Threads"];
   const socials = Object.entries(card.social || {})
     .filter(([, url]) => Boolean(url))
     .sort(([a], [b]) => {
@@ -796,6 +796,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     YouTube: { subtitle: "Subscribe", icon: <YouTubeIcon />, iconBg: "#ff0000" },
     "Google Business": { subtitle: "Find us online", icon: <GoogleLetter />, iconBg: "#4285f4" },
     "Google Maps": { subtitle: "Get directions", icon: <LocationIcon />, iconBg: "#4285f4" },
+    "Google Reviews": { subtitle: "Read or leave a review", icon: <StarIcon />, iconBg: "#fbbc04" },
     WhatsApp: { subtitle: "Message me", icon: <WhatsAppBrandIcon />, iconBg: "#25d366" },
     Threads: { subtitle: "Follow me", icon: <ThreadsIcon />, iconBg: "#000" },
   };
@@ -1432,4 +1433,12 @@ function ThreadsIcon() {
 
 function GoogleLetter() {
   return <span style={{ fontWeight: 800, fontSize: 18, color: "#fff" }}>G</span>;
+}
+
+function StarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
+      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+    </svg>
+  );
 }

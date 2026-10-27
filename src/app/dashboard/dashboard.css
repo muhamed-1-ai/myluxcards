@@ -1423,6 +1423,9 @@ td small {
 .social-preview-icon.maps {
   background: linear-gradient(145deg, #34a853, #4285f4 58%, #fbbc04);
 }
+.social-preview-icon.reviews {
+  background: #fbbc04;
+}
 .company-form-title h2 {
   text-transform: uppercase;
   letter-spacing: 0.06em;

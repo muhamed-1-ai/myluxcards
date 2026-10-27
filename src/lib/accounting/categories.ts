@@ -77,26 +77,17 @@ function slugify(name: string): string {
 
 /**
  * Seed default category template on onboarding.
+ * Note: Customer-facing categories now start completely empty by design so users create
+ * their own custom categories and subcategories. This function is retained as an intentional
+ * safe no-op for backward compatibility.
  */
 export async function seedDefaultCategories(
-  workspaceId: string,
-  template: ProfileTemplate = "BUSINESS_OWNER",
-  client?: Queryable
+  _workspaceId: string,
+  _template: ProfileTemplate = "BUSINESS_OWNER",
+  _client?: Queryable
 ): Promise<void> {
-  const db = client || pool;
-  const items = TEMPLATES[template] || TEMPLATES.BUSINESS_OWNER;
-  let order = 1;
-
-  for (const item of items) {
-    const slug = slugify(item.name);
-    await db.query(
-      `INSERT INTO accounting_categories
-         (workspace_id, name, slug, type, icon, color, is_system, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, true, $7)
-       ON CONFLICT ON CONSTRAINT uq_acc_category_parent_name DO NOTHING`,
-      [workspaceId, item.name, slug, item.type, item.icon || "Tag", item.color || "#3B82F6", order++]
-    );
-  }
+  // Intentionally empty: customer-facing categories start empty across all workspaces
+  return;
 }
 
 /**

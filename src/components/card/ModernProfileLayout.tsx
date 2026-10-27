@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, CardProfileProduct } from "@/lib/cards";
+import { formatCountryCode, CardProfileProduct, isValidStoreUrl } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
 import { BrandLogo } from "./BrandLogo";
+import { AppStoreChooserModal, type AppDownloadSettings } from "./AppStoreChooserModal";
+import { detectUserDevice, type DetectedOS } from "@/lib/device";
 import {
   resolveThemeTokens,
   isLightColor,
@@ -92,6 +94,7 @@ export interface ModernProfileLayoutProps {
     modernConfig?: ModernProfileConfig;
     slug?: string;
     id?: string;
+    appDownload?: AppDownloadSettings;
     contactNumbers?: Array<{
       id?: string;
       label?: string;
@@ -142,6 +145,12 @@ export function ModernProfileLayout({
 }: ModernProfileLayoutProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
+  const [storeChooserOpen, setStoreChooserOpen] = useState(false);
+  const [detectedOS, setDetectedOS] = useState<DetectedOS>("unknown");
+
+  useEffect(() => {
+    setDetectedOS(detectUserDevice());
+  }, []);
 
   useEffect(() => {
     if (profileProducts !== undefined) return;
@@ -216,6 +225,54 @@ export function ModernProfileLayout({
 
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
+  const appDownload = card.appDownload;
+  const hasApple = Boolean(appDownload?.appStoreUrl && isValidStoreUrl(appDownload.appStoreUrl, "apple"));
+  const hasGoogle = Boolean(appDownload?.playStoreUrl && isValidStoreUrl(appDownload.playStoreUrl, "google"));
+  const hasAppDownload = hasApple || hasGoogle;
+
+  const appTileLabel = hasApple && hasGoogle
+    ? "Download Our App"
+    : hasApple
+    ? "Download on App Store"
+    : "Get it on Google Play";
+
+  const defaultAppUrl = hasApple && hasGoogle
+    ? (detectedOS === "android" ? appDownload?.playStoreUrl : appDownload?.appStoreUrl) || ""
+    : (hasApple ? appDownload?.appStoreUrl : appDownload?.playStoreUrl) || "";
+
+  const handleAppDownloadClick = (e: React.MouseEvent) => {
+    const currentDevice = detectUserDevice();
+    if (hasApple && hasGoogle) {
+      if (currentDevice === "android" && appDownload?.playStoreUrl) {
+        return;
+      }
+      if (currentDevice === "ios" && appDownload?.appStoreUrl) {
+        return;
+      }
+      e.preventDefault();
+      setStoreChooserOpen(true);
+      return;
+    }
+
+    if (hasApple && !hasGoogle) {
+      if (currentDevice === "ios") {
+        return;
+      }
+      e.preventDefault();
+      setStoreChooserOpen(true);
+      return;
+    }
+
+    if (!hasApple && hasGoogle) {
+      if (currentDevice === "android") {
+        return;
+      }
+      e.preventDefault();
+      setStoreChooserOpen(true);
+      return;
+    }
+  };
+
   const socialLinks = [
     { key: "instagram", name: "Instagram", url: card.social?.Instagram || card.social?.instagram, brand: "instagram" },
     { key: "website", name: "Website", url: card.website, brand: "website" },
@@ -223,7 +280,18 @@ export function ModernProfileLayout({
     { key: "youtube", name: "YouTube", url: card.social?.YouTube || card.social?.youtube, brand: "youtube" },
     { key: "facebook", name: "Facebook", url: card.social?.Facebook || card.social?.facebook, brand: "facebook" },
     { key: "twitter", name: "Twitter", url: card.social?.Twitter || card.social?.twitter, brand: "twitter" },
-    { key: "google", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.google || card.social?.["Google Business"], brand: "maps" },
+    { key: "google-business", name: "Google Business", url: card.social?.["Google Business"] || card.social?.googlebusiness, brand: "google" },
+    { key: "google-maps", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.googlemaps || (!card.social?.["Google Business"] && !card.social?.googlebusiness ? card.social?.google : undefined), brand: "maps" },
+    { key: "google-reviews", name: "Google Reviews", url: card.social?.["Google Reviews"] || card.social?.["google-reviews"] || card.social?.["google_reviews"] || card.social?.googlereviews || card.social?.reviews, brand: "reviews" },
+    ...(hasAppDownload ? [{
+      key: "app-download",
+      name: appTileLabel,
+      subText: card.appDownload?.appName,
+      url: defaultAppUrl,
+      brand: "download",
+      isAppDownload: true,
+      hasBothStores: hasApple && hasGoogle,
+    }] : []),
     { key: "whatsapp", name: "WhatsApp", url: card.social?.WhatsApp || card.social?.whatsapp, brand: "whatsapp" },
     { key: "github", name: "GitHub", url: card.social?.GitHub || card.social?.github, brand: "github" },
   ].filter((item) => item.url && item.url.trim().length > 0);
@@ -555,19 +623,41 @@ export function ModernProfileLayout({
 
             <div className="zappit-modern-apps-grid">
               {socialLinks.map((item) => (
-                <a
-                  key={item.key}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="zappit-modern-app-tile"
-                >
-                  <div className={`zappit-modern-app-icon ${item.brand}`}>
-                    <BrandLogo brand={item.brand} name={item.name} size={30} />
-                  </div>
-                  <span className="zappit-modern-app-name">{item.name}</span>
-                  <span className="zappit-modern-app-arrow">→</span>
-                </a>
+                <div key={item.key} className="zappit-modern-app-item-wrap" style={{ display: "flex", flexDirection: "column", position: "relative" }}>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`zappit-modern-app-tile ${item.isAppDownload ? "zappit-app-tile" : ""}`}
+                    onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
+                  >
+                    <div className={`zappit-modern-app-icon ${item.brand}`}>
+                      <BrandLogo brand={item.brand} name={item.name} size={30} />
+                    </div>
+                    <span className="zappit-modern-app-name">{item.name}</span>
+                    {item.subText && (
+                      <span className="zappit-modern-app-subtext" style={{ fontSize: "9.5px", color: "var(--profile-muted, #94a3b8)", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.subText}
+                      </span>
+                    )}
+                    <span className="zappit-modern-app-arrow">→</span>
+                  </a>
+                  {item.isAppDownload && item.hasBothStores && (
+                    <button
+                      type="button"
+                      className="zappit-choose-store-action"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setStoreChooserOpen(true);
+                      }}
+                      title="Choose store manually"
+                      aria-label="Choose store manually"
+                    >
+                      Choose store
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -606,6 +696,14 @@ export function ModernProfileLayout({
         </div>
 
       </div>
+
+      {/* ── STORE CHOOSER MODAL ── */}
+      <AppStoreChooserModal
+        isOpen={storeChooserOpen}
+        onClose={() => setStoreChooserOpen(false)}
+        appDownload={card.appDownload}
+        detectedOS={detectedOS}
+      />
     </div>
   );
 }
