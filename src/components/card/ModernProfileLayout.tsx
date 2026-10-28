@@ -110,6 +110,7 @@ export interface ModernProfileLayoutProps {
   onOpenBrochure?: () => void;
   onEditProfile?: () => void;
   isDashboardPreview?: boolean;
+  simulatedDevice?: "auto" | "ios" | "android";
 }
 
 function SocialBrandLogo({ brand, name }: { brand: string; name?: string }) {
@@ -142,6 +143,7 @@ export function ModernProfileLayout({
   onOpenBrochure,
   onEditProfile,
   isDashboardPreview = false,
+  simulatedDevice = "auto",
 }: ModernProfileLayoutProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
@@ -225,10 +227,12 @@ export function ModernProfileLayout({
 
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
-  const appTileRes = resolveAppDownloadTile(card.appDownload, detectedOS);
+  const effectiveOS: DetectedOS = (simulatedDevice && simulatedDevice !== "auto") ? simulatedDevice : detectedOS;
+
+  const appTileRes = resolveAppDownloadTile(card.appDownload, effectiveOS);
 
   const handleAppDownloadClick = (e: React.MouseEvent) => {
-    const currentDevice = detectUserDevice();
+    const currentDevice = (simulatedDevice && simulatedDevice !== "auto") ? simulatedDevice : detectUserDevice();
     const clickRes = resolveAppDownloadTile(card.appDownload, currentDevice);
     if (clickRes.action === "chooser" || !clickRes.url || clickRes.url === "#") {
       e.preventDefault();
@@ -656,7 +660,7 @@ export function ModernProfileLayout({
         isOpen={storeChooserOpen}
         onClose={() => setStoreChooserOpen(false)}
         appDownload={card.appDownload}
-        detectedOS={detectedOS}
+        detectedOS={effectiveOS}
       />
     </div>
   );

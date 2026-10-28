@@ -83,6 +83,7 @@ export interface SimpleProfileLayoutProps {
   onOpenBrochure?: () => void;
   onEditProfile?: () => void;
   isDashboardPreview?: boolean;
+  simulatedDevice?: "auto" | "ios" | "android";
 }
 
 function SocialBrandIcon({ brand, name }: { brand: string; name?: string }) {
@@ -98,6 +99,7 @@ export function SimpleProfileLayout({
   onOpenBrochure,
   onEditProfile,
   isDashboardPreview = false,
+  simulatedDevice = "auto",
 }: SimpleProfileLayoutProps) {
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
@@ -201,10 +203,12 @@ export function SimpleProfileLayout({
   const websiteHref = card.website && card.website.trim() ? card.website.trim() : "";
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
-  const appTileRes = resolveAppDownloadTile(card.appDownload, detectedOS);
+  const effectiveOS: DetectedOS = (simulatedDevice && simulatedDevice !== "auto") ? simulatedDevice : detectedOS;
+
+  const appTileRes = resolveAppDownloadTile(card.appDownload, effectiveOS);
 
   const handleAppDownloadClick = (e: React.MouseEvent) => {
-    const currentDevice = detectUserDevice();
+    const currentDevice = (simulatedDevice && simulatedDevice !== "auto") ? simulatedDevice : detectUserDevice();
     const clickRes = resolveAppDownloadTile(card.appDownload, currentDevice);
     if (clickRes.action === "chooser" || !clickRes.url || clickRes.url === "#") {
       e.preventDefault();
@@ -650,7 +654,7 @@ export function SimpleProfileLayout({
         isOpen={storeChooserOpen}
         onClose={() => setStoreChooserOpen(false)}
         appDownload={card.appDownload}
-        detectedOS={detectedOS}
+        detectedOS={effectiveOS}
       />
     </div>
   );

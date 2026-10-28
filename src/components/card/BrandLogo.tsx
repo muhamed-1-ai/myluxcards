@@ -22,6 +22,7 @@ export function normalizeBrandKey(brand: string): string {
   if (cleaned.includes("whatsapp") || cleaned === "wa") return "whatsapp";
   if (cleaned.includes("googlereview") || cleaned.includes("review") || cleaned.includes("star")) return "reviews";
   if (cleaned === "downloadourapp") return "download";
+  if (cleaned === "dual_store" || cleaned === "dual" || cleaned === "app_dual" || cleaned === "dualstore") return "dual_store";
   if (cleaned.includes("appstore") || cleaned === "appleappstore" || cleaned === "iosapp" || cleaned === "apple") return "appstore";
   if (cleaned.includes("playstore") || cleaned.includes("googleplay") || cleaned === "androidplay") return "playstore";
   if (cleaned.includes("appdownload") || cleaned.includes("download") || cleaned.includes("getapp")) return "download";
@@ -265,6 +266,50 @@ export function BrandLogo({
           </g>
         </svg>
       );
+
+    case "dual_store": {
+      const gradId = `as-dual-grad-${uniqueId}`;
+      const dualHeight = Math.max(18, Math.round(size * 0.74));
+      const dualWidth = Math.round(dualHeight * (48 / 22));
+
+      return (
+        <svg
+          viewBox="0 0 48 22"
+          width={dualWidth}
+          height={dualHeight}
+          className={`zappit-brand-logo-svg ${className}`.trim()}
+          aria-hidden={true}
+        >
+          <defs>
+            <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1E90FF" />
+              <stop offset="100%" stopColor="#0066D6" />
+            </linearGradient>
+          </defs>
+
+          {/* LEFT: Authentic Apple App Store stylized 'A' interlocking tools mark on Apple Blue squircle */}
+          <rect x="0" y="0" width="22" height="22" rx="5" fill={`url(#${gradId})`} />
+          <g transform="translate(-1, -1)">
+            <line x1="6.8" y1="18.2" x2="11.8" y2="7.2" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+            <line x1="11.4" y1="5.5" x2="14.2" y2="11.5" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+            <line x1="15.5" y1="14.5" x2="17.2" y2="18.2" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+            <line x1="5.2" y1="14" x2="8.0" y2="14" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+            <line x1="9.6" y1="14" x2="18.8" y2="14" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+          </g>
+
+          {/* RIGHT: Official-style multicolour Google Play triangle on white circular badge */}
+          <g transform="translate(26, 0)">
+            <circle cx="11" cy="11" r="11" fill="#FFFFFF" />
+            <g transform="translate(1.5, 1.5) scale(0.8)">
+              <path fill="#4285F4" d="M3.6 1.7l11.2 11.2-3.1 3.1L2.1 2.9C2.4 2.3 2.9 1.8 3.6 1.7z" />
+              <path fill="#34A853" d="M18.8 9.8l-4 2.3-3.1-3.1 3.1-3.1 4 2.3c.7.4 1.2 1 1.2 1.6s-.5 1.2-1.2 1.6z" />
+              <path fill="#EA4335" d="M11.7 9l3.1 3.1-11.2 11.2c-.7-.1-1.2-.6-1.5-1.2L11.7 9z" />
+              <path fill="#FBBC04" d="M14.8 12.1l-3.1 3.1 3.1 3.1 4-2.3c.7-.4 1.2-1 1.2-1.6s-.5-1.2-1.2-1.6l-4-2.3z" />
+            </g>
+          </g>
+        </svg>
+      );
+    }
 
     case "download": {
       const gradId = `dl-grad-${uniqueId}`;

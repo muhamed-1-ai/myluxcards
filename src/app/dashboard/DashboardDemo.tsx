@@ -6055,6 +6055,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
   const [shareDetailsModalOpen, setShareDetailsModalOpen] = useState(false);
   const qrPngUrlRef = useRef<string | null>(null);
   const [displayHost, setDisplayHost] = useState("3gzappit.com");
+  const [previewDevice, setPreviewDevice] = useState<"auto" | "ios" | "android">("auto");
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" && typeof window !== "undefined" && window.location?.host) {
@@ -6256,12 +6257,65 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
       </div>
     </div>
     <div className="preview-card">
-      <div className="preview-title"><span>Card Preview</span><i>LIVE</i></div>
+      <div className="preview-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+        <span>Card Preview</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            className="zappit-preview-device-toggle"
+            role="radiogroup"
+            aria-label="Simulated preview device"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              background: "rgba(255, 255, 255, 0.08)",
+              border: "1px solid rgba(255, 255, 255, 0.14)",
+              borderRadius: 6,
+              padding: 2,
+              gap: 2,
+            }}
+          >
+            {(["auto", "ios", "android"] as const).map((mode) => {
+              const active = previewDevice === mode;
+              const label = mode === "auto" ? "Auto" : mode === "ios" ? "iPhone" : "Android";
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setPreviewDevice(mode)}
+                  style={{
+                    border: "none",
+                    borderRadius: 4,
+                    padding: "2px 7px",
+                    fontSize: 10,
+                    fontWeight: active ? 600 : 500,
+                    color: active ? "#FFFFFF" : "rgba(255, 255, 255, 0.65)",
+                    background: active ? "#0066FF" : "transparent",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    lineHeight: 1.3,
+                  }}
+                  title={
+                    mode === "auto"
+                      ? "Use your viewing device (shows dual store icons on desktop)"
+                      : `Simulate ${label} device app store tile in preview`
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <i>LIVE</i>
+        </div>
+      </div>
       <div style={{ padding: "8px 0" }}>
         {card.profileFormat === "simple" ? (
           <SimpleProfileLayout
             card={card}
             isDashboardPreview
+            simulatedDevice={previewDevice}
             onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
             onShareDetails={() => setShareDetailsModalOpen(true)}
             onShare={() => alert("Share demo: in live public profile this opens share options.")}
@@ -6271,6 +6325,7 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
           <ModernProfileLayout
             card={card}
             isDashboardPreview
+            simulatedDevice={previewDevice}
             onSaveContact={() => alert("Save Contact demo: in live public profile this downloads your .vcf card.")}
             onShareDetails={() => setShareDetailsModalOpen(true)}
             onShare={() => alert("Share demo: in live public profile this opens share options.")}

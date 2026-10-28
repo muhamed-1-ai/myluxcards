@@ -807,7 +807,8 @@ h1.zappit-simple-name {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
+  width: auto;
+  min-width: 28px;
   height: 28px;
   background: transparent;
 }

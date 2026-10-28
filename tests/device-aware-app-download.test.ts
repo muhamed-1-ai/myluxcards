@@ -76,22 +76,22 @@ assert.equal(iosDualRes.action, "direct");
 assert.equal(iosDualRes.targetStore, "apple");
 assert.ok(iosDualRes.ariaLabel.includes("App Store"));
 
-// 2c. Desktop visitor -> Neutral download icon and opens chooser modal
+// 2c. Desktop visitor -> Display both store icons neatly side by side inside the same tile, opens chooser modal
 const desktopDualRes = resolveAppDownloadTile(dualConfig, "desktop");
 assert.equal(desktopDualRes.visible, true);
-assert.equal(desktopDualRes.brand, "download", "Desktop must show neutral download icon");
+assert.equal(desktopDualRes.brand, "dual_store", "Desktop must show both store icons side by side ('dual_store')");
 assert.equal(desktopDualRes.name, "Download Our App");
 assert.equal(desktopDualRes.subText, "Zappit Business");
 assert.equal(desktopDualRes.action, "chooser", "Desktop must trigger store chooser modal");
 
-// 2d. Unknown device / SSR initial state -> Neutral download icon and chooser action
+// 2d. Unknown device / SSR initial state -> Both store icons side by side and chooser action
 const unknownDualRes = resolveAppDownloadTile(dualConfig, "unknown");
 assert.equal(unknownDualRes.visible, true);
-assert.equal(unknownDualRes.brand, "download");
+assert.equal(unknownDualRes.brand, "dual_store", "Unknown device must show both store icons side by side ('dual_store')");
 assert.equal(unknownDualRes.name, "Download Our App");
 assert.equal(unknownDualRes.action, "chooser");
 
-console.log("✔ Dual-store configurations resolved correctly for all device profiles");
+console.log("✔ Dual-store configurations resolved correctly for all device profiles (including desktop dual-store side-by-side)");
 
 // -------------------------------------------------------------
 // Test 3: Apple Only Configuration
@@ -195,6 +195,8 @@ assert.equal(normalizeBrandKey("appstore"), "appstore");
 assert.equal(normalizeBrandKey("App Store"), "appstore");
 assert.equal(normalizeBrandKey("playstore"), "playstore");
 assert.equal(normalizeBrandKey("Google Play"), "playstore");
+assert.equal(normalizeBrandKey("dual_store"), "dual_store");
+assert.equal(normalizeBrandKey("dual"), "dual_store");
 assert.equal(normalizeBrandKey("Download Our App"), "download", "Must preserve 'download' key for Download Our App");
 
 const brandLogoCode = fs.readFileSync(path.join(rootDir, "src/components/card/BrandLogo.tsx"), "utf-8");
@@ -208,6 +210,10 @@ assert.ok(brandLogoCode.includes("Authentic Apple App Store interlocking tools '
 assert.ok(brandLogoCode.includes('case "playstore":'), "BrandLogo must support case 'playstore'");
 assert.ok(brandLogoCode.includes("#4285F4") && brandLogoCode.includes("#34A853") && brandLogoCode.includes("#EA4335") && brandLogoCode.includes("#FBBC04"), "Google Play icon must contain 4 official brand colours");
 
+// Dual Store side-by-side icon for desktop
+assert.ok(brandLogoCode.includes('case "dual_store":'), "BrandLogo must support case 'dual_store'");
+assert.ok(brandLogoCode.includes("viewBox=\"0 0 48 22\""), "dual_store must render side-by-side icons in 48x22 viewBox");
+
 // Download icon (neutral download arrow)
 assert.ok(brandLogoCode.includes('case "download":'), "BrandLogo must retain case 'download'");
 assert.ok(brandLogoCode.includes("#2563EB"), "Download icon uses blue gradient #2563EB");
@@ -220,11 +226,12 @@ console.log("✔ BrandLogo keys and visual symbols verified");
 // -------------------------------------------------------------
 // Test 7: UI & Cleanliness Verification
 // -------------------------------------------------------------
-console.log("Test 7: Layout and cleanliness verification...");
+console.log("Test 7: Layout, preview controls, and cleanliness verification...");
 
 const modernCode = fs.readFileSync(path.join(rootDir, "src/components/card/ModernProfileLayout.tsx"), "utf-8");
 const simpleCode = fs.readFileSync(path.join(rootDir, "src/components/card/SimpleProfileLayout.tsx"), "utf-8");
 const modalCode = fs.readFileSync(path.join(rootDir, "src/components/card/AppStoreChooserModal.tsx"), "utf-8");
+const dashboardCode = fs.readFileSync(path.join(rootDir, "src/app/dashboard/DashboardDemo.tsx"), "utf-8");
 
 // Neither profile layout should have "Choose store" text or legacy classes
 assert.ok(!modernCode.includes("Choose store"), "Modern layout must not restore 'Choose store' text");
@@ -232,15 +239,21 @@ assert.ok(!simpleCode.includes("Choose store"), "Simple layout must not restore 
 assert.ok(!modernCode.includes("zappit-choose-store-action"), "Modern layout must not use 'zappit-choose-store-action'");
 assert.ok(!simpleCode.includes("zappit-choose-store-action"), "Simple layout must not use 'zappit-choose-store-action'");
 
-// Both layouts use resolveAppDownloadTile
+// Both layouts use resolveAppDownloadTile and simulatedDevice
 assert.ok(modernCode.includes("resolveAppDownloadTile"), "ModernProfileLayout must use resolveAppDownloadTile");
 assert.ok(simpleCode.includes("resolveAppDownloadTile"), "SimpleProfileLayout must use resolveAppDownloadTile");
+assert.ok(modernCode.includes("simulatedDevice"), "ModernProfileLayout must accept simulatedDevice prop");
+assert.ok(simpleCode.includes("simulatedDevice"), "SimpleProfileLayout must accept simulatedDevice prop");
+
+// Editor Preview Controls in DashboardDemo
+assert.ok(dashboardCode.includes("zappit-preview-device-toggle"), "DashboardDemo must include zappit-preview-device-toggle selector");
+assert.ok(dashboardCode.includes("previewDevice"), "DashboardDemo must manage previewDevice state");
 
 // AppStoreChooserModal uses BrandLogo and isValidStoreUrl
 assert.ok(modalCode.includes('BrandLogo brand="appstore"'), "Modal must use BrandLogo appstore symbol instead of Apple fruit");
 assert.ok(modalCode.includes('BrandLogo brand="playstore"'), "Modal must use BrandLogo playstore");
 assert.ok(modalCode.includes("isValidStoreUrl"), "Modal must validate store URLs");
 
-console.log("✔ Cleanliness and layout integration verified");
+console.log("✔ Cleanliness, layout integration, and preview controls verified");
 
 console.log("\n=== ALL DEVICE-AWARE APP DOWNLOAD TESTS PASSED SUCCESSFULLY! ===");

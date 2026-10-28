@@ -2,7 +2,7 @@ import { isValidStoreUrl } from "@/lib/cards";
 import type { DetectedOS } from "@/lib/device";
 import type { AppDownloadSettings } from "@/components/card/AppStoreChooserModal";
 
-export type AppTileBrand = "appstore" | "playstore" | "download";
+export type AppTileBrand = "appstore" | "playstore" | "dual_store" | "download";
 
 export interface AppTileResolution {
   visible: boolean;
@@ -83,13 +83,13 @@ export function resolveAppDownloadTile(
       };
     }
 
-    // Desktop or unidentified device -> Neutral download icon, opens store chooser modal
+    // Desktop or unidentified device -> Display both store icons neatly side by side inside the same tile
     return {
       visible: true,
-      brand: "download",
+      brand: "dual_store",
       name: tileName,
       subText,
-      ariaLabel: appName ? `Download ${appName}` : "Download Our App",
+      ariaLabel: appName ? `Download ${appName} on the App Store or Google Play` : "Download Our App on the App Store or Google Play",
       url: "#",
       action: "chooser",
       hasApple: true,
