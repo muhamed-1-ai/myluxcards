@@ -49,19 +49,20 @@ export function resolveAppDownloadTile(
     };
   }
 
+  const tileName = "Download Our App";
+  const subText = appName || undefined;
+  const ariaLabel = appName ? `Download ${appName} App` : "Download Our App";
+
   // Case 1: Both stores configured
   if (hasApple && hasGoogle) {
-    const tileName = "Download Our App";
-    const subText = appName || undefined;
-
     // iPhone / iPad -> Apple App Store
     if (detectedOS === "ios") {
       return {
         visible: true,
-        brand: "appstore",
+        brand: "download",
         name: tileName,
         subText,
-        ariaLabel: appName ? `Download ${appName} on the App Store` : "Download on the App Store",
+        ariaLabel,
         url: appleUrl,
         action: "direct",
         targetStore: "apple",
@@ -74,10 +75,10 @@ export function resolveAppDownloadTile(
     if (detectedOS === "android") {
       return {
         visible: true,
-        brand: "playstore",
+        brand: "download",
         name: tileName,
         subText,
-        ariaLabel: appName ? `Get ${appName} on Google Play` : "Get it on Google Play",
+        ariaLabel,
         url: googleUrl,
         action: "direct",
         targetStore: "google",
@@ -86,13 +87,13 @@ export function resolveAppDownloadTile(
       };
     }
 
-    // Desktop or unidentified device -> Display both store icons neatly side by side inside the same tile
+    // Desktop or unidentified device -> Open store chooser modal
     return {
       visible: true,
-      brand: "dual_store",
+      brand: "download",
       name: tileName,
       subText,
-      ariaLabel: appName ? `Download ${appName} on the App Store or Google Play` : "Download Our App on the App Store or Google Play",
+      ariaLabel,
       url: "#",
       action: "chooser",
       hasApple: true,
@@ -102,16 +103,13 @@ export function resolveAppDownloadTile(
 
   // Case 2: Apple App Store only configured
   if (hasApple && !hasGoogle) {
-    const tileName = "Download on App Store";
-    const subText = appName || undefined;
-
     if (detectedOS === "ios") {
       return {
         visible: true,
-        brand: "appstore",
+        brand: "download",
         name: tileName,
         subText,
-        ariaLabel: appName ? `Download ${appName} on the App Store` : "Download on App Store",
+        ariaLabel,
         url: appleUrl,
         action: "direct",
         targetStore: "apple",
@@ -123,10 +121,10 @@ export function resolveAppDownloadTile(
     // Incompatible or unknown device (Android, desktop, unknown) -> Show modal explaining availability
     return {
       visible: true,
-      brand: "appstore",
+      brand: "download",
       name: tileName,
       subText,
-      ariaLabel: appName ? `View ${appName} on Apple App Store` : "View on Apple App Store",
+      ariaLabel,
       url: "#",
       action: "chooser",
       targetStore: "apple",
@@ -136,16 +134,13 @@ export function resolveAppDownloadTile(
   }
 
   // Case 3: Google Play Store only configured
-  const tileName = "Get it on Google Play";
-  const subText = appName || undefined;
-
   if (detectedOS === "android") {
     return {
       visible: true,
-      brand: "playstore",
+      brand: "download",
       name: tileName,
       subText,
-      ariaLabel: appName ? `Get ${appName} on Google Play` : "Get it on Google Play",
+      ariaLabel,
       url: googleUrl,
       action: "direct",
       targetStore: "google",
@@ -157,10 +152,10 @@ export function resolveAppDownloadTile(
   // Incompatible or unknown device (iOS, desktop, unknown) -> Show modal explaining availability
   return {
     visible: true,
-    brand: "playstore",
+    brand: "download",
     name: tileName,
     subText,
-    ariaLabel: appName ? `View ${appName} on Google Play` : "View on Google Play",
+    ariaLabel,
     url: "#",
     action: "chooser",
     targetStore: "google",

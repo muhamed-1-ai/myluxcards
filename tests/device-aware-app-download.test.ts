@@ -54,44 +54,44 @@ const dualConfig = {
   playStoreUrl: validGoogleUrl,
 };
 
-// 2a. Android visitor -> Google Play icon and direct Google Play URL
+// 2a. Android visitor -> Consistent blue download icon and direct Google Play URL
 const androidDualRes = resolveAppDownloadTile(dualConfig, "android");
 assert.equal(androidDualRes.visible, true);
-assert.equal(androidDualRes.brand, "playstore", "Android must show multicolour Google Play brand");
+assert.equal(androidDualRes.brand, "download", "Android must show consistent blue download brand");
 assert.equal(androidDualRes.name, "Download Our App");
 assert.equal(androidDualRes.subText, "Zappit Business");
 assert.equal(androidDualRes.url, validGoogleUrl, "Android must link to Google Play URL");
 assert.equal(androidDualRes.action, "direct");
 assert.equal(androidDualRes.targetStore, "google");
-assert.ok(androidDualRes.ariaLabel.includes("Google Play"));
+assert.ok(androidDualRes.ariaLabel.includes("Download"));
 
-// 2b. iOS visitor -> Apple App Store icon and direct Apple URL
+// 2b. iOS visitor -> Consistent blue download icon and direct Apple URL
 const iosDualRes = resolveAppDownloadTile(dualConfig, "ios");
 assert.equal(iosDualRes.visible, true);
-assert.equal(iosDualRes.brand, "appstore", "iOS must show Apple App Store symbol brand");
+assert.equal(iosDualRes.brand, "download", "iOS must show consistent blue download brand");
 assert.equal(iosDualRes.name, "Download Our App");
 assert.equal(iosDualRes.subText, "Zappit Business");
 assert.equal(iosDualRes.url, validAppleUrl, "iOS must link to Apple App Store URL");
 assert.equal(iosDualRes.action, "direct");
 assert.equal(iosDualRes.targetStore, "apple");
-assert.ok(iosDualRes.ariaLabel.includes("App Store"));
+assert.ok(iosDualRes.ariaLabel.includes("Download"));
 
-// 2c. Desktop visitor -> Display both store icons neatly side by side inside the same tile, opens chooser modal
+// 2c. Desktop visitor -> Consistent blue download icon, opens chooser modal
 const desktopDualRes = resolveAppDownloadTile(dualConfig, "desktop");
 assert.equal(desktopDualRes.visible, true);
-assert.equal(desktopDualRes.brand, "dual_store", "Desktop must show both store icons side by side ('dual_store')");
+assert.equal(desktopDualRes.brand, "download", "Desktop must show consistent blue download brand");
 assert.equal(desktopDualRes.name, "Download Our App");
 assert.equal(desktopDualRes.subText, "Zappit Business");
 assert.equal(desktopDualRes.action, "chooser", "Desktop must trigger store chooser modal");
 
-// 2d. Unknown device / SSR initial state -> Both store icons side by side and chooser action
+// 2d. Unknown device / SSR initial state -> Consistent blue download icon and chooser action
 const unknownDualRes = resolveAppDownloadTile(dualConfig, "unknown");
 assert.equal(unknownDualRes.visible, true);
-assert.equal(unknownDualRes.brand, "dual_store", "Unknown device must show both store icons side by side ('dual_store')");
+assert.equal(unknownDualRes.brand, "download", "Unknown device must show consistent blue download brand");
 assert.equal(unknownDualRes.name, "Download Our App");
 assert.equal(unknownDualRes.action, "chooser");
 
-console.log("✔ Dual-store configurations resolved correctly for all device profiles (including desktop dual-store side-by-side)");
+console.log("✔ Dual-store configurations resolved correctly with consistent download brand for all device profiles");
 
 // -------------------------------------------------------------
 // Test 3: Apple Only Configuration
@@ -104,29 +104,29 @@ const appleOnlyConfig = {
   playStoreUrl: "",
 };
 
-// 3a. iOS visitor -> App Store icon, "Download on App Store", direct link
+// 3a. iOS visitor -> Download brand, "Download Our App", direct link
 const iosAppleOnly = resolveAppDownloadTile(appleOnlyConfig, "ios");
 assert.equal(iosAppleOnly.visible, true);
-assert.equal(iosAppleOnly.brand, "appstore");
-assert.equal(iosAppleOnly.name, "Download on App Store");
+assert.equal(iosAppleOnly.brand, "download");
+assert.equal(iosAppleOnly.name, "Download Our App");
 assert.equal(iosAppleOnly.url, validAppleUrl);
 assert.equal(iosAppleOnly.action, "direct");
 assert.equal(iosAppleOnly.targetStore, "apple");
 
-// 3b. Android visitor -> App Store icon, "Download on App Store", opens chooser modal (no wrong store redirect!)
+// 3b. Android visitor -> Download brand, "Download Our App", opens chooser modal (no wrong store redirect!)
 const androidAppleOnly = resolveAppDownloadTile(appleOnlyConfig, "android");
 assert.equal(androidAppleOnly.visible, true);
-assert.equal(androidAppleOnly.brand, "appstore");
-assert.equal(androidAppleOnly.name, "Download on App Store");
+assert.equal(androidAppleOnly.brand, "download");
+assert.equal(androidAppleOnly.name, "Download Our App");
 assert.equal(androidAppleOnly.action, "chooser", "Android visitor on Apple-only app must NOT be sent to wrong store");
 
-// 3c. Desktop visitor -> App Store icon, opens chooser modal
+// 3c. Desktop visitor -> Download brand, opens chooser modal
 const desktopAppleOnly = resolveAppDownloadTile(appleOnlyConfig, "desktop");
 assert.equal(desktopAppleOnly.visible, true);
-assert.equal(desktopAppleOnly.brand, "appstore");
+assert.equal(desktopAppleOnly.brand, "download");
 assert.equal(desktopAppleOnly.action, "chooser");
 
-console.log("✔ Apple-only configuration correctly protects incompatible devices and resolves App Store branding");
+console.log("✔ Apple-only configuration correctly protects incompatible devices and resolves consistent download branding");
 
 // -------------------------------------------------------------
 // Test 4: Google Play Only Configuration
@@ -139,29 +139,29 @@ const googleOnlyConfig = {
   playStoreUrl: validGoogleUrl,
 };
 
-// 4a. Android visitor -> Google Play icon, "Get it on Google Play", direct link
+// 4a. Android visitor -> Download brand, "Download Our App", direct link
 const androidGoogleOnly = resolveAppDownloadTile(googleOnlyConfig, "android");
 assert.equal(androidGoogleOnly.visible, true);
-assert.equal(androidGoogleOnly.brand, "playstore");
-assert.equal(androidGoogleOnly.name, "Get it on Google Play");
+assert.equal(androidGoogleOnly.brand, "download");
+assert.equal(androidGoogleOnly.name, "Download Our App");
 assert.equal(androidGoogleOnly.url, validGoogleUrl);
 assert.equal(androidGoogleOnly.action, "direct");
 assert.equal(androidGoogleOnly.targetStore, "google");
 
-// 4b. iOS visitor -> Google Play icon, "Get it on Google Play", opens chooser modal (no wrong store redirect!)
+// 4b. iOS visitor -> Download brand, "Download Our App", opens chooser modal (no wrong store redirect!)
 const iosGoogleOnly = resolveAppDownloadTile(googleOnlyConfig, "ios");
 assert.equal(iosGoogleOnly.visible, true);
-assert.equal(iosGoogleOnly.brand, "playstore");
-assert.equal(iosGoogleOnly.name, "Get it on Google Play");
+assert.equal(iosGoogleOnly.brand, "download");
+assert.equal(iosGoogleOnly.name, "Download Our App");
 assert.equal(iosGoogleOnly.action, "chooser", "iOS visitor on Google-only app must NOT be sent to wrong store");
 
-// 4c. Desktop visitor -> Google Play icon, opens chooser modal
+// 4c. Desktop visitor -> Download brand, opens chooser modal
 const desktopGoogleOnly = resolveAppDownloadTile(googleOnlyConfig, "desktop");
 assert.equal(desktopGoogleOnly.visible, true);
-assert.equal(desktopGoogleOnly.brand, "playstore");
+assert.equal(desktopGoogleOnly.brand, "download");
 assert.equal(desktopGoogleOnly.action, "chooser");
 
-console.log("✔ Google Play-only configuration correctly protects incompatible devices and resolves Google branding");
+console.log("✔ Google Play-only configuration correctly protects incompatible devices and resolves consistent download branding");
 
 // -------------------------------------------------------------
 // Test 5: Unconfigured / Empty Configurations

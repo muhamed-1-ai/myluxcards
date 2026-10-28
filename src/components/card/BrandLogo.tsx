@@ -312,16 +312,9 @@ export function BrandLogo({
     }
 
     case "download": {
-      const gradId = `dl-grad-${uniqueId}`;
       return (
         <svg {...commonSvgProps}>
-          <defs>
-            <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#2563EB" />
-              <stop offset="100%" stopColor="#1D4ED8" />
-            </linearGradient>
-          </defs>
-          <circle cx="12" cy="12" r="12" fill={`url(#${gradId})`} />
+          <circle cx="12" cy="12" r="12" fill="#2563EB" />
           <path
             fill="#FFFFFF"
             d="M12 14.8l-3.8-3.8 1.4-1.4 1.4 1.4V6h2v5l1.4-1.4 1.4 1.4-3.8 3.8zm-5.5 2.2v-1.8h11V17h-11z"

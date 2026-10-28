@@ -164,26 +164,29 @@ const referralAppDownload = {
   playStoreUrl: "https://fit.app.link/android?ref=123",
 };
 
-// iOS visitor -> Apple App Store brand icon + opens saved Apple referral URL
+// iOS visitor -> Consistent blue download icon + opens saved Apple referral URL
 const iosTile = resolveAppDownloadTile(referralAppDownload, "ios");
 assert.equal(iosTile.visible, true);
-assert.equal(iosTile.brand, "appstore", "iOS visitor must see App Store icon");
+assert.equal(iosTile.brand, "download", "iOS visitor must see consistent download icon");
+assert.equal(iosTile.name, "Download Our App");
 assert.equal(iosTile.url, "https://fit.app.link/ios?ref=123", "iOS visitor receives configured Apple destination");
 assert.equal(iosTile.action, "direct");
 assert.equal(iosTile.targetStore, "apple");
 
-// Android visitor -> Google Play brand icon + opens saved Android referral URL
+// Android visitor -> Consistent blue download icon + opens saved Android referral URL
 const androidTile = resolveAppDownloadTile(referralAppDownload, "android");
 assert.equal(androidTile.visible, true);
-assert.equal(androidTile.brand, "playstore", "Android visitor must see Google Play icon");
+assert.equal(androidTile.brand, "download", "Android visitor must see consistent download icon");
+assert.equal(androidTile.name, "Download Our App");
 assert.equal(androidTile.url, "https://fit.app.link/android?ref=123", "Android visitor receives configured Google destination");
 assert.equal(androidTile.action, "direct");
 assert.equal(androidTile.targetStore, "google");
 
-// Desktop visitor -> Dual-store side-by-side branding + opens chooser dialog
+// Desktop visitor -> Consistent blue download icon + opens chooser dialog
 const desktopTile = resolveAppDownloadTile(referralAppDownload, "desktop");
 assert.equal(desktopTile.visible, true);
-assert.equal(desktopTile.brand, "dual_store", "Desktop visitor must see dual_store side-by-side icons");
+assert.equal(desktopTile.brand, "download", "Desktop visitor must see consistent download icon");
+assert.equal(desktopTile.name, "Download Our App");
 assert.equal(desktopTile.action, "chooser");
 
 // 5b. Cross-platform referral link in both fields
@@ -193,11 +196,13 @@ const crossPlatformDownload = {
   playStoreUrl: "https://mybrand.onelink.me/share?code=PROMO",
 };
 const iosCrossTile = resolveAppDownloadTile(crossPlatformDownload, "ios");
-assert.equal(iosCrossTile.brand, "appstore");
+assert.equal(iosCrossTile.brand, "download");
+assert.equal(iosCrossTile.name, "Download Our App");
 assert.equal(iosCrossTile.url, "https://mybrand.onelink.me/share?code=PROMO");
 
 const androidCrossTile = resolveAppDownloadTile(crossPlatformDownload, "android");
-assert.equal(androidCrossTile.brand, "playstore");
+assert.equal(androidCrossTile.brand, "download");
+assert.equal(androidCrossTile.name, "Download Our App");
 assert.equal(androidCrossTile.url, "https://mybrand.onelink.me/share?code=PROMO");
 
 // 5c. Apple-only referral link
@@ -207,16 +212,18 @@ const appleOnlyDownload = {
 };
 const iosOnlyTile = resolveAppDownloadTile(appleOnlyDownload, "ios");
 assert.equal(iosOnlyTile.visible, true);
-assert.equal(iosOnlyTile.brand, "appstore");
+assert.equal(iosOnlyTile.brand, "download");
+assert.equal(iosOnlyTile.name, "Download Our App");
 assert.equal(iosOnlyTile.action, "direct");
 assert.equal(iosOnlyTile.url, "https://fit.app.link/ios-exclusive?ref=123");
 
 const androidIncompatTile = resolveAppDownloadTile(appleOnlyDownload, "android");
 assert.equal(androidIncompatTile.visible, true);
-assert.equal(androidIncompatTile.brand, "appstore");
+assert.equal(androidIncompatTile.brand, "download");
+assert.equal(androidIncompatTile.name, "Download Our App");
 assert.equal(androidIncompatTile.action, "chooser", "Incompatible device opens modal showing single store availability");
 
-console.log("✔ Device routing and icon resolution correctly driven by platform field");
+console.log("✔ Device routing verified with consistent download brand across all devices");
 
 // ---------------------------------------------------------------------------
 // 6. UI Form Verification: Helper text present and no "Choose store" regression
