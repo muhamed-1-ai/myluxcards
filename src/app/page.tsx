@@ -473,10 +473,11 @@ const redesignedMarkup = `
               <div class="bundle-price-row">
                 <span class="bundle-currency">₹</span>
                 <span class="bundle-price">1,999</span>
+                <span class="bundle-period">/year</span>
                 <span class="bundle-price-term">onwards</span>
               </div>
-              <div class="bundle-billing-type">Hardware + Lead Management SaaS</div>
-              <p class="bundle-billing-detail">Includes smart NFC card + complete Lead Management CRM access. No app required.</p>
+              <div class="bundle-billing-type">Yearly Plan · Billed Annually</div>
+              <p class="bundle-billing-detail">Includes smart NFC card + 1 year of Lead Management CRM access. No app required.</p>
             </div>
           </div>
 

@@ -1939,6 +1939,7 @@ body:has(.landing-page) {
 .landing-page .bundle-price-row {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 6px;
 }
@@ -1955,6 +1956,15 @@ body:has(.landing-page) {
   color: #111827;
   letter-spacing: -0.03em;
   line-height: 1;
+}
+
+.landing-page .bundle-period {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin-left: 1px;
 }
 
 .landing-page .bundle-price-term {
@@ -3008,6 +3018,14 @@ body.dark-mode .zappit-login-footer {
 
   .landing-page .bundle-title {
     font-size: 1.35rem;
+  }
+
+  .landing-page .bundle-period {
+    font-size: 1.1rem;
+  }
+
+  .landing-page .bundle-price-term {
+    font-size: 0.875rem;
   }
 
   .landing-page .bundle-custom-price {

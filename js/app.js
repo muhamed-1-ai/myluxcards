@@ -2142,6 +2142,33 @@ class LuxApp {
       });
     }
 
+    // Pre-populate support topic & package inquiry from URL query params (e.g. from bundle pricing selection)
+    const currentParams = new URLSearchParams(window.location.search);
+    const queryTopic = currentParams.get('topic');
+    const queryBundle = currentParams.get('bundle');
+
+    if (queryTopic && supportTopicSelect) {
+      supportTopicSelect.value = queryTopic;
+      supportPanelItems.forEach(i => {
+        if (i.getAttribute('data-topic') === queryTopic) {
+          i.classList.add('active');
+        } else {
+          i.classList.remove('active');
+        }
+      });
+    }
+
+    if (queryBundle) {
+      const messageField = document.getElementById('support-message');
+      if (messageField && !messageField.value.trim()) {
+        if (queryBundle === 'lead-management') {
+          messageField.value = 'I would like to get the NFC Card + Lead Management bundle (Yearly Plan · Billed Annually at ₹1,999/year onwards).';
+        } else if (queryBundle === 'nfc-card') {
+          messageField.value = 'I would like to get the NFC Card + Software standard bundle (₹999 onwards).';
+        }
+      }
+    }
+
     document.getElementById('review-form')?.addEventListener('submit', (e) => {
       e.preventDefault();
       this.handleReviewSubmission();
