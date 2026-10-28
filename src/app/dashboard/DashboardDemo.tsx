@@ -944,10 +944,10 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         if (!validUrl(draft.social[key])) next[key] = "Include http:// or https://.";
       });
       if (draft.appDownload?.appStoreUrl && !isValidStoreUrl(draft.appDownload.appStoreUrl, "apple")) {
-        next.appStoreUrl = "Enter a valid Apple App Store URL (e.g. https://apps.apple.com/app/...)";
+        next.appStoreUrl = "Enter a valid direct store link or HTTPS referral link for Apple devices.";
       }
       if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
-        next.playStoreUrl = "Enter a valid Google Play Store URL (e.g. https://play.google.com/store/apps/...)";
+        next.playStoreUrl = "Enter a valid direct store link or HTTPS referral link for Android devices.";
       }
     }
     setErrors(next); return Object.keys(next).length === 0;
@@ -5237,6 +5237,7 @@ function SocialForm({ draft, update, errors }: any) {
         <Field
           label="Apple App Store URL"
           error={errors.appStoreUrl}
+          hint="Paste a direct store link or a referral link intended for this platform."
         >
           <div className="social-input">
             <span title="Apple App Store">
@@ -5260,6 +5261,7 @@ function SocialForm({ draft, update, errors }: any) {
         <Field
           label="Google Play Store URL"
           error={errors.playStoreUrl}
+          hint="Paste a direct store link or a referral link intended for this platform."
         >
           <div className="social-input">
             <span title="Google Play Store">

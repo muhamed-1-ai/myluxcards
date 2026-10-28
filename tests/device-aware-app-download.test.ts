@@ -176,13 +176,13 @@ assert.equal(emptyStoresWithName.visible, false, "Must hide tile if neither stor
 const undefinedStores = resolveAppDownloadTile(undefined, "android");
 assert.equal(undefinedStores.visible, false, "Must hide tile if appDownload is undefined");
 
-// Invalid store URLs
+// Invalid store URLs (unsafe schemes and embedded credentials)
 const invalidUrls = resolveAppDownloadTile({
   appName: "Bad URLs",
-  appStoreUrl: "https://example.com/not-apple",
-  playStoreUrl: "https://example.com/not-google",
+  appStoreUrl: "javascript:alert(1)",
+  playStoreUrl: "https://user:pass@example.com/not-google",
 }, "ios");
-assert.equal(invalidUrls.visible, false, "Must hide tile if URLs are invalid store URLs");
+assert.equal(invalidUrls.visible, false, "Must hide tile if URLs are invalid (unsafe schemes or embedded credentials)");
 
 console.log("✔ Empty, invalid, and partial configurations hidden safely");
 

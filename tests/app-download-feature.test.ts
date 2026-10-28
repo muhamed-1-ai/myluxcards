@@ -18,12 +18,13 @@ assert(isValidStoreUrl("https://testflight.apple.com/join/vP2XYZ", "apple"), "Te
 assert(isValidStoreUrl("apps.apple.com/us/app/my-app/id123456789", "apple"), "Protocol-less Apple URL should be valid");
 assert(isValidStoreUrl("http://apps.apple.com/us/app/my-app/id123456789", "apple"), "HTTP Apple URL should be valid");
 
-// Apple Store invalid / deceptive URLs
+// Apple Store invalid / deceptive / unsafe URLs
 assert(!isValidStoreUrl("https://apps.apple.com.attacker.com/app", "apple"), "Deceptive subdomain on Apple should be rejected");
 assert(!isValidStoreUrl("https://apple.com/app", "apple"), "Generic apple.com should be rejected");
 assert(!isValidStoreUrl("https://apps.apple.com", "apple"), "Root apps.apple.com with no path should be rejected");
 assert(!isValidStoreUrl("javascript:alert(1)", "apple"), "Javascript protocol should be rejected");
 assert(!isValidStoreUrl("data:text/html,test", "apple"), "Data protocol should be rejected");
+assert(!isValidStoreUrl("https://user:pass@example.com/app", "apple"), "URLs with embedded credentials must be rejected");
 assert(!isValidStoreUrl("https://play.google.com/store/apps/details?id=com.app", "apple"), "Google Play URL under Apple should be rejected");
 
 // Google Play Store valid URLs
@@ -31,18 +32,29 @@ assert(isValidStoreUrl("https://play.google.com/store/apps/details?id=com.exampl
 assert(isValidStoreUrl("https://market.android.com/details?id=com.example.app", "google"), "Android Market URL should be valid");
 assert(isValidStoreUrl("play.google.com/store/apps/details?id=com.example.app", "google"), "Protocol-less Google Play URL should be valid");
 
-// Google Play Store invalid / deceptive URLs
+// Google Play Store invalid / deceptive / unsafe URLs
 assert(!isValidStoreUrl("https://play.google.com.attacker.com/store", "google"), "Deceptive subdomain on Google should be rejected");
 assert(!isValidStoreUrl("https://google.com/store", "google"), "Generic google.com should be rejected");
 assert(!isValidStoreUrl("https://play.google.com", "google"), "Root play.google.com with no path should be rejected");
+assert(!isValidStoreUrl("https://user:pass@example.com/store", "google"), "URLs with embedded credentials must be rejected");
 assert(!isValidStoreUrl("https://apps.apple.com/app/id123", "google"), "Apple URL under Google should be rejected");
+
+// Valid Referral and Campaign URLs (accepted in either field)
+assert(isValidStoreUrl("https://mybrand.onelink.me/abc?pid=affiliate&c=summer", "apple"), "AppsFlyer OneLink should be valid for Apple");
+assert(isValidStoreUrl("https://mybrand.onelink.me/abc?pid=affiliate&c=summer", "google"), "AppsFlyer OneLink should be valid for Google");
+assert(isValidStoreUrl("https://myapp.app.link/referral?campaign=promo&code=XYZ", "apple"), "Branch link should be valid for Apple");
+assert(isValidStoreUrl("https://app.adjust.com/abc1234?campaign=tracker", "google"), "Adjust link should be valid for Google");
+assert(isValidStoreUrl("https://get.mycompany.com/app-download", "apple"), "Custom vanity HTTPS link should be valid");
 
 // Test 2: URL Cleaning and HTTPS Normalization
 console.log("Test 2: URL Cleaning and HTTPS Normalization...");
 assert(cleanStoreUrl("apps.apple.com/us/app/id123", "apple") === "https://apps.apple.com/us/app/id123", "Protocol-less should be upgraded to HTTPS");
 assert(cleanStoreUrl("http://play.google.com/store/apps/details?id=com.test", "google") === "https://play.google.com/store/apps/details?id=com.test", "HTTP should be upgraded to HTTPS");
-assert(cleanStoreUrl("https://attacker.com/fake", "apple") === "", "Invalid domain should clean to empty string");
+assert(cleanStoreUrl("https://user:pass@attacker.com/fake", "apple") === "", "Embedded credentials should clean to empty string");
+assert(cleanStoreUrl("javascript:alert(1)", "apple") === "", "Unsafe javascript scheme should clean to empty string");
+assert(cleanStoreUrl("https://apps.apple.com.attacker.com/fake", "apple") === "", "Deceptive domain should clean to empty string");
 assert(cleanStoreUrl("https://play.google.com/store/apps/details?id=com.test&hl=en_US&gl=US", "google") === "https://play.google.com/store/apps/details?id=com.test&hl=en_US&gl=US", "Legitimate query parameters should be preserved");
+assert(cleanStoreUrl("https://mybrand.onelink.me/abc?pid=affiliate&c=summer&af_dp=myapp%3A%2F%2Fhome#promo", "apple") === "https://mybrand.onelink.me/abc?pid=affiliate&c=summer&af_dp=myapp%3A%2F%2Fhome#promo", "Complex referral URL with nested encoding and hash preserved intact");
 
 // Test 3: cleanCardProfile & completeCardProfile Serialization
 console.log("Test 3: cleanCardProfile & completeCardProfile Serialization...");

@@ -32,6 +32,9 @@ export function resolveAppDownloadTile(
   const hasApple = Boolean(rawApple && isValidStoreUrl(rawApple, "apple"));
   const hasGoogle = Boolean(rawGoogle && isValidStoreUrl(rawGoogle, "google"));
 
+  const appleUrl = hasApple ? (/^https?:\/\//i.test(rawApple) ? rawApple : `https://${rawApple}`) : "";
+  const googleUrl = hasGoogle ? (/^https?:\/\//i.test(rawGoogle) ? rawGoogle : `https://${rawGoogle}`) : "";
+
   // Neither store configured -> Hide the tile completely, even if appName exists
   if (!hasApple && !hasGoogle) {
     return {
@@ -59,7 +62,7 @@ export function resolveAppDownloadTile(
         name: tileName,
         subText,
         ariaLabel: appName ? `Download ${appName} on the App Store` : "Download on the App Store",
-        url: rawApple,
+        url: appleUrl,
         action: "direct",
         targetStore: "apple",
         hasApple: true,
@@ -75,7 +78,7 @@ export function resolveAppDownloadTile(
         name: tileName,
         subText,
         ariaLabel: appName ? `Get ${appName} on Google Play` : "Get it on Google Play",
-        url: rawGoogle,
+        url: googleUrl,
         action: "direct",
         targetStore: "google",
         hasApple: true,
@@ -109,7 +112,7 @@ export function resolveAppDownloadTile(
         name: tileName,
         subText,
         ariaLabel: appName ? `Download ${appName} on the App Store` : "Download on App Store",
-        url: rawApple,
+        url: appleUrl,
         action: "direct",
         targetStore: "apple",
         hasApple: true,
@@ -143,7 +146,7 @@ export function resolveAppDownloadTile(
       name: tileName,
       subText,
       ariaLabel: appName ? `Get ${appName} on Google Play` : "Get it on Google Play",
-      url: rawGoogle,
+      url: googleUrl,
       action: "direct",
       targetStore: "google",
       hasApple: false,

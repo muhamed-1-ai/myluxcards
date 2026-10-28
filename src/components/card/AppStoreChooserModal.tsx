@@ -28,8 +28,12 @@ export function AppStoreChooserModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
-  const hasApple = Boolean(appDownload?.appStoreUrl && isValidStoreUrl(appDownload.appStoreUrl, "apple"));
-  const hasGoogle = Boolean(appDownload?.playStoreUrl && isValidStoreUrl(appDownload.playStoreUrl, "google"));
+  const rawApple = (appDownload?.appStoreUrl || "").trim();
+  const rawGoogle = (appDownload?.playStoreUrl || "").trim();
+  const hasApple = Boolean(rawApple && isValidStoreUrl(rawApple, "apple"));
+  const hasGoogle = Boolean(rawGoogle && isValidStoreUrl(rawGoogle, "google"));
+  const appleUrl = hasApple ? (/^https?:\/\//i.test(rawApple) ? rawApple : `https://${rawApple}`) : "";
+  const googleUrl = hasGoogle ? (/^https?:\/\//i.test(rawGoogle) ? rawGoogle : `https://${rawGoogle}`) : "";
   const appName = (appDownload?.appName || "").trim();
 
   // Escape key listener and body scroll lock
@@ -229,7 +233,7 @@ export function AppStoreChooserModal({
             {/* APPLE APP STORE BUTTON */}
             {hasApple && (
               <a
-                href={appDownload?.appStoreUrl}
+                href={appleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="zappit-store-btn zappit-store-apple"
@@ -266,7 +270,7 @@ export function AppStoreChooserModal({
             {/* GOOGLE PLAY STORE BUTTON */}
             {hasGoogle && (
               <a
-                href={appDownload?.playStoreUrl}
+                href={googleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="zappit-store-btn zappit-store-google"

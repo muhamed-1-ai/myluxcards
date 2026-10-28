@@ -27,24 +27,81 @@ export interface AppDownloadSettings {
 
 export function isValidStoreUrl(value: string, store: "apple" | "google"): boolean {
   if (!value || typeof value !== "string") return false;
-  let trimmed = value.trim();
-  if (!trimmed) return false;
-  if (!/^https?:\/\//i.test(trimmed)) {
-    trimmed = `https://${trimmed}`;
-  }
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-    const host = parsed.hostname.toLowerCase();
-    if (store === "apple") {
-      const allowedAppleHosts = new Set(["apps.apple.com", "itunes.apple.com", "testflight.apple.com"]);
-      return allowedAppleHosts.has(host) && parsed.pathname.length > 1;
-    }
-    if (store === "google") {
-      const allowedGoogleHosts = new Set(["play.google.com", "market.android.com"]);
-      return allowedGoogleHosts.has(host) && parsed.pathname.length > 1;
-    }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2048) return false;
+
+  // Reject unsafe schemes early (e.g. javascript:, data:, file:, etc.)
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
     return false;
+  }
+
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+
+    // Reject URLs with embedded credentials (e.g. https://user:pass@example.com)
+    if (parsed.username || parsed.password) return false;
+
+    const host = parsed.hostname.toLowerCase();
+    if (!host || host.length < 3) return false;
+
+    // Hostname structure checks: must have at least one dot, cannot have consecutive dots or start/end with dot
+    if (!host.includes(".") || host.startsWith(".") || host.endsWith(".") || host.includes("..")) {
+      return false;
+    }
+
+    // Hostname characters check: only standard lowercase domain characters (alphanumeric, hyphens, dots)
+    if (!/^[a-z0-9.-]+$/i.test(host)) return false;
+
+    const labels = host.split(".");
+    if (labels.some((l) => !l || l.startsWith("-") || l.endsWith("-"))) {
+      return false;
+    }
+    const tld = labels[labels.length - 1];
+    if (tld.length < 2 || !/^[a-z]{2,}$|^xn--[a-z0-9]+$/i.test(tld)) {
+      return false;
+    }
+
+    // Reject deceptive store subdomains attempting to spoof store hosts (e.g. apps.apple.com.attacker.com)
+    if (
+      host.includes("apps.apple.com.") ||
+      host.includes("play.google.com.") ||
+      host.includes("itunes.apple.com.") ||
+      host.includes("market.android.com.") ||
+      host.includes("testflight.apple.com.")
+    ) {
+      return false;
+    }
+
+    // Reject generic homepages that are not store or referral app links
+    if (["apple.com", "www.apple.com", "google.com", "www.google.com"].includes(host)) {
+      return false;
+    }
+
+    const isAppleStoreHost = ["apps.apple.com", "itunes.apple.com", "testflight.apple.com"].includes(host);
+    const isGoogleStoreHost = ["play.google.com", "market.android.com"].includes(host);
+
+    // Direct store domain validations
+    if (isAppleStoreHost) {
+      if (parsed.pathname.length <= 1) return false;
+      // Direct Apple App Store URL in Google Play field is mismatched
+      if (store === "google") return false;
+      return true;
+    }
+
+    if (isGoogleStoreHost) {
+      if (parsed.pathname.length <= 1) return false;
+      // Direct Google Play URL in Apple App Store field is mismatched
+      if (store === "apple") return false;
+      return true;
+    }
+
+    // Any other valid HTTPS/HTTP hostname is accepted as a referral, campaign, or app-provider link
+    // (e.g. Branch, AppsFlyer OneLink, Adjust, Firebase Dynamic Links, custom vanity/campaign domains).
+    // The field identifies which device platform (Apple vs Android) should use the destination.
+    return true;
   } catch {
     return false;
   }
@@ -52,13 +109,21 @@ export function isValidStoreUrl(value: string, store: "apple" | "google"): boole
 
 export function cleanStoreUrl(value: unknown, store: "apple" | "google"): string {
   if (!value || typeof value !== "string") return "";
-  let trimmed = value.trim().slice(0, 1000);
-  if (!trimmed) return "";
+  let trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2048) return "";
+
+  // Reject unsafe schemes early
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+    return "";
+  }
+
+  // Normalize protocol to HTTPS without modifying query parameters, encoded nested URLs, or fragment
   if (!/^https?:\/\//i.test(trimmed)) {
     trimmed = `https://${trimmed}`;
-  } else if (trimmed.startsWith("http://")) {
+  } else if (/^http:\/\//i.test(trimmed)) {
     trimmed = `https://${trimmed.slice(7)}`;
   }
+
   if (!isValidStoreUrl(trimmed, store)) return "";
   return trimmed;
 }
