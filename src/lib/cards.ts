@@ -634,3 +634,5 @@ export function safePublicCard(row: any) {
     active: Boolean(row.active),
   };
 }
+
+export { resolveAppDownloadTile, type AppTileResolution, type AppTileBrand } from "./appDownload";

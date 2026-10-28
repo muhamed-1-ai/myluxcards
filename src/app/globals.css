@@ -5291,16 +5291,17 @@ iframe {
 .notif-dropdown-panel {
   position: absolute !important;
   right: 0 !important;
-  top: calc(100% + 10px) !important;
-  width: 410px !important;
-  max-width: calc(100vw - 24px) !important;
+  top: calc(100% + 8px) !important;
+  width: 420px !important;
+  max-width: calc(100vw - 32px) !important;
+  max-height: min(540px, calc(100vh - 85px)) !important;
   background: var(--surface-elevated, #23252C) !important;
   border: 1px solid var(--border-color, #343740) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-color, #343740) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 4px 12px -2px rgba(0, 0, 0, 0.25) !important;
   z-index: 100 !important;
   overflow: hidden !important;
-  color: var(--text-primary) !important;
+  color: var(--text-primary, #F5F6F8) !important;
   display: flex !important;
   flex-direction: column !important;
 }
@@ -5309,7 +5310,8 @@ iframe {
 body.light-mode .notif-dropdown-panel {
   background: #FFFFFF !important;
   border-color: #E2E8F0 !important;
-  box-shadow: 0 20px 45px -10px rgba(0, 102, 255, 0.12), 0 0 0 1px #E2E8F0 !important;
+  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.06) !important;
+  color: #0F172A !important;
 }
 
 [data-theme="light"] .notif-bell-btn,
@@ -5333,18 +5335,30 @@ body.light-mode .notif-bell-btn.open {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 12px 16px !important;
-  background: var(--surface) !important;
-  border-bottom: 1px solid var(--border-color) !important;
+  padding: 14px 16px !important;
+  background: var(--surface-elevated, #23252C) !important;
+  border-bottom: 1px solid var(--border-color, #343740) !important;
   flex-shrink: 0 !important;
 }
 
+[data-theme="light"] .notif-dropdown-header,
+body.light-mode .notif-dropdown-header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
 .notif-dropdown-footer {
-  padding: 11px 16px !important;
-  background: var(--bg-secondary) !important;
-  border-top: 1px solid var(--border-color) !important;
+  padding: 10px 16px !important;
+  background: var(--surface-elevated, #23252C) !important;
+  border-top: 1px solid var(--border-color, #343740) !important;
   text-align: center !important;
   flex-shrink: 0 !important;
+}
+
+[data-theme="light"] .notif-dropdown-footer,
+body.light-mode .notif-dropdown-footer {
+  background: #F8FAFC !important;
+  border-top: 1px solid #E2E8F0 !important;
 }
 
 .notif-dropdown-footer a {
@@ -5352,22 +5366,32 @@ body.light-mode .notif-bell-btn.open {
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  color: #0066FF !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #3898FF !important;
   text-decoration: none !important;
-  letter-spacing: 0.03em !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
   transition: all 0.15s ease !important;
   width: 100% !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
 }
 
 .notif-dropdown-footer a:hover {
-  color: #008CFF !important;
+  color: #60A5FA !important;
+  background: rgba(56, 152, 255, 0.1) !important;
+}
+
+[data-theme="light"] .notif-dropdown-footer a,
+body.light-mode .notif-dropdown-footer a {
+  color: #0066FF !important;
 }
 
 [data-theme="light"] .notif-dropdown-footer a:hover,
 body.light-mode .notif-dropdown-footer a:hover {
   color: #0052CC !important;
+  background: rgba(0, 102, 255, 0.08) !important;
 }
 
 /* Mobile Optimized CRM Modal & Form Styling */

@@ -3,6 +3,8 @@
 import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { DetectedOS } from "@/lib/device";
+import { isValidStoreUrl } from "@/lib/cards";
+import { BrandLogo } from "./BrandLogo";
 
 export interface AppDownloadSettings {
   appName?: string;
@@ -26,8 +28,8 @@ export function AppStoreChooserModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
-  const hasApple = Boolean(appDownload?.appStoreUrl?.trim());
-  const hasGoogle = Boolean(appDownload?.playStoreUrl?.trim());
+  const hasApple = Boolean(appDownload?.appStoreUrl && isValidStoreUrl(appDownload.appStoreUrl, "apple"));
+  const hasGoogle = Boolean(appDownload?.playStoreUrl && isValidStoreUrl(appDownload.playStoreUrl, "google"));
   const appName = (appDownload?.appName || "").trim();
 
   // Escape key listener and body scroll lock
@@ -247,9 +249,7 @@ export function AppStoreChooserModal({
                 }}
               >
                 <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.89c.65-.79 1.1-1.9 0.98-3-.95.04-2.09.64-2.76 1.43-.59.68-1.11 1.78-.97 2.85 1.05.08 2.12-.53 2.75-1.28z" />
-                  </svg>
+                  <BrandLogo brand="appstore" size={28} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.15 }}>
                   <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", fontWeight: 500 }}>
@@ -286,12 +286,7 @@ export function AppStoreChooserModal({
                 }}
               >
                 <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-                    <path fill="#4285F4" d="M3.6 1.7l11.2 11.2-3.1 3.1L2.1 2.9C2.4 2.3 2.9 1.8 3.6 1.7z" />
-                    <path fill="#34A853" d="M18.8 9.8l-4 2.3-3.1-3.1 3.1-3.1 4 2.3c.7.4 1.2 1 1.2 1.6s-.5 1.2-1.2 1.6z" />
-                    <path fill="#EA4335" d="M11.7 9l3.1 3.1-11.2 11.2c-.7-.1-1.2-.6-1.5-1.2L11.7 9z" />
-                    <path fill="#FBBC04" d="M14.8 12.1l-3.1 3.1 3.1 3.1 4-2.3c.7-.4 1.2-1 1.2-1.6s-.5-1.2-1.2-1.6l-4-2.3z" />
-                  </svg>
+                  <BrandLogo brand="playstore" size={28} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.15 }}>
                   <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", fontWeight: 500 }}>

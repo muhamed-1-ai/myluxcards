@@ -13,12 +13,12 @@ export type DetectedOS = "ios" | "android" | "desktop" | "unknown";
  *
  * NOTE: Device detection is treated as a convenience, not a guarantee.
  */
-export function detectUserDevice(): DetectedOS {
-  if (typeof window === "undefined" || !navigator) return "unknown";
+export function detectUserDevice(customUA?: string): DetectedOS {
+  if (typeof window === "undefined" && !customUA) return "unknown";
 
-  const ua = navigator.userAgent || "";
-  const platform = (navigator as any).userAgentData?.platform || navigator.platform || "";
-  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const ua = customUA || (typeof window !== "undefined" && navigator ? navigator.userAgent : "") || "";
+  const platform = (typeof window !== "undefined" && navigator ? ((navigator as any).userAgentData?.platform || navigator.platform) : "") || "";
+  const maxTouchPoints = typeof window !== "undefined" && navigator ? (navigator.maxTouchPoints || 0) : 0;
 
   // 1. Android check (phone or tablet)
   if (/android/i.test(ua)) {
@@ -26,7 +26,7 @@ export function detectUserDevice(): DetectedOS {
   }
 
   // 2. iOS classic check (iPhone, iPod, traditional iPad UA)
-  if (/iPad|iPhone|iPod/.test(ua)) {
+  if (/iPad|iPhone|iPod/i.test(ua)) {
     return "ios";
   }
 

@@ -21,7 +21,10 @@ export function normalizeBrandKey(brand: string): string {
   if (cleaned === "x" || cleaned.includes("xcorp")) return "x";
   if (cleaned.includes("whatsapp") || cleaned === "wa") return "whatsapp";
   if (cleaned.includes("googlereview") || cleaned.includes("review") || cleaned.includes("star")) return "reviews";
-  if (cleaned.includes("appdownload") || cleaned.includes("download") || cleaned.includes("getapp") || cleaned.includes("appstore") || cleaned.includes("playstore")) return "download";
+  if (cleaned === "downloadourapp") return "download";
+  if (cleaned.includes("appstore") || cleaned === "appleappstore" || cleaned === "iosapp" || cleaned === "apple") return "appstore";
+  if (cleaned.includes("playstore") || cleaned.includes("googleplay") || cleaned === "androidplay") return "playstore";
+  if (cleaned.includes("appdownload") || cleaned.includes("download") || cleaned.includes("getapp")) return "download";
   if (cleaned.includes("googlemaps") || cleaned === "maps" || cleaned.includes("location")) return "maps";
   if (cleaned.includes("googlebusiness") || cleaned === "google" || cleaned === "gmb") return "google";
   if (cleaned.includes("github") || cleaned === "git") return "github";
@@ -223,6 +226,43 @@ export function BrandLogo({
             clipRule="evenodd"
             d="M12 4C7.58 4 4 7.58 4 12c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 20 12c0-4.42-3.58-8-8-8z"
           />
+        </svg>
+      );
+
+    case "appstore": {
+      const gradId = `as-grad-${uniqueId}`;
+      return (
+        <svg {...commonSvgProps}>
+          <defs>
+            <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1E90FF" />
+              <stop offset="100%" stopColor="#0066D6" />
+            </linearGradient>
+          </defs>
+          <rect width="24" height="24" rx="5.5" fill={`url(#${gradId})`} />
+          {/* Authentic Apple App Store interlocking tools 'A' mark */}
+          {/* Left pencil: continuous stroke passing over crossbar, passing under apex */}
+          <line x1="6.8" y1="18.2" x2="11.8" y2="7.2" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Right brush: top segment over left pencil, bottom segment under crossbar */}
+          <line x1="11.4" y1="5.5" x2="14.2" y2="11.5" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+          <line x1="15.5" y1="14.5" x2="17.2" y2="18.2" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Horizontal ruler: left segment, right segment over right brush */}
+          <line x1="5.2" y1="14" x2="8.0" y2="14" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+          <line x1="9.6" y1="14" x2="18.8" y2="14" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    case "playstore":
+      return (
+        <svg {...commonSvgProps}>
+          <circle cx="12" cy="12" r="12" fill="#FFFFFF" />
+          <g transform="translate(1.5, 1.5) scale(0.875)">
+            <path fill="#4285F4" d="M3.6 1.7l11.2 11.2-3.1 3.1L2.1 2.9C2.4 2.3 2.9 1.8 3.6 1.7z" />
+            <path fill="#34A853" d="M18.8 9.8l-4 2.3-3.1-3.1 3.1-3.1 4 2.3c.7.4 1.2 1 1.2 1.6s-.5 1.2-1.2 1.6z" />
+            <path fill="#EA4335" d="M11.7 9l3.1 3.1-11.2 11.2c-.7-.1-1.2-.6-1.5-1.2L11.7 9z" />
+            <path fill="#FBBC04" d="M14.8 12.1l-3.1 3.1 3.1 3.1 4-2.3c.7-.4 1.2-1 1.2-1.6s-.5-1.2-1.2-1.6l-4-2.3z" />
+          </g>
         </svg>
       );
 

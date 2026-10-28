@@ -150,6 +150,12 @@ body.light-mode .notif-sheet-title {
   border-color: rgba(0, 102, 255, 0.35);
 }
 
+.notif-sheet-mark-all-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .notif-sheet-close-btn {
   width: 38px;
   height: 38px;
@@ -262,10 +268,10 @@ body.light-mode .notif-sheet-row:active {
 
 /* Left Icon Container */
 .notif-sheet-icon-box {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  border-radius: 11px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -280,11 +286,11 @@ body.light-mode .notif-sheet-row:active {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .notif-sheet-item-title {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary, #FFFFFF);
   line-height: 1.35;
@@ -301,7 +307,7 @@ body.light-mode .notif-sheet-item-title {
 }
 
 .notif-sheet-row.unread .notif-sheet-item-title {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary, #FFFFFF);
 }
 
@@ -311,9 +317,9 @@ body.light-mode .notif-sheet-row.unread .notif-sheet-item-title {
 }
 
 .notif-sheet-item-body {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 400;
-  color: var(--text-secondary, #CBD5E1);
+  color: var(--text-secondary, #B5B8C2);
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -331,11 +337,11 @@ body.light-mode .notif-sheet-item-body {
 .notif-sheet-item-time {
   font-size: 12px;
   font-weight: 400;
-  color: var(--text-muted, #94A3B8);
+  color: var(--text-muted, #969CA8);
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 [data-theme="light"] .notif-sheet-item-time,

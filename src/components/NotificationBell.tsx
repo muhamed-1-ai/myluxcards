@@ -50,13 +50,16 @@ interface DateGroup {
 
 export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const bellButtonRef = useRef<HTMLButtonElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // Responsive breakpoint tracking (< 640px)
   useEffect(() => {
@@ -67,6 +70,39 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
   }, []);
+
+  // Dynamically calculate and clamp dropdown position to maintain >= 16px screen clearance
+  const updateDropdownPosition = () => {
+    if (!bellButtonRef.current) return;
+    const bellRect = bellButtonRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const panelWidth = Math.min(420, viewportWidth - 32);
+
+    let rightOffset = 0;
+    const leftEdge = bellRect.right - panelWidth;
+    if (leftEdge < 16) {
+      rightOffset = leftEdge - 16;
+    } else if (bellRect.right > viewportWidth - 16) {
+      rightOffset = bellRect.right - (viewportWidth - 16);
+    }
+
+    setDropdownStyle({
+      width: `${panelWidth}px`,
+      right: `${rightOffset}px`,
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen && !isMobile) {
+      updateDropdownPosition();
+      window.addEventListener("resize", updateDropdownPosition);
+      window.addEventListener("scroll", updateDropdownPosition, true);
+      return () => {
+        window.removeEventListener("resize", updateDropdownPosition);
+        window.removeEventListener("scroll", updateDropdownPosition, true);
+      };
+    }
+  }, [isOpen, isMobile]);
 
   // Fetch unread count & initial notifications
   const fetchUnreadCount = async () => {
@@ -186,6 +222,7 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsOpen(false);
+        bellButtonRef.current?.focus();
       }
     };
 
@@ -208,7 +245,10 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
   };
 
   const handleMarkRead = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     try {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
@@ -226,7 +266,12 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
   };
 
   const handleMarkAllRead = async (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    if (unreadCount === 0 || isMarkingAll) return;
+    setIsMarkingAll(true);
     try {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
@@ -238,6 +283,8 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
       });
     } catch {
       // ignore
+    } finally {
+      setIsMarkingAll(false);
     }
   };
 
@@ -363,12 +410,14 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
     <div className="relative inline-block" ref={panelRef}>
       {/* Bell Button */}
       <button
+        ref={bellButtonRef}
         id="notif-bell-btn"
         type="button"
         onClick={toggleOpen}
         className={`notif-bell-btn ${isOpen ? "open" : ""}`}
         aria-label={`Notifications (${unreadCount} unread)`}
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
         aria-controls={isMobile ? "notif-mobile-sheet" : "notif-dropdown-panel"}
       >
         <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "text-[#0066FF] scale-105" : "text-[#0066FF]"}`} />
@@ -386,61 +435,80 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
         <div
           id="notif-dropdown-panel"
           className="notif-dropdown-panel"
+          style={dropdownStyle}
           role="region"
           aria-label="Notifications panel"
         >
           {/* Header */}
           <div className="notif-dropdown-header">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <h3 className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">
                 Notifications
               </h3>
-              {unreadCount > 0 ? (
-                <span className="px-2 py-0.5 text-[11px] font-semibold text-[#0066FF] bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 dark:border-blue-500/30 rounded-full">
-                  {unreadCount} unread
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-full">
-                  0 unread
-                </span>
-              )}
+              <span
+                className={`px-2 py-0.5 text-[11px] font-semibold rounded-full border transition-colors ${
+                  unreadCount > 0
+                    ? "text-[#0066FF] dark:text-[#3898FF] bg-blue-500/10 dark:bg-blue-500/15 border-blue-500/20 dark:border-blue-500/30"
+                    : "text-[var(--text-muted,#969CA8)] bg-[var(--bg-secondary,#141519)] border-[var(--border-color,#343740)]"
+                }`}
+              >
+                {unreadCount > 0 ? `${unreadCount} unread` : "0 unread"}
+              </span>
             </div>
 
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAllRead}
-                className="text-xs font-semibold text-[#0066FF] hover:text-blue-700 dark:hover:text-[#168BFF] flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-blue-500/10 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
-              >
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              disabled={unreadCount === 0 || isMarkingAll}
+              aria-disabled={unreadCount === 0 || isMarkingAll}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                unreadCount === 0 || isMarkingAll
+                  ? "text-[var(--text-muted,#969CA8)] opacity-40 cursor-not-allowed pointer-events-none"
+                  : "text-[#0066FF] dark:text-[#3898FF] hover:bg-blue-500/10 active:bg-blue-500/15 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              }`}
+              title={unreadCount === 0 ? "No unread notifications" : "Mark all as read"}
+            >
+              {isMarkingAll ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
                 <CheckCheck className="w-3.5 h-3.5" />
-                Mark all as read
-              </button>
-            )}
+              )}
+              <span>Mark all as read</span>
+            </button>
           </div>
 
           {/* Scrollable Notification List Container */}
-          <div className="overflow-y-auto max-h-[min(420px,calc(100vh-190px))] divide-y divide-[var(--border-color)]/60">
+          <div className="overflow-y-auto flex-1 min-h-0 divide-y divide-[var(--border-color,#343740)]/40 overscroll-contain">
             {loading ? (
               <div className="p-4 space-y-3">
                 {[1, 2, 3].map((key) => (
-                  <div key={key} className="flex items-start gap-3 p-2 animate-pulse">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--border-color)] shrink-0" />
+                  <div key={key} className="flex items-start gap-3.5 p-3 animate-pulse">
+                    <div className="w-[34px] h-[34px] rounded-xl bg-[var(--border-color,#343740)]/40 shrink-0" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-3.5 bg-[var(--border-color)] rounded w-3/4" />
-                      <div className="h-3 bg-[var(--border-color)]/60 rounded w-full" />
+                      <div className="h-3.5 bg-[var(--border-color,#343740)]/50 rounded w-3/4" />
+                      <div className="h-3 bg-[var(--border-color,#343740)]/30 rounded w-full" />
+                      <div className="h-2.5 bg-[var(--border-color,#343740)]/20 rounded w-1/4 mt-1" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : fetchError ? (
               <div className="py-8 px-6 text-center">
-                <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-                <p className="text-xs text-[var(--text-secondary)] mb-3">{fetchError}</p>
+                <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                  Failed to load notifications
+                </h4>
+                <p className="text-xs text-[var(--text-muted)] mb-3 leading-relaxed max-w-[260px] mx-auto">
+                  {fetchError}
+                </p>
                 <button
                   type="button"
                   onClick={() => void fetchDropdownNotifications()}
-                  className="px-3 py-1.5 text-xs font-semibold bg-[#0066FF] text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#0066FF] hover:bg-blue-600 text-white rounded-lg transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
                 >
+                  <RefreshCw className="w-3.5 h-3.5" />
                   Retry
                 </button>
               </div>
@@ -459,10 +527,10 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
             ) : (
               groupedNotifications.map((group) => (
                 <div key={group.label} className="relative">
-                  <div className="px-4 py-1.5 text-[11px] font-semibold tracking-wider text-[var(--text-muted)] uppercase bg-[var(--bg-secondary)]/95 backdrop-blur-sm border-b border-[var(--border-color)]/60 sticky top-0 z-10">
+                  <div className="px-4 py-2 text-[11px] font-semibold tracking-wider text-[var(--text-muted,#969CA8)] uppercase bg-[var(--surface-elevated,#23252C)]/95 dark:bg-[var(--surface-elevated,#23252C)]/95 backdrop-blur-sm border-b border-[var(--border-color,#343740)]/40 sticky top-0 z-10">
                     {group.label}
                   </div>
-                  <div className="divide-y divide-[var(--border-color)]/40">
+                  <div className="divide-y divide-[var(--border-color,#343740)]/40">
                     {group.items.map((n) => {
                       const iconConfig = getIconConfig(n.type);
                       return (
@@ -472,58 +540,70 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                           tabIndex={0}
                           onClick={() => handleNotificationClick(n)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
+                            if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
                               e.preventDefault();
                               handleNotificationClick(n);
                             }
                           }}
-                          className={`p-3.5 sm:p-4 flex items-start gap-3 cursor-pointer transition-colors relative group focus:outline-none focus:bg-[var(--surface-hover)] ${
+                          className={`px-4 py-3.5 flex items-start gap-3.5 cursor-pointer transition-colors relative group focus-visible:outline-none focus-visible:bg-[var(--surface-hover,#F1F5F9)] ${
                             !n.is_read
-                              ? "bg-blue-500/[0.04] dark:bg-blue-600/[0.07] hover:bg-blue-500/[0.08] dark:hover:bg-blue-600/[0.12]"
-                              : "bg-transparent hover:bg-[var(--surface-hover)]"
+                              ? "bg-blue-500/[0.035] dark:bg-blue-500/[0.05] hover:bg-blue-500/[0.07] dark:hover:bg-blue-500/[0.09]"
+                              : "bg-transparent hover:bg-[var(--surface-hover,#F1F5F9)] dark:hover:bg-white/[0.04]"
                           }`}
                         >
+                          {/* Left: Restrained 34px icon container */}
                           <div
-                            className={`w-9 h-9 rounded-xl border shrink-0 flex items-center justify-center mt-0.5 shadow-sm ${iconConfig.bg}`}
+                            className={`w-[34px] h-[34px] rounded-xl border shrink-0 flex items-center justify-center mt-0.5 ${iconConfig.bg}`}
                           >
                             {iconConfig.icon}
                           </div>
 
+                          {/* Centre: Title (up to 2 lines), description, and timestamp below */}
                           <div className="flex-1 min-w-0 pr-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <h5
-                                className={`text-xs sm:text-[13px] leading-snug break-words ${
-                                  !n.is_read
-                                    ? "text-[var(--text-primary)] font-semibold"
-                                    : "text-[var(--text-secondary)] font-medium"
-                                }`}
-                              >
-                                {n.title}
-                              </h5>
-                              <span className="text-[11px] text-[var(--text-muted)] shrink-0 whitespace-nowrap font-normal">
-                                {formatTimeAgo(n.created_at)}
-                              </span>
-                            </div>
+                            <h5
+                              className={`text-[14px] leading-snug break-words line-clamp-2 ${
+                                !n.is_read
+                                  ? "text-[var(--text-primary)] font-semibold"
+                                  : "text-[var(--text-secondary)] font-medium"
+                              }`}
+                            >
+                              {n.title}
+                            </h5>
 
-                            <p className="text-xs text-[var(--text-secondary)] line-clamp-3 leading-relaxed break-words mt-1">
-                              {n.body}
-                            </p>
+                            {n.body && (
+                              <p className="text-[13px] text-[var(--text-secondary)] line-clamp-2 leading-relaxed break-words mt-1">
+                                {n.body}
+                              </p>
+                            )}
+
+                            <div className="notif-sheet-item-time mt-1.5 flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] font-normal">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              <span>{formatTimeAgo(n.created_at)}</span>
+                            </div>
                           </div>
 
-                          <div className="shrink-0 flex items-center gap-1 self-start mt-1">
+                          {/* Right: Unread indicator & quick action */}
+                          <div className="shrink-0 flex items-center gap-1.5 self-start mt-0.5">
                             {!n.is_read && (
                               <>
                                 <button
                                   type="button"
-                                  onClick={(e) => handleMarkRead(n.id, e)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    void handleMarkRead(n.id, e);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    e.stopPropagation();
+                                  }}
                                   title="Mark as read"
-                                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-[var(--text-muted)] hover:text-[#0066FF] hover:bg-blue-500/10 transition-all"
+                                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded-md text-[var(--text-muted)] hover:text-[#0066FF] dark:hover:text-[#3898FF] hover:bg-blue-500/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/40 transition-opacity"
                                   aria-label="Mark notification as read"
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
                                 <span
-                                  className="w-2 h-2 rounded-full bg-[#0066FF] shadow-[0_0_8px_rgba(0,102,255,0.7)]"
+                                  className="w-2 h-2 rounded-full bg-[#0066FF] dark:bg-[#3898FF] shadow-[0_0_8px_rgba(0,102,255,0.6)] shrink-0"
                                   aria-label="Unread notification"
                                 />
                               </>
@@ -540,8 +620,8 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
 
           {/* Sticky Footer */}
           <div className="notif-dropdown-footer">
-            <a href="/notifications">
-              VIEW ALL NOTIFICATIONS
+            <a href="/notifications" onClick={() => setIsOpen(false)}>
+              <span>View all notifications</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -586,17 +666,21 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
               </div>
 
               <div className="notif-sheet-actions">
-                {unreadCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleMarkAllRead}
-                    className="notif-sheet-mark-all-btn"
-                    title="Mark all notifications as read"
-                  >
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  disabled={unreadCount === 0 || isMarkingAll}
+                  aria-disabled={unreadCount === 0 || isMarkingAll}
+                  className="notif-sheet-mark-all-btn"
+                  title={unreadCount === 0 ? "No unread notifications" : "Mark all notifications as read"}
+                >
+                  {isMarkingAll ? (
+                    <RefreshCw style={{ width: 14, height: 14 }} className="animate-spin" />
+                  ) : (
                     <CheckCheck style={{ width: 14, height: 14 }} />
-                    <span>Mark all read</span>
-                  </button>
-                )}
+                  )}
+                  <span>Mark all read</span>
+                </button>
 
                 <button
                   type="button"
@@ -701,7 +785,14 @@ export function NotificationBell({ onSelectEntity }: NotificationBellProps) {
                                 <>
                                   <button
                                     type="button"
-                                    onClick={(e) => handleMarkRead(n.id, e)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      void handleMarkRead(n.id, e);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      e.stopPropagation();
+                                    }}
                                     title="Mark as read"
                                     className="notif-sheet-quick-read-btn"
                                     aria-label="Mark notification as read"

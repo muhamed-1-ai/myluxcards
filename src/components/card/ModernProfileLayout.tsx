@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, CardProfileProduct, isValidStoreUrl } from "@/lib/cards";
+import { formatCountryCode, CardProfileProduct, isValidStoreUrl, resolveAppDownloadTile } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
 import { BrandLogo } from "./BrandLogo";
@@ -225,59 +225,19 @@ export function ModernProfileLayout({
 
   const hasBrochure = Boolean(card.brochure || card.brochureData);
 
-  const appDownload = card.appDownload;
-  const hasApple = Boolean(appDownload?.appStoreUrl && isValidStoreUrl(appDownload.appStoreUrl, "apple"));
-  const hasGoogle = Boolean(appDownload?.playStoreUrl && isValidStoreUrl(appDownload.playStoreUrl, "google"));
-  const hasAppDownload = hasApple || hasGoogle;
-
-  const appTileLabel = hasApple && hasGoogle
-    ? "Download Our App"
-    : hasApple
-    ? "Download on App Store"
-    : "Get it on Google Play";
-
-  const defaultAppUrl = hasApple && hasGoogle
-    ? (detectedOS === "android" ? appDownload?.playStoreUrl : appDownload?.appStoreUrl) || ""
-    : (hasApple ? appDownload?.appStoreUrl : appDownload?.playStoreUrl) || "";
+  const appTileRes = resolveAppDownloadTile(card.appDownload, detectedOS);
 
   const handleAppDownloadClick = (e: React.MouseEvent) => {
     const currentDevice = detectUserDevice();
-    if (hasApple && hasGoogle) {
-      if (currentDevice === "android" && appDownload?.playStoreUrl) {
-        if (e.currentTarget.getAttribute("href") !== appDownload.playStoreUrl) {
-          e.preventDefault();
-          window.open(appDownload.playStoreUrl, "_blank", "noopener,noreferrer");
-        }
-        return;
-      }
-      if (currentDevice === "ios" && appDownload?.appStoreUrl) {
-        if (e.currentTarget.getAttribute("href") !== appDownload.appStoreUrl) {
-          e.preventDefault();
-          window.open(appDownload.appStoreUrl, "_blank", "noopener,noreferrer");
-        }
-        return;
-      }
+    const clickRes = resolveAppDownloadTile(card.appDownload, currentDevice);
+    if (clickRes.action === "chooser" || !clickRes.url || clickRes.url === "#") {
       e.preventDefault();
       setStoreChooserOpen(true);
       return;
     }
-
-    if (hasApple && !hasGoogle) {
-      if (currentDevice === "ios" && appDownload?.appStoreUrl) {
-        return;
-      }
+    if (e.currentTarget.getAttribute("href") !== clickRes.url) {
       e.preventDefault();
-      setStoreChooserOpen(true);
-      return;
-    }
-
-    if (!hasApple && hasGoogle) {
-      if (currentDevice === "android" && appDownload?.playStoreUrl) {
-        return;
-      }
-      e.preventDefault();
-      setStoreChooserOpen(true);
-      return;
+      window.open(clickRes.url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -291,14 +251,15 @@ export function ModernProfileLayout({
     { key: "google-business", name: "Google Business", url: card.social?.["Google Business"] || card.social?.googlebusiness, brand: "google" },
     { key: "google-maps", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.googlemaps || (!card.social?.["Google Business"] && !card.social?.googlebusiness ? card.social?.google : undefined), brand: "maps" },
     { key: "google-reviews", name: "Google Reviews", url: card.social?.["Google Reviews"] || card.social?.["google-reviews"] || card.social?.["google_reviews"] || card.social?.googlereviews || card.social?.reviews, brand: "reviews" },
-    ...(hasAppDownload ? [{
+    ...(appTileRes.visible ? [{
       key: "app-download",
-      name: appTileLabel,
-      subText: card.appDownload?.appName,
-      url: defaultAppUrl,
-      brand: "download",
+      name: appTileRes.name,
+      subText: appTileRes.subText,
+      url: appTileRes.url,
+      brand: appTileRes.brand,
       isAppDownload: true,
-      hasBothStores: hasApple && hasGoogle,
+      hasBothStores: appTileRes.hasApple && appTileRes.hasGoogle,
+      ariaLabel: appTileRes.ariaLabel,
     }] : []),
     { key: "whatsapp", name: "WhatsApp", url: card.social?.WhatsApp || card.social?.whatsapp, brand: "whatsapp" },
     { key: "github", name: "GitHub", url: card.social?.GitHub || card.social?.github, brand: "github" },
@@ -634,10 +595,11 @@ export function ModernProfileLayout({
                 <a
                   key={item.key}
                   href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target={item.url && item.url !== "#" ? "_blank" : undefined}
+                  rel={item.url && item.url !== "#" ? "noopener noreferrer" : undefined}
                   className={`zappit-modern-app-tile ${item.isAppDownload ? "zappit-app-tile" : ""}`}
                   onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
+                  aria-label={item.ariaLabel || item.name}
                 >
                   <div className={`zappit-modern-app-icon ${item.brand}`}>
                     <BrandLogo brand={item.brand} name={item.name} size={30} />
