@@ -310,7 +310,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
     lostAndFound: { itemName: "", itemCategory: "Other", rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!", returnInstructions: "Please contact me using the form below or drop this item off at building reception.", allowAnonymousMessage: true },
     contactNumbers: [],
-    appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "" },
+    appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
   };
 };
 const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUser | null): Card => {
@@ -342,6 +342,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
       appName: String(card.appDownload?.appName || "").trim(),
       appStoreUrl: String(card.appDownload?.appStoreUrl || "").trim(),
       playStoreUrl: String(card.appDownload?.playStoreUrl || "").trim(),
+      referralUrl: String(card.appDownload?.referralUrl || "").trim(),
     },
   };
 };
@@ -949,6 +950,9 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
         next.playStoreUrl = "Enter a valid direct store link or HTTPS referral link for Android devices.";
       }
+      if (draft.appDownload?.referralUrl && !isValidStoreUrl(draft.appDownload.referralUrl, "universal")) {
+        next.referralUrl = "Enter a valid HTTPS referral or smart link (e.g. https://...).";
+      }
     }
     setErrors(next); return Object.keys(next).length === 0;
   };
@@ -1016,7 +1020,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           logo: finalLogo,
           cover: finalCover,
           contactNumbers: finalContactNumbers,
-          appDownload: currentDraft.appDownload || cloudCard.appDownload || { appName: "", appStoreUrl: "", playStoreUrl: "" },
+          appDownload: currentDraft.appDownload || cloudCard.appDownload || { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
         };
 
         setCards((prevCards) => prevCards.map((c) => (c.id === updated.id ? updated : c)));
@@ -5278,6 +5282,31 @@ function SocialForm({ draft, update, errors }: any) {
                 })
               }
               placeholder="https://play.google.com/store/apps/details?id=..."
+            />
+          </div>
+        </Field>
+
+        <Field
+          label="Referral / Smart Link (optional)"
+          error={errors.referralUrl}
+          hint="If provided, the download button opens this link on all devices. Use a referral or smart link that supports both iPhone and Android."
+        >
+          <div className="social-input">
+            <span title="Referral / Smart Link">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+              </svg>
+            </span>
+            <input
+              value={draft.appDownload?.referralUrl || ""}
+              onChange={(e) =>
+                update("appDownload", {
+                  ...(draft.appDownload || {}),
+                  referralUrl: e.target.value,
+                })
+              }
+              placeholder="https://yourapp.link/referral..."
             />
           </div>
         </Field>

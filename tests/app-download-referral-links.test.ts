@@ -253,4 +253,127 @@ assert.ok(!simpleLayoutCode.includes("Choose store"), "SimpleProfileLayout must 
 
 console.log("✔ UI helper text verified and 'Choose store' text absent");
 
+// ---------------------------------------------------------------------------
+// 7. Referral / Smart Link Priority & Single Public Tile Behavior
+// ---------------------------------------------------------------------------
+console.log("Test 7: Referral / Smart Link priority and single public button verification...");
+
+// 7a. Referral-only configuration: displays 1 working tile opening referral link on all devices
+const referralOnlyConfig = {
+  appName: "Zappit Runner",
+  referralUrl: "https://zappit.link/ref?code=SUPER77&source=card#dl",
+};
+
+for (const device of ["ios", "android", "desktop", "unknown"] as const) {
+  const tile = resolveAppDownloadTile(referralOnlyConfig, device);
+  assert.equal(tile.visible, true, `Referral-only tile must be visible on ${device}`);
+  assert.equal(tile.action, "direct", `Referral-only action must be direct on ${device}`);
+  assert.equal(tile.url, "https://zappit.link/ref?code=SUPER77&source=card#dl", `Referral link forwarded unchanged on ${device}`);
+  assert.equal(tile.brand, "download", `Brand icon must be consistent download on ${device}`);
+  assert.equal(tile.name, "Download Our App");
+  assert.equal(tile.subText, "Zappit Runner");
+  assert.equal(tile.hasReferral, true);
+}
+
+// 7b. Referral + Store URLs: Referral link takes absolute priority on ALL devices
+const mixedConfig = {
+  appName: "Zappit Runner",
+  appStoreUrl: "https://apps.apple.com/app/id123456",
+  playStoreUrl: "https://play.google.com/store/apps/details?id=com.zappit",
+  referralUrl: "https://zappit.link/universal-smart?ref=user101",
+};
+
+for (const device of ["ios", "android", "desktop", "unknown"] as const) {
+  const tile = resolveAppDownloadTile(mixedConfig, device);
+  assert.equal(tile.visible, true, `Mixed config tile must be visible on ${device}`);
+  assert.equal(tile.action, "direct", `Mixed config action must be direct on ${device} (referral priority)`);
+  assert.equal(tile.url, "https://zappit.link/universal-smart?ref=user101", `Referral link prioritized on ${device}`);
+  assert.equal(tile.brand, "download");
+  assert.equal(tile.hasReferral, true);
+  assert.equal(tile.hasApple, true);
+  assert.equal(tile.hasGoogle, true);
+}
+
+// 7c. Clearing the referral restores platform routing
+const restoredConfig = {
+  appName: "Zappit Runner",
+  appStoreUrl: "https://apps.apple.com/app/id123456",
+  playStoreUrl: "https://play.google.com/store/apps/details?id=com.zappit",
+  referralUrl: "", // Cleared
+};
+
+const restoredIos = resolveAppDownloadTile(restoredConfig, "ios");
+assert.equal(restoredIos.action, "direct");
+assert.equal(restoredIos.url, "https://apps.apple.com/app/id123456", "Clearing referral restores Apple direct destination on iOS");
+assert.equal(restoredIos.hasReferral, false);
+
+const restoredAndroid = resolveAppDownloadTile(restoredConfig, "android");
+assert.equal(restoredAndroid.action, "direct");
+assert.equal(restoredAndroid.url, "https://play.google.com/store/apps/details?id=com.zappit", "Clearing referral restores Android destination on Android");
+assert.equal(restoredAndroid.hasReferral, false);
+
+const restoredDesktop = resolveAppDownloadTile(restoredConfig, "desktop");
+assert.equal(restoredDesktop.action, "chooser", "Clearing referral restores chooser dialog on desktop");
+assert.equal(restoredDesktop.hasReferral, false);
+
+// 7d. App Name alone does not display the tile
+const nameOnlyConfig = {
+  appName: "Ghost App Without URLs",
+  appStoreUrl: "",
+  playStoreUrl: "",
+  referralUrl: "",
+};
+for (const device of ["ios", "android", "desktop", "unknown"] as const) {
+  const tile = resolveAppDownloadTile(nameOnlyConfig, device);
+  assert.equal(tile.visible, false, `App name alone must NOT display tile on ${device}`);
+}
+
+// 7e. Persistence with referralUrl roundtrip
+const fullPersistencePayload = {
+  appDownload: {
+    appName: "Zappit All-In-One",
+    appStoreUrl: "https://apps.apple.com/app/id999",
+    playStoreUrl: "https://play.google.com/store/apps/details?id=com.zappit.all",
+    referralUrl: "  https://branch.zappit.io/join?ref=card456&campaign=q4#cta  ",
+  },
+};
+
+const cleanedFull = cleanCardProfile(fullPersistencePayload);
+const cleanedFullAd = cleanedFull.appDownload as any;
+assert.equal(cleanedFullAd.referralUrl, "https://branch.zappit.io/join?ref=card456&campaign=q4#cta", "Referral URL whitespace trimmed and preserved");
+
+const completedFull = completeCardProfile(cleanedFull);
+const completedFullAd = completedFull.appDownload as any;
+assert.equal(completedFullAd.referralUrl, "https://branch.zappit.io/join?ref=card456&campaign=q4#cta");
+
+const publicFull = safePublicCard({
+  id: "card-full-ref",
+  slug: "zappit-full",
+  owner_id: "user-full",
+  profile: cleanedFull,
+  active: true,
+});
+const publicFullAd = publicFull.appDownload as any;
+assert.equal(publicFullAd.referralUrl, "https://branch.zappit.io/join?ref=card456&campaign=q4#cta", "Referral URL present on signed-out public card");
+
+console.log("✔ Referral / Smart Link priority, single button, clearing, and persistence verified");
+
+// ---------------------------------------------------------------------------
+// 8. Dashboard Form Field & Helper Text Verification
+// ---------------------------------------------------------------------------
+console.log("Test 8: Dashboard form Referral / Smart Link field verification...");
+
+const referralFieldLabel = 'label="Referral / Smart Link (optional)"';
+const referralHelperText = "If provided, the download button opens this link on all devices. Use a referral or smart link that supports both iPhone and Android.";
+
+const referralFieldIndex = dashboardCode.indexOf(referralFieldLabel);
+assert.ok(referralFieldIndex !== -1, "Dashboard must have 'Referral / Smart Link (optional)' field");
+assert.ok(referralFieldIndex > googleFieldIndex, "Referral field must be positioned directly below Google Play Store URL field");
+
+const referralSnippet = dashboardCode.slice(referralFieldIndex, referralFieldIndex + 600);
+assert.ok(referralSnippet.includes(referralHelperText), "Referral field must contain the exact helper text");
+assert.ok(referralSnippet.includes("referralUrl"), "Referral field must bind to referralUrl");
+
+console.log("✔ Dashboard form field placement and exact helper text confirmed");
+
 console.log("\n=== ALL APP DOWNLOAD REFERRAL LINKS TESTS PASSED! ===");

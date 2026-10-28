@@ -10,6 +10,7 @@ export interface AppDownloadSettings {
   appName?: string;
   appStoreUrl?: string;
   playStoreUrl?: string;
+  referralUrl?: string;
 }
 
 export interface AppStoreChooserModalProps {

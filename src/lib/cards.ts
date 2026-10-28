@@ -23,9 +23,10 @@ export interface AppDownloadSettings {
   appName?: string;
   appStoreUrl?: string;
   playStoreUrl?: string;
+  referralUrl?: string;
 }
 
-export function isValidStoreUrl(value: string, store: "apple" | "google"): boolean {
+export function isValidStoreUrl(value: string, store: "apple" | "google" | "universal"): boolean {
   if (!value || typeof value !== "string") return false;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > 2048) return false;
@@ -107,7 +108,7 @@ export function isValidStoreUrl(value: string, store: "apple" | "google"): boole
   }
 }
 
-export function cleanStoreUrl(value: unknown, store: "apple" | "google"): string {
+export function cleanStoreUrl(value: unknown, store: "apple" | "google" | "universal"): string {
   if (!value || typeof value !== "string") return "";
   let trimmed = value.trim();
   if (!trimmed || trimmed.length > 2048) return "";
@@ -386,7 +387,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT },
   emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT },
   lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
-  appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "" },
+  appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
 };
 
 export function cleanSlug(value: unknown) {
@@ -447,10 +448,12 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       const appName = typeof ad.appName === "string" ? ad.appName.trim().slice(0, 100) : "";
       const appStoreUrl = cleanStoreUrl(ad.appStoreUrl, "apple");
       const playStoreUrl = cleanStoreUrl(ad.playStoreUrl, "google");
+      const referralUrl = cleanStoreUrl(ad.referralUrl, "universal");
       output.appDownload = {
         appName,
         appStoreUrl,
         playStoreUrl,
+        referralUrl,
       };
     } else if (field === "services" && Array.isArray(value)) {
       output.services = value.slice(0, 30).map(item => String(item).trim().slice(0, 120)).filter(Boolean);
@@ -643,7 +646,7 @@ export function completeCardProfile(input: unknown) {
     vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT, ...(cleaned.vehicleConnect as object) },
     emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT, ...(cleaned.emergencyContact as object) },
     lostAndFound: { ...DEFAULT_LOST_AND_FOUND, ...(cleaned.lostAndFound as object) },
-    appDownload: cleaned.appDownload && typeof cleaned.appDownload === "object" ? cleaned.appDownload : { appName: "", appStoreUrl: "", playStoreUrl: "" },
+    appDownload: cleaned.appDownload && typeof cleaned.appDownload === "object" ? cleaned.appDownload : { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
   };
 }
 
