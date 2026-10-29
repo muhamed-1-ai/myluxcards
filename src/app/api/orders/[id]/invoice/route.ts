@@ -33,7 +33,10 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
               status, payment_status, currency, subtotal_minor, discount_minor, tax_minor,
               shipping_minor, total_minor, shipping_address, created_at
        from orders
-       where id = $1 and (customer_id = $2 or lower(customer_email) = lower($3))
+       where id = $1 and (
+         customer_id = $2 or user_id = $2 or
+         ((customer_id is null and user_id is null) and lower(customer_email) = lower($3))
+       )
        limit 1`,
       [id, identity.id, identity.email]
     );

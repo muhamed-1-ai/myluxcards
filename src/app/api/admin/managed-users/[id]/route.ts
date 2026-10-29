@@ -72,9 +72,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     const ordersRes = await pool.query(
       `SELECT id, order_number, status, payment_status, currency, total_minor, courier, tracking_number, shipping_address, created_at
        FROM orders
-       WHERE user_id = $1 OR lower(customer_email) = lower($2)
+       WHERE (user_id = $1 OR customer_id = $1)
+          OR ((user_id IS NULL AND customer_id IS NULL) AND lower(customer_email) = lower($2))
        ORDER BY created_at DESC`,
-      [managedUser.id, managedUser.email]
+      [managedUser.id, managedUser.original_email || managedUser.email]
     );
 
     // Parse shipping address from latest order if present
@@ -102,6 +103,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
     const userWithNormalizedPerms = {
       ...managedUser,
+      email: managedUser.original_email || managedUser.email,
       feature_permissions: normalizeFeaturePermissions(managedUser.feature_permissions),
     };
 

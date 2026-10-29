@@ -32,7 +32,8 @@ export async function GET() {
               shipping_minor, total_minor, shipping_address, billing_address, courier,
               tracking_number, created_at
        from orders
-       where customer_id = $1 or lower(customer_email) = lower($2)
+       where (customer_id = $1 or user_id = $1)
+          or ((customer_id is null and user_id is null) and lower(customer_email) = lower($2))
        order by created_at desc
        limit 100`,
       [identity.id, identity.email]

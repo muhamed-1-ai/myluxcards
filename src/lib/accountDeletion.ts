@@ -154,19 +154,22 @@ export async function deleteUserAccount({
       };
     }
 
-    // 9. Atomic Logical Deletion
+    // 9. Atomic Logical Deletion & Email Release
+    const tombstoneEmail = `deleted+${targetUserId}@deleted.zappit.local`;
     const deletedUserRes = await db.query<UserRow>(
       `UPDATE users
-       SET status = 'DELETED',
+       SET original_email = email,
+           email = $2,
+           status = 'DELETED',
            disabled = true,
            deleted_at = NOW(),
-           deleted_by_admin_id = $2,
+           deleted_by_admin_id = $3,
            session_version = session_version + 1,
            password_hash = NULL,
            updated_at = NOW()
        WHERE id = $1
-       RETURNING id, email, name, role, status, disabled, deleted_at, deleted_by_admin_id`,
-      [targetUserId, admin.id]
+       RETURNING id, email, original_email, name, role, status, disabled, deleted_at, deleted_by_admin_id`,
+      [targetUserId, tombstoneEmail, admin.id]
     );
     const updatedUser = deletedUserRes.rows[0];
 
@@ -184,7 +187,10 @@ export async function deleteUserAccount({
     // 12. Invalidate push subscriptions
     await db.query(`DELETE FROM push_subscriptions WHERE user_id = $1`, [targetUserId]);
 
-    // 13. Cancel scheduled future follow-up reminder jobs
+    // 13. Revoke accounting workspace memberships
+    await db.query(`DELETE FROM accounting_workspace_members WHERE user_id = $1`, [targetUserId]);
+
+    // 14. Cancel scheduled future follow-up reminder jobs
     await db.query(
       `UPDATE lead_follow_ups
        SET status = 'CANCELLED',
@@ -195,7 +201,7 @@ export async function deleteUserAccount({
       [targetUserId]
     );
 
-    // 14. Make exclusively owned digital card public profiles unavailable
+    // 15. Make exclusively owned digital card public profiles unavailable
     await db.query(
       `UPDATE digital_cards
        SET active = false,
@@ -204,7 +210,7 @@ export async function deleteUserAccount({
       [targetUserId]
     );
 
-    // 15. Disable physical cards
+    // 16. Disable physical cards
     await db.query(
       `UPDATE cards
        SET status = 'DISABLED',
@@ -213,7 +219,7 @@ export async function deleteUserAccount({
       [targetUserId]
     );
 
-    // 16. Record audit event with full trail
+    // 17. Record audit event with full trail
     await audit(
       admin,
       "USER_DELETED",
@@ -229,6 +235,7 @@ export async function deleteUserAccount({
       {
         id: targetUser.id,
         email: targetUser.email,
+        tombstone_email: tombstoneEmail,
         name: targetUser.name,
         role: targetUser.role,
         status: "DELETED",

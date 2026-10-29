@@ -25,6 +25,7 @@ export interface UserRow {
   created_by_admin_id?: string | null;
   deleted_by_admin_id?: string | null;
   deleted_at?: Date | null;
+  original_email?: string | null;
   feature_permissions?: FeaturePermissions | Record<string, boolean>;
   dashboard_layout?: string;
   terms_accepted?: boolean;

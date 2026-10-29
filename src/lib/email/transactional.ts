@@ -61,6 +61,10 @@ export function getEmailConfigDiagnostics() {
  * and standard SMTP transport, with bounded retries and error isolation.
  */
 export async function sendTransactionalEmail(options: SendEmailOptions): Promise<EmailDeliveryResult> {
+  if (!options.to || options.to.includes("@deleted.zappit.local") || options.to.startsWith("deleted+")) {
+    return { ok: false, provider: "unconfigured", error: "Cannot send email to tombstoned account address." };
+  }
+
   const from =
     process.env.EMAIL_FROM?.trim() ||
     process.env.RESEND_FROM?.trim() ||

@@ -309,8 +309,10 @@ export async function verifyResetToken(rawToken: string): Promise<VerifyTokenRes
     consumed_at: Date | null;
     is_setup?: boolean;
     password_hash: string | null;
+    disabled?: boolean;
+    status?: string;
   }>(
-    `select t.id, t.user_id, t.expires_at, t.consumed_at, t.is_setup, u.password_hash
+    `select t.id, t.user_id, t.expires_at, t.consumed_at, t.is_setup, u.password_hash, u.disabled, u.status
     from auth_action_tokens t
     join users u on u.id = t.user_id
     where t.token_hash = $1 and t.purpose = 'PASSWORD_RESET'`,
@@ -318,7 +320,7 @@ export async function verifyResetToken(rawToken: string): Promise<VerifyTokenRes
   );
   const tokenRow = result.rows[0];
 
-  if (!tokenRow) {
+  if (!tokenRow || tokenRow.disabled || tokenRow.status === "DELETED" || tokenRow.status === "DISABLED" || tokenRow.status === "SUSPENDED") {
     return { valid: false, message: "This password link is invalid or has expired." };
   }
 
@@ -389,7 +391,8 @@ export async function redeemResetToken(
       new Date(row.expires_at).getTime() <= Date.now() ||
       row.disabled ||
       row.status === "DISABLED" ||
-      row.status === "SUSPENDED"
+      row.status === "SUSPENDED" ||
+      row.status === "DELETED"
     ) {
       return null;
     }

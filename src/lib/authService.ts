@@ -93,7 +93,7 @@ export async function createAdminManagedUser(input: {
   const permissions: FeaturePermissions = normalizeFeaturePermissions(input.featurePermissions || {});
 
   return withTransaction(async (db) => {
-    const existing = (await db.query<{ id: string }>("select id from users where LOWER(email)=$1", [email])).rows[0];
+    const existing = (await db.query<{ id: string }>("select id from users where LOWER(email)=$1 and status != 'DELETED'", [email])).rows[0];
     if (existing) {
       throw new Error("USER_EMAIL_EXISTS");
     }
@@ -150,7 +150,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
 
     let user = (
       await db.query<{ id: string; email: string; name: string; session_version: number; role: string; disabled: boolean; status: string }>(
-        "select id,email,name,session_version,role,disabled,status from users where LOWER(email)=$1 for update",
+        "select id,email,name,session_version,role,disabled,status from users where LOWER(email)=$1 and status != 'DELETED' for update",
         [email]
       )
     ).rows[0];

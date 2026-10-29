@@ -78,10 +78,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const ordersRes = await pool.query(
       `SELECT id, order_number, status, payment_status, currency, total_minor, created_at
        FROM orders
-       WHERE user_id = $1 OR lower(customer_email) = lower($2)
+       WHERE (user_id = $1 OR customer_id = $1)
+          OR ((user_id IS NULL AND customer_id IS NULL) AND lower(customer_email) = lower($2))
        ORDER BY created_at DESC
        LIMIT 10`,
-      [userId, u.email]
+      [userId, u.original_email || u.email]
     );
 
     // 4. Fetch CRM summary (leads count & recent activity)

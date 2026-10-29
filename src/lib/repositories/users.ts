@@ -5,7 +5,7 @@ import type { UserRow, FeaturePermissions } from "@/types/database";
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-const publicColumns = "id,email,name,role,status,disabled,must_change_password,session_version,created_by_admin_id,feature_permissions,deleted_at,deleted_by_admin_id,created_at,updated_at";
+const publicColumns = "id,email,original_email,name,role,status,disabled,must_change_password,session_version,created_by_admin_id,feature_permissions,deleted_at,deleted_by_admin_id,created_at,updated_at";
 
 export async function findUserById(id: string, db: Queryable = pool) {
   return (await db.query<UserRow>(`select ${publicColumns} from users where id=$1`, [id])).rows[0] ?? null;
@@ -51,7 +51,7 @@ export async function findManagedUsersByAdmin(
   if (options.search && options.search.trim()) {
     const term = `%${options.search.trim().toLowerCase()}%`;
     params.push(term);
-    conditions.push(`(LOWER(u.name) LIKE $${params.length} OR LOWER(u.email) LIKE $${params.length})`);
+    conditions.push(`(LOWER(u.name) LIKE $${params.length} OR LOWER(u.email) LIKE $${params.length} OR (u.original_email IS NOT NULL AND LOWER(u.original_email) LIKE $${params.length}))`);
   }
 
   const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -62,7 +62,8 @@ export async function findManagedUsersByAdmin(
   const query = `
     SELECT
       u.id,
-      u.email,
+      COALESCE(u.original_email, u.email) as email,
+      u.original_email,
       u.name,
       u.role,
       u.status,
