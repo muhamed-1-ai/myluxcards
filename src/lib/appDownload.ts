@@ -54,9 +54,9 @@ export function resolveAppDownloadTile(
     };
   }
 
-  const tileName = "Download Our App";
+  const tileName = "App";
   const subText = appName || undefined;
-  const ariaLabel = appName ? `Download ${appName} App` : "Download Our App";
+  const ariaLabel = appName ? `Download ${appName} App` : "Download App";
 
   // Priority 1: Referral / Smart Link takes absolute priority on all devices (iPhone, iPad, Android, desktop, unknown)
   if (hasReferral) {

@@ -596,7 +596,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     return true;
   });
 
-  const assetAccounts = accounts.filter((a) => a.type === "ASSET");
+  const paymentAccounts = accounts.filter(
+    (a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype))
+  );
   const liabilityAccounts = accounts.filter((a) => a.type === "LIABILITY");
   const equityAccounts = accounts.filter((a) => a.type === "EQUITY");
 
@@ -666,7 +668,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           className={`acc-btn acc-btn-sm ${subtab === "BALANCES" ? "acc-btn-primary" : "acc-btn-outline"}`}
           onClick={() => setSubtab("BALANCES")}
         >
-          🏦 Account Balances ({assetAccounts.length} Cash/Bank)
+          🏦 Account Balances ({paymentAccounts.length} Cash/Bank)
         </button>
         <button
           type="button"
@@ -907,15 +909,15 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
       {/* VIEW 2: Account Balances & Opening Balances */}
       {subtab === "BALANCES" && (
         <div className="acc-two-col-equal">
-          {/* Asset Accounts */}
+          {/* Payment Accounts */}
           <div className="acc-card" style={{ marginBottom: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
               <div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
-                  Cash, Bank & UPI Accounts (Assets)
+                  Payment Accounts
                 </h3>
                 <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                  Liquid funds and active balances
+                  Cash in Hand and Bank Account payment balances
                 </span>
               </div>
               {canMutate && (
@@ -933,29 +935,16 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
               <table className="acc-table">
                 <thead>
                   <tr>
-                    <th className="acc-col-code" style={{ width: "50px", whiteSpace: "nowrap" }}>Code</th>
                     <th className="acc-col-name">Account Name</th>
-                    <th style={{ width: "80px", whiteSpace: "nowrap" }}>Subtype</th>
-                    <th className="acc-align-right acc-col-balance" style={{ width: "125px", whiteSpace: "nowrap" }}>Current Balance</th>
-                    <th className="acc-align-right acc-col-action" style={{ width: "145px", whiteSpace: "nowrap" }}>Action</th>
+                    <th className="acc-align-right acc-col-balance" style={{ width: "140px", whiteSpace: "nowrap" }}>Current Balance</th>
+                    <th className="acc-align-right acc-col-action" style={{ width: "160px", whiteSpace: "nowrap" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {assetAccounts.map((acc) => (
+                  {paymentAccounts.map((acc) => (
                     <tr key={acc.id}>
-                      <td className="acc-col-code" style={{ fontSize: "0.75rem", fontFamily: "monospace", color: "var(--acc-text-muted)" }}>
-                        {acc.code}
-                      </td>
                       <td className="acc-col-name" style={{ fontWeight: 600, overflowWrap: "break-word" }}>
                         {acc.name}
-                        {acc.description && (
-                          <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)", fontWeight: "normal" }}>
-                            {acc.description}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="acc-badge acc-badge-neutral">{acc.subtype}</span>
                       </td>
                       <td className="acc-align-right tabular-nums font-bold acc-col-balance" style={{ color: Number(acc.current_balance_minor) >= 0 ? "var(--acc-text-main)" : "var(--acc-danger)" }}>
                         {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
@@ -969,7 +958,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                             onClick={() => handleOpenHistory(acc)}
                             title="View balance and funding history"
                           >
-                            📜 History
+                            History
                           </button>
                           {canMutate && (
                             <button
@@ -982,7 +971,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                                 setOpeningModalOpen(true);
                               }}
                             >
-                              Set Opening
+                              Adjust
                             </button>
                           )}
                         </div>
@@ -1290,13 +1279,11 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                   onChange={(e) => setSelectedAccountId(e.target.value)}
                 >
                   <option value="">-- Choose Account --</option>
-                  {accounts
-                    .filter((a) => a.is_active && (a.type === "ASSET" || a.type === "LIABILITY"))
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} - {a.name} ({a.subtype})
-                      </option>
-                    ))}
+                  {paymentAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -2063,13 +2050,11 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                   value={correctTargetAccountId}
                   onChange={(e) => setCorrectTargetAccountId(e.target.value)}
                 >
-                  {accounts
-                    .filter((a) => a.is_active && (a.type === "ASSET" || a.type === "LIABILITY"))
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} - {a.name} ({a.subtype})
-                      </option>
-                    ))}
+                  {paymentAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <small style={{ color: "var(--acc-text-muted)", fontSize: "0.6875rem", display: "block", marginTop: "0.25rem" }}>
                   If the money was mistakenly deposited into the wrong account, select the correct account here.

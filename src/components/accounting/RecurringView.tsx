@@ -262,7 +262,7 @@ export default function RecurringView() {
                   value={accountId}
                   onChange={setAccountId}
                   placeholder="Select Bank or Cash account..."
-                  accountFilter={(a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR"].includes(a.subtype)}
+                  accountFilter={(a) => Boolean(a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype)))}
                   required
                 />
               </div>

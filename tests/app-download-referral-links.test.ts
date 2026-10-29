@@ -168,7 +168,7 @@ const referralAppDownload = {
 const iosTile = resolveAppDownloadTile(referralAppDownload, "ios");
 assert.equal(iosTile.visible, true);
 assert.equal(iosTile.brand, "download", "iOS visitor must see consistent download icon");
-assert.equal(iosTile.name, "Download Our App");
+assert.equal(iosTile.name, "App");
 assert.equal(iosTile.url, "https://fit.app.link/ios?ref=123", "iOS visitor receives configured Apple destination");
 assert.equal(iosTile.action, "direct");
 assert.equal(iosTile.targetStore, "apple");
@@ -177,7 +177,7 @@ assert.equal(iosTile.targetStore, "apple");
 const androidTile = resolveAppDownloadTile(referralAppDownload, "android");
 assert.equal(androidTile.visible, true);
 assert.equal(androidTile.brand, "download", "Android visitor must see consistent download icon");
-assert.equal(androidTile.name, "Download Our App");
+assert.equal(androidTile.name, "App");
 assert.equal(androidTile.url, "https://fit.app.link/android?ref=123", "Android visitor receives configured Google destination");
 assert.equal(androidTile.action, "direct");
 assert.equal(androidTile.targetStore, "google");
@@ -186,7 +186,7 @@ assert.equal(androidTile.targetStore, "google");
 const desktopTile = resolveAppDownloadTile(referralAppDownload, "desktop");
 assert.equal(desktopTile.visible, true);
 assert.equal(desktopTile.brand, "download", "Desktop visitor must see consistent download icon");
-assert.equal(desktopTile.name, "Download Our App");
+assert.equal(desktopTile.name, "App");
 assert.equal(desktopTile.action, "chooser");
 
 // 5b. Cross-platform referral link in both fields
@@ -197,12 +197,12 @@ const crossPlatformDownload = {
 };
 const iosCrossTile = resolveAppDownloadTile(crossPlatformDownload, "ios");
 assert.equal(iosCrossTile.brand, "download");
-assert.equal(iosCrossTile.name, "Download Our App");
+assert.equal(iosCrossTile.name, "App");
 assert.equal(iosCrossTile.url, "https://mybrand.onelink.me/share?code=PROMO");
 
 const androidCrossTile = resolveAppDownloadTile(crossPlatformDownload, "android");
 assert.equal(androidCrossTile.brand, "download");
-assert.equal(androidCrossTile.name, "Download Our App");
+assert.equal(androidCrossTile.name, "App");
 assert.equal(androidCrossTile.url, "https://mybrand.onelink.me/share?code=PROMO");
 
 // 5c. Apple-only referral link
@@ -213,14 +213,14 @@ const appleOnlyDownload = {
 const iosOnlyTile = resolveAppDownloadTile(appleOnlyDownload, "ios");
 assert.equal(iosOnlyTile.visible, true);
 assert.equal(iosOnlyTile.brand, "download");
-assert.equal(iosOnlyTile.name, "Download Our App");
+assert.equal(iosOnlyTile.name, "App");
 assert.equal(iosOnlyTile.action, "direct");
 assert.equal(iosOnlyTile.url, "https://fit.app.link/ios-exclusive?ref=123");
 
 const androidIncompatTile = resolveAppDownloadTile(appleOnlyDownload, "android");
 assert.equal(androidIncompatTile.visible, true);
 assert.equal(androidIncompatTile.brand, "download");
-assert.equal(androidIncompatTile.name, "Download Our App");
+assert.equal(androidIncompatTile.name, "App");
 assert.equal(androidIncompatTile.action, "chooser", "Incompatible device opens modal showing single store availability");
 
 console.log("✔ Device routing verified with consistent download brand across all devices");
@@ -270,7 +270,7 @@ for (const device of ["ios", "android", "desktop", "unknown"] as const) {
   assert.equal(tile.action, "direct", `Referral-only action must be direct on ${device}`);
   assert.equal(tile.url, "https://zappit.link/ref?code=SUPER77&source=card#dl", `Referral link forwarded unchanged on ${device}`);
   assert.equal(tile.brand, "download", `Brand icon must be consistent download on ${device}`);
-  assert.equal(tile.name, "Download Our App");
+  assert.equal(tile.name, "App");
   assert.equal(tile.subText, "Zappit Runner");
   assert.equal(tile.hasReferral, true);
 }

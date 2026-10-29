@@ -46,7 +46,9 @@ export default function AccountsTransfersView() {
     }
   };
 
-  const assetAccounts = accounts.filter((a) => a.type === "ASSET");
+  const paymentAccounts = accounts.filter(
+    (a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype))
+  );
   const liabilityAccounts = accounts.filter((a) => a.type === "LIABILITY");
   const equityAccounts = accounts.filter((a) => a.type === "EQUITY");
 
@@ -55,7 +57,7 @@ export default function AccountsTransfersView() {
       <div className="acc-header">
         <div className="acc-title-group">
           <h2 className="acc-title">Accounts & Transfers</h2>
-          <p className="acc-subtitle">Cash, bank, UPI accounts, balances, and funds transfers.</p>
+          <p className="acc-subtitle">Cash in Hand, Bank Account, balances, and funds transfers.</p>
         </div>
 
         <div className="acc-header-actions">
@@ -80,30 +82,24 @@ export default function AccountsTransfersView() {
         </div>
       </div>
 
-      {/* Asset Accounts */}
+      {/* Payment Accounts */}
       <div className="acc-card" style={{ marginBottom: "1.5rem" }}>
         <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: "0 0 1rem 0" }}>
-          Cash & Bank Accounts (Assets)
+          Payment Accounts
         </h3>
         <div className="acc-table-wrapper">
           <table className="acc-table">
             <thead>
               <tr>
-                <th>Code</th>
                 <th>Account Name</th>
-                <th>Subtype</th>
                 <th className="acc-align-right">Current Balance</th>
-                {canMutate && <th className="acc-align-right">Action</th>}
+                {canMutate && <th className="acc-align-right" style={{ width: "140px" }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {assetAccounts.map((acc) => (
+              {paymentAccounts.map((acc) => (
                 <tr key={acc.id}>
-                  <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{acc.code}</td>
                   <td style={{ fontWeight: 600 }}>{acc.name}</td>
-                  <td>
-                    <span className="acc-badge acc-badge-neutral">{acc.subtype}</span>
-                  </td>
                   <td className="acc-align-right tabular-nums font-bold" style={{ fontSize: "0.9375rem" }}>
                     {formatMoney(acc.current_balance_minor, activeWorkspace?.currency)}
                   </td>
@@ -204,7 +200,7 @@ export default function AccountsTransfersView() {
             </p>
             <form onSubmit={handleSetOpeningBalance}>
               <div className="acc-form-group">
-                <label className="acc-form-label" htmlFor="open-acc-select">Financial Account *</label>
+                <label className="acc-form-label" htmlFor="open-acc-select">Payment Account *</label>
                 <select
                   id="open-acc-select"
                   className="acc-form-select"
@@ -213,9 +209,9 @@ export default function AccountsTransfersView() {
                   required
                 >
                   <option value="">Select account...</option>
-                  {accounts.map((a) => (
+                  {paymentAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.code} - {a.name} ({a.type})
+                      {a.name}
                     </option>
                   ))}
                 </select>

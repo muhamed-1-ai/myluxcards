@@ -91,13 +91,17 @@ export async function getDashboardMetrics(
   const { start, end } = resolveDateRange(filter);
   const asOfDate = new Date().toISOString().slice(0, 10);
 
-  // 1. Available Balance from Cash & Bank accounts (1010, 1020, 1030)
+  // 1. Available Balance from Cash in Hand & Bank Account (strictly payment accounts)
   const cashAccountsRes = await pool.query<{ total: string; count: string }>(
     `SELECT COALESCE(SUM(current_balance_minor), 0) as total, COUNT(*)::text as count
      FROM accounting_financial_accounts
      WHERE workspace_id = $1
        AND is_active = true
-       AND subtype IN ('CASH', 'BANK', 'UPI')`,
+       AND (
+         is_payment_account = true
+         OR (account_role = 'LEGACY_PAYMENT' AND current_balance_minor != 0)
+         OR (subtype IN ('CASH', 'BANK') AND is_system = true)
+       )`,
     [workspaceId]
   );
   const availableBalanceMinor = parseInt(cashAccountsRes.rows[0]?.total || "0", 10);
@@ -132,7 +136,7 @@ export async function getDashboardMetrics(
      WHERE je.workspace_id = $1
        AND je.status = 'POSTED'
        AND je.entry_type != 'REVERSAL'
-       AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+       AND (fa.is_payment_account = true OR fa.account_role IN ('CASH', 'BANK', 'LEGACY_PAYMENT') OR (fa.subtype IN ('CASH', 'BANK') AND fa.is_system = true))
        AND je.entry_date >= $2
        AND je.entry_date <= $3
        AND je.entry_type != 'OPENING_BALANCE'`,
@@ -354,7 +358,7 @@ export async function getDashboardMetrics(
        WHERE je.workspace_id = $1
          AND je.status = 'POSTED'
          AND je.entry_type != 'REVERSAL'
-         AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+         AND (fa.is_payment_account = true OR fa.account_role IN ('CASH', 'BANK', 'LEGACY_PAYMENT') OR (fa.subtype IN ('CASH', 'BANK') AND fa.is_system = true))
          AND je.entry_date >= $2
          AND je.entry_date <= $3
          AND je.entry_type != 'OPENING_BALANCE'
@@ -375,7 +379,7 @@ export async function getDashboardMetrics(
        WHERE je.workspace_id = $1
          AND je.status = 'POSTED'
          AND je.entry_type != 'REVERSAL'
-         AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+         AND (fa.is_payment_account = true OR fa.account_role IN ('CASH', 'BANK', 'LEGACY_PAYMENT') OR (fa.subtype IN ('CASH', 'BANK') AND fa.is_system = true))
          AND je.entry_date >= $2
          AND je.entry_date <= $3
          AND je.entry_type != 'OPENING_BALANCE'
@@ -409,7 +413,7 @@ export async function getDashboardMetrics(
        WHERE je.workspace_id = $1
          AND je.status = 'POSTED'
          AND je.entry_type != 'REVERSAL'
-         AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+         AND (fa.is_payment_account = true OR fa.account_role IN ('CASH', 'BANK', 'LEGACY_PAYMENT') OR (fa.subtype IN ('CASH', 'BANK') AND fa.is_system = true))
          AND je.entry_date >= $2
          AND je.entry_date <= $3
          AND je.entry_type != 'OPENING_BALANCE'
@@ -611,7 +615,7 @@ export async function getDashboardMetrics(
      WHERE je.workspace_id = $1
        AND je.status = 'POSTED'
        AND je.entry_type != 'REVERSAL'
-       AND fa.subtype IN ('CASH', 'BANK', 'UPI')
+       AND (fa.is_payment_account = true OR fa.account_role IN ('CASH', 'BANK', 'LEGACY_PAYMENT') OR (fa.subtype IN ('CASH', 'BANK') AND fa.is_system = true))
        AND je.entry_date >= (CURRENT_DATE - INTERVAL '6 months')
        AND je.entry_type != 'OPENING_BALANCE'
      GROUP BY TO_CHAR(je.entry_date, 'Mon YYYY'), DATE_TRUNC('month', je.entry_date)

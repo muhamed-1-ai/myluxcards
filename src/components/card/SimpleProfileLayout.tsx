@@ -537,9 +537,9 @@ export function SimpleProfileLayout({
                     <BrandLogo brand={item.brand} name={item.name} size={26} />
                   </span>
                   <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
-                    <span className="zappit-simple-social-name">{item.name}</span>
+                    <span className="zappit-simple-social-name" style={item.isAppDownload ? { whiteSpace: "nowrap" } : undefined}>{item.name}</span>
                     {item.subText && (
-                      <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px", lineHeight: 1.2 }}>
                         {item.subText}
                       </span>
                     )}

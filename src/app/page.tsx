@@ -283,7 +283,7 @@ const redesignedMarkup = `
             <h3>Velvet Matte Black PVC</h3>
             <p>Deep obsidian polymer treated with a soft-touch matte finish and chamfered edges. Water-resistant, durable, and equipped with an embedded high-speed NFC antenna.</p>
             <div class="material-footer">
-              <div class="material-price">₹999 <small>incl. 1-year profile</small></div>
+              <div class="material-price">₹1,199 <small>incl. 1-year profile</small></div>
               <a href="#bundles" class="apple-btn apple-btn-glass">Choose Black</a>
             </div>
           </div>

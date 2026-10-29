@@ -270,7 +270,7 @@ export default function PeopleView() {
   });
 
   const liquidAccounts = accounts.filter(
-    (a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR", "UPI"].includes(a.subtype)
+    (a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype))
   );
 
   return (

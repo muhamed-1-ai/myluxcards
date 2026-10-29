@@ -49,6 +49,8 @@ export interface FinancialAccountRow {
   account_number_mask: string | null;
   is_system: boolean;
   is_active: boolean;
+  is_payment_account: boolean;
+  account_role?: "CASH" | "BANK" | "INTERNAL_LEDGER" | "LEGACY_PAYMENT" | "RETIRED_SYSTEM" | string;
   opening_balance_minor: string | number;
   current_balance_minor: string | number;
   description: string | null;

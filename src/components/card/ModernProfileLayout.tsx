@@ -608,9 +608,9 @@ export function ModernProfileLayout({
                   <div className={`zappit-modern-app-icon ${item.brand}`}>
                     <BrandLogo brand={item.brand} name={item.name} size={30} />
                   </div>
-                  <span className="zappit-modern-app-name">{item.name}</span>
+                  <span className="zappit-modern-app-name" style={item.isAppDownload ? { whiteSpace: "nowrap" } : undefined}>{item.name}</span>
                   {item.subText && (
-                    <span className="zappit-modern-app-subtext" style={{ fontSize: "9.5px", color: "var(--profile-muted, #94a3b8)", marginTop: "2px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span className="zappit-modern-app-subtext" style={{ fontSize: "9.5px", color: "var(--profile-muted, #94a3b8)", marginTop: "1px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.subText}
                     </span>
                   )}

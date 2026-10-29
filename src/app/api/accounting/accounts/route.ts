@@ -6,8 +6,13 @@ export async function GET(req: Request) {
   const { errorResponse, context } = await requireAccountingApi(req, "VIEWER");
   if (errorResponse) return errorResponse;
 
-  const accounts = await listFinancialAccounts(context!.workspace.id);
-  return NextResponse.json({ accounts });
+  const url = new URL(req.url);
+  const paymentOnly = url.searchParams.get("paymentOnly") === "true";
+
+  const accounts = await listFinancialAccounts(context!.workspace.id, { onlyPayment: paymentOnly });
+  const paymentAccounts = accounts.filter((a) => Boolean(a.is_payment_account));
+
+  return NextResponse.json({ accounts, paymentAccounts });
 }
 
 export async function POST(req: Request) {
@@ -20,6 +25,10 @@ export async function POST(req: Request) {
 
     if (!accountId || typeof openingBalanceMinor !== "number") {
       return NextResponse.json({ error: "accountId and openingBalanceMinor required" }, { status: 400 });
+    }
+
+    if (openingBalanceMinor < 0) {
+      return NextResponse.json({ error: "Opening balance cannot be negative" }, { status: 400 });
     }
 
     const updatedAccount = await setAccountOpeningBalance(

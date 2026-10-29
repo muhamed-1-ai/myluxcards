@@ -88,17 +88,12 @@ export function getAccountTypeLabel(account: FinancialAccount): string {
   const sub = (account.subtype || "").toUpperCase();
   const nameLower = (account.name || "").toLowerCase();
 
-  if (sub === "CASH" || nameLower.includes("cash")) return "Cash in Hand";
-  if (sub === "BANK" || nameLower.includes("bank")) return "Bank Account";
-  if (
-    sub === "PAYMENT_PROCESSOR" ||
-    nameLower.includes("upi") ||
-    nameLower.includes("wallet")
-  ) {
-    return "UPI / Digital Wallet";
+  if (account.account_role === "CASH" || sub === "CASH" || nameLower.includes("cash")) return "Cash in Hand";
+  if (account.account_role === "BANK" || sub === "BANK" || nameLower.includes("bank")) return "Bank Account";
+  if (account.account_role === "LEGACY_PAYMENT" || sub === "UPI" || nameLower.includes("upi")) {
+    return "Legacy Account";
   }
-  if (account.type === "ASSET") return "Asset Account";
-  return account.type || "Payment Account";
+  return "Payment Account";
 }
 
 // Format balance with unmistakable negative detection, explicit minus sign, and zero treatment
@@ -140,7 +135,7 @@ export function PaymentAccountPicker({
   value,
   onChange,
   accounts: customAccounts,
-  placeholder = "Select account (Cash, Bank, UPI)...",
+  placeholder = "Select payment account...",
   disabled = false,
   required = false,
   error = false,
@@ -185,10 +180,13 @@ export function PaymentAccountPicker({
     if (accountFilter) {
       list = list.filter(accountFilter);
     } else if (!customAccounts) {
-      // Default to liquid accounts if none explicitly passed
-      list = list.filter(
-        (a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR"].includes(a.subtype)
-      );
+      // Default strictly to visible payment accounts (Cash in Hand and Bank Account)
+      list = list.filter((a) => {
+        if (a.is_payment_account !== undefined && a.is_payment_account !== null) {
+          return Boolean(a.is_payment_account);
+        }
+        return a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype) && ["1010", "1020"].includes(a.code);
+      });
     }
     return list;
   }, [rawAccounts, accountFilter, customAccounts]);

@@ -14,50 +14,82 @@ export interface DefaultAccountDefinition {
   name: string;
   type: FinancialAccountType;
   subtype: FinancialAccountSubtype;
+  is_payment_account?: boolean;
+  account_role?: string;
   description: string;
 }
 
 export const SYSTEM_ACCOUNTS_CATALOGUE: DefaultAccountDefinition[] = [
-  { code: "1010", name: "Cash in Hand", type: "ASSET", subtype: "CASH", description: "Physical cash on hand and petty cash" },
-  { code: "1020", name: "Main Bank Account", type: "ASSET", subtype: "BANK", description: "Primary operational checking/current account" },
-  { code: "1030", name: "UPI / Settlement Account", type: "ASSET", subtype: "UPI", description: "UPI and digital wallet settlement balance" },
-  { code: "1200", name: "Accounts Receivable", type: "ASSET", subtype: "RECEIVABLE", description: "Money owed to business by customers (Owed to Me)" },
-  { code: "2000", name: "Accounts Payable", type: "LIABILITY", subtype: "PAYABLE", description: "Money owed by business to suppliers (I Owe)" },
-  { code: "2500", name: "Loans & Borrowings", type: "LIABILITY", subtype: "LOAN", description: "Principal balance owed on loans and financing" },
-  { code: "3000", name: "Owner's Equity & Capital", type: "EQUITY", subtype: "EQUITY", description: "Owner investment and retained surplus" },
-  { code: "4000", name: "Sales & Operating Revenue", type: "REVENUE", subtype: "REVENUE", description: "Gross earned sales and business income" },
-  { code: "5000", name: "Operating Expenses", type: "EXPENSE", subtype: "EXPENSE", description: "General and operational expenses" },
-  { code: "5100", name: "Interest Expense", type: "EXPENSE", subtype: "EXPENSE", description: "Interest and financing charges on loans" },
+  { code: "1010", name: "Cash in Hand", type: "ASSET", subtype: "CASH", is_payment_account: true, account_role: "CASH", description: "Physical cash on hand and petty cash" },
+  { code: "1020", name: "Bank Account", type: "ASSET", subtype: "BANK", is_payment_account: true, account_role: "BANK", description: "Primary operational checking/current account" },
+  { code: "1200", name: "Accounts Receivable", type: "ASSET", subtype: "RECEIVABLE", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "Money owed to business by customers (Owed to Me)" },
+  { code: "2000", name: "Accounts Payable", type: "LIABILITY", subtype: "PAYABLE", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "Money owed by business to suppliers (I Owe)" },
+  { code: "2500", name: "Loans & Borrowings", type: "LIABILITY", subtype: "LOAN", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "Principal balance owed on loans and financing" },
+  { code: "3000", name: "Owner's Equity & Capital", type: "EQUITY", subtype: "EQUITY", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "Owner investment and retained surplus" },
+  { code: "4000", name: "Sales & Operating Revenue", type: "REVENUE", subtype: "REVENUE", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "Gross earned sales and business income" },
+  { code: "5000", name: "Operating Expenses", type: "EXPENSE", subtype: "EXPENSE", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "General and operational expenses" },
+  { code: "5100", name: "Interest Expense", type: "EXPENSE", subtype: "EXPENSE", is_payment_account: false, account_role: "INTERNAL_LEDGER", description: "Interest and financing charges on loans" },
 ];
 
 /**
- * Seed the canonical 10 double-entry system accounts for a new workspace.
+ * Seed the canonical double-entry system accounts for a new or reinitialized workspace.
+ * Every workspace starts with exactly TWO payment accounts: Cash in Hand (1010) and Bank Account (1020),
+ * both at ₹0.00, plus the internal ledger accounts needed for double-entry bookkeeping.
+ * Safe against concurrent requests and strictly idempotent.
  */
 export async function seedDefaultChartOfAccounts(workspaceId: string, client?: Queryable): Promise<void> {
   const db = client || pool;
   for (const acc of SYSTEM_ACCOUNTS_CATALOGUE) {
     await db.query(
       `INSERT INTO accounting_financial_accounts
-         (workspace_id, code, name, type, subtype, currency, is_system, is_active, description)
-       VALUES ($1, $2, $3, $4, $5, 'INR', true, true, $6)
-       ON CONFLICT (workspace_id, code) DO UPDATE SET is_active = true`,
-      [workspaceId, acc.code, acc.name, acc.type, acc.subtype, acc.description]
+         (workspace_id, code, name, type, subtype, currency, is_system, is_active, is_payment_account, account_role, opening_balance_minor, current_balance_minor, description)
+       VALUES ($1, $2, $3, $4, $5, 'INR', true, true, $6, $7, 0, 0, $8)
+       ON CONFLICT (workspace_id, code) DO UPDATE SET
+         is_active = true,
+         name = EXCLUDED.name,
+         is_payment_account = EXCLUDED.is_payment_account,
+         account_role = EXCLUDED.account_role`,
+      [workspaceId, acc.code, acc.name, acc.type, acc.subtype, acc.is_payment_account ?? false, acc.account_role ?? "INTERNAL_LEDGER", acc.description]
     );
   }
 }
 
 /**
- * List all financial accounts for a workspace.
+ * Check whether an account is classified as a visible payment account.
  */
-export async function listFinancialAccounts(workspaceId: string, client?: Queryable): Promise<FinancialAccountRow[]> {
+export function isPaymentAccount(account: { is_payment_account?: boolean; type?: string; subtype?: string; code?: string }): boolean {
+  if (account.is_payment_account !== undefined && account.is_payment_account !== null) {
+    return Boolean(account.is_payment_account);
+  }
+  return account.type === "ASSET" && ["CASH", "BANK"].includes(account.subtype || "") && ["1010", "1020"].includes(account.code || "");
+}
+
+/**
+ * List financial accounts for a workspace.
+ */
+export async function listFinancialAccounts(
+  workspaceId: string,
+  options?: { onlyPayment?: boolean },
+  client?: Queryable
+): Promise<FinancialAccountRow[]> {
   const db = client || pool;
-  const res = await db.query<FinancialAccountRow>(
-    `SELECT * FROM accounting_financial_accounts
-     WHERE workspace_id = $1 AND is_active = true
-     ORDER BY code ASC`,
-    [workspaceId]
-  );
+  let query = `SELECT * FROM accounting_financial_accounts WHERE workspace_id = $1 AND is_active = true`;
+  if (options?.onlyPayment) {
+    query += ` AND is_payment_account = true`;
+  }
+  query += ` ORDER BY code ASC`;
+  const res = await db.query<FinancialAccountRow>(query, [workspaceId]);
   return res.rows;
+}
+
+/**
+ * List only active customer-facing payment accounts for a workspace (Cash in Hand and Bank Account).
+ */
+export async function listPaymentAccounts(
+  workspaceId: string,
+  client?: Queryable
+): Promise<FinancialAccountRow[]> {
+  return listFinancialAccounts(workspaceId, { onlyPayment: true }, client);
 }
 
 export async function getFinancialAccountByCode(

@@ -5,6 +5,8 @@ import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 import SecuritySettingsView from "../security/SecuritySettingsView";
 import DataManagementView from "./DataManagementView";
+import AccountHistoryModal from "./AccountHistoryModal";
+import type { FinancialAccount } from "./AccountingContext";
 
 export default function SettingsView() {
   const {
@@ -12,16 +14,22 @@ export default function SettingsView() {
     workspaces,
     setActiveWorkspace,
     accounts,
+    paymentAccounts,
     formatMoney,
     refreshKey,
     triggerRefresh,
     canMutate,
     userRole,
+    openFastModal,
   } = useAccounting();
 
   const [activeSection, setActiveSection] = useState<
     "ACCOUNTS" | "WORKSPACE" | "PERMISSIONS" | "NOTIFICATIONS" | "INTEGRATIONS" | "SECURITY" | "DATA_MANAGEMENT"
   >("ACCOUNTS");
+
+  // Account History modal state
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedHistoryAccount, setSelectedHistoryAccount] = useState<FinancialAccount | null>(null);
 
   // Set Balance State
   const [openingModalOpen, setOpeningModalOpen] = useState(false);
@@ -174,75 +182,141 @@ export default function SettingsView() {
       </div>
 
       {/* SECTION 1: Payment Accounts & Opening Balances */}
-      {activeSection === "ACCOUNTS" && (
-        <div className="acc-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <div>
-              <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Payment Accounts & Opening Balances</h3>
-              <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                Manage Cash in Hand, Bank accounts, and UPI settlements
-              </span>
-            </div>
-            {canMutate && (
-              <button
-                type="button"
-                className="acc-btn acc-btn-primary acc-btn-sm"
-                onClick={() => setOpeningModalOpen(true)}
-              >
-                Set Opening Balance
-              </button>
-            )}
-          </div>
+      {activeSection === "ACCOUNTS" && (() => {
+        const visiblePaymentAccounts = paymentAccounts && paymentAccounts.length > 0
+          ? paymentAccounts
+          : accounts.filter((a) => {
+              if (a.is_payment_account !== undefined && a.is_payment_account !== null) {
+                return Boolean(a.is_payment_account);
+              }
+              return a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype) && ["1010", "1020"].includes(a.code);
+            });
 
-          <div className="acc-table-wrapper">
-            <table className="acc-table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Account Name</th>
-                  <th>Type</th>
-                  <th>Subtype</th>
-                  <th className="acc-align-right">Current Balance</th>
-                  {canMutate && <th className="acc-align-right">Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((a) => (
-                  <tr key={a.id}>
-                    <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>{a.code}</td>
-                    <td style={{ fontWeight: 600 }}>{a.name}</td>
-                    <td>
-                      <span className="acc-badge acc-badge-neutral">{a.type}</span>
-                    </td>
-                    <td>
-                      <span className="acc-badge acc-badge-neutral">{a.subtype}</span>
-                    </td>
-                    <td className="acc-align-right tabular-nums font-bold">
-                      {formatMoney(a.current_balance_minor, activeWorkspace?.currency)}
-                    </td>
-                    {canMutate && (
-                      <td className="acc-align-right">
-                        <button
-                          type="button"
-                          className="acc-btn acc-btn-sm acc-btn-outline"
-                          style={{ padding: "0.2rem 0.5rem" }}
-                          onClick={() => {
-                            setSelectedAccountId(a.id);
-                            setOpeningBalanceStr((Number(a.opening_balance_minor || 0) / 100).toString());
-                            setOpeningModalOpen(true);
-                          }}
-                        >
-                          Adjust
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        const legacyPaymentAccounts = accounts.filter(
+          (a) => a.account_role === "LEGACY_PAYMENT" || (a.subtype === "UPI" && Number(a.current_balance_minor) !== 0)
+        );
+
+        return (
+          <>
+            <div className="acc-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <div>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>Payment Accounts & Opening Balances</h3>
+                  <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                    Manage Cash in Hand and Bank Account payment balances
+                  </span>
+                </div>
+                {canMutate && (
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn-primary acc-btn-sm"
+                    onClick={() => setOpeningModalOpen(true)}
+                  >
+                    Set Opening Balance
+                  </button>
+                )}
+              </div>
+
+              <div className="acc-table-wrapper">
+                <table className="acc-table">
+                  <thead>
+                    <tr>
+                      <th>Account Name</th>
+                      <th className="acc-align-right">Current Balance</th>
+                      {canMutate && <th className="acc-align-right" style={{ width: "170px" }}>Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visiblePaymentAccounts.map((a) => (
+                      <tr key={a.id}>
+                        <td style={{ fontWeight: 600 }}>{a.name}</td>
+                        <td className="acc-align-right tabular-nums font-bold">
+                          {formatMoney(a.current_balance_minor, activeWorkspace?.currency)}
+                        </td>
+                        {canMutate && (
+                          <td className="acc-align-right">
+                            <div style={{ display: "inline-flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                              <button
+                                type="button"
+                                className="acc-btn acc-btn-sm acc-btn-outline"
+                                style={{ padding: "0.2rem 0.5rem" }}
+                                onClick={() => {
+                                  setSelectedHistoryAccount(a);
+                                  setHistoryModalOpen(true);
+                                }}
+                                title="View balance history and adjustments"
+                              >
+                                History
+                              </button>
+                              <button
+                                type="button"
+                                className="acc-btn acc-btn-sm acc-btn-outline"
+                                style={{ padding: "0.2rem 0.5rem" }}
+                                onClick={() => {
+                                  setSelectedAccountId(a.id);
+                                  setOpeningBalanceStr((Number(a.opening_balance_minor || 0) / 100).toString());
+                                  setOpeningModalOpen(true);
+                                }}
+                              >
+                                Adjust
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Reconciliation section for legacy payment accounts with balance */}
+            {legacyPaymentAccounts.length > 0 && (
+              <div className="acc-card" style={{ marginTop: "1rem", border: "1px solid var(--acc-warning, #eab308)", backgroundColor: "rgba(234, 179, 8, 0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>⚠️</span>
+                  <h4 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 700 }}>Legacy Account Requiring Reconciliation</h4>
+                </div>
+                <p style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", margin: "0 0 0.75rem 0" }}>
+                  The following legacy payment account holds a balance from an earlier configuration. Funds can be transferred to Cash in Hand or Bank Account.
+                </p>
+                <div className="acc-table-wrapper">
+                  <table className="acc-table">
+                    <thead>
+                      <tr>
+                        <th>Account Name</th>
+                        <th className="acc-align-right">Current Balance</th>
+                        {canMutate && <th className="acc-align-right" style={{ width: "170px" }}>Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {legacyPaymentAccounts.map((la) => (
+                        <tr key={la.id}>
+                          <td style={{ fontWeight: 600 }}>{la.name} (Legacy)</td>
+                          <td className="acc-align-right tabular-nums font-bold" style={{ color: "var(--acc-warning, #eab308)" }}>
+                            {formatMoney(la.current_balance_minor, activeWorkspace?.currency)}
+                          </td>
+                          {canMutate && (
+                            <td className="acc-align-right">
+                              <button
+                                type="button"
+                                className="acc-btn acc-btn-sm acc-btn-outline"
+                                onClick={() => openFastModal("TRANSFER")}
+                              >
+                                Transfer Funds
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* SECTION 3: Workspace & Profile */}
       {activeSection === "WORKSPACE" && (
@@ -465,7 +539,7 @@ export default function SettingsView() {
             <form onSubmit={handleSetOpeningBalance}>
               <div className="acc-form-group">
                 <label className="acc-form-label" htmlFor="settings-acc-select">
-                  Select Financial Account *
+                  Select Payment Account *
                 </label>
                 <select
                   id="settings-acc-select"
@@ -475,9 +549,12 @@ export default function SettingsView() {
                   required
                 >
                   <option value="">Select an account...</option>
-                  {accounts.map((a) => (
+                  {(paymentAccounts && paymentAccounts.length > 0
+                    ? paymentAccounts
+                    : accounts.filter((a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype)))
+                  ).map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.code} - {a.name} ({a.type})
+                      {a.name}
                     </option>
                   ))}
                 </select>
@@ -523,6 +600,20 @@ export default function SettingsView() {
           </div>
         </div>
       )}
+
+      {/* Account History Modal */}
+      <AccountHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        account={selectedHistoryAccount}
+        availableAccounts={paymentAccounts && paymentAccounts.length > 0
+          ? paymentAccounts
+          : accounts.filter((a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype)))}
+        currency={activeWorkspace?.currency}
+        canMutate={canMutate}
+        formatMoney={formatMoney}
+        onUpdated={() => triggerRefresh()}
+      />
     </div>
   );
 }

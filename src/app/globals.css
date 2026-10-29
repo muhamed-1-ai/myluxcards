@@ -7226,6 +7226,23 @@ a.zappit-modern-val:hover {
   display: none;
 }
 
+.zappit-modern-app-tile.zappit-app-tile .zappit-modern-app-name {
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.zappit-modern-app-subtext {
+  font-size: 9.5px;
+  color: var(--profile-muted, #94a3b8);
+  margin-top: 1px;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
 /* 10. About Me */
 .zappit-modern-about-body {
   font-size: 13.5px;

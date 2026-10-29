@@ -21,7 +21,7 @@ export function normalizeBrandKey(brand: string): string {
   if (cleaned === "x" || cleaned.includes("xcorp")) return "x";
   if (cleaned.includes("whatsapp") || cleaned === "wa") return "whatsapp";
   if (cleaned.includes("googlereview") || cleaned.includes("review") || cleaned.includes("star")) return "reviews";
-  if (cleaned === "downloadourapp") return "download";
+  if (cleaned === "downloadourapp" || cleaned === "app" || cleaned === "downloadapp" || cleaned === "ourapp") return "download";
   if (cleaned === "dual_store" || cleaned === "dual" || cleaned === "app_dual" || cleaned === "dualstore") return "dual_store";
   if (cleaned.includes("appstore") || cleaned === "appleappstore" || cleaned === "iosapp" || cleaned === "apple") return "appstore";
   if (cleaned.includes("playstore") || cleaned.includes("googleplay") || cleaned === "androidplay") return "playstore";
@@ -182,14 +182,15 @@ export function BrandLogo({
     case "maps":
       return (
         <svg {...commonSvgProps}>
-          <circle cx="12" cy="12" r="12" fill="#FFFFFF" />
-          <path
-            fill="#EA4335"
-            d="M12 3.5C8.41 3.5 5.5 6.41 5.5 10c0 1.61.59 3.09 1.56 4.23l4.94 6.27 4.94-6.27c.97-1.14 1.56-2.62 1.56-4.23 0-3.59-2.91-6.5-6.5-6.5zm0 8.8a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"
+          <image
+            href="/brand-icons/google-maps.png"
+            xlinkHref="/brand-icons/google-maps.png"
+            x="0"
+            y="0"
+            width="24"
+            height="24"
+            preserveAspectRatio="xMidYMid meet"
           />
-          <path fill="#4285F4" d="M12 3.5v8.8a2.3 2.3 0 0 0 2.3-2.3c0-3.59-1-5.5-2.3-6.5z" />
-          <path fill="#FBBC04" d="M5.5 10c0 1.61.59 3.09 1.56 4.23l4.94-4.23H5.5z" />
-          <path fill="#34A853" d="M12 20.5l-4.94-6.27L12 18.5v2z" />
         </svg>
       );
 

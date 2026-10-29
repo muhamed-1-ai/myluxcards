@@ -601,8 +601,8 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   // Liquid cash accounts count from backend or accounting context
   const liquidCount =
     metrics?.liquidAccountsCount ??
-    accounts.filter((a) => a.is_active && (a.subtype === "CASH" || a.subtype === "BANK" || a.subtype === "UPI")).length ??
-    1;
+    accounts.filter((a) => a.is_active && (a.is_payment_account || (a.type === "ASSET" && (a.subtype === "CASH" || a.subtype === "BANK")))).length ??
+    2;
 
   // Trend series for Cash Flow Chart
   const trendBars =

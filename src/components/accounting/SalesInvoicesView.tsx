@@ -343,7 +343,7 @@ export default function SalesInvoicesView() {
                               setRecordPaymentInvoice(inv);
                               setPayAmountStr((inv.amount_due_minor / 100).toString());
                               const defaultAcc = accounts.find(
-                                (a) => a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype)
+                                (a) => a.is_payment_account || (a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype))
                               );
                               setPayAccountId(defaultAcc?.id || "");
                             }}
@@ -502,7 +502,7 @@ export default function SalesInvoicesView() {
           setRecordPaymentInvoice(inv);
           setPayAmountStr((inv.amount_due_minor / 100).toString());
           const defaultAcc = accounts.find(
-            (a) => a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype)
+            (a) => a.is_payment_account || (a.type === "ASSET" && ["BANK", "CASH"].includes(a.subtype))
           );
           setPayAccountId(defaultAcc?.id || "");
         }}
@@ -547,7 +547,7 @@ export default function SalesInvoicesView() {
                   value={payAccountId}
                   onChange={setPayAccountId}
                   placeholder="Select receiving Cash or Bank account..."
-                  accountFilter={(a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR"].includes(a.subtype)}
+                  accountFilter={(a) => Boolean(a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype)))}
                   required
                 />
               </div>

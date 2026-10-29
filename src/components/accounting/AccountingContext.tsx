@@ -18,6 +18,8 @@ export interface FinancialAccount {
   name: string;
   type: string;
   subtype: string;
+  is_payment_account?: boolean;
+  account_role?: string;
   opening_balance_minor?: number | string;
   current_balance_minor: number;
   is_active: boolean;
@@ -42,6 +44,7 @@ interface AccountingContextType {
   activeWorkspace: Workspace | null;
   setActiveWorkspace: (ws: Workspace) => void;
   accounts: FinancialAccount[];
+  paymentAccounts: FinancialAccount[];
   categories: Category[];
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
   loading: boolean;
@@ -165,6 +168,15 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
+  const paymentAccounts = React.useMemo(() => {
+    return accounts.filter((a) => {
+      if (a.is_payment_account !== undefined && a.is_payment_account !== null) {
+        return Boolean(a.is_payment_account);
+      }
+      return a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype) && ["1010", "1020"].includes(a.code);
+    });
+  }, [accounts]);
+
   const userRole = activeWorkspace?.role || "OWNER";
   const canMutate = userRole !== "VIEWER";
   const canExport = userRole !== "VIEWER";
@@ -177,6 +189,7 @@ export function AccountingProvider({ children }: { children: React.ReactNode }) 
         activeWorkspace,
         setActiveWorkspace,
         accounts,
+        paymentAccounts,
         categories,
         setCategories,
         loading,

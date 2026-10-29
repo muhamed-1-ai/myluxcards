@@ -75,7 +75,7 @@ export default function FastTransactionModal() {
 
       // Default payment account to first cash/bank account if available
       const liquidAccs = accounts.filter(
-        (a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR", "UPI"].includes(a.subtype)
+        (a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype))
       );
       if (liquidAccs.length > 0) {
         setAccountId(liquidAccs[0].id);
@@ -244,7 +244,7 @@ export default function FastTransactionModal() {
     : "Add Expense";
 
   const liquidAccounts = accounts.filter(
-    (a) => a.type === "ASSET" && ["CASH", "BANK", "PAYMENT_PROCESSOR", "UPI"].includes(a.subtype)
+    (a) => a.is_payment_account || (a.type === "ASSET" && ["CASH", "BANK"].includes(a.subtype))
   );
 
   return (
@@ -529,7 +529,7 @@ export default function FastTransactionModal() {
               {paymentStatus === "PAID" && (
                 <div className="acc-form-group">
                   <label className="acc-form-label" htmlFor="fast-account-select">
-                    {isIncome ? "Deposit To Account (Cash, Bank, UPI) *" : "Paid From Account (Cash, Bank, UPI) *"}
+                    {isIncome ? "Deposit To Account *" : "Paid From Account *"}
                   </label>
                   <PaymentAccountPicker
                     id="fast-account-select"
