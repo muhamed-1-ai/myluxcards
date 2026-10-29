@@ -116,7 +116,7 @@ export async function authenticateCredentials(email: string, password: string) {
   const normalized = normalizeEmail(email);
   const result = await pool.query<UserRow>("select id,email,name,password_hash,disabled,status,session_version,role,must_change_password from users where LOWER(email)=$1", [normalized]);
   const user = result.rows[0];
-  if (!user?.password_hash || user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED" || !(await verifyPassword(password, user.password_hash))) return null;
+  if (!user?.password_hash || user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED" || user.status === "DELETED" || !(await verifyPassword(password, user.password_hash))) return null;
   await pool.query("update users set updated_at=now() where id=$1", [user.id]);
   return { id: user.id, email: user.email, name: user.name, sessionVersion: user.session_version, role: user.role, mustChangePassword: user.must_change_password };
 }
@@ -141,7 +141,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
 
     if (linked) {
       console.log("[OAuth][signIn][ACCOUNT_STATUS]", { existingAccount: true, userId: linked.id, disabled: linked.disabled, status: linked.status });
-      if (linked.disabled || linked.status === "DISABLED" || linked.status === "SUSPENDED") {
+      if (linked.disabled || linked.status === "DISABLED" || linked.status === "SUSPENDED" || linked.status === "DELETED") {
         console.warn("[OAuth][signIn][REJECT]", { reason: "USER_ACCOUNT_DISABLED", userId: linked.id });
         throw new Error("USER_ACCOUNT_DISABLED");
       }
@@ -157,7 +157,7 @@ async function linkGoogleIdentityOnce(input: { providerAccountId: string; email:
 
     if (user) {
       console.log("[OAuth][signIn][ACCOUNT_STATUS]", { existingUserByEmail: true, userId: user.id, disabled: user.disabled, status: user.status });
-      if (user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED") {
+      if (user.disabled || user.status === "DISABLED" || user.status === "SUSPENDED" || user.status === "DELETED") {
         console.warn("[OAuth][signIn][REJECT]", { reason: "USER_ACCOUNT_DISABLED", userId: user.id });
         throw new Error("USER_ACCOUNT_DISABLED");
       }

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireManagedUserOwnership, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
+import { requireManagedUserOwnership, requireAdmin, validMutationOrigin, audit, safeError } from "@/lib/adminAuth";
 import { isOwnerAccount, isAuthoritativeOwner } from "@/lib/ownerAuth";
 import { updateUserPermissions, updateUserStatus, updateUserNickname } from "@/lib/repositories/users";
 import { pool } from "@/lib/db";
 import { getCanonicalUserQrUrl, getPublicCardUrl } from "@/lib/url";
 import { normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
+import { deleteUserAccount } from "@/lib/accountDeletion";
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   try {
@@ -238,27 +239,26 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
       return NextResponse.json({ message: "Invalid origin" }, { status: 403 });
     }
 
+    const admin = await requireAdmin(request);
+    if (!admin) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (admin.role !== "SUPER_ADMIN" && !isAuthoritativeOwner(admin)) {
+      return NextResponse.json({ message: "Forbidden. Only Super Admins are authorized to delete accounts." }, { status: 403 });
+    }
+
     const params = await props.params;
-    const authResult = await requireManagedUserOwnership(params.id);
-    if (!authResult) {
-      return NextResponse.json({ message: "Forbidden or user not found" }, { status: 403 });
-    }
+    const body = await request.json().catch(() => ({}));
+    const confirmationEmail = typeof body?.confirmationEmail === "string" ? body.confirmationEmail : "";
 
-    const { identity, managedUser } = authResult;
+    const result = await deleteUserAccount({
+      admin,
+      targetUserId: params.id,
+      confirmationEmail,
+    });
 
-    if (isOwnerAccount(managedUser.id, managedUser.email)) {
-      return NextResponse.json({ message: "The primary owner account is protected and cannot be deleted or disabled." }, { status: 403 });
-    }
-
-    if ((managedUser.role === "ADMIN" || managedUser.role === "SUPER_ADMIN") && !isAuthoritativeOwner(identity)) {
-      return NextResponse.json({ message: "Only the primary owner can disable an administrator account." }, { status: 403 });
-    }
-
-    const updatedUser = await updateUserStatus(managedUser.id, "DISABLED");
-
-    await audit(identity, "USER_DISABLED", "users", managedUser.id, { status: managedUser.status }, { status: "DISABLED" });
-
-    return NextResponse.json({ message: "User account disabled successfully", user: updatedUser });
+    return NextResponse.json(result, { status: result.status });
   } catch (error) {
     return safeError(error);
   }

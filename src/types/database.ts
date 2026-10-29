@@ -1,5 +1,5 @@
 export type AppRole = "CUSTOMER" | "USER" | "ADMIN" | "SUPER_ADMIN";
-export type AccountStatus = "ACTIVE" | "PENDING_PAYMENT" | "SUSPENDED" | "DISABLED";
+export type AccountStatus = "ACTIVE" | "PENDING_PAYMENT" | "SUSPENDED" | "DISABLED" | "DELETED";
 
 import { DEFAULT_FEATURE_PERMISSIONS as REGISTRY_DEFAULT, FeatureKey } from "@/lib/permissionsRegistry";
 
@@ -23,6 +23,8 @@ export interface UserRow {
   must_change_password: boolean;
   session_version: number;
   created_by_admin_id?: string | null;
+  deleted_by_admin_id?: string | null;
+  deleted_at?: Date | null;
   feature_permissions?: FeaturePermissions | Record<string, boolean>;
   dashboard_layout?: string;
   terms_accepted?: boolean;

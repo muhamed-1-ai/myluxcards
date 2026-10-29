@@ -18,6 +18,8 @@ model User {
   sessionVersion     Int      @default(1) @map("session_version")
   status             String   @default("ACTIVE")
   createdByAdminId   String?  @map("created_by_admin_id") @db.Uuid
+  deletedByAdminId   String?  @map("deleted_by_admin_id") @db.Uuid
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz
   featurePermissions Json     @default("{\"dashboard\":true,\"profile\":true,\"nfc_card\":true,\"qr_profile\":true,\"crm\":true,\"leads\":true,\"lost_found\":true,\"vehicle\":true,\"orders\":true,\"analytics\":true,\"products\":true,\"notifications\":true}") @map("feature_permissions")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz

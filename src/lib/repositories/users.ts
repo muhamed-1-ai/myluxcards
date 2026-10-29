@@ -5,7 +5,7 @@ import type { UserRow, FeaturePermissions } from "@/types/database";
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-const publicColumns = "id,email,name,role,status,disabled,must_change_password,session_version,created_by_admin_id,feature_permissions,created_at,updated_at";
+const publicColumns = "id,email,name,role,status,disabled,must_change_password,session_version,created_by_admin_id,feature_permissions,deleted_at,deleted_by_admin_id,created_at,updated_at";
 
 export async function findUserById(id: string, db: Queryable = pool) {
   return (await db.query<UserRow>(`select ${publicColumns} from users where id=$1`, [id])).rows[0] ?? null;
@@ -24,6 +24,7 @@ export interface FindManagedUsersOptions {
   status?: string;
   limit?: number;
   offset?: number;
+  includeDeleted?: boolean;
 }
 
 export async function findManagedUsersByAdmin(
@@ -42,6 +43,9 @@ export async function findManagedUsersByAdmin(
   if (options.status && options.status !== "ALL") {
     params.push(options.status.toUpperCase());
     conditions.push(`u.status = $${params.length}`);
+  } else if (!options.includeDeleted) {
+    // Keep logically deleted users out of the normal active/managed directory list
+    conditions.push(`u.status != 'DELETED'`);
   }
 
   if (options.search && options.search.trim()) {
@@ -63,6 +67,8 @@ export async function findManagedUsersByAdmin(
       u.role,
       u.status,
       u.disabled,
+      u.deleted_at,
+      u.deleted_by_admin_id,
       u.created_at,
       u.updated_at,
       u.created_by_admin_id,
@@ -101,7 +107,7 @@ export async function updateUserPermissions(userId: string, permissions: Record<
 }
 
 export async function updateUserStatus(userId: string, status: string, db: Queryable = pool) {
-  const disabled = status === "DISABLED" || status === "SUSPENDED";
+  const disabled = status === "DISABLED" || status === "SUSPENDED" || status === "DELETED";
   await db.query(`update users set status=$1, disabled=$2, session_version=session_version+1, updated_at=now() where id=$3`, [status, disabled, userId]);
   return findUserById(userId, db);
 }

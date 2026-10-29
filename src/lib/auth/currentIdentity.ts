@@ -78,6 +78,7 @@ export async function currentIdentity(req?: Request): Promise<AuthIdentity | nul
       profile.disabled ||
       profile.status === "DISABLED" ||
       profile.status === "SUSPENDED" ||
+      profile.status === "DELETED" ||
       (Number.isInteger(tokenSessionVersion) && profile.session_version !== tokenSessionVersion)
     ) {
       logAuthDebug({

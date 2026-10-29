@@ -81,7 +81,10 @@ export async function runFollowUpReminderScan(): Promise<ScanResult> {
         l.owner_user_id as lead_owner_id
       FROM lead_follow_ups f
       JOIN leads l ON l.id = f.lead_id
+      JOIN users u ON u.id = COALESCE(l.assigned_user_id, f.owner_user_id, l.owner_user_id)
       WHERE f.status = 'SCHEDULED'
+        AND u.status = 'ACTIVE'
+        AND u.disabled = false
         AND (
           (f.snoozed_until IS NOT NULL AND f.snoozed_until <= NOW())
           OR (f.snoozed_until IS NULL AND f.reminded_at IS NULL AND f.scheduled_at <= NOW())

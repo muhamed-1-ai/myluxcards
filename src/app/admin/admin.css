@@ -607,4 +607,125 @@ body.light-mode .admin-owner-badge {
   color: #f8fafc !important;
 }
 
+/* Delete Account Button & Modal Styling */
+.admin-btn-delete-account {
+  color: #EF4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.45) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  font-weight: 700 !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+.admin-btn-delete-account:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.22) !important;
+  border-color: #EF4444 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.35) !important;
+}
+
+.pill.deleted {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #EF4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.admin-delete-dialog {
+  width: min(580px, 95vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: adminModalPop 0.2s ease-out;
+}
+
+.admin-delete-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-delete-warning-box {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--admin-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-delete-consequences {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--admin-muted);
+}
+
+.admin-delete-consequences li {
+  margin-bottom: 6px;
+}
+
+.admin-delete-consequences strong {
+  color: var(--admin-text);
+}
+
+.admin-delete-confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-delete-confirm-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-delete-confirm-field input {
+  padding: 11px 14px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.admin-delete-confirm-field input:focus {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.admin-btn-delete-confirm {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #EF4444 !important;
+  font-weight: 800 !important;
+  padding: 9px 18px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background 0.15s, opacity 0.15s !important;
+}
+
+.admin-btn-delete-confirm:hover:not(:disabled) {
+  background: #B91C1C !important;
+}
+
+.admin-btn-delete-confirm:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  background: rgba(220, 38, 38, 0.35) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+
 

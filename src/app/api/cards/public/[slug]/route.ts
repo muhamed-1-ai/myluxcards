@@ -43,7 +43,41 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
     console.log("[PUBLIC_CARD][LOOKUP]", { slug, found: Boolean(row), cardId: row?.id });
     if (!row) {
       console.log("[PUBLIC_CARD][ERROR] Card not found", { slug });
-      return Response.json({ message: "Card not found." }, { status: 404 });
+      return Response.json(
+        { message: "Card not found." },
+        {
+          status: 404,
+          headers: {
+            "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+          },
+        }
+      );
+    }
+
+    // Check owner account status - logically deleted accounts must have their public profiles made immediately unavailable
+    const ownerRes = await pool.query<{ status: string; disabled: boolean }>(
+      `SELECT status, disabled FROM users WHERE id = $1`,
+      [row.owner_id]
+    );
+    const owner = ownerRes.rows[0];
+    if (owner && (owner.status === "DELETED" || owner.disabled || owner.status === "DISABLED")) {
+      console.log("[PUBLIC_CARD][CARD_STATUS] Owner account is deleted/disabled", { cardId: row.id, ownerId: row.owner_id, status: owner.status });
+      return Response.json(
+        {
+          message: "Card unavailable.",
+          reason: "ACCOUNT_DEACTIVATED",
+        },
+        {
+          status: 404,
+          headers: {
+            "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+          },
+        }
+      );
     }
 
     const publiclyActive = Boolean(row.active && (row.activated_at || row.active));
@@ -56,7 +90,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
         return Response.json({
           message: "Card unavailable.",
           reason: !row.active ? "SWITCHED_OFF" : "UNAVAILABLE",
-        }, { status: 404 });
+        }, {
+          status: 404,
+          headers: {
+            "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+          },
+        });
       }
     }
     console.log("[PUBLIC_CARD][SUCCESS]", { cardId: row.id, slug: row.slug });

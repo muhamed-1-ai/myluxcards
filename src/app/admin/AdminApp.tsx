@@ -433,6 +433,7 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
   const OWNER_EMAIL = "muhammedfebincholayil@gmail.com";
   const OWNER_USER_ID = "b8c2491d-3769-4850-86d9-1ff17eef2257";
   const isActorOwner = identity.id === OWNER_USER_ID && identity.email?.toLowerCase() === OWNER_EMAIL;
+  const isActorSuperAdmin = identity.role === "SUPER_ADMIN" || isActorOwner;
   const [savingRoleUserId, setSavingRoleUserId] = useState<string | null>(null);
   const [sendingPasswordUserId, setSendingPasswordUserId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -539,6 +540,7 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
   const [showCreate,setShowCreate]=useState(false);
   const [permissionUser,setPermissionUser]=useState<Row|null>(null);
   const [suspendModal,setSuspendModal]=useState<{user: Row; action: "SUSPEND" | "REACTIVATE"} | null>(null);
+  const [deleteModalUser,setDeleteModalUser]=useState<Row|null>(null);
   const [qrModalUser,setQrModalUser]=useState<Row|null>(null);
   const [detailsData,setDetailsData]=useState<any|null>(null);
   const [detailsLoading,setDetailsLoading]=useState(false);
@@ -550,7 +552,11 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
   const [searchFilter,setSearchFilter]=useState<string>("");
 
   const filteredUsers = rows.filter((user) => {
-    const matchesStatus = statusFilter === "ALL" || user.status === statusFilter;
+    const isDeleted = user.status === "DELETED";
+    const matchesStatus =
+      statusFilter === "ALL"
+        ? !isDeleted
+        : user.status === statusFilter;
     const q = searchFilter.toLowerCase().trim();
     const matchesSearch = !q || (user.name && user.name.toLowerCase().includes(q)) || (user.email && user.email.toLowerCase().includes(q));
     return matchesStatus && matchesSearch;
@@ -680,6 +686,7 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active</option>
             <option value="SUSPENDED">Suspended</option>
+            <option value="DELETED">Deleted</option>
           </select>
           <button className="gold" onClick={() => setShowCreate(true)} style={{ padding: "8px 16px" }}>
             + Create User
@@ -785,13 +792,23 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
                     </button>
                   )
                 ) : null}
-                {isTargetOwner ? null : user.status === "ACTIVE" ? (
+                {isTargetOwner || user.status === "DELETED" ? null : user.status === "ACTIVE" ? (
                   <button className="small danger" onClick={() => setSuspendModal({ user, action: "SUSPEND" })}>
                     Suspend
                   </button>
                 ) : (
                   <button className="small gold" onClick={() => setSuspendModal({ user, action: "REACTIVATE" })}>
                     Reactivate
+                  </button>
+                )}
+                {/* Delete Account button */}
+                {isActorSuperAdmin && !isTargetOwner && user.id !== identity.id && user.status !== "DELETED" && (
+                  <button
+                    className="small danger admin-btn-delete-account"
+                    onClick={() => setDeleteModalUser(user)}
+                    title={`Delete account for ${user.name || user.email}`}
+                  >
+                    Delete Account
                   </button>
                 )}
               </div>,
@@ -1009,6 +1026,22 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
           action={suspendModal.action}
           onClose={() => setSuspendModal(null)}
           onConfirmed={reload}
+        />
+      )}
+
+      {/* DELETE ACCOUNT MODAL */}
+      {deleteModalUser && (
+        <AdminDeleteAccountModal
+          user={deleteModalUser}
+          onClose={() => setDeleteModalUser(null)}
+          onDeleted={async () => {
+            setActionNotice({
+              type: "success",
+              message: `Account for ${deleteModalUser.email} has been deleted.`,
+            });
+            setTimeout(() => setActionNotice((cur) => cur?.type === "success" ? null : cur), 5000);
+            await reload();
+          }}
         />
       )}
     </>
@@ -1351,6 +1384,207 @@ function AdminSuspendModal({
             disabled={submitting}
           >
             {submitting ? "Processing..." : action === "SUSPEND" ? "Suspend Account" : "Reactivate Account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminDeleteAccountModal({
+  user,
+  onClose,
+  onDeleted,
+}: {
+  user: Row;
+  onClose: () => void;
+  onDeleted: () => Promise<void>;
+}) {
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Focus safe element (Cancel button) on modal open
+  useEffect(() => {
+    cancelBtnRef.current?.focus();
+  }, []);
+
+  // Keyboard navigation: Escape closes dialog safely
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !submitting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, submitting]);
+
+  const isEmailMatch = confirmEmail.trim().toLowerCase() === user.email.trim().toLowerCase();
+
+  const handleDelete = async () => {
+    if (!isEmailMatch || submitting) return;
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/admin/managed-users/${user.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationEmail: confirmEmail.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to delete user account.");
+      }
+      await onDeleted();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Could not delete user account.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="admin-modal-back"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !submitting) onClose();
+      }}
+    >
+      <div
+        className="admin-delete-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-account-title"
+      >
+        <div className="admin-perm-header">
+          <div className="admin-perm-title-group">
+            <small style={{ color: "#EF4444", fontWeight: 800, letterSpacing: "0.1em" }}>
+              ADMIN ACTION • ACCOUNT DELETION
+            </small>
+            <h2 id="delete-account-title" style={{ margin: "4px 0", color: "#EF4444" }}>
+              Delete this account?
+            </h2>
+            <p style={{ margin: 0, color: "var(--admin-muted)", fontSize: "13px" }}>
+              {user.name ? `${user.name} (${user.email})` : user.email}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            aria-label="Close dialog"
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              background: "var(--admin-bg)",
+              border: "1px solid var(--admin-border)",
+              color: "var(--admin-text)",
+              cursor: submitting ? "not-allowed" : "pointer",
+              fontSize: "18px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="admin-delete-body">
+          {error && (
+            <div
+              style={{
+                padding: "12px 16px",
+                borderRadius: "8px",
+                background: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.35)",
+                color: "#EF4444",
+                fontSize: "13px",
+                lineHeight: "1.5",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="admin-delete-warning-box">
+            You are deleting the account for <strong>{user.name || "this user"}</strong> (<code>{user.email}</code>).
+            This user will lose access to Zappit, and their public profiles will become unavailable. Review the affected information before continuing.
+          </div>
+
+          <div style={{ fontSize: "13px", color: "var(--admin-text)" }}>
+            <p style={{ margin: "0 0 8px 0", fontWeight: 700 }}>Consequences of this action:</p>
+            <ul className="admin-delete-consequences">
+              <li>
+                <strong>Access Revocation:</strong> Blocks login and authenticated API access. Invalidates all active browser sessions, JWT tokens, and OAuth credentials.
+              </li>
+              <li>
+                <strong>Public Profiles Unavailable:</strong> Exclusively owned digital business cards and QR/NFC profile links are immediately deactivated (returns 404 to visitors).
+              </li>
+              <li>
+                <strong>Background Reminders Cancelled:</strong> Future scheduled follow-up reminders and reminder background jobs for this user are cancelled.
+              </li>
+              <li>
+                <strong>Record Retention:</strong> Shared workspace data, team records, past orders, payment history, and accounting references are retained for legal and accounting compliance.
+              </li>
+              <li>
+                <strong>Recoverability:</strong> Account deletion is a logical deactivation. It can only be restored through explicit administrative recovery.
+              </li>
+            </ul>
+          </div>
+
+          <div className="admin-delete-confirm-field">
+            <label htmlFor="confirm-email-input">
+              To confirm deletion, please type the user's email address (<strong>{user.email}</strong>):
+            </label>
+            <input
+              id="confirm-email-input"
+              type="email"
+              autoComplete="off"
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              onKeyDown={(e) => {
+                // Prevent Enter key in confirmation input from accidentally submitting
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                }
+              }}
+              placeholder={user.email}
+              disabled={submitting}
+            />
+          </div>
+        </div>
+
+        <div
+          className="admin-perm-footer"
+          style={{
+            padding: "16px 24px",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "10px",
+            borderTop: "1px solid var(--admin-border)",
+            background: "var(--admin-bg)",
+          }}
+        >
+          <button
+            ref={cancelBtnRef}
+            type="button"
+            className="small"
+            onClick={onClose}
+            disabled={submitting}
+            style={{ padding: "8px 16px" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="admin-btn-delete-confirm"
+            disabled={!isEmailMatch || submitting}
+            onClick={handleDelete}
+          >
+            {submitting ? "Deleting Account..." : "Delete Account"}
           </button>
         </div>
       </div>
