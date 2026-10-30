@@ -64,14 +64,16 @@ export default function InvoiceDetailModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, invoiceId]);
+  }, [isOpen, invoiceId, initialInvoiceData]);
 
   if (!isOpen) return null;
 
   const inv = invoiceData?.invoice;
-  const contact = invoiceData?.contact;
+  const contact = inv?.customer_snapshot || invoiceData?.contact;
   const lines = invoiceData?.lines || [];
   const payments = invoiceData?.payments || [];
+  const settings = invoiceData?.settings || {};
+  const seller = inv?.seller_snapshot || settings;
   const currency = activeWorkspace?.currency || inv?.currency || "INR";
 
   const handleIssueDraft = async () => {
@@ -92,6 +94,8 @@ export default function InvoiceDetailModal({
           ...prev.invoice,
           status: "ISSUED",
           posted_journal_entry_id: data.invoice?.posted_journal_entry_id,
+          seller_snapshot: data.invoice?.seller_snapshot || prev.invoice?.seller_snapshot,
+          customer_snapshot: data.invoice?.customer_snapshot || prev.invoice?.customer_snapshot,
         },
       }));
       triggerRefresh();
@@ -106,14 +110,25 @@ export default function InvoiceDetailModal({
   const handleCopyShareLink = () => {
     if (!inv?.share_token) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const url = `${origin}/api/accounting/invoices/public/${inv.share_token}`;
+    const url = `${origin}/invoices/share/${inv.share_token}`;
     navigator.clipboard.writeText(url);
     setCopiedShareLink(true);
     setTimeout(() => setCopiedShareLink(false), 2500);
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!inv) return;
+    const win = window.open(`/api/accounting/invoices/${inv.id}/pdf`, "_blank");
+    if (win) {
+      win.focus();
+    } else {
+      window.print();
+    }
+  };
+
+  const handleDownload = () => {
+    if (!inv) return;
+    window.location.href = `/api/accounting/invoices/${inv.id}/pdf?download=1`;
   };
 
   return (
@@ -126,6 +141,7 @@ export default function InvoiceDetailModal({
     >
       <div
         className="acc-modal-content acc-invoice-detail-modal"
+        style={{ maxWidth: "860px", maxHeight: "92vh" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
@@ -177,10 +193,10 @@ export default function InvoiceDetailModal({
             Invoice not found.
           </div>
         ) : (
-          <div className="acc-invoice-detail-scroll-body">
+          <div className="acc-invoice-detail-scroll-body" style={{ overflowY: "auto", maxHeight: "calc(92vh - 75px)" }}>
             {/* Action Bar (Top) */}
-            <div className="acc-detail-actions-bar acc-print-hide">
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <div className="acc-detail-actions-bar acc-print-hide" style={{ padding: "0.75rem 1.5rem", borderBottom: "1px solid var(--acc-border)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                 {inv.status === "DRAFT" && canMutate && (
                   <>
                     <button
@@ -232,9 +248,17 @@ export default function InvoiceDetailModal({
                   type="button"
                   className="acc-btn acc-btn-outline acc-btn-sm"
                   onClick={handleCopyShareLink}
-                  title="Copy secure link for customer"
+                  title="Copy customer share link"
                 >
-                  {copiedShareLink ? "✓ Link Copied!" : "🔗 Share"}
+                  {copiedShareLink ? "✓ Link Copied!" : "🔗 Share Link"}
+                </button>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-outline acc-btn-sm"
+                  onClick={handleDownload}
+                  title="Download HTML/PDF Document"
+                >
+                  ⬇️ Download
                 </button>
                 <button
                   type="button"
@@ -242,183 +266,283 @@ export default function InvoiceDetailModal({
                   onClick={handlePrint}
                   title="Print or Save as PDF"
                 >
-                  🖨️ Download PDF / Print
+                  🖨️ Print / PDF
                 </button>
               </div>
             </div>
 
-            {/* Printable Canonical Invoice Document */}
-            <div className="acc-printable-invoice-sheet">
+            {/* Printable Canonical White A4 Invoice Document */}
+            <div
+              className="acc-printable-invoice-sheet"
+              style={{
+                background: "#ffffff",
+                color: "#0f172a",
+                margin: "1.25rem 1.5rem",
+                padding: "2rem",
+                borderRadius: "6px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+              }}
+            >
               {/* Sheet Header */}
-              <div className="acc-sheet-header">
-                <div>
-                  <h2 className="acc-sheet-company">{activeWorkspace?.name || "ZAPPIT Workspace"}</h2>
-                  <p className="acc-sheet-subtitle">Client Invoice</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #e2e8f0", paddingBottom: "1.25rem" }}>
+                <div style={{ maxWidth: "55%" }}>
+                  {seller?.logo_url && (
+                    <img
+                      src={seller.logo_url}
+                      alt="Logo"
+                      style={{ maxHeight: "55px", maxWidth: "180px", objectFit: "contain", marginBottom: "0.5rem" }}
+                    />
+                  )}
+                  <h2 style={{ fontSize: "1.3rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>
+                    {seller?.business_name || activeWorkspace?.name || "Business Name"}
+                  </h2>
+                  <div style={{ fontSize: "0.8rem", color: "#475569", marginTop: "0.25rem", lineHeight: 1.4, whiteSpace: "pre-line" }}>
+                    {seller?.address && <div>{seller.address}</div>}
+                    {[seller?.phone, seller?.email, seller?.website].filter(Boolean).join(" · ")}
+                    {seller?.tax_id && (
+                      <div style={{ fontWeight: 600, color: "#1e293b", marginTop: "0.2rem" }}>
+                        {seller.tax_label || "GSTIN"}: {seller.tax_id}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div className="acc-sheet-inv-number">{inv.invoice_number}</div>
-                  <div style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", marginTop: "0.25rem" }}>
-                    Status: <strong style={{ textTransform: "uppercase" }}>{inv.status}</strong>
+
+                <div style={{ textAlign: "right", maxWidth: "40%" }}>
+                  <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "#1e293b", letterSpacing: "-0.02em" }}>
+                    INVOICE
+                  </div>
+                  <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "#2563eb", marginTop: "0.15rem" }}>
+                    {inv.invoice_number}
+                  </div>
+                  {inv.direct_sale_number && (
+                    <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.15rem" }}>
+                      Direct Sale Ref: {inv.direct_sale_number}
+                    </div>
+                  )}
+                  <div style={{ marginTop: "0.4rem" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "9999px",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        background: inv.status === "PAID" ? "#f0fdf4" : inv.status === "PARTIALLY_PAID" ? "#fffbeb" : "#eff6ff",
+                        color: inv.status === "PAID" ? "#16a34a" : inv.status === "PARTIALLY_PAID" ? "#d97706" : "#2563eb",
+                        border: "1px solid currentColor",
+                      }}
+                    >
+                      {inv.status}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Billed To & Dates */}
-              <div className="acc-sheet-grid">
-                <div>
-                  <span className="acc-sheet-label">Billed To:</span>
-                  <div className="acc-sheet-customer-name">
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "1.5rem 0" }}>
+                <div style={{ maxWidth: "55%" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b", letterSpacing: "0.05em" }}>
+                    Billed To:
+                  </div>
+                  <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "#0f172a", marginTop: "0.2rem" }}>
                     {contact?.name || inv.contact_name || "Direct Client"}
                   </div>
-                  {(contact?.email || inv.contact_email) && (
-                    <div className="acc-sheet-meta-text">{contact?.email || inv.contact_email}</div>
-                  )}
-                  {(contact?.phone || inv.contact_phone) && (
-                    <div className="acc-sheet-meta-text">{contact?.phone || inv.contact_phone}</div>
-                  )}
-                  {(contact?.address || inv.contact_address) && (
-                    <div className="acc-sheet-meta-text" style={{ whiteSpace: "pre-line", marginTop: "0.25rem" }}>
-                      {contact?.address || inv.contact_address}
-                    </div>
-                  )}
+                  <div style={{ fontSize: "0.825rem", color: "#475569", marginTop: "0.2rem", lineHeight: 1.45, whiteSpace: "pre-line" }}>
+                    {contact?.address && <div>{contact.address}</div>}
+                    {[contact?.email, contact?.phone].filter(Boolean).join(" · ")}
+                  </div>
                 </div>
 
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ marginBottom: "0.5rem" }}>
-                    <span className="acc-sheet-label">Issue Date</span>
-                    <div className="acc-sheet-value">{inv.issue_date?.slice(0, 10)}</div>
+                <div style={{ textAlign: "right", fontSize: "0.85rem" }}>
+                  <div style={{ marginBottom: "0.35rem" }}>
+                    <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b" }}>Issue Date: </span>
+                    <strong>{inv.issue_date?.slice(0, 10)}</strong>
                   </div>
-                  <div style={{ marginBottom: "0.5rem" }}>
-                    <span className="acc-sheet-label">Due Date</span>
-                    <div className="acc-sheet-value">{inv.due_date?.slice(0, 10)}</div>
+                  <div style={{ marginBottom: "0.35rem" }}>
+                    <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b" }}>Due Date: </span>
+                    <strong>{inv.due_date?.slice(0, 10)}</strong>
                   </div>
                   {inv.terms && (
                     <div>
-                      <span className="acc-sheet-label">Payment Terms</span>
-                      <div className="acc-sheet-value">{inv.terms}</div>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b" }}>Payment Terms: </span>
+                      <span>{inv.terms}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Items Breakdown Table */}
-              <div className="acc-table-wrapper" style={{ marginTop: "1.5rem" }}>
-                <table className="acc-table">
+              {/* Items Table */}
+              <div style={{ marginTop: "1.25rem", overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
                   <thead>
-                    <tr>
-                      <th style={{ width: "45%" }}>Description</th>
-                      <th className="acc-align-right" style={{ width: "15%" }}>Qty</th>
-                      <th className="acc-align-right" style={{ width: "20%" }}>Unit Price</th>
-                      <th className="acc-align-right" style={{ width: "20%" }}>Amount</th>
+                    <tr style={{ background: "#f8fafc", borderTop: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
+                      <th style={{ width: "5%", padding: "0.6rem 0.5rem", textAlign: "center", color: "#475569" }}>#</th>
+                      <th style={{ width: "48%", padding: "0.6rem 0.5rem", color: "#475569" }}>Description</th>
+                      <th style={{ width: "12%", padding: "0.6rem 0.5rem", textAlign: "center", color: "#475569" }}>Qty</th>
+                      <th style={{ width: "17%", padding: "0.6rem 0.5rem", textAlign: "right", color: "#475569" }}>Unit Price</th>
+                      <th style={{ width: "18%", padding: "0.6rem 0.5rem", textAlign: "right", color: "#475569" }}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lines.map((line: any, idx: number) => (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: 500 }}>{line.description}</td>
-                        <td className="acc-align-right tabular-nums">{Number(line.quantity)}</td>
-                        <td className="acc-align-right tabular-nums">
-                          {formatMoney(line.unit_price_minor, currency)}
-                        </td>
-                        <td className="acc-align-right tabular-nums font-semibold">
-                          {formatMoney(line.total_minor, currency)}
-                        </td>
-                      </tr>
-                    ))}
+                    {lines.map((line: any, idx: number) => {
+                      const hasDetails = line.model || line.sku || line.serial_number;
+                      const hasWarranty = line.warranty_type && line.warranty_type !== "NONE";
+
+                      return (
+                        <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "0.65rem 0.5rem", textAlign: "center", color: "#94a3b8" }}>{idx + 1}</td>
+                          <td style={{ padding: "0.65rem 0.5rem" }}>
+                            <div style={{ fontWeight: 600, color: "#0f172a" }}>{line.description}</div>
+                            {hasDetails && (
+                              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                {[
+                                  line.model && `Model: ${line.model}`,
+                                  line.sku && `SKU: ${line.sku}`,
+                                  line.serial_number && `S/N: ${line.serial_number}`,
+                                ].filter(Boolean).join(" · ")}
+                              </div>
+                            )}
+                            {hasWarranty && (
+                              <div
+                                style={{
+                                  marginTop: "0.35rem",
+                                  padding: "0.35rem 0.55rem",
+                                  background: "#f8fafc",
+                                  borderLeft: "3px solid #2563eb",
+                                  fontSize: "0.75rem",
+                                  color: "#334155",
+                                }}
+                              >
+                                <strong>🛡️ {line.warranty_type} Warranty</strong>
+                                {line.warranty_duration_months && ` &bull; ${line.warranty_duration_months} Months`}
+                                {line.warranty_start_date && line.warranty_end_date && ` (${line.warranty_start_date.slice(0, 10)} to ${line.warranty_end_date.slice(0, 10)})`}
+                                {line.warranty_coverage && <div>Coverage: {line.warranty_coverage}</div>}
+                                {line.warranty_exclusions && <div>Exclusions: {line.warranty_exclusions}</div>}
+                                {line.warranty_contact && <div>Support: {line.warranty_contact}</div>}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "0.65rem 0.5rem", textAlign: "center" }} className="tabular-nums">
+                            {Number(line.quantity)}
+                          </td>
+                          <td style={{ padding: "0.65rem 0.5rem", textAlign: "right" }} className="tabular-nums">
+                            {formatMoney(line.unit_price_minor, currency)}
+                          </td>
+                          <td style={{ padding: "0.65rem 0.5rem", textAlign: "right", fontWeight: 600, color: "#0f172a" }} className="tabular-nums">
+                            {formatMoney(line.total_minor, currency)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {/* Financial Totals Breakdown */}
-              <div className="acc-sheet-totals-box">
-                <div className="acc-sheet-total-row">
-                  <span>Subtotal:</span>
-                  <span className="tabular-nums">{formatMoney(inv.subtotal_minor, currency)}</span>
-                </div>
-                {Number(inv.discount_minor) > 0 && (
-                  <div className="acc-sheet-total-row" style={{ color: "var(--acc-success)" }}>
-                    <span>Discount:</span>
-                    <span className="tabular-nums">-{formatMoney(inv.discount_minor, currency)}</span>
+              {/* Totals Breakdown */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+                <div style={{ width: "300px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "0.85rem 1rem", fontSize: "0.85rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem", color: "#475569" }}>
+                    <span>Subtotal:</span>
+                    <span className="tabular-nums">{formatMoney(inv.subtotal_minor, currency)}</span>
                   </div>
-                )}
-                {Number(inv.tax_minor) > 0 && (
-                  <div className="acc-sheet-total-row">
-                    <span>Tax:</span>
-                    <span className="tabular-nums">+{formatMoney(inv.tax_minor, currency)}</span>
+                  {Number(inv.discount_minor) > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem", color: "#16a34a" }}>
+                      <span>Discount:</span>
+                      <span className="tabular-nums">-{formatMoney(inv.discount_minor, currency)}</span>
+                    </div>
+                  )}
+                  {Number(inv.tax_minor) > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem", color: "#475569" }}>
+                      <span>Tax ({seller?.tax_label || "GST"}):</span>
+                      <span className="tabular-nums">+{formatMoney(inv.tax_minor, currency)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.05rem", color: "#0f172a", borderTop: "2px solid #cbd5e1", paddingTop: "0.45rem", marginTop: "0.45rem" }}>
+                    <span>Total Amount:</span>
+                    <span className="tabular-nums">{formatMoney(inv.total_minor, currency)}</span>
                   </div>
-                )}
-                <div className="acc-sheet-total-row acc-sheet-grand-row">
-                  <span>Total Amount:</span>
-                  <span className="tabular-nums font-bold">{formatMoney(inv.total_minor, currency)}</span>
-                </div>
-                <div className="acc-sheet-total-row" style={{ color: "var(--acc-success)", paddingTop: "0.25rem" }}>
-                  <span>Amount Paid:</span>
-                  <span className="tabular-nums">{formatMoney(inv.amount_paid_minor, currency)}</span>
-                </div>
-                <div
-                  className="acc-sheet-total-row"
-                  style={{
-                    fontWeight: 700,
-                    fontSize: "1.05rem",
-                    color: Number(inv.amount_due_minor) > 0 ? "var(--acc-danger)" : "inherit",
-                    borderTop: "1px solid var(--acc-border)",
-                    marginTop: "0.25rem",
-                    paddingTop: "0.5rem",
-                  }}
-                >
-                  <span>Balance Due:</span>
-                  <span className="tabular-nums">{formatMoney(inv.amount_due_minor, currency)}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#16a34a", fontWeight: 600, marginTop: "0.35rem" }}>
+                    <span>Amount Paid:</span>
+                    <span className="tabular-nums">{formatMoney(inv.amount_paid_minor, currency)}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontWeight: 800,
+                      fontSize: "1rem",
+                      borderTop: "1px dashed #cbd5e1",
+                      paddingTop: "0.45rem",
+                      marginTop: "0.45rem",
+                      color: Number(inv.amount_due_minor) > 0 ? "#dc2626" : "#16a34a",
+                    }}
+                  >
+                    <span>Balance Due:</span>
+                    <span className="tabular-nums">{formatMoney(inv.amount_due_minor, currency)}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Payment Instructions / Notes (Visible to Customer) */}
-              {inv.notes && (
-                <div className="acc-sheet-notes-section">
-                  <span className="acc-sheet-label">Payment Instructions & Notes</span>
-                  <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
-                    {inv.notes}
-                  </p>
+              {/* Customer Notes, Warranty Terms & Policy */}
+              {(inv.notes || inv.warranty_terms || inv.terms) && (
+                <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem", fontSize: "0.825rem", color: "#475569" }}>
+                  {inv.notes && (
+                    <div style={{ marginBottom: "0.6rem" }}>
+                      <strong style={{ color: "#334155" }}>Customer Notes &amp; Instructions:</strong>
+                      <div style={{ whiteSpace: "pre-wrap", marginTop: "0.15rem" }}>{inv.notes}</div>
+                    </div>
+                  )}
+                  {inv.warranty_terms && (
+                    <div style={{ marginBottom: "0.6rem" }}>
+                      <strong style={{ color: "#334155" }}>Warranty Policy &amp; Terms:</strong>
+                      <div style={{ whiteSpace: "pre-wrap", marginTop: "0.15rem" }}>{inv.warranty_terms}</div>
+                    </div>
+                  )}
+                  {inv.terms && (
+                    <div>
+                      <strong style={{ color: "#334155" }}>Terms &amp; Conditions:</strong>
+                      <div style={{ whiteSpace: "pre-wrap", marginTop: "0.15rem" }}>{inv.terms}</div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Payment History Section */}
-              <div className="acc-payment-history-section" style={{ marginTop: "1.75rem" }}>
-                <h4 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: "0 0 0.5rem" }}>
+              <div style={{ marginTop: "1.75rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
+                <h4 style={{ fontSize: "0.85rem", fontWeight: 700, margin: "0 0 0.5rem", color: "#334155" }}>
                   Payment History ({payments.length})
                 </h4>
                 {payments.length === 0 ? (
-                  <p style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", margin: 0 }}>
+                  <p style={{ fontSize: "0.8rem", color: "#64748b", margin: 0 }}>
                     {inv.status === "DRAFT"
                       ? "No payments can be collected on draft invoices."
                       : "No payments recorded yet for this invoice."}
                   </p>
                 ) : (
-                  <div className="acc-table-wrapper">
-                    <table className="acc-table" style={{ fontSize: "0.8125rem" }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
                       <thead>
-                        <tr>
-                          <th>Payment #</th>
-                          <th>Date</th>
-                          <th>Method / Ref</th>
-                          <th>Account</th>
-                          <th className="acc-align-right">Amount</th>
+                        <tr style={{ background: "#f8fafc", textAlign: "left" }}>
+                          <th style={{ padding: "0.4rem 0.5rem" }}>Payment #</th>
+                          <th style={{ padding: "0.4rem 0.5rem" }}>Date</th>
+                          <th style={{ padding: "0.4rem 0.5rem" }}>Method / Ref</th>
+                          <th style={{ padding: "0.4rem 0.5rem" }}>Account</th>
+                          <th style={{ padding: "0.4rem 0.5rem", textAlign: "right" }}>Amount</th>
                         </tr>
                       </thead>
                       <tbody>
                         {payments.map((p: any) => (
-                          <tr key={p.id}>
-                            <td style={{ fontWeight: 600 }}>{p.payment_number}</td>
-                            <td>{p.payment_date?.slice(0, 10)}</td>
-                            <td>
-                              <div>{p.payment_method}</div>
-                              {p.reference_number && (
-                                <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                                  Ref: {p.reference_number}
-                                </div>
-                              )}
+                          <tr key={p.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                            <td style={{ padding: "0.4rem 0.5rem", fontWeight: 600 }}>{p.payment_number}</td>
+                            <td style={{ padding: "0.4rem 0.5rem" }}>{p.payment_date?.slice(0, 10)}</td>
+                            <td style={{ padding: "0.4rem 0.5rem" }}>
+                              {p.payment_method}
+                              {p.reference_number && <span style={{ color: "#64748b" }}> (Ref: {p.reference_number})</span>}
                             </td>
-                            <td>{p.account_name || "Bank / Cash"}</td>
-                            <td className="acc-align-right tabular-nums font-semibold" style={{ color: "var(--acc-success)" }}>
+                            <td style={{ padding: "0.4rem 0.5rem" }}>{p.account_name || "Payment Account"}</td>
+                            <td style={{ padding: "0.4rem 0.5rem", textAlign: "right", fontWeight: 600, color: "#16a34a" }} className="tabular-nums">
                               {formatMoney(p.allocated_minor || p.amount_minor, currency)}
                             </td>
                           </tr>
@@ -429,19 +553,26 @@ export default function InvoiceDetailModal({
                 )}
               </div>
 
-              {/* Internal Notes (Strictly Hidden on Print & Public View) */}
+              {/* Internal Notes (Hidden on Print & Public View) */}
               {inv.internal_notes && (
-                <div className="acc-internal-notes-callout acc-print-hide" style={{ marginTop: "1.5rem" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.25rem" }}>
-                    <span style={{ fontSize: "0.8125rem", fontWeight: 700 }}>🔒 Internal Note</span>
-                    <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.7rem", padding: "0.1rem 0.35rem" }}>
-                      Private to Team
-                    </span>
+                <div
+                  className="acc-internal-notes-callout acc-print-hide"
+                  style={{
+                    marginTop: "1.5rem",
+                    padding: "0.75rem",
+                    background: "#f1f5f9",
+                    borderRadius: "6px",
+                    borderLeft: "3px solid #64748b",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: "0.25rem" }}>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#1e293b" }}>🔒 Internal Note</span>
+                    <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.7rem" }}>Team Only</span>
                   </div>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", margin: "0 0 0.5rem" }}>
-                    This note is strictly internal and never appears on customer previews, public links, or printed PDFs.
+                  <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "0 0 0.35rem" }}>
+                    Private note. Never shown on customer prints, shared links, or public views.
                   </p>
-                  <div style={{ fontSize: "0.875rem", whiteSpace: "pre-wrap", background: "var(--acc-raised)", padding: "0.75rem", borderRadius: "var(--acc-radius-sm)" }}>
+                  <div style={{ fontSize: "0.825rem", whiteSpace: "pre-wrap", color: "#334155" }}>
                     {inv.internal_notes}
                   </div>
                 </div>

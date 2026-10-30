@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       status: body.status,
       notes: body.notes,
       terms: body.terms,
+      warrantyTerms: body.warrantyTerms,
       internalNotes: body.internalNotes,
       leadId: body.leadId,
       lines: body.lines,

@@ -45,6 +45,7 @@ export async function PUT(
       dueDate: body.dueDate,
       notes: body.notes,
       terms: body.terms,
+      warrantyTerms: body.warrantyTerms,
       internalNotes: body.internalNotes,
       lines: body.lines,
       issueNow: Boolean(body.issueNow || body.status === "ISSUED"),

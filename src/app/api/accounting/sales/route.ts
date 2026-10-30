@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireAccountingApi } from "../authHelper";
-import { createDirectSale } from "@/lib/accounting/invoices";
+import { createDirectSale, listDirectSales } from "@/lib/accounting/invoices";
+
+export async function GET(req: Request) {
+  const { errorResponse, context } = await requireAccountingApi(req, "VIEWER");
+  if (errorResponse) return errorResponse;
+
+  const url = new URL(req.url);
+  const search = url.searchParams.get("search") || undefined;
+
+  const sales = await listDirectSales(context!.workspace.id, { search });
+  return NextResponse.json({ sales });
+}
 
 export async function POST(req: Request) {
   const { errorResponse, context } = await requireAccountingApi(req, "STAFF");
@@ -11,8 +22,10 @@ export async function POST(req: Request) {
     const result = await createDirectSale({
       workspaceId: context!.workspace.id,
       contactId: body.contactId,
+      customerName: body.customerName,
       date: body.date,
       lines: body.lines,
+      amountMinor: body.amountMinor,
       financialAccountId: body.financialAccountId,
       paymentMethod: body.paymentMethod,
       notes: body.notes,

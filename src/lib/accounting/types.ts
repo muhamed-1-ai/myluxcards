@@ -94,6 +94,46 @@ export interface ContactRow {
   updated_at: Date;
 }
 
+export type WarrantyType = "NONE" | "MANUFACTURER" | "SELLER" | "CUSTOM";
+
+export interface SellerSnapshot {
+  business_name: string;
+  logo_url?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  tax_id?: string | null;
+  tax_label?: string | null;
+}
+
+export interface CustomerSnapshot {
+  id?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+}
+
+export interface InvoiceSettingsRow {
+  workspace_id: string;
+  business_name: string | null;
+  logo_url: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  tax_id: string | null;
+  tax_label: string;
+  default_notes: string | null;
+  default_terms: string;
+  default_warranty_terms: string | null;
+  invoice_prefix: string;
+  next_sequence: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface ProductServiceRow {
   id: string;
   workspace_id: string;
@@ -105,6 +145,11 @@ export interface ProductServiceRow {
   currency: string;
   is_active: boolean;
   catalog_product_id: string | null;
+  default_warranty_type?: WarrantyType;
+  default_warranty_duration_months?: number | null;
+  default_warranty_coverage?: string | null;
+  default_warranty_exclusions?: string | null;
+  default_warranty_contact?: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -186,6 +231,10 @@ export interface InvoiceRow {
   share_token: string | null;
   lead_id: string | null;
   posted_journal_entry_id: string | null;
+  seller_snapshot?: SellerSnapshot | null;
+  customer_snapshot?: CustomerSnapshot | null;
+  direct_sale_id?: string | null;
+  warranty_terms?: string | null;
   created_by: string | null;
   created_at: Date;
   updated_at: Date;
@@ -193,6 +242,18 @@ export interface InvoiceRow {
   contact_email?: string | null;
   contact_phone?: string | null;
   contact_address?: string | null;
+}
+
+export interface InvoicePaymentDetail {
+  id: string;
+  payment_number: string;
+  payment_date: string;
+  payment_method: string;
+  reference_number: string | null;
+  notes: string | null;
+  amount_minor: number;
+  allocated_minor: number;
+  account_name: string | null;
 }
 
 export interface InvoiceLineRow {
@@ -206,6 +267,16 @@ export interface InvoiceLineRow {
   tax_minor: string | number;
   total_minor: string | number;
   sort_order: number;
+  model?: string | null;
+  sku?: string | null;
+  serial_number?: string | null;
+  warranty_type?: WarrantyType;
+  warranty_duration_months?: number | null;
+  warranty_start_date?: string | null;
+  warranty_end_date?: string | null;
+  warranty_coverage?: string | null;
+  warranty_exclusions?: string | null;
+  warranty_contact?: string | null;
 }
 
 export interface DirectSaleRow {
