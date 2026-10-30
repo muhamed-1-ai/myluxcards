@@ -546,6 +546,11 @@ export function generateInvoiceHtml(
         <h1 class="business-name">${escapeHtml(seller.business_name || "Business Name")}</h1>
         <div class="business-meta">
           ${seller.address ? escapeHtml(seller.address) + "<br/>" : ""}
+          ${
+            [seller.city, seller.state, seller.postal_code, seller.country].filter(Boolean).length > 0
+              ? escapeHtml([seller.city, seller.state, seller.postal_code, seller.country].filter(Boolean).join(", ")) + "<br/>"
+              : ""
+          }
           ${seller.phone ? "Phone: " + escapeHtml(seller.phone) + "<br/>" : ""}
           ${seller.email ? "Email: " + escapeHtml(seller.email) + "<br/>" : ""}
           ${seller.website ? "Website: " + escapeHtml(seller.website) : ""}
@@ -644,10 +649,21 @@ export function generateInvoiceHtml(
                       : ""
                   }
                   ${
+                    line.service_start_date || line.service_end_date
+                      ? `<div class="item-subtext" style="margin-top: 0.25rem;">
+                          <span style="display: inline-block; background: #f0f9ff; color: #0369a1; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.725rem; font-weight: 500;">
+                            ⏱️ Service Validity: <strong>${escapeHtml(line.service_start_date ? line.service_start_date.slice(0, 10) : "")}</strong>${
+                              line.service_end_date ? ` to <strong>${escapeHtml(line.service_end_date.slice(0, 10))}</strong>` : ""
+                            }
+                          </span>
+                        </div>`
+                      : ""
+                  }
+                  ${
                     hasWarranty
                       ? `<div class="warranty-callout">
                           <div class="warranty-title">
-                            🛡️ ${escapeHtml(warrantyLabel)}${
+                            🛡️ ${line.warranty_provider ? escapeHtml(line.warranty_provider) + " &bull; " : ""}${escapeHtml(warrantyLabel)}${
                               line.warranty_duration_months ? ` &bull; ${line.warranty_duration_months} Months` : ""
                             }
                             ${
@@ -765,14 +781,27 @@ export function generateInvoiceHtml(
             </div>`
           : ""
       }
+      ${
+        seller.default_return_terms
+          ? `<div class="notes-block" style="margin-top: 0.75rem;">
+              <h4>Return &amp; Refund Policy</h4>
+              <p>${escapeHtml(seller.default_return_terms)}</p>
+            </div>`
+          : ""
+      }
 
       <!-- Payment Receipts History -->
       ${
         payments.length > 0
           ? `<div class="payments-history-block">
-              <h4 style="font-size: 0.775rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #334155; margin-bottom: 0.25rem;">
-                Payment Summary (${payments.length} transaction${payments.length > 1 ? "s" : ""})
-              </h4>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                <h4 style="font-size: 0.775rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #334155; margin: 0;">
+                  Payment Receipts &amp; Settlement History (${payments.length} transaction${payments.length > 1 ? "s" : ""})
+                </h4>
+                <span style="font-size: 0.7rem; font-weight: 600; color: #16a34a; background: #ecfdf5; padding: 0.15rem 0.45rem; border-radius: 9999px; border: 1px solid #bbf7d0;">
+                  Updated Payment Summary
+                </span>
+              </div>
               <table>
                 <thead>
                   <tr>

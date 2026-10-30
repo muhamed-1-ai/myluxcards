@@ -299,6 +299,9 @@ export default function InvoiceDetailModal({
                   </h2>
                   <div style={{ fontSize: "0.8rem", color: "#475569", marginTop: "0.25rem", lineHeight: 1.4, whiteSpace: "pre-line" }}>
                     {seller?.address && <div>{seller.address}</div>}
+                    {[seller?.city, seller?.state, seller?.postal_code, seller?.country].filter(Boolean).length > 0 && (
+                      <div>{[seller?.city, seller?.state, seller?.postal_code, seller?.country].filter(Boolean).join(", ")}</div>
+                    )}
                     {[seller?.phone, seller?.email, seller?.website].filter(Boolean).join(" · ")}
                     {seller?.tax_id && (
                       <div style={{ fontWeight: 600, color: "#1e293b", marginTop: "0.2rem" }}>
@@ -404,6 +407,13 @@ export default function InvoiceDetailModal({
                                 ].filter(Boolean).join(" · ")}
                               </div>
                             )}
+                            {(line.service_start_date || line.service_end_date) && (
+                              <div style={{ marginTop: "0.25rem" }}>
+                                <span style={{ background: "#f0f9ff", color: "#0369a1", padding: "0.15rem 0.45rem", borderRadius: "3px", fontSize: "0.725rem", fontWeight: 500 }}>
+                                  ⏱️ Service Validity: {line.service_start_date ? line.service_start_date.slice(0, 10) : ""}{line.service_end_date ? ` to ${line.service_end_date.slice(0, 10)}` : ""}
+                                </span>
+                              </div>
+                            )}
                             {hasWarranty && (
                               <div
                                 style={{
@@ -415,7 +425,7 @@ export default function InvoiceDetailModal({
                                   color: "#334155",
                                 }}
                               >
-                                <strong>🛡️ {line.warranty_type} Warranty</strong>
+                                <strong>🛡️ {line.warranty_provider ? `${line.warranty_provider} · ` : ""}{line.warranty_type} Warranty</strong>
                                 {line.warranty_duration_months && ` &bull; ${line.warranty_duration_months} Months`}
                                 {line.warranty_start_date && line.warranty_end_date && ` (${line.warranty_start_date.slice(0, 10)} to ${line.warranty_end_date.slice(0, 10)})`}
                                 {line.warranty_coverage && <div>Coverage: {line.warranty_coverage}</div>}
@@ -504,6 +514,12 @@ export default function InvoiceDetailModal({
                     <div>
                       <strong style={{ color: "#334155" }}>Terms &amp; Conditions:</strong>
                       <div style={{ whiteSpace: "pre-wrap", marginTop: "0.15rem" }}>{inv.terms}</div>
+                    </div>
+                  )}
+                  {seller?.default_return_terms && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <strong style={{ color: "#334155" }}>Return &amp; Refund Policy:</strong>
+                      <div style={{ whiteSpace: "pre-wrap", marginTop: "0.15rem" }}>{seller.default_return_terms}</div>
                     </div>
                   )}
                 </div>

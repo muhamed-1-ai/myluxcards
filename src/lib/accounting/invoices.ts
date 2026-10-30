@@ -26,12 +26,15 @@ export interface InvoiceLineInput {
   sku?: string | null;
   serialNumber?: string | null;
   warrantyType?: WarrantyType;
+  warrantyProvider?: string | null;
   warrantyDurationMonths?: number | null;
   warrantyStartDate?: string | null;
   warrantyEndDate?: string | null;
   warrantyCoverage?: string | null;
   warrantyExclusions?: string | null;
   warrantyContact?: string | null;
+  serviceStartDate?: string | null;
+  serviceEndDate?: string | null;
 }
 
 export interface CreateInvoiceInput {
@@ -140,6 +143,10 @@ export async function getInvoiceSettings(
     business_name: wsSettings.business_name || ws?.name || null,
     logo_url: wsSettings.logo_url || null,
     address: wsSettings.address || null,
+    city: wsSettings.city || null,
+    state: wsSettings.state || null,
+    postal_code: wsSettings.postal_code || null,
+    country: wsSettings.country || null,
     phone: wsSettings.phone || null,
     email: wsSettings.email || null,
     website: wsSettings.website || null,
@@ -148,6 +155,7 @@ export async function getInvoiceSettings(
     default_notes: wsSettings.payment_instructions || wsSettings.default_notes || null,
     default_terms: wsSettings.default_terms || "Net 30",
     default_warranty_terms: wsSettings.default_warranty_terms || null,
+    default_return_terms: wsSettings.default_return_terms || null,
     invoice_prefix: wsSettings.invoice_prefix || "INV",
     next_sequence: 1,
     created_at: new Date(),
@@ -164,6 +172,10 @@ export async function updateInvoiceSettings(
     business_name?: string | null;
     logo_url?: string | null;
     address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postal_code?: string | null;
+    country?: string | null;
     phone?: string | null;
     email?: string | null;
     website?: string | null;
@@ -172,6 +184,7 @@ export async function updateInvoiceSettings(
     default_notes?: string | null;
     default_terms?: string | null;
     default_warranty_terms?: string | null;
+    default_return_terms?: string | null;
     invoice_prefix?: string | null;
     next_sequence?: number | null;
   },
@@ -185,15 +198,19 @@ export async function updateInvoiceSettings(
 
   const res = await db.query<InvoiceSettingsRow>(
     `INSERT INTO accounting_invoice_settings (
-       workspace_id, business_name, logo_url, address, phone, email, website,
-       tax_id, tax_label, default_notes, default_terms, default_warranty_terms,
+       workspace_id, business_name, logo_url, address, city, state, postal_code, country,
+       phone, email, website, tax_id, tax_label, default_notes, default_terms, default_warranty_terms, default_return_terms,
        invoice_prefix, next_sequence, updated_at
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
      ON CONFLICT (workspace_id) DO UPDATE SET
        business_name = COALESCE(EXCLUDED.business_name, accounting_invoice_settings.business_name),
-       logo_url = CASE WHEN $15 THEN EXCLUDED.logo_url ELSE accounting_invoice_settings.logo_url END,
+       logo_url = CASE WHEN $20 THEN EXCLUDED.logo_url ELSE accounting_invoice_settings.logo_url END,
        address = COALESCE(EXCLUDED.address, accounting_invoice_settings.address),
+       city = COALESCE(EXCLUDED.city, accounting_invoice_settings.city),
+       state = COALESCE(EXCLUDED.state, accounting_invoice_settings.state),
+       postal_code = COALESCE(EXCLUDED.postal_code, accounting_invoice_settings.postal_code),
+       country = COALESCE(EXCLUDED.country, accounting_invoice_settings.country),
        phone = COALESCE(EXCLUDED.phone, accounting_invoice_settings.phone),
        email = COALESCE(EXCLUDED.email, accounting_invoice_settings.email),
        website = COALESCE(EXCLUDED.website, accounting_invoice_settings.website),
@@ -202,6 +219,7 @@ export async function updateInvoiceSettings(
        default_notes = COALESCE(EXCLUDED.default_notes, accounting_invoice_settings.default_notes),
        default_terms = COALESCE(EXCLUDED.default_terms, accounting_invoice_settings.default_terms),
        default_warranty_terms = COALESCE(EXCLUDED.default_warranty_terms, accounting_invoice_settings.default_warranty_terms),
+       default_return_terms = COALESCE(EXCLUDED.default_return_terms, accounting_invoice_settings.default_return_terms),
        invoice_prefix = COALESCE(EXCLUDED.invoice_prefix, accounting_invoice_settings.invoice_prefix),
        next_sequence = COALESCE(EXCLUDED.next_sequence, accounting_invoice_settings.next_sequence),
        updated_at = NOW()
@@ -211,6 +229,10 @@ export async function updateInvoiceSettings(
       input.business_name !== undefined ? input.business_name : null,
       input.logo_url !== undefined ? input.logo_url : null,
       input.address !== undefined ? input.address : null,
+      input.city !== undefined ? input.city : null,
+      input.state !== undefined ? input.state : null,
+      input.postal_code !== undefined ? input.postal_code : null,
+      input.country !== undefined ? input.country : null,
       input.phone !== undefined ? input.phone : null,
       input.email !== undefined ? input.email : null,
       input.website !== undefined ? input.website : null,
@@ -219,6 +241,7 @@ export async function updateInvoiceSettings(
       input.default_notes !== undefined ? input.default_notes : null,
       defaultTerms,
       input.default_warranty_terms !== undefined ? input.default_warranty_terms : null,
+      input.default_return_terms !== undefined ? input.default_return_terms : null,
       prefix,
       nextSeq,
       input.logo_url !== undefined,
@@ -241,11 +264,16 @@ export async function buildSnapshots(
     business_name: settings.business_name || "Business",
     logo_url: settings.logo_url || null,
     address: settings.address || null,
+    city: settings.city || null,
+    state: settings.state || null,
+    postal_code: settings.postal_code || null,
+    country: settings.country || null,
     phone: settings.phone || null,
     email: settings.email || null,
     website: settings.website || null,
     tax_id: settings.tax_id || null,
     tax_label: settings.tax_label || "GSTIN",
+    default_return_terms: settings.default_return_terms || null,
   };
 
   let customerSnapshot: CustomerSnapshot | null = null;
@@ -501,8 +529,8 @@ export async function createInvoice(
       const lineRes = await db.query<InvoiceLineRow>(
         `INSERT INTO accounting_invoice_lines
            (invoice_id, product_id, description, quantity, unit_price_minor, discount_minor, tax_minor, total_minor, sort_order,
-            model, sku, serial_number, warranty_type, warranty_duration_months, warranty_start_date, warranty_end_date, warranty_coverage, warranty_exclusions, warranty_contact)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            model, sku, serial_number, warranty_type, warranty_provider, warranty_duration_months, warranty_start_date, warranty_end_date, warranty_coverage, warranty_exclusions, warranty_contact, service_start_date, service_end_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          RETURNING *`,
         [
           invoice.id,
@@ -518,12 +546,15 @@ export async function createInvoice(
           l.sku || null,
           l.serialNumber || null,
           l.warrantyType || "NONE",
+          l.warrantyProvider || null,
           l.warrantyDurationMonths || null,
           l.warrantyStartDate || null,
           l.warrantyEndDate || null,
           l.warrantyCoverage || null,
           l.warrantyExclusions || null,
           l.warrantyContact || null,
+          l.serviceStartDate || null,
+          l.serviceEndDate || null,
         ]
       );
       insertedLines.push(lineRes.rows[0]);
@@ -581,8 +612,8 @@ export async function updateDraftInvoice(
         await db.query(
           `INSERT INTO accounting_invoice_lines
              (invoice_id, product_id, description, quantity, unit_price_minor, discount_minor, tax_minor, total_minor, sort_order,
-              model, sku, serial_number, warranty_type, warranty_duration_months, warranty_start_date, warranty_end_date, warranty_coverage, warranty_exclusions, warranty_contact)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+              model, sku, serial_number, warranty_type, warranty_provider, warranty_duration_months, warranty_start_date, warranty_end_date, warranty_coverage, warranty_exclusions, warranty_contact, service_start_date, service_end_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
           [
             existing.id,
             l.productId || null,
@@ -597,12 +628,15 @@ export async function updateDraftInvoice(
             l.sku || null,
             l.serialNumber || null,
             l.warrantyType || "NONE",
+            l.warrantyProvider || null,
             l.warrantyDurationMonths || null,
             l.warrantyStartDate || null,
             l.warrantyEndDate || null,
             l.warrantyCoverage || null,
             l.warrantyExclusions || null,
             l.warrantyContact || null,
+            l.serviceStartDate || null,
+            l.serviceEndDate || null,
           ]
         );
       }
@@ -924,8 +958,8 @@ export async function convertDirectSaleToInvoice(
       const lineRes = await db.query<InvoiceLineRow>(
         `INSERT INTO accounting_invoice_lines
            (invoice_id, product_id, description, quantity, unit_price_minor, discount_minor, tax_minor, total_minor, sort_order,
-            model, sku, serial_number, warranty_type, warranty_duration_months, warranty_start_date, warranty_end_date, warranty_coverage, warranty_exclusions, warranty_contact)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            model, sku, serial_number, warranty_type, warranty_provider, warranty_duration_months, warranty_start_date, warranty_end_date, warranty_coverage, warranty_exclusions, warranty_contact, service_start_date, service_end_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          RETURNING *`,
         [
           invoice.id,
@@ -941,12 +975,15 @@ export async function convertDirectSaleToInvoice(
           l.sku || null,
           l.serialNumber || null,
           l.warrantyType || "NONE",
+          l.warrantyProvider || null,
           l.warrantyDurationMonths || null,
           l.warrantyStartDate || null,
           l.warrantyEndDate || null,
           l.warrantyCoverage || null,
           l.warrantyExclusions || null,
           l.warrantyContact || null,
+          l.serviceStartDate || null,
+          l.serviceEndDate || null,
         ]
       );
       insertedLines.push(lineRes.rows[0]);

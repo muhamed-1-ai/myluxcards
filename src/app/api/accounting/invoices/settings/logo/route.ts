@@ -76,3 +76,21 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export async function DELETE(req: Request) {
+  const { errorResponse, context } = await requireAccountingApi(req, "STAFF");
+  if (errorResponse) return errorResponse;
+
+  try {
+    const updated = await updateInvoiceSettings(context!.workspace.id, {
+      logo_url: null,
+    });
+    return NextResponse.json({ success: true, settings: updated });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message || "Failed to remove logo." },
+      { status: 500 }
+    );
+  }
+}
+

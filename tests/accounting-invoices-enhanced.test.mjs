@@ -142,7 +142,11 @@ test("Enhanced Invoices: Branding, Snapshots, Warranty, Payments & Direct Sales 
     const updated = await updateInvoiceSettings(wsAId, {
       business_name: "Apex Electronics Pvt Ltd",
       logo_url: "https://example.com/branding/apex-logo.png",
-      address: "Tower 4, Electronic City, Bengaluru, KA 560100",
+      address: "Tower 4, Electronic City",
+      city: "Bengaluru",
+      state: "Karnataka",
+      postal_code: "560100",
+      country: "India",
       phone: "+91 80 4455 6677",
       email: "billing@apexelectronics.com",
       website: "https://apexelectronics.com",
@@ -151,12 +155,16 @@ test("Enhanced Invoices: Branding, Snapshots, Warranty, Payments & Direct Sales 
       default_notes: "Thank you for shopping with Apex! For NEFT/RTGS: Bank A/C 9988776655.",
       default_terms: "Net 15",
       default_warranty_terms: "Standard 1-year replacement warranty on manufacturing faults.",
+      default_return_terms: "7-day replacement for defective hardware. Software is non-refundable.",
       invoice_prefix: "APEX",
       next_sequence: 101,
     });
 
     assert.equal(updated.business_name, "Apex Electronics Pvt Ltd");
     assert.equal(updated.logo_url, "https://example.com/branding/apex-logo.png");
+    assert.equal(updated.city, "Bengaluru");
+    assert.equal(updated.postal_code, "560100");
+    assert.equal(updated.default_return_terms, "7-day replacement for defective hardware. Software is non-refundable.");
     assert.equal(updated.tax_id, "29AABCA1234A1Z5");
     assert.equal(updated.invoice_prefix, "APEX");
     assert.equal(updated.default_terms, "Net 15");
@@ -191,6 +199,7 @@ test("Enhanced Invoices: Branding, Snapshots, Warranty, Payments & Direct Sales 
           sku: "LAP-8500",
           serialNumber: "SN-2026-998877",
           warrantyType: "MANUFACTURER",
+          warrantyProvider: "OEM Global Computing",
           warrantyDurationMonths: 24,
           warrantyStartDate: today,
           warrantyCoverage: "Hardware defects and battery replacement",
@@ -202,7 +211,9 @@ test("Enhanced Invoices: Branding, Snapshots, Warranty, Payments & Direct Sales 
           quantity: 2,
           unitPriceMinor: 250000, // ₹2,500 each = ₹5,000
           sku: "ACC-HUB-01",
+          serialNumber: "HUB-SN-001, HUB-SN-002", // multiple units distinct serials
           warrantyType: "SELLER",
+          warrantyProvider: "Apex Seller Warranty Desk",
           warrantyDurationMonths: 6,
           warrantyStartDate: today,
           warrantyCoverage: "Overvoltage failure",
@@ -212,27 +223,43 @@ test("Enhanced Invoices: Branding, Snapshots, Warranty, Payments & Direct Sales 
           description: "Annual Device Setup & Onsite Tuneup",
           quantity: 1,
           unitPriceMinor: 300000, // ₹3,000
-          warrantyType: "NONE", // Services have no warranty
+          warrantyType: "NONE", // Services have no physical warranty
+        },
+        {
+          description: "Cloud Enterprise Monitoring Suite (1-Year Subscription)",
+          quantity: 1,
+          unitPriceMinor: 120000, // ₹1,200
+          warrantyType: "NONE",
+          serviceStartDate: today,
+          serviceEndDate: "2027-10-30",
         },
       ],
       userId: userAId,
     });
 
     assert.equal(invoice.status, "DRAFT");
-    assert.equal(Number(invoice.total_minor), 8500000 + 500000 + 300000); // ₹93,000
-    assert.equal(Number(invoice.amount_due_minor), 9300000);
+    assert.equal(Number(invoice.total_minor), 8500000 + 500000 + 300000 + 120000); // ₹94,200
+    assert.equal(Number(invoice.amount_due_minor), 9420000);
     assert.equal(Number(invoice.amount_paid_minor), 0);
     assert.equal(invoice.internal_notes, "VIP Customer - approved by Sales Manager");
 
-    assert.equal(lines.length, 3);
+    assert.equal(lines.length, 4);
     assert.equal(lines[0].model, "UB-PRO-16-M3");
     assert.equal(lines[0].serial_number, "SN-2026-998877");
     assert.equal(lines[0].warranty_type, "MANUFACTURER");
+    assert.equal(lines[0].warranty_provider, "OEM Global Computing");
     assert.equal(lines[0].warranty_duration_months, 24);
     assert(lines[0].warranty_end_date, "Warranty end date should be computed");
 
+    assert.equal(lines[1].serial_number, "HUB-SN-001, HUB-SN-002");
+    assert.equal(lines[1].warranty_provider, "Apex Seller Warranty Desk");
+
     assert.equal(lines[2].warranty_type, "NONE");
     assert.equal(lines[2].warranty_duration_months, null);
+
+    assert.equal(lines[3].warranty_type, "NONE");
+    assert(lines[3].service_start_date, "Service start date should be saved");
+    assert(lines[3].service_end_date, "Service end date should be saved");
   });
 
   // TEST 3: Snapshot Immutability upon Issuance
@@ -259,6 +286,8 @@ test("Enhanced Invoices: Branding, Snapshots, Warranty, Payments & Direct Sales 
     assert.equal(issuedInv.status, "ISSUED");
     assert(issuedInv.seller_snapshot, "Seller snapshot must exist on issued invoice");
     assert.equal(issuedInv.seller_snapshot.business_name, "Apex Electronics Pvt Ltd");
+    assert.equal(issuedInv.seller_snapshot.city, "Bengaluru");
+    assert.equal(issuedInv.seller_snapshot.default_return_terms, "7-day replacement for defective hardware. Software is non-refundable.");
     assert.equal(issuedInv.seller_snapshot.tax_id, "29AABCA1234A1Z5");
     assert.equal(issuedInv.seller_snapshot.logo_url, "https://example.com/branding/apex-logo.png");
 

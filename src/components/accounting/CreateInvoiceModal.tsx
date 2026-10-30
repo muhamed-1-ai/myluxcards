@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAccounting } from "./AccountingContext";
 import FormattedMoneyInput, { cleanRawAmount } from "../ui/FormattedMoneyInput";
+import InvoiceSettingsModal from "./InvoiceSettingsModal";
 import type { WarrantyType } from "@/lib/accounting/types";
 
 interface Product {
@@ -12,6 +13,7 @@ interface Product {
   unit: string;
   default_price_minor: number;
   default_warranty_type?: WarrantyType;
+  default_warranty_provider?: string;
   default_warranty_duration_months?: number;
   default_warranty_coverage?: string;
   default_warranty_exclusions?: string;
@@ -37,7 +39,10 @@ export interface InvoiceLineItemState {
   model?: string;
   sku?: string;
   serialNumber?: string;
+  serviceStartDate?: string;
+  serviceEndDate?: string;
   warrantyType?: WarrantyType;
+  warrantyProvider?: string;
   warrantyDurationMonths?: number;
   warrantyStartDate?: string;
   warrantyEndDate?: string;
@@ -46,6 +51,7 @@ export interface InvoiceLineItemState {
   warrantyContact?: string;
   isWarrantyExpanded?: boolean;
   isDetailsExpanded?: boolean;
+  isServiceExpanded?: boolean;
 }
 
 interface CreateInvoiceModalProps {
@@ -71,6 +77,9 @@ export default function CreateInvoiceModal({
 
   // Mode: "EDIT" or "PREVIEW"
   const [viewMode, setViewMode] = useState<"EDIT" | "PREVIEW">("EDIT");
+
+  // Invoice Settings Modal
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Contacts, Products & Invoice Settings
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -111,7 +120,6 @@ export default function CreateInvoiceModal({
   const [taxStr, setTaxStr] = useState("");
 
   // Notes, Terms & Warranty Policy
-  const [showNotesSection, setShowNotesSection] = useState(false);
   const [customerNotes, setCustomerNotes] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("Net 30");
   const [warrantyTerms, setWarrantyTerms] = useState("");
@@ -126,6 +134,24 @@ export default function CreateInvoiceModal({
   const isTaxConfigured = Boolean(
     (activeWorkspace as any)?.settings?.enable_tax || (activeWorkspace as any)?.settings?.tax_rate
   );
+
+  // Function to reload invoice settings
+  const loadInvoiceSettings = async () => {
+    try {
+      const res = await fetch(`/api/accounting/invoices/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        setInvoiceSettings(data.settings);
+        if (!invoiceIdToEdit && !directSaleToConvert) {
+          if (data.settings?.default_notes && !customerNotes) setCustomerNotes(data.settings.default_notes);
+          if (data.settings?.default_terms && paymentTerms === "Net 30") setPaymentTerms(data.settings.default_terms);
+          if (data.settings?.default_warranty_terms && !warrantyTerms) setWarrantyTerms(data.settings.default_warranty_terms);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to refresh invoice settings:", e);
+    }
+  };
 
   // Load existing customers, products, and invoice branding settings
   useEffect(() => {
@@ -238,7 +264,10 @@ export default function CreateInvoiceModal({
               model: l.model || "",
               sku: l.sku || "",
               serialNumber: l.serial_number || "",
+              serviceStartDate: l.service_start_date ? l.service_start_date.slice(0, 10) : undefined,
+              serviceEndDate: l.service_end_date ? l.service_end_date.slice(0, 10) : undefined,
               warrantyType: l.warranty_type || "NONE",
+              warrantyProvider: l.warranty_provider || "",
               warrantyDurationMonths: l.warranty_duration_months || undefined,
               warrantyStartDate: l.warranty_start_date ? l.warranty_start_date.slice(0, 10) : undefined,
               warrantyEndDate: l.warranty_end_date ? l.warranty_end_date.slice(0, 10) : undefined,
@@ -247,6 +276,7 @@ export default function CreateInvoiceModal({
               warrantyContact: l.warranty_contact || "",
               isWarrantyExpanded: l.warranty_type && l.warranty_type !== "NONE",
               isDetailsExpanded: Boolean(l.model || l.sku || l.serial_number),
+              isServiceExpanded: Boolean(l.service_start_date || l.service_end_date),
             }))
           );
         }
@@ -261,31 +291,10 @@ export default function CreateInvoiceModal({
     };
   }, [isOpen, invoiceIdToEdit, activeWorkspace]);
 
-  // Reset form when opening as brand-new invoice
+  // Close dropdown on outside click
   useEffect(() => {
-    if (isOpen && !invoiceIdToEdit && !directSaleToConvert) {
-      setViewMode("EDIT");
-      setSelectedContactId("");
-      setCustomerSearch("");
-      setShowInlineNewCustomer(false);
-      setIssueDate(new Date().toISOString().slice(0, 10));
-      const d = new Date();
-      d.setDate(d.getDate() + 30);
-      setDueDate(d.toISOString().slice(0, 10));
-      setLines([{ description: "", quantity: 1, unitPriceStr: "", warrantyType: "NONE" }]);
-      setShowDiscount(false);
-      setDiscountStr("");
-      setShowTax(false);
-      setTaxStr("");
-      setFormError(null);
-      setInternalNotes("");
-    }
-  }, [isOpen, invoiceIdToEdit, directSaleToConvert]);
-
-  // Close customer dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
+    function handleClickOutside(e: MouseEvent) {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(e.target as Node)) {
         setIsCustomerDropdownOpen(false);
       }
     }
@@ -293,14 +302,15 @@ export default function CreateInvoiceModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Filtered customer list
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return contacts;
     const q = customerSearch.toLowerCase();
     return contacts.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
-        (c.email && c.email.toLowerCase().includes(q)) ||
-        (c.phone && c.phone.toLowerCase().includes(q))
+        c.email?.toLowerCase().includes(q) ||
+        c.phone?.includes(q)
     );
   }, [contacts, customerSearch]);
 
@@ -308,44 +318,61 @@ export default function CreateInvoiceModal({
     return contacts.find((c) => c.id === selectedContactId) || null;
   }, [contacts, selectedContactId]);
 
-  // Live item totals calculation
-  const { subtotalMinor, discountMinor, taxMinor, totalMinor, lineCalculations } = useMemo(() => {
-    let subtotal = 0;
-    const calcs = lines.map((l) => {
-      const q = Math.max(0.01, Number(l.quantity) || 1);
-      const cleanPrice = cleanRawAmount(l.unitPriceStr);
-      const priceNum = parseFloat(cleanPrice) || 0;
-      const unitPriceMin = Math.round(priceNum * 100);
-      const lineTotal = Math.round(q * unitPriceMin);
-      subtotal += lineTotal;
+  // Line Calculations
+  const lineCalculations = useMemo(() => {
+    return lines.map((line) => {
+      const cleanPrice = cleanRawAmount(line.unitPriceStr);
+      const unitPrice = parseFloat(cleanPrice) || 0;
+      const qty = Math.max(0, Number(line.quantity) || 0);
+      const lineSubtotalMinor = Math.round(unitPrice * qty * 100);
       return {
-        ...l,
-        quantity: q,
-        unitPriceMinor: unitPriceMin,
-        lineTotalMinor: lineTotal,
+        unitPriceMinor: Math.round(unitPrice * 100),
+        lineSubtotalMinor,
+        lineTotalMinor: lineSubtotalMinor,
       };
     });
+  }, [lines]);
 
-    const discClean = cleanRawAmount(discountStr);
-    const discNum = showDiscount && discClean ? parseFloat(discClean) || 0 : 0;
-    const discMinor = Math.min(subtotal, Math.round(discNum * 100));
+  const subtotalMinor = useMemo(() => {
+    return lineCalculations.reduce((sum, item) => sum + item.lineSubtotalMinor, 0);
+  }, [lineCalculations]);
 
-    const taxClean = cleanRawAmount(taxStr);
-    const taxNum = showTax && isTaxConfigured && taxClean ? parseFloat(taxClean) || 0 : 0;
-    const tMinor = Math.round(taxNum * 100);
+  const discountMinor = useMemo(() => {
+    if (!showDiscount || !discountStr) return 0;
+    const d = parseFloat(cleanRawAmount(discountStr)) || 0;
+    return Math.min(subtotalMinor, Math.round(d * 100));
+  }, [showDiscount, discountStr, subtotalMinor]);
 
-    const totMinor = Math.max(0, subtotal - discMinor + tMinor);
+  const taxMinor = useMemo(() => {
+    if (!showTax || !taxStr) return 0;
+    const t = parseFloat(cleanRawAmount(taxStr)) || 0;
+    return Math.round(t * 100);
+  }, [showTax, taxStr]);
 
-    return {
-      subtotalMinor: subtotal,
-      discountMinor: discMinor,
-      taxMinor: tMinor,
-      totalMinor: totMinor,
-      lineCalculations: calcs,
-    };
-  }, [lines, discountStr, showDiscount, taxStr, showTax, isTaxConfigured]);
+  const totalMinor = useMemo(() => {
+    return Math.max(0, subtotalMinor - discountMinor + taxMinor);
+  }, [subtotalMinor, discountMinor, taxMinor]);
 
-  // Handle saving new customer inline
+  // Form dirtiness tracker for confirmation before dismiss
+  const isDirty = useMemo(() => {
+    if (selectedContactId) return true;
+    if (customerNotes.trim() || internalNotes.trim()) return true;
+    if (lines.length > 1) return true;
+    if (lines[0]?.description.trim() || lines[0]?.unitPriceStr.trim() || lines[0]?.model || lines[0]?.serialNumber) return true;
+    return false;
+  }, [selectedContactId, customerNotes, internalNotes, lines]);
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      if (window.confirm("You have unsaved changes in this invoice. Are you sure you want to dismiss?")) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
+
+  // Inline Customer Creation
   const handleSaveInlineCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeWorkspace) return;
@@ -429,6 +456,7 @@ export default function CreateInvoiceModal({
         sku: prod.sku || cur.sku || "",
         unitPriceStr: (prod.default_price_minor / 100).toFixed(2),
         warrantyType: prod.default_warranty_type || cur.warrantyType || "NONE",
+        warrantyProvider: prod.default_warranty_provider || cur.warrantyProvider || "",
         warrantyDurationMonths: prod.default_warranty_duration_months || cur.warrantyDurationMonths,
         warrantyStartDate: issueDate,
         warrantyEndDate: computedEndDate,
@@ -490,17 +518,6 @@ export default function CreateInvoiceModal({
       }
     }
 
-    // Direct sale reconciliation check
-    if (directSaleToConvert) {
-      const saleTotal = Number(directSaleToConvert.total_minor);
-      if (totalMinor !== saleTotal) {
-        setFormError(
-          `Line items total (${formatMoney(totalMinor, activeWorkspace.currency)}) must exactly match direct sale total (${formatMoney(saleTotal, activeWorkspace.currency)}).`
-        );
-        return;
-      }
-    }
-
     setSubmitting(true);
     try {
       const payloadLines = validLines.map((l) => ({
@@ -511,7 +528,10 @@ export default function CreateInvoiceModal({
         model: l.model?.trim() || null,
         sku: l.sku?.trim() || null,
         serialNumber: l.serialNumber?.trim() || null,
+        serviceStartDate: l.serviceStartDate || null,
+        serviceEndDate: l.serviceEndDate || null,
         warrantyType: l.warrantyType || "NONE",
+        warrantyProvider: l.warrantyProvider?.trim() || null,
         warrantyDurationMonths: l.warrantyDurationMonths ? Number(l.warrantyDurationMonths) : null,
         warrantyStartDate: l.warrantyStartDate || null,
         warrantyEndDate: l.warrantyEndDate || null,
@@ -597,926 +617,1084 @@ export default function CreateInvoiceModal({
 
   if (!isOpen) return null;
 
-  const sellerName = invoiceSettings?.business_name || activeWorkspace?.name || "Business";
+  const sellerName = invoiceSettings?.business_name || activeWorkspace?.name || "Your Business";
   const sellerLogo = invoiceSettings?.logo_url;
+  const sellerAddress = [
+    invoiceSettings?.address,
+    [invoiceSettings?.city, invoiceSettings?.state, invoiceSettings?.postal_code].filter(Boolean).join(", "),
+    invoiceSettings?.country,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
-    <div
-      className="acc-modal-backdrop"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invoice-modal-title"
-    >
+    <>
       <div
-        className="acc-modal-content acc-invoice-edit-modal"
-        style={{ maxWidth: "920px", maxHeight: "92vh" }}
-        onClick={(e) => e.stopPropagation()}
+        className="acc-modal-backdrop"
+        onClick={handleRequestClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invoice-modal-title"
       >
-        {/* Header */}
-        <div className="acc-modal-header">
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <h3 id="invoice-modal-title" className="acc-modal-title">
+        <div
+          className="acc-modal-content acc-invoice-edit-modal"
+          style={{ maxWidth: "940px", maxHeight: "94vh", display: "flex", flexDirection: "column" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="acc-modal-header" style={{ flexShrink: 0, borderBottom: "1px solid var(--acc-border)" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <h3 id="invoice-modal-title" className="acc-modal-title" style={{ margin: 0 }}>
+                  {directSaleToConvert
+                    ? `Convert Direct Sale ${directSaleToConvert.sale_number} to Invoice`
+                    : viewMode === "PREVIEW"
+                    ? "Customer Invoice Preview"
+                    : invoiceIdToEdit
+                    ? "Edit Draft Invoice"
+                    : "New Client Invoice"}
+                </h3>
+                {viewMode === "PREVIEW" && (
+                  <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.75rem" }}>
+                    A4 Presentation
+                  </span>
+                )}
+              </div>
+              <p style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", margin: "0.25rem 0 0" }}>
                 {directSaleToConvert
-                  ? `Convert Direct Sale ${directSaleToConvert.sale_number} to Invoice`
+                  ? "Converts recorded walk-in sale into an official invoice without duplicate revenue or receipt postings."
                   : viewMode === "PREVIEW"
-                  ? "Customer Invoice Preview"
-                  : invoiceIdToEdit
-                  ? "Edit Draft Invoice"
-                  : "New Client Invoice"}
-              </h3>
-              {viewMode === "PREVIEW" && (
-                <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.75rem" }}>
-                  A4 Customer Presentation
-                </span>
-              )}
+                  ? "Preview exact document layout as your buyer will see it. No financial changes until issued."
+                  : "Organized into clear sections: Your Business, Customer, Details, Items, Totals & Payment Info."}
+              </p>
             </div>
-            <p style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", margin: "0.25rem 0 0" }}>
-              {directSaleToConvert
-                ? "Convert recorded direct sale into an official invoice without duplicate revenue or receipt postings."
-                : viewMode === "PREVIEW"
-                ? "This is how your customer will view the document. No financial changes are posted until issued."
-                : "Enter customer, line items with optional model, serial number & warranty terms."}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="acc-modal-close"
-            onClick={onClose}
-            aria-label="Close dialog"
-          >
-            ✕
-          </button>
-        </div>
-
-        {formError && (
-          <div className="acc-alert acc-alert-danger" style={{ margin: "0 1.5rem 1rem" }}>
-            {formError}
-          </div>
-        )}
-
-        {/* View Switcher: EDIT MODE vs PREVIEW MODE */}
-        {viewMode === "PREVIEW" ? (
-          /* ==========================================================================
-             CUSTOMER PREVIEW VIEW (Clean White A4)
-             ========================================================================== */
-          <div className="acc-invoice-preview-container" style={{ padding: "1.5rem", overflowY: "auto" }}>
-            <div
-              className="acc-invoice-paper"
-              style={{
-                background: "#ffffff",
-                color: "#0f172a",
-                padding: "2rem",
-                borderRadius: "6px",
-                border: "1px solid #e2e8f0",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-              }}
+            <button
+              type="button"
+              className="acc-modal-close"
+              onClick={handleRequestClose}
+              aria-label="Close dialog"
             >
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #e2e8f0", paddingBottom: "1.25rem" }}>
-                <div>
-                  {sellerLogo && (
-                    <img
-                      src={sellerLogo}
-                      alt="Company Logo"
-                      style={{ maxHeight: "50px", maxWidth: "160px", objectFit: "contain", marginBottom: "0.5rem" }}
-                    />
-                  )}
-                  <h4 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>{sellerName}</h4>
-                  <div style={{ fontSize: "0.8rem", color: "#475569", marginTop: "0.25rem", whiteSpace: "pre-line" }}>
-                    {invoiceSettings?.address && <div>{invoiceSettings.address}</div>}
-                    {[invoiceSettings?.phone, invoiceSettings?.email].filter(Boolean).join(" · ")}
-                    {invoiceSettings?.tax_id && (
-                      <div style={{ fontWeight: 600, marginTop: "0.2rem" }}>
-                        {invoiceSettings.tax_label || "GSTIN"}: {invoiceSettings.tax_id}
+              ✕
+            </button>
+          </div>
+
+          {formError && (
+            <div className="acc-alert acc-alert-danger" style={{ margin: "0.75rem 1.5rem 0" }}>
+              {formError}
+            </div>
+          )}
+
+          {/* View Switcher: EDIT MODE vs PREVIEW MODE */}
+          {viewMode === "PREVIEW" ? (
+            /* ==========================================================================
+               CUSTOMER PREVIEW VIEW (Clean White A4)
+               ========================================================================== */
+            <div className="acc-invoice-preview-container" style={{ padding: "1.5rem", overflowY: "auto", flex: 1, background: "#f8fafc" }}>
+              <div
+                className="acc-invoice-paper"
+                style={{
+                  background: "#ffffff",
+                  color: "#0f172a",
+                  padding: "2.25rem",
+                  borderRadius: "6px",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #e2e8f0", paddingBottom: "1.25rem" }}>
+                  <div>
+                    {sellerLogo && (
+                      <img
+                        src={sellerLogo}
+                        alt="Company Logo"
+                        style={{ maxHeight: "50px", maxWidth: "160px", objectFit: "contain", marginBottom: "0.5rem" }}
+                      />
+                    )}
+                    <h4 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>{sellerName}</h4>
+                    <div style={{ fontSize: "0.8rem", color: "#475569", marginTop: "0.25rem", whiteSpace: "pre-line" }}>
+                      {sellerAddress && <div>{sellerAddress}</div>}
+                      {[invoiceSettings?.phone, invoiceSettings?.email].filter(Boolean).join(" · ")}
+                      {invoiceSettings?.tax_id && (
+                        <div style={{ fontWeight: 600, marginTop: "0.2rem" }}>
+                          {invoiceSettings.tax_label || "GSTIN"}: {invoiceSettings.tax_id}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#1e293b" }}>INVOICE</div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#2563eb", marginTop: "0.2rem" }}>
+                      {directSaleToConvert ? "SALE CONVERSION" : invoiceIdToEdit ? "DRAFT" : "PREVIEW"}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.25rem" }}>
+                      Issue Date: {issueDate}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                      Due Date: {dueDate}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Billed To */}
+                <div style={{ display: "flex", justifyContent: "space-between", margin: "1.25rem 0", fontSize: "0.85rem" }}>
+                  <div>
+                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, color: "#64748b" }}>
+                      Billed To
+                    </span>
+                    <div style={{ fontWeight: 700, color: "#0f172a", marginTop: "0.15rem" }}>
+                      {selectedContact?.name || "Direct Customer"}
+                    </div>
+                    <div style={{ color: "#475569", fontSize: "0.8rem" }}>
+                      {selectedContact?.address && <div>{selectedContact.address}</div>}
+                      {[selectedContact?.phone, selectedContact?.email].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div><strong>Payment Terms:</strong> {paymentTerms}</div>
+                  </div>
+                </div>
+
+                {/* Items Table */}
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.825rem", marginTop: "1rem" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderTop: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}>
+                      <th style={{ padding: "0.5rem", textAlign: "left" }}>Item &amp; Description</th>
+                      <th style={{ padding: "0.5rem", textAlign: "center", width: "10%" }}>Qty</th>
+                      <th style={{ padding: "0.5rem", textAlign: "right", width: "20%" }}>Unit Price</th>
+                      <th style={{ padding: "0.5rem", textAlign: "right", width: "20%" }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((l, idx) => {
+                      const calc = lineCalculations[idx];
+                      const hasWarranty = l.warrantyType && l.warrantyType !== "NONE";
+                      const warrantyLabel =
+                        l.warrantyType === "MANUFACTURER"
+                          ? "Manufacturer Warranty"
+                          : l.warrantyType === "SELLER"
+                          ? "Seller Warranty"
+                          : "Custom Warranty";
+
+                      return (
+                        <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "0.6rem 0.5rem" }}>
+                            <div style={{ fontWeight: 600, color: "#0f172a" }}>{l.description || "Untitled Item"}</div>
+                            {(l.model || l.sku || l.serialNumber) && (
+                              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                {l.model && <span>Model: <strong>{l.model}</strong> </span>}
+                                {l.sku && <span>SKU: <strong>{l.sku}</strong> </span>}
+                                {l.serialNumber && <span>S/N: <strong>{l.serialNumber}</strong></span>}
+                              </div>
+                            )}
+                            {(l.serviceStartDate || l.serviceEndDate) && (
+                              <div style={{ marginTop: "0.25rem" }}>
+                                <span style={{ background: "#f0f9ff", color: "#0369a1", padding: "0.15rem 0.45rem", borderRadius: "3px", fontSize: "0.725rem", fontWeight: 500 }}>
+                                  ⏱️ Service Validity: {l.serviceStartDate || ""}{l.serviceEndDate ? ` to ${l.serviceEndDate}` : ""}
+                                </span>
+                              </div>
+                            )}
+                            {hasWarranty && (
+                              <div
+                                style={{
+                                  marginTop: "0.35rem",
+                                  padding: "0.35rem 0.6rem",
+                                  background: "#f8fafc",
+                                  borderLeft: "3px solid #2563eb",
+                                  fontSize: "0.75rem",
+                                  color: "#334155",
+                                }}
+                              >
+                                <strong>🛡️ {l.warrantyProvider ? `${l.warrantyProvider} · ` : ""}{warrantyLabel}</strong>
+                                {l.warrantyDurationMonths && ` · ${l.warrantyDurationMonths} Months`}
+                                {l.warrantyStartDate && l.warrantyEndDate && ` (${l.warrantyStartDate} to ${l.warrantyEndDate})`}
+                                {l.warrantyCoverage && <div>Coverage: {l.warrantyCoverage}</div>}
+                                {l.warrantyContact && <div>Support: {l.warrantyContact}</div>}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "0.6rem 0.5rem", textAlign: "center" }}>{l.quantity}</td>
+                          <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
+                            {formatMoney(calc?.unitPriceMinor || 0, activeWorkspace?.currency)}
+                          </td>
+                          <td style={{ padding: "0.6rem 0.5rem", textAlign: "right", fontWeight: 600 }}>
+                            {formatMoney(calc?.lineTotalMinor || 0, activeWorkspace?.currency)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Financial Summary */}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+                  <div style={{ width: "280px", background: "#f8fafc", padding: "0.75rem 1rem", borderRadius: "4px", border: "1px solid #e2e8f0", fontSize: "0.85rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+                      <span>Subtotal:</span>
+                      <span>{formatMoney(subtotalMinor, activeWorkspace?.currency)}</span>
+                    </div>
+                    {discountMinor > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", color: "#16a34a", marginBottom: "0.25rem" }}>
+                        <span>Discount:</span>
+                        <span>-{formatMoney(discountMinor, activeWorkspace?.currency)}</span>
+                      </div>
+                    )}
+                    {taxMinor > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+                        <span>Tax ({invoiceSettings?.tax_label || "GST"}):</span>
+                        <span>+{formatMoney(taxMinor, activeWorkspace?.currency)}</span>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1rem", borderTop: "2px solid #cbd5e1", paddingTop: "0.4rem", marginTop: "0.4rem" }}>
+                      <span>Total Amount:</span>
+                      <span>{formatMoney(totalMinor, activeWorkspace?.currency)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes & Terms */}
+                {(customerNotes || warrantyTerms || paymentTerms || invoiceSettings?.default_return_terms) && (
+                  <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem", fontSize: "0.8rem", color: "#475569" }}>
+                    {customerNotes && (
+                      <div style={{ marginBottom: "0.5rem" }}>
+                        <strong style={{ color: "#334155" }}>Customer Notes &amp; Payment Instructions:</strong>
+                        <div>{customerNotes}</div>
+                      </div>
+                    )}
+                    {warrantyTerms && (
+                      <div style={{ marginBottom: "0.5rem" }}>
+                        <strong style={{ color: "#334155" }}>Warranty Terms:</strong>
+                        <div>{warrantyTerms}</div>
+                      </div>
+                    )}
+                    {invoiceSettings?.default_return_terms && (
+                      <div style={{ marginBottom: "0.5rem" }}>
+                        <strong style={{ color: "#334155" }}>Return &amp; Refund Policy:</strong>
+                        <div>{invoiceSettings.default_return_terms}</div>
                       </div>
                     )}
                   </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#1e293b" }}>INVOICE</div>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#2563eb", marginTop: "0.2rem" }}>
-                    {directSaleToConvert ? "SALE CONVERSION" : invoiceIdToEdit ? "DRAFT" : "PREVIEW"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Billed To & Dates */}
-              <div style={{ display: "flex", justifyContent: "space-between", margin: "1.5rem 0" }}>
-                <div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", color: "#64748b" }}>
-                    Billed To
-                  </div>
-                  <div style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", marginTop: "0.2rem" }}>
-                    {selectedContact?.name || "Direct Customer"}
-                  </div>
-                  <div style={{ fontSize: "0.825rem", color: "#475569", marginTop: "0.2rem" }}>
-                    {selectedContact?.address && <div>{selectedContact.address}</div>}
-                    {[selectedContact?.email, selectedContact?.phone].filter(Boolean).join(" · ")}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", fontSize: "0.85rem" }}>
-                  <div><strong>Issue Date:</strong> {issueDate}</div>
-                  <div style={{ marginTop: "0.25rem" }}><strong>Due Date:</strong> {dueDate}</div>
-                  {paymentTerms && <div style={{ marginTop: "0.25rem" }}><strong>Terms:</strong> {paymentTerms}</div>}
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", margin: "1rem 0" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderTop: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
-                    <th style={{ padding: "0.5rem" }}>Item &amp; Description</th>
-                    <th style={{ padding: "0.5rem", textAlign: "center", width: "10%" }}>Qty</th>
-                    <th style={{ padding: "0.5rem", textAlign: "right", width: "18%" }}>Unit Price</th>
-                    <th style={{ padding: "0.5rem", textAlign: "right", width: "18%" }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineCalculations.map((l, idx) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                      <td style={{ padding: "0.6rem 0.5rem" }}>
-                        <div style={{ fontWeight: 600 }}>{l.description || "—"}</div>
-                        {(l.model || l.sku || l.serialNumber) && (
-                          <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.15rem" }}>
-                            {[
-                              l.model && `Model: ${l.model}`,
-                              l.sku && `SKU: ${l.sku}`,
-                              l.serialNumber && `S/N: ${l.serialNumber}`,
-                            ].filter(Boolean).join(" · ")}
-                          </div>
-                        )}
-                        {l.warrantyType && l.warrantyType !== "NONE" && (
-                          <div
-                            style={{
-                              marginTop: "0.35rem",
-                              padding: "0.3rem 0.5rem",
-                              background: "#f1f5f9",
-                              borderLeft: "3px solid #2563eb",
-                              fontSize: "0.75rem",
-                            }}
-                          >
-                            <strong>🛡️ {l.warrantyType} Warranty</strong>
-                            {l.warrantyDurationMonths && ` (${l.warrantyDurationMonths} Months)`}
-                            {l.warrantyCoverage && <div>Coverage: {l.warrantyCoverage}</div>}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: "0.6rem 0.5rem", textAlign: "center" }}>{l.quantity}</td>
-                      <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
-                        {formatMoney(l.unitPriceMinor, activeWorkspace?.currency)}
-                      </td>
-                      <td style={{ padding: "0.6rem 0.5rem", textAlign: "right", fontWeight: 600 }}>
-                        {formatMoney(l.lineTotalMinor, activeWorkspace?.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Totals Box */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
-                <div style={{ width: "280px", background: "#f8fafc", padding: "0.85rem 1rem", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.85rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
-                    <span>Subtotal:</span>
-                    <span>{formatMoney(subtotalMinor, activeWorkspace?.currency)}</span>
-                  </div>
-                  {discountMinor > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#16a34a", marginBottom: "0.35rem" }}>
-                      <span>Discount:</span>
-                      <span>-{formatMoney(discountMinor, activeWorkspace?.currency)}</span>
-                    </div>
-                  )}
-                  {taxMinor > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
-                      <span>Tax:</span>
-                      <span>+{formatMoney(taxMinor, activeWorkspace?.currency)}</span>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "1rem", borderTop: "2px solid #cbd5e1", paddingTop: "0.4rem", marginTop: "0.4rem" }}>
-                    <span>Total:</span>
-                    <span>{formatMoney(totalMinor, activeWorkspace?.currency)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes & Terms */}
-              {(customerNotes || warrantyTerms || paymentTerms) && (
-                <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem", fontSize: "0.8rem", color: "#475569" }}>
-                  {customerNotes && (
-                    <div style={{ marginBottom: "0.5rem" }}>
-                      <strong style={{ color: "#334155" }}>Customer Notes:</strong> {customerNotes}
-                    </div>
-                  )}
-                  {warrantyTerms && (
-                    <div style={{ marginBottom: "0.5rem" }}>
-                      <strong style={{ color: "#334155" }}>Warranty Policy:</strong> {warrantyTerms}
-                    </div>
-                  )}
-                  {paymentTerms && (
-                    <div>
-                      <strong style={{ color: "#334155" }}>Payment Terms:</strong> {paymentTerms}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.25rem" }}>
-              <button
-                type="button"
-                className="acc-btn acc-btn-outline"
-                onClick={() => setViewMode("EDIT")}
-              >
-                ✏️ Back to Editor
-              </button>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                {!directSaleToConvert && (
-                  <button
-                    type="button"
-                    className="acc-btn acc-btn-outline"
-                    onClick={() => handleSubmitInvoice("DRAFT")}
-                    disabled={submitting}
-                  >
-                    Save Draft
-                  </button>
                 )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.25rem" }}>
                 <button
                   type="button"
-                  className="acc-btn acc-btn-primary"
-                  onClick={() => handleSubmitInvoice("ISSUED")}
-                  disabled={submitting}
+                  className="acc-btn acc-btn-outline"
+                  onClick={() => setViewMode("EDIT")}
                 >
-                  {submitting ? "Processing..." : directSaleToConvert ? "Convert & Issue Invoice" : "Issue Invoice"}
+                  ✏️ Back to Editor
                 </button>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  {!directSaleToConvert && (
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-outline"
+                      onClick={() => handleSubmitInvoice("DRAFT")}
+                      disabled={submitting}
+                    >
+                      Save Draft
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn-primary"
+                    onClick={() => handleSubmitInvoice("ISSUED")}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Processing..." : directSaleToConvert ? "Convert & Issue Invoice" : "Issue Invoice"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          /* ==========================================================================
-             EDIT MODE
-             ========================================================================== */
-          <>
-            <div className="acc-invoice-modal-scroll-body" style={{ padding: "1.25rem 1.5rem", overflowY: "auto" }}>
-              {/* Direct Sale Banner if converting */}
-              {directSaleToConvert && (
-                <div
-                  className="acc-alert acc-alert-info"
-                  style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
-                >
-                  <span>⚡</span>
-                  <div>
-                    <strong>Converting Direct Sale {directSaleToConvert.sale_number}</strong>
-                    <div style={{ fontSize: "0.75rem", opacity: 0.9 }}>
-                      Sale Total: {formatMoney(directSaleToConvert.total_minor, activeWorkspace?.currency)}. Reconciles without duplicate journal entry.
+          ) : (
+            /* ==========================================================================
+               EDIT MODE (Organized into 7 Clear Sections)
+               ========================================================================== */
+            <>
+              <div className="acc-invoice-modal-scroll-body" style={{ padding: "1.25rem 1.5rem", overflowY: "auto", flex: 1 }}>
+                {/* Direct Sale Banner if converting */}
+                {directSaleToConvert && (
+                  <div
+                    className="acc-alert acc-alert-info"
+                    style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
+                  >
+                    <span>⚡</span>
+                    <div>
+                      <strong>Converting Direct Sale {directSaleToConvert.sale_number}</strong>
+                      <div style={{ fontSize: "0.75rem", opacity: 0.9 }}>
+                        Sale Total: {formatMoney(directSaleToConvert.total_minor, activeWorkspace?.currency)}. Reconciles without duplicate journal entry.
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 1. Customer Selection */}
-              <div className="acc-form-section">
-                <label className="acc-form-label" style={{ fontWeight: 600 }}>Customer *</label>
-                {selectedContact ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "0.75rem 1rem",
-                      background: "var(--acc-raised)",
-                      border: "1px solid var(--acc-border)",
-                      borderRadius: "var(--acc-radius-sm)",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{selectedContact.name}</div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
-                        {[selectedContact.email, selectedContact.phone].filter(Boolean).join(" · ") || "No email/phone"}
-                      </div>
-                      {selectedContact.address && (
-                        <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", marginTop: "0.15rem" }}>
-                          📍 {selectedContact.address}
+                {/* ---------------------------------------------------------------------
+                   SECTION 1: YOUR BUSINESS (Branding Summary Card)
+                   --------------------------------------------------------------------- */}
+                <div
+                  className="acc-invoice-section"
+                  style={{
+                    marginBottom: "1.25rem",
+                    background: "var(--acc-raised)",
+                    border: "1px solid var(--acc-border)",
+                    borderRadius: "var(--acc-radius-sm)",
+                    padding: "0.85rem 1rem",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "0.85rem", alignItems: "center" }}>
+                      {sellerLogo ? (
+                        <img
+                          src={sellerLogo}
+                          alt={sellerName}
+                          style={{ height: "42px", maxWidth: "120px", objectFit: "contain", borderRadius: "3px" }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: "42px",
+                            height: "42px",
+                            background: "var(--acc-surface)",
+                            border: "1px dashed var(--acc-border)",
+                            borderRadius: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "1.2rem",
+                          }}
+                        >
+                          🏢
                         </div>
                       )}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.95rem", color: "var(--acc-text)" }}>{sellerName}</strong>
+                          <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.7rem" }}>
+                            Seller / Sender
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "0.775rem", color: "var(--acc-text-muted)", marginTop: "0.2rem" }}>
+                          {[invoiceSettings?.address, invoiceSettings?.city, invoiceSettings?.state].filter(Boolean).join(", ") || "No business address set"}
+                          {invoiceSettings?.tax_id && ` · ${invoiceSettings.tax_label || "GSTIN"}: ${invoiceSettings.tax_id}`}
+                          {[invoiceSettings?.phone, invoiceSettings?.email].filter(Boolean).length > 0 && ` · ${[invoiceSettings?.phone, invoiceSettings?.email].filter(Boolean).join(" · ")}`}
+                        </div>
+                      </div>
                     </div>
                     <button
                       type="button"
                       className="acc-btn acc-btn-outline acc-btn-sm"
-                      onClick={() => {
-                        setSelectedContactId("");
-                        setCustomerSearch("");
-                        setIsCustomerDropdownOpen(true);
-                      }}
+                      onClick={() => setShowSettingsModal(true)}
+                      title="Edit company name, address, contact, and logo"
                     >
-                      Change
+                      ⚙️ Edit Invoice Settings
                     </button>
                   </div>
-                ) : showInlineNewCustomer ? (
-                  /* Inline Add Customer */
-                  <div className="acc-inline-new-customer-box">
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>+ Add New Customer</span>
+                </div>
+
+                {/* ---------------------------------------------------------------------
+                   SECTION 2: CUSTOMER
+                   --------------------------------------------------------------------- */}
+                <div className="acc-invoice-section" style={{ marginBottom: "1.25rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                    <label className="acc-form-label" style={{ fontWeight: 600, margin: 0 }}>
+                      👤 Customer Billing Details *
+                    </label>
+                  </div>
+
+                  {selectedContact ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "0.75rem 1rem",
+                        background: "var(--acc-raised)",
+                        border: "1px solid var(--acc-border)",
+                        borderRadius: "var(--acc-radius-sm)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{selectedContact.name}</div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
+                          {[selectedContact.email, selectedContact.phone].filter(Boolean).join(" · ") || "No email/phone"}
+                        </div>
+                        {selectedContact.address && (
+                          <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", marginTop: "0.15rem" }}>
+                            📍 {selectedContact.address}
+                          </div>
+                        )}
+                      </div>
                       <button
                         type="button"
-                        className="acc-link-btn"
-                        style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}
-                        onClick={() => setShowInlineNewCustomer(false)}
+                        className="acc-btn acc-btn-outline acc-btn-sm"
+                        onClick={() => {
+                          setSelectedContactId("");
+                          setCustomerSearch("");
+                          setIsCustomerDropdownOpen(true);
+                        }}
                       >
-                        Cancel
+                        Change Customer
                       </button>
                     </div>
-                    {inlineCustomerError && (
-                      <div className="acc-alert acc-alert-danger" style={{ marginBottom: "0.5rem", padding: "0.4rem 0.6rem", fontSize: "0.75rem" }}>
-                        {inlineCustomerError}
-                      </div>
-                    )}
-                    <form onSubmit={handleSaveInlineCustomer}>
-                      <div className="acc-form-group">
-                        <label className="acc-form-label">Full Name *</label>
-                        <input
-                          type="text"
-                          required
-                          className="acc-form-input"
-                          placeholder="e.g. Rahul Sharma"
-                          value={newCustName}
-                          onChange={(e) => setNewCustName(e.target.value)}
-                        />
-                      </div>
-                      {!showCustExtraFields ? (
+                  ) : showInlineNewCustomer ? (
+                    /* Inline Add Customer */
+                    <div className="acc-inline-new-customer-box" style={{ background: "var(--acc-raised)", border: "1px solid var(--acc-border)", borderRadius: "var(--acc-radius-sm)", padding: "1rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                        <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>+ Add New Customer</span>
                         <button
                           type="button"
                           className="acc-link-btn"
-                          style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.35rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                          onClick={() => setShowCustExtraFields(true)}
-                        >
-                          + Add Email, Phone &amp; Address
-                        </button>
-                      ) : (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.35rem" }}>
-                          <div>
-                            <label className="acc-form-label">Email</label>
-                            <input
-                              type="email"
-                              className="acc-form-input"
-                              placeholder="customer@email.com"
-                              value={newCustEmail}
-                              onChange={(e) => setNewCustEmail(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="acc-form-label">Phone</label>
-                            <input
-                              type="tel"
-                              className="acc-form-input"
-                              placeholder="+91 98765 43210"
-                              value={newCustPhone}
-                              onChange={(e) => setNewCustPhone(e.target.value)}
-                            />
-                          </div>
-                          <div style={{ gridColumn: "span 2" }}>
-                            <label className="acc-form-label">Billing Address</label>
-                            <input
-                              type="text"
-                              className="acc-form-input"
-                              placeholder="Street, City, PIN"
-                              value={newCustAddress}
-                              onChange={(e) => setNewCustAddress(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-                        <button
-                          type="button"
-                          className="acc-btn acc-btn-outline acc-btn-sm"
+                          style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", background: "none", border: "none", cursor: "pointer" }}
                           onClick={() => setShowInlineNewCustomer(false)}
                         >
                           Cancel
                         </button>
-                        <button
-                          type="submit"
-                          className="acc-btn acc-btn-primary acc-btn-sm"
-                          disabled={inlineCustomerSaving}
-                        >
-                          {inlineCustomerSaving ? "Saving..." : "Save Customer"}
-                        </button>
                       </div>
-                    </form>
-                  </div>
-                ) : (
-                  /* Combobox */
-                  <div className="acc-customer-combobox-wrapper" ref={customerDropdownRef}>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <input
-                        type="text"
-                        className="acc-form-input"
-                        placeholder="Search existing customer by name, email, or phone..."
-                        value={customerSearch}
-                        onFocus={() => setIsCustomerDropdownOpen(true)}
-                        onChange={(e) => {
-                          setCustomerSearch(e.target.value);
-                          setIsCustomerDropdownOpen(true);
-                        }}
-                      />
-                      {canMutate && (
-                        <button
-                          type="button"
-                          className="acc-btn acc-btn-outline"
-                          style={{ whiteSpace: "nowrap" }}
-                          onClick={() => setShowInlineNewCustomer(true)}
-                        >
-                          + New Customer
-                        </button>
+                      {inlineCustomerError && (
+                        <div className="acc-alert acc-alert-danger" style={{ marginBottom: "0.5rem", padding: "0.4rem 0.6rem", fontSize: "0.75rem" }}>
+                          {inlineCustomerError}
+                        </div>
                       )}
+                      <form onSubmit={handleSaveInlineCustomer}>
+                        <div className="acc-form-group">
+                          <label className="acc-form-label">Full Name *</label>
+                          <input
+                            type="text"
+                            required
+                            className="acc-form-input"
+                            placeholder="e.g. Rahul Sharma"
+                            value={newCustName}
+                            onChange={(e) => setNewCustName(e.target.value)}
+                          />
+                        </div>
+                        {!showCustExtraFields ? (
+                          <button
+                            type="button"
+                            className="acc-link-btn"
+                            style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.35rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                            onClick={() => setShowCustExtraFields(true)}
+                          >
+                            + Add Email, Phone &amp; Address
+                          </button>
+                        ) : (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.35rem" }}>
+                            <div>
+                              <label className="acc-form-label">Email</label>
+                              <input
+                                type="email"
+                                className="acc-form-input"
+                                placeholder="customer@email.com"
+                                value={newCustEmail}
+                                onChange={(e) => setNewCustEmail(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="acc-form-label">Phone</label>
+                              <input
+                                type="tel"
+                                className="acc-form-input"
+                                placeholder="+91 98765 43210"
+                                value={newCustPhone}
+                                onChange={(e) => setNewCustPhone(e.target.value)}
+                              />
+                            </div>
+                            <div style={{ gridColumn: "span 2" }}>
+                              <label className="acc-form-label">Billing Address</label>
+                              <input
+                                type="text"
+                                className="acc-form-input"
+                                placeholder="Street, City, PIN Code"
+                                value={newCustAddress}
+                                onChange={(e) => setNewCustAddress(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                          <button
+                            type="button"
+                            className="acc-btn acc-btn-outline acc-btn-sm"
+                            onClick={() => setShowInlineNewCustomer(false)}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="acc-btn acc-btn-primary acc-btn-sm"
+                            disabled={inlineCustomerSaving}
+                          >
+                            {inlineCustomerSaving ? "Saving..." : "Save Customer"}
+                          </button>
+                        </div>
+                      </form>
                     </div>
-                    {isCustomerDropdownOpen && (
-                      <div className="acc-customer-dropdown-menu">
-                        {filteredCustomers.length === 0 ? (
-                          <div style={{ padding: "0.75rem", fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
-                            No customers found.
-                            {canMutate && (
-                              <button
-                                type="button"
-                                className="acc-link-btn"
-                                style={{ display: "block", marginTop: "0.25rem", color: "var(--acc-blue)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  ) : (
+                    /* Customer Search Combobox */
+                    <div className="acc-customer-combobox-wrapper" ref={customerDropdownRef}>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <input
+                          type="text"
+                          className="acc-form-input"
+                          placeholder="Search existing customer by name, email, or phone..."
+                          value={customerSearch}
+                          onFocus={() => setIsCustomerDropdownOpen(true)}
+                          onChange={(e) => {
+                            setCustomerSearch(e.target.value);
+                            setIsCustomerDropdownOpen(true);
+                          }}
+                        />
+                        {canMutate && (
+                          <button
+                            type="button"
+                            className="acc-btn acc-btn-outline"
+                            style={{ whiteSpace: "nowrap" }}
+                            onClick={() => setShowInlineNewCustomer(true)}
+                          >
+                            + New Customer
+                          </button>
+                        )}
+                      </div>
+                      {isCustomerDropdownOpen && (
+                        <div className="acc-customer-dropdown-menu">
+                          {filteredCustomers.length === 0 ? (
+                            <div style={{ padding: "0.75rem", fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
+                              No customers found.
+                              {canMutate && (
+                                <button
+                                  type="button"
+                                  className="acc-link-btn"
+                                  style={{ display: "block", marginTop: "0.25rem", color: "var(--acc-blue)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                                  onClick={() => {
+                                    setNewCustName(customerSearch);
+                                    setShowInlineNewCustomer(true);
+                                    setIsCustomerDropdownOpen(false);
+                                  }}
+                                >
+                                  + Create "{customerSearch}" as customer
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            filteredCustomers.map((c) => (
+                              <div
+                                key={c.id}
+                                className="acc-customer-dropdown-item"
                                 onClick={() => {
-                                  setNewCustName(customerSearch);
-                                  setShowInlineNewCustomer(true);
+                                  setSelectedContactId(c.id);
                                   setIsCustomerDropdownOpen(false);
                                 }}
                               >
-                                + Create "{customerSearch}" as customer
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          filteredCustomers.map((c) => (
-                            <div
-                              key={c.id}
-                              className="acc-customer-dropdown-item"
-                              onClick={() => {
-                                setSelectedContactId(c.id);
-                                setIsCustomerDropdownOpen(false);
-                              }}
-                            >
-                              <div style={{ fontWeight: 600 }}>{c.name}</div>
-                              <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                                {[c.email, c.phone].filter(Boolean).join(" · ")}
+                                <div style={{ fontWeight: 600 }}>{c.name}</div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                                  {[c.email, c.phone].filter(Boolean).join(" · ")}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ---------------------------------------------------------------------
+                   SECTION 3: INVOICE DETAILS
+                   --------------------------------------------------------------------- */}
+                <div className="acc-invoice-section" style={{ marginBottom: "1.25rem" }}>
+                  <label className="acc-form-label" style={{ fontWeight: 600, marginBottom: "0.4rem" }}>
+                    📅 Invoice Details
+                  </label>
+                  <div className="acc-form-grid-2">
+                    <div className="acc-form-group">
+                      <label className="acc-field-sublabel">Issue Date *</label>
+                      <input
+                        type="date"
+                        required
+                        className="acc-form-input"
+                        value={issueDate}
+                        onChange={(e) => setIssueDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="acc-form-group">
+                      <label className="acc-field-sublabel">Due Date *</label>
+                      <input
+                        type="date"
+                        required
+                        className="acc-form-input"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ---------------------------------------------------------------------
+                   SECTION 4: ITEMS & SERVICES (With SKU/Model & Warranty)
+                   --------------------------------------------------------------------- */}
+                <div className="acc-invoice-section" style={{ marginBottom: "1.25rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <label className="acc-form-label" style={{ fontWeight: 600, margin: 0 }}>
+                      📦 Items &amp; Services *
+                    </label>
+                    <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                      Supports optional Model, SKU, Serial #, Service validity &amp; Warranty
+                    </span>
+                  </div>
+
+                  <div className="acc-items-container">
+                    {lines.map((line, idx) => {
+                      const lineCalc = lineCalculations[idx] || { lineTotalMinor: 0 };
+                      const hasWarranty = line.warrantyType && line.warrantyType !== "NONE";
+
+                      return (
+                        <div
+                          key={idx}
+                          className="acc-item-row-card"
+                          style={{
+                            background: "var(--acc-raised)",
+                            border: "1px solid var(--acc-border)",
+                            borderRadius: "var(--acc-radius-sm)",
+                            padding: "0.85rem",
+                            marginBottom: "0.75rem",
+                          }}
+                        >
+                          {/* Primary Item Fields */}
+                          <div className="acc-item-fields-grid">
+                            <div className="acc-item-col-desc">
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+                                <label className="acc-field-sublabel">Description *</label>
+                                {products.length > 0 && (
+                                  <select
+                                    className="acc-catalog-quick-select"
+                                    value={line.productId || ""}
+                                    onChange={(e) => handleSelectCatalogProduct(idx, e.target.value)}
+                                  >
+                                    <option value="">Catalog Product...</option>
+                                    {products.map((p) => (
+                                      <option key={p.id} value={p.id}>
+                                        {p.name} ({formatMoney(p.default_price_minor, activeWorkspace?.currency)})
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                required
+                                className="acc-form-input"
+                                placeholder="Product or service description"
+                                value={line.description}
+                                onChange={(e) => {
+                                  const next = [...lines];
+                                  next[idx].description = e.target.value;
+                                  setLines(next);
+                                }}
+                              />
+                            </div>
+
+                            <div className="acc-item-col-qty">
+                              <label className="acc-field-sublabel">Qty</label>
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="any"
+                                required
+                                className="acc-form-input tabular-nums"
+                                value={line.quantity}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  const next = [...lines];
+                                  next[idx].quantity = isNaN(val) ? 1 : val;
+                                  setLines(next);
+                                }}
+                              />
+                            </div>
+
+                            <div className="acc-item-col-price">
+                              <label className="acc-field-sublabel">Unit Price (₹)</label>
+                              <FormattedMoneyInput
+                                required
+                                className="acc-form-input tabular-nums"
+                                placeholder="0.00"
+                                value={line.unitPriceStr}
+                                onValueChange={(val) => {
+                                  const next = [...lines];
+                                  next[idx].unitPriceStr = val;
+                                  setLines(next);
+                                }}
+                              />
+                            </div>
+
+                            <div className="acc-item-col-amount">
+                              <span className="acc-field-sublabel">Amount</span>
+                              <div className="acc-line-amount-display tabular-nums">
+                                {formatMoney(lineCalc.lineTotalMinor, activeWorkspace?.currency)}
                               </div>
                             </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
 
-              {/* 2. Dates */}
-              <div className="acc-form-grid-2" style={{ marginTop: "1rem" }}>
-                <div className="acc-form-group">
-                  <label className="acc-form-label">Issue Date *</label>
-                  <input
-                    type="date"
-                    required
-                    className="acc-form-input"
-                    value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
-                  />
-                </div>
-                <div className="acc-form-group">
-                  <label className="acc-form-label">Due Date *</label>
-                  <input
-                    type="date"
-                    required
-                    className="acc-form-input"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* 3. Items Section */}
-              <div style={{ marginTop: "1.25rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <label className="acc-form-label" style={{ fontWeight: 600, margin: 0 }}>
-                    Invoice Line Items *
-                  </label>
-                  <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                    Includes optional Model, SKU, Serial # &amp; Warranty details
-                  </span>
-                </div>
-
-                <div className="acc-items-container">
-                  {lines.map((line, idx) => {
-                    const lineCalc = lineCalculations[idx] || { lineTotalMinor: 0 };
-                    const hasWarranty = line.warrantyType && line.warrantyType !== "NONE";
-
-                    return (
-                      <div
-                        key={idx}
-                        className="acc-item-row-card"
-                        style={{
-                          background: "var(--acc-raised)",
-                          border: "1px solid var(--acc-border)",
-                          borderRadius: "var(--acc-radius-sm)",
-                          padding: "0.85rem",
-                          marginBottom: "0.75rem",
-                        }}
-                      >
-                        {/* Primary Item Fields */}
-                        <div className="acc-item-fields-grid">
-                          <div className="acc-item-col-desc">
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                              <label className="acc-field-sublabel">Description *</label>
-                              {products.length > 0 && (
-                                <select
-                                  className="acc-catalog-quick-select"
-                                  value={line.productId || ""}
-                                  onChange={(e) => handleSelectCatalogProduct(idx, e.target.value)}
+                            <div className="acc-item-col-remove">
+                              {lines.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="acc-remove-line-btn"
+                                  onClick={() => handleRemoveLine(idx)}
+                                  title="Remove line"
                                 >
-                                  <option value="">Catalog Product...</option>
-                                  {products.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                      {p.name} ({formatMoney(p.default_price_minor, activeWorkspace?.currency)})
-                                    </option>
-                                  ))}
-                                </select>
+                                  ✕
+                                </button>
                               )}
                             </div>
-                            <input
-                              type="text"
-                              required
-                              className="acc-form-input"
-                              placeholder="Product or service description"
-                              value={line.description}
-                              onChange={(e) => {
+                          </div>
+
+                          {/* Action Toggles for Model/SKU, Service Dates, and Warranty */}
+                          <div style={{ display: "flex", gap: "0.85rem", marginTop: "0.5rem", fontSize: "0.75rem", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="acc-link-btn"
+                              style={{
+                                color: line.isDetailsExpanded || line.model || line.sku || line.serialNumber ? "var(--acc-blue)" : "var(--acc-text-muted)",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                              onClick={() => {
                                 const next = [...lines];
-                                next[idx].description = e.target.value;
+                                next[idx].isDetailsExpanded = !next[idx].isDetailsExpanded;
                                 setLines(next);
                               }}
-                            />
-                          </div>
+                            >
+                              🏷️ {line.isDetailsExpanded ? "Hide" : "+"} Model / SKU / S/N
+                              {line.model || line.sku || line.serialNumber ? " (Set)" : ""}
+                            </button>
 
-                          <div className="acc-item-col-qty">
-                            <label className="acc-field-sublabel">Qty</label>
-                            <input
-                              type="number"
-                              min="0.01"
-                              step="any"
-                              required
-                              className="acc-form-input tabular-nums"
-                              value={line.quantity}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value);
+                            <button
+                              type="button"
+                              className="acc-link-btn"
+                              style={{
+                                color: line.isServiceExpanded || line.serviceStartDate || line.serviceEndDate ? "var(--acc-blue)" : "var(--acc-text-muted)",
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                              onClick={() => {
                                 const next = [...lines];
-                                next[idx].quantity = isNaN(val) ? 1 : val;
+                                next[idx].isServiceExpanded = !next[idx].isServiceExpanded;
                                 setLines(next);
                               }}
-                            />
-                          </div>
+                            >
+                              ⏱️ {line.isServiceExpanded ? "Hide" : "+"} Service Validity
+                              {line.serviceStartDate ? " (Active)" : ""}
+                            </button>
 
-                          <div className="acc-item-col-price">
-                            <label className="acc-field-sublabel">Unit Price (₹)</label>
-                            <FormattedMoneyInput
-                              required
-                              className="acc-form-input tabular-nums"
-                              placeholder="0.00"
-                              value={line.unitPriceStr}
-                              onValueChange={(val) => {
+                            <button
+                              type="button"
+                              className="acc-link-btn"
+                              style={{
+                                color: hasWarranty ? "var(--acc-blue)" : "var(--acc-text-muted)",
+                                fontWeight: hasWarranty ? 600 : 400,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                              onClick={() => {
                                 const next = [...lines];
-                                next[idx].unitPriceStr = val;
+                                next[idx].isWarrantyExpanded = !next[idx].isWarrantyExpanded;
                                 setLines(next);
                               }}
-                            />
+                            >
+                              🛡️ {line.isWarrantyExpanded ? "Hide" : "+"} Warranty:{" "}
+                              {hasWarranty ? line.warrantyType : "No Warranty"}
+                            </button>
                           </div>
 
-                          <div className="acc-item-col-amount">
-                            <span className="acc-field-sublabel">Amount</span>
-                            <div className="acc-line-amount-display tabular-nums">
-                              {formatMoney(lineCalc.lineTotalMinor, activeWorkspace?.currency)}
+                          {/* Expandable Model / SKU / Serial Number Section */}
+                          {line.isDetailsExpanded && (
+                            <div
+                              style={{
+                                marginTop: "0.5rem",
+                                padding: "0.6rem",
+                                background: "var(--acc-surface)",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
+                                <div>
+                                  <label className="acc-field-sublabel">Model</label>
+                                  <input
+                                    type="text"
+                                    className="acc-form-input"
+                                    placeholder="e.g. ThinkPad X1 Carbon"
+                                    value={line.model || ""}
+                                    onChange={(e) => {
+                                      const next = [...lines];
+                                      next[idx].model = e.target.value;
+                                      setLines(next);
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="acc-field-sublabel">SKU</label>
+                                  <input
+                                    type="text"
+                                    className="acc-form-input"
+                                    placeholder="e.g. LAP-001"
+                                    value={line.sku || ""}
+                                    onChange={(e) => {
+                                      const next = [...lines];
+                                      next[idx].sku = e.target.value;
+                                      setLines(next);
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="acc-field-sublabel">Serial Number(s)</label>
+                                  <input
+                                    type="text"
+                                    className="acc-form-input"
+                                    placeholder="e.g. SN-87654321, SN-87654322"
+                                    value={line.serialNumber || ""}
+                                    onChange={(e) => {
+                                      const next = [...lines];
+                                      next[idx].serialNumber = e.target.value;
+                                      setLines(next);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <span style={{ fontSize: "0.7rem", color: "var(--acc-text-muted)", marginTop: "0.25rem", display: "block" }}>
+                                Note: For multiple units with individual warranties, enter comma-separated serial numbers or create separate item lines.
+                              </span>
                             </div>
-                          </div>
+                          )}
 
-                          <div className="acc-item-col-remove">
-                            {lines.length > 1 && (
-                              <button
-                                type="button"
-                                className="acc-remove-line-btn"
-                                onClick={() => handleRemoveLine(idx)}
-                                title="Remove line"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Extra Details & Warranty Toggles */}
-                        <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", fontSize: "0.75rem" }}>
-                          <button
-                            type="button"
-                            className="acc-link-btn"
-                            style={{
-                              color: line.isDetailsExpanded || line.model || line.sku || line.serialNumber ? "var(--acc-blue)" : "var(--acc-text-muted)",
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              padding: 0,
-                            }}
-                            onClick={() => {
-                              const next = [...lines];
-                              next[idx].isDetailsExpanded = !next[idx].isDetailsExpanded;
-                              setLines(next);
-                            }}
-                          >
-                            🏷️ {line.isDetailsExpanded ? "Hide" : "+"} Model / SKU / S/N
-                            {line.model || line.sku || line.serialNumber ? " (Set)" : ""}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="acc-link-btn"
-                            style={{
-                              color: hasWarranty ? "var(--acc-blue)" : "var(--acc-text-muted)",
-                              fontWeight: hasWarranty ? 600 : 400,
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              padding: 0,
-                            }}
-                            onClick={() => {
-                              const next = [...lines];
-                              next[idx].isWarrantyExpanded = !next[idx].isWarrantyExpanded;
-                              setLines(next);
-                            }}
-                          >
-                            🛡️ {line.isWarrantyExpanded ? "Hide" : "+"} Warranty:{" "}
-                            {hasWarranty ? line.warrantyType : "No Warranty"}
-                          </button>
-                        </div>
-
-                        {/* Expandable Model / SKU / Serial Number Section */}
-                        {line.isDetailsExpanded && (
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr 1fr 1fr",
-                              gap: "0.5rem",
-                              marginTop: "0.5rem",
-                              padding: "0.5rem",
-                              background: "var(--acc-surface)",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            <div>
-                              <label className="acc-field-sublabel">Model</label>
-                              <input
-                                type="text"
-                                className="acc-form-input"
-                                placeholder="e.g. M3 Pro 16-inch"
-                                value={line.model || ""}
-                                onChange={(e) => {
-                                  const next = [...lines];
-                                  next[idx].model = e.target.value;
-                                  setLines(next);
-                                }}
-                              />
+                          {/* Expandable Service / Subscription Validity */}
+                          {line.isServiceExpanded && (
+                            <div
+                              style={{
+                                marginTop: "0.5rem",
+                                padding: "0.6rem",
+                                background: "var(--acc-surface)",
+                                borderRadius: "4px",
+                                borderLeft: "3px solid #0284c7",
+                              }}
+                            >
+                              <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#0284c7", marginBottom: "0.35rem" }}>
+                                ⏱️ Service / Software Subscription Validity (Independent of physical warranty)
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                <div>
+                                  <label className="acc-field-sublabel">Service Start Date</label>
+                                  <input
+                                    type="date"
+                                    className="acc-form-input"
+                                    value={line.serviceStartDate || ""}
+                                    onChange={(e) => {
+                                      const next = [...lines];
+                                      next[idx].serviceStartDate = e.target.value;
+                                      setLines(next);
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="acc-field-sublabel">Service End Date</label>
+                                  <input
+                                    type="date"
+                                    className="acc-form-input"
+                                    value={line.serviceEndDate || ""}
+                                    onChange={(e) => {
+                                      const next = [...lines];
+                                      next[idx].serviceEndDate = e.target.value;
+                                      setLines(next);
+                                    }}
+                                  />
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <label className="acc-field-sublabel">SKU</label>
-                              <input
-                                type="text"
-                                className="acc-form-input"
-                                placeholder="e.g. LAP-001"
-                                value={line.sku || ""}
-                                onChange={(e) => {
-                                  const next = [...lines];
-                                  next[idx].sku = e.target.value;
-                                  setLines(next);
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label className="acc-field-sublabel">Serial Number</label>
-                              <input
-                                type="text"
-                                className="acc-form-input"
-                                placeholder="e.g. SN-87654321"
-                                value={line.serialNumber || ""}
-                                onChange={(e) => {
-                                  const next = [...lines];
-                                  next[idx].serialNumber = e.target.value;
-                                  setLines(next);
-                                }}
-                              />
-                            </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Expandable Warranty Section */}
-                        {line.isWarrantyExpanded && (
-                          <div
-                            style={{
-                              marginTop: "0.5rem",
-                              padding: "0.75rem",
-                              background: "var(--acc-surface)",
-                              borderRadius: "4px",
-                              borderLeft: "3px solid var(--acc-blue)",
-                            }}
-                          >
-                            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "0.5rem" }}>
-                              <div>
-                                <label className="acc-field-sublabel">Warranty Type</label>
-                                <select
-                                  className="acc-form-input"
-                                  value={line.warrantyType || "NONE"}
-                                  onChange={(e) => {
-                                    const next = [...lines];
-                                    next[idx].warrantyType = e.target.value as WarrantyType;
-                                    setLines(next);
-                                  }}
-                                >
-                                  <option value="NONE">No Warranty</option>
-                                  <option value="MANUFACTURER">Manufacturer Warranty</option>
-                                  <option value="SELLER">Seller Warranty</option>
-                                  <option value="CUSTOM">Custom Warranty Terms</option>
-                                </select>
+                          {/* Expandable Warranty Section */}
+                          {line.isWarrantyExpanded && (
+                            <div
+                              style={{
+                                marginTop: "0.5rem",
+                                padding: "0.75rem",
+                                background: "var(--acc-surface)",
+                                borderRadius: "4px",
+                                borderLeft: "3px solid var(--acc-blue)",
+                              }}
+                            >
+                              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 1fr 1fr", gap: "0.5rem" }}>
+                                <div>
+                                  <label className="acc-field-sublabel">Warranty Type</label>
+                                  <select
+                                    className="acc-form-input"
+                                    value={line.warrantyType || "NONE"}
+                                    onChange={(e) => {
+                                      const next = [...lines];
+                                      next[idx].warrantyType = e.target.value as WarrantyType;
+                                      setLines(next);
+                                    }}
+                                  >
+                                    <option value="NONE">No Warranty</option>
+                                    <option value="MANUFACTURER">Manufacturer Warranty</option>
+                                    <option value="SELLER">Seller Warranty</option>
+                                    <option value="CUSTOM">Custom Warranty Terms</option>
+                                  </select>
+                                </div>
+
+                                {hasWarranty && (
+                                  <>
+                                    <div>
+                                      <label className="acc-field-sublabel">Warranty Provider</label>
+                                      <input
+                                        type="text"
+                                        className="acc-form-input"
+                                        placeholder="e.g. Lenovo, Seller Direct"
+                                        value={line.warrantyProvider || ""}
+                                        onChange={(e) => {
+                                          const next = [...lines];
+                                          next[idx].warrantyProvider = e.target.value;
+                                          setLines(next);
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="acc-field-sublabel">Duration (Mos)</label>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        className="acc-form-input"
+                                        placeholder="12"
+                                        value={line.warrantyDurationMonths || ""}
+                                        onChange={(e) => updateLineWarrantyDuration(idx, parseInt(e.target.value, 10) || 0)}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="acc-field-sublabel">Start Date</label>
+                                      <input
+                                        type="date"
+                                        className="acc-form-input"
+                                        value={line.warrantyStartDate || issueDate}
+                                        onChange={(e) => {
+                                          const next = [...lines];
+                                          next[idx].warrantyStartDate = e.target.value;
+                                          setLines(next);
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="acc-field-sublabel">End Date</label>
+                                      <input
+                                        type="date"
+                                        className="acc-form-input"
+                                        value={line.warrantyEndDate || ""}
+                                        onChange={(e) => {
+                                          const next = [...lines];
+                                          next[idx].warrantyEndDate = e.target.value;
+                                          setLines(next);
+                                        }}
+                                      />
+                                    </div>
+                                  </>
+                                )}
                               </div>
 
                               {hasWarranty && (
-                                <>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
                                   <div>
-                                    <label className="acc-field-sublabel">Duration (Months)</label>
+                                    <label className="acc-field-sublabel">Coverage Scope</label>
                                     <input
-                                      type="number"
-                                      min={1}
+                                      type="text"
                                       className="acc-form-input"
-                                      placeholder="e.g. 12"
-                                      value={line.warrantyDurationMonths || ""}
-                                      onChange={(e) => updateLineWarrantyDuration(idx, parseInt(e.target.value, 10) || 0)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="acc-field-sublabel">Start Date</label>
-                                    <input
-                                      type="date"
-                                      className="acc-form-input"
-                                      value={line.warrantyStartDate || issueDate}
+                                      placeholder="e.g. Hardware replacement & parts"
+                                      value={line.warrantyCoverage || ""}
                                       onChange={(e) => {
                                         const next = [...lines];
-                                        next[idx].warrantyStartDate = e.target.value;
+                                        next[idx].warrantyCoverage = e.target.value;
                                         setLines(next);
                                       }}
                                     />
                                   </div>
                                   <div>
-                                    <label className="acc-field-sublabel">End Date</label>
+                                    <label className="acc-field-sublabel">Exclusions</label>
                                     <input
-                                      type="date"
+                                      type="text"
                                       className="acc-form-input"
-                                      value={line.warrantyEndDate || ""}
+                                      placeholder="e.g. Liquid damage, drops"
+                                      value={line.warrantyExclusions || ""}
                                       onChange={(e) => {
                                         const next = [...lines];
-                                        next[idx].warrantyEndDate = e.target.value;
+                                        next[idx].warrantyExclusions = e.target.value;
                                         setLines(next);
                                       }}
                                     />
                                   </div>
-                                </>
+                                  <div>
+                                    <label className="acc-field-sublabel">Claim Contact</label>
+                                    <input
+                                      type="text"
+                                      className="acc-form-input"
+                                      placeholder="support@brand.com / 1800-XXX-XXXX"
+                                      value={line.warrantyContact || ""}
+                                      onChange={(e) => {
+                                        const next = [...lines];
+                                        next[idx].warrantyContact = e.target.value;
+                                        setLines(next);
+                                      }}
+                                    />
+                                  </div>
+                                </div>
                               )}
                             </div>
-
-                            {hasWarranty && (
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
-                                <div>
-                                  <label className="acc-field-sublabel">Coverage Scope</label>
-                                  <input
-                                    type="text"
-                                    className="acc-form-input"
-                                    placeholder="e.g. Parts & labor for manufacturing defects"
-                                    value={line.warrantyCoverage || ""}
-                                    onChange={(e) => {
-                                      const next = [...lines];
-                                      next[idx].warrantyCoverage = e.target.value;
-                                      setLines(next);
-                                    }}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="acc-field-sublabel">Exclusions</label>
-                                  <input
-                                    type="text"
-                                    className="acc-form-input"
-                                    placeholder="e.g. Water damage, physical drops"
-                                    value={line.warrantyExclusions || ""}
-                                    onChange={(e) => {
-                                      const next = [...lines];
-                                      next[idx].warrantyExclusions = e.target.value;
-                                      setLines(next);
-                                    }}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="acc-field-sublabel">Claim Contact</label>
-                                  <input
-                                    type="text"
-                                    className="acc-form-input"
-                                    placeholder="e.g. support@brand.com / 1800-XXX-XXXX"
-                                    value={line.warrantyContact || ""}
-                                    onChange={(e) => {
-                                      const next = [...lines];
-                                      next[idx].warrantyContact = e.target.value;
-                                      setLines(next);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  className="acc-btn acc-btn-outline acc-btn-sm"
-                  style={{ marginTop: "0.5rem" }}
-                  onClick={handleAddLine}
-                >
-                  + Add Item Line
-                </button>
-              </div>
-
-              {/* 4. Financial Totals */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
-                <div style={{ width: "320px", background: "var(--acc-raised)", padding: "1rem", borderRadius: "var(--acc-radius-sm)", border: "1px solid var(--acc-border)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                    <span>Subtotal:</span>
-                    <span className="tabular-nums">{formatMoney(subtotalMinor, activeWorkspace?.currency)}</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {/* Discount Toggle */}
-                  {!showDiscount ? (
-                    <button
-                      type="button"
-                      className="acc-link-btn"
-                      style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.25rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                      onClick={() => setShowDiscount(true)}
-                    >
-                      + Add Discount
-                    </button>
-                  ) : (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                        <span>Discount:</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowDiscount(false);
-                            setDiscountStr("");
-                          }}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--acc-text-muted)" }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <FormattedMoneyInput
-                        className="acc-form-input tabular-nums"
-                        style={{ width: "100px", padding: "0.2rem 0.4rem", fontSize: "0.8rem", textAlign: "right" }}
-                        placeholder="0.00"
-                        value={discountStr}
-                        onValueChange={setDiscountStr}
-                      />
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn-outline acc-btn-sm"
+                    style={{ marginTop: "0.5rem" }}
+                    onClick={handleAddLine}
+                  >
+                    + Add Item Line
+                  </button>
+                </div>
 
-                  {/* Tax Toggle */}
-                  {isTaxConfigured && (
-                    !showTax ? (
-                      <div>
-                        <button
-                          type="button"
-                          className="acc-link-btn"
-                          style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.25rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                          onClick={() => setShowTax(true)}
-                        >
-                          + Add Tax
-                        </button>
-                      </div>
+                {/* ---------------------------------------------------------------------
+                   SECTION 5: FINANCIAL TOTALS
+                   --------------------------------------------------------------------- */}
+                <div className="acc-invoice-section" style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1.25rem" }}>
+                  <div style={{ width: "340px", background: "var(--acc-raised)", padding: "1rem", borderRadius: "var(--acc-radius-sm)", border: "1px solid var(--acc-border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                      <span>Subtotal:</span>
+                      <span className="tabular-nums">{formatMoney(subtotalMinor, activeWorkspace?.currency)}</span>
+                    </div>
+
+                    {/* Discount Toggle */}
+                    {!showDiscount ? (
+                      <button
+                        type="button"
+                        className="acc-link-btn"
+                        style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.25rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        onClick={() => setShowDiscount(true)}
+                      >
+                        + Add Discount
+                      </button>
                     ) : (
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                          <span>Tax ({invoiceSettings?.tax_label || "GST"}):</span>
+                          <span>Discount:</span>
                           <button
                             type="button"
                             onClick={() => {
-                              setShowTax(false);
-                              setTaxStr("");
+                              setShowDiscount(false);
+                              setDiscountStr("");
                             }}
                             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--acc-text-muted)" }}
                           >
@@ -1525,36 +1703,70 @@ export default function CreateInvoiceModal({
                         </div>
                         <FormattedMoneyInput
                           className="acc-form-input tabular-nums"
-                          style={{ width: "100px", padding: "0.2rem 0.4rem", fontSize: "0.8rem", textAlign: "right" }}
+                          style={{ width: "110px", padding: "0.2rem 0.4rem", fontSize: "0.8rem", textAlign: "right" }}
                           placeholder="0.00"
-                          value={taxStr}
-                          onValueChange={setTaxStr}
+                          value={discountStr}
+                          onValueChange={setDiscountStr}
                         />
                       </div>
-                    )
-                  )}
+                    )}
 
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "1.05rem", borderTop: "1px solid var(--acc-border)", paddingTop: "0.5rem", marginTop: "0.5rem" }}>
-                    <span>Total Amount:</span>
-                    <span className="tabular-nums">{formatMoney(totalMinor, activeWorkspace?.currency)}</span>
+                    {/* Tax Toggle */}
+                    {isTaxConfigured && (
+                      !showTax ? (
+                        <div>
+                          <button
+                            type="button"
+                            className="acc-link-btn"
+                            style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.25rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                            onClick={() => setShowTax(true)}
+                          >
+                            + Add Tax ({invoiceSettings?.tax_label || "GST"})
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                            <span>Tax ({invoiceSettings?.tax_label || "GST"}):</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowTax(false);
+                                setTaxStr("");
+                              }}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--acc-text-muted)" }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          <FormattedMoneyInput
+                            className="acc-form-input tabular-nums"
+                            style={{ width: "110px", padding: "0.2rem 0.4rem", fontSize: "0.8rem", textAlign: "right" }}
+                            placeholder="0.00"
+                            value={taxStr}
+                            onValueChange={setTaxStr}
+                          />
+                        </div>
+                      )
+                    )}
+
+                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "1.05rem", borderTop: "1px solid var(--acc-border)", paddingTop: "0.5rem", marginTop: "0.5rem" }}>
+                      <span>Total Amount:</span>
+                      <span className="tabular-nums">{formatMoney(totalMinor, activeWorkspace?.currency)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 5. Notes, Terms & Policies (Collapsible) */}
-              <div style={{ marginTop: "1rem" }}>
-                <button
-                  type="button"
-                  className="acc-collapse-toggle-btn"
-                  onClick={() => setShowNotesSection(!showNotesSection)}
-                >
-                  <span>{showNotesSection ? "▼" : "▶"} Notes, Payment Terms, Warranty Policy &amp; Internal Notes</span>
-                </button>
-
-                {showNotesSection && (
-                  <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    <div className="acc-form-group">
-                      <label className="acc-form-label">Payment Terms</label>
+                {/* ---------------------------------------------------------------------
+                   SECTION 6: PAYMENT INFORMATION
+                   --------------------------------------------------------------------- */}
+                <div className="acc-invoice-section" style={{ marginBottom: "1.25rem", background: "var(--acc-raised)", border: "1px solid var(--acc-border)", borderRadius: "var(--acc-radius-sm)", padding: "1rem" }}>
+                  <label className="acc-form-label" style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                    💳 Payment Information &amp; Terms
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "0.75rem" }}>
+                    <div>
+                      <label className="acc-field-sublabel">Payment Terms</label>
                       <input
                         type="text"
                         className="acc-form-input"
@@ -1563,97 +1775,132 @@ export default function CreateInvoiceModal({
                         onChange={(e) => setPaymentTerms(e.target.value)}
                       />
                     </div>
-                    <div className="acc-form-group">
-                      <label className="acc-form-label">Customer Notes &amp; Payment Instructions (Customer Visible)</label>
+                    <div>
+                      <label className="acc-field-sublabel">Payment Instructions / Bank Details (Customer-Visible)</label>
                       <textarea
                         rows={2}
                         className="acc-form-input"
-                        placeholder="Bank details, UPI ID, or delivery terms..."
+                        placeholder="e.g. Bank Account Number, IFSC, UPI ID, or Cash in Hand instructions..."
                         value={customerNotes}
                         onChange={(e) => setCustomerNotes(e.target.value)}
                       />
                     </div>
-                    <div className="acc-form-group">
-                      <label className="acc-form-label">Warranty Terms &amp; Policy (Customer Visible)</label>
-                      <textarea
-                        rows={2}
-                        className="acc-form-input"
-                        placeholder="Standard warranty terms &amp; conditions..."
-                        value={warrantyTerms}
-                        onChange={(e) => setWarrantyTerms(e.target.value)}
-                      />
-                    </div>
-                    <div className="acc-internal-notes-card">
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: "0.25rem" }}>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>🔒 Internal Note</span>
-                        <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.7rem" }}>Team Only</span>
-                      </div>
-                      <p style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", margin: "0 0 0.5rem" }}>
-                        Strictly internal to your team. Never printed or displayed to customer.
-                      </p>
-                      <textarea
-                        rows={2}
-                        className="acc-form-input"
-                        placeholder="Private instructions, internal references..."
-                        value={internalNotes}
-                        onChange={(e) => setInternalNotes(e.target.value)}
-                      />
-                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* Footer Buttons */}
-            <div className="acc-invoice-modal-footer">
-              <button
-                type="button"
-                className="acc-btn acc-btn-outline"
-                onClick={onClose}
-                disabled={submitting}
+                {/* ---------------------------------------------------------------------
+                   SECTION 7: NOTES, TERMS & POLICIES
+                   --------------------------------------------------------------------- */}
+                <div className="acc-invoice-section" style={{ marginBottom: "1.25rem", background: "var(--acc-raised)", border: "1px solid var(--acc-border)", borderRadius: "var(--acc-radius-sm)", padding: "1rem" }}>
+                  <label className="acc-form-label" style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                    📝 Policies &amp; Private Internal Notes
+                  </label>
+
+                  <div className="acc-form-group">
+                    <label className="acc-field-sublabel">Warranty Terms &amp; Policy (Customer-Visible)</label>
+                    <textarea
+                      rows={2}
+                      className="acc-form-input"
+                      placeholder="General warranty conditions applicable to covered items..."
+                      value={warrantyTerms}
+                      onChange={(e) => setWarrantyTerms(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="acc-internal-notes-card" style={{ marginTop: "0.75rem", background: "var(--acc-surface)", padding: "0.75rem", borderRadius: "4px", border: "1px solid var(--acc-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: "0.25rem" }}>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>🔒 Private Internal Note</span>
+                      <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.7rem" }}>Team Only</span>
+                    </div>
+                    <p style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", margin: "0 0 0.5rem" }}>
+                      Strictly internal to your workspace. Never printed, exported, or visible on customer links.
+                    </p>
+                    <textarea
+                      rows={2}
+                      className="acc-form-input"
+                      placeholder="Private instructions, staff reference, internal cost tracking..."
+                      value={internalNotes}
+                      onChange={(e) => setInternalNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sticky Footer Buttons */}
+              <div
+                className="acc-invoice-modal-footer"
+                style={{
+                  flexShrink: 0,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "0.85rem 1.5rem",
+                  borderTop: "1px solid var(--acc-border)",
+                  background: "var(--acc-surface)",
+                }}
               >
-                Cancel
-              </button>
-              <div className="acc-invoice-footer-right">
                 <button
                   type="button"
                   className="acc-btn acc-btn-outline"
-                  onClick={() => setViewMode("PREVIEW")}
+                  onClick={handleRequestClose}
                   disabled={submitting}
                 >
-                  👁️ Preview
+                  Cancel
                 </button>
-                {!directSaleToConvert && (
+                <div className="acc-invoice-footer-right" style={{ display: "flex", gap: "0.5rem" }}>
                   <button
                     type="button"
                     className="acc-btn acc-btn-outline"
-                    onClick={() => handleSubmitInvoice("DRAFT")}
+                    onClick={() => setViewMode("PREVIEW")}
                     disabled={submitting}
                   >
-                    Save as Draft
+                    👁️ Preview
                   </button>
-                )}
-                {canMutate && (
-                  <button
-                    type="button"
-                    className="acc-btn acc-btn-primary"
-                    onClick={() => handleSubmitInvoice("ISSUED")}
-                    disabled={submitting}
-                  >
-                    {submitting
-                      ? "Processing..."
-                      : directSaleToConvert
-                      ? "Convert & Issue Invoice"
-                      : invoiceIdToEdit
-                      ? "Issue Invoice"
-                      : "Create & Issue Invoice"}
-                  </button>
-                )}
+                  {!directSaleToConvert && (
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-outline"
+                      onClick={() => handleSubmitInvoice("DRAFT")}
+                      disabled={submitting}
+                    >
+                      Save as Draft
+                    </button>
+                  )}
+                  {canMutate && (
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-primary"
+                      onClick={() => handleSubmitInvoice("ISSUED")}
+                      disabled={submitting}
+                    >
+                      {submitting
+                        ? "Processing..."
+                        : directSaleToConvert
+                        ? "Convert & Issue Invoice"
+                        : invoiceIdToEdit
+                        ? "Issue Invoice"
+                        : "Create & Issue Invoice"}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Invoice Settings Modal for editing branding on the fly */}
+      {showSettingsModal && (
+        <InvoiceSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => {
+            setShowSettingsModal(false);
+            loadInvoiceSettings();
+          }}
+          onSaved={() => {
+            loadInvoiceSettings();
+          }}
+        />
+      )}
+    </>
   );
 }

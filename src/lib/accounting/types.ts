@@ -100,11 +100,16 @@ export interface SellerSnapshot {
   business_name: string;
   logo_url?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
   phone?: string | null;
   email?: string | null;
   website?: string | null;
   tax_id?: string | null;
   tax_label?: string | null;
+  default_return_terms?: string | null;
 }
 
 export interface CustomerSnapshot {
@@ -120,6 +125,10 @@ export interface InvoiceSettingsRow {
   business_name: string | null;
   logo_url: string | null;
   address: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
   phone: string | null;
   email: string | null;
   website: string | null;
@@ -128,6 +137,7 @@ export interface InvoiceSettingsRow {
   default_notes: string | null;
   default_terms: string;
   default_warranty_terms: string | null;
+  default_return_terms?: string | null;
   invoice_prefix: string;
   next_sequence: number;
   created_at: Date;
@@ -146,6 +156,7 @@ export interface ProductServiceRow {
   is_active: boolean;
   catalog_product_id: string | null;
   default_warranty_type?: WarrantyType;
+  default_warranty_provider?: string | null;
   default_warranty_duration_months?: number | null;
   default_warranty_coverage?: string | null;
   default_warranty_exclusions?: string | null;
@@ -271,12 +282,15 @@ export interface InvoiceLineRow {
   sku?: string | null;
   serial_number?: string | null;
   warranty_type?: WarrantyType;
+  warranty_provider?: string | null;
   warranty_duration_months?: number | null;
   warranty_start_date?: string | null;
   warranty_end_date?: string | null;
   warranty_coverage?: string | null;
   warranty_exclusions?: string | null;
   warranty_contact?: string | null;
+  service_start_date?: string | null;
+  service_end_date?: string | null;
 }
 
 export interface DirectSaleRow {
