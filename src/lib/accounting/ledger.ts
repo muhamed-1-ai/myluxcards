@@ -110,7 +110,7 @@ export async function postJournalEntry(
     // 3. Generate Sequential Entry Number
     const entryDate = input.entryDate || new Date().toISOString().slice(0, 10);
     const datePrefix = entryDate.replace(/-/g, "");
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
     const entryNumber = `JE-${datePrefix}-${randomSuffix}`;
 
     // 4. Insert Journal Entry Header
@@ -129,7 +129,7 @@ export async function postJournalEntry(
         input.sourceType,
         input.sourceId || null,
         input.idempotencyKey || null,
-        input.userId || null,
+        input.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.userId) ? input.userId : null,
       ]
     );
     const entry = entryRes.rows[0];

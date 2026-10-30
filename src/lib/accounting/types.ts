@@ -287,12 +287,15 @@ export interface UserTransactionRow {
   restored_by_name?: string | null;
   attachment_count?: number;
   attachments?: TransactionAttachmentRow[];
+  purchase_id?: string | null;
+  purchase_number?: string | null;
 }
 
 export interface TransactionAttachmentRow {
   id: string;
   workspace_id: string;
-  transaction_id: string;
+  transaction_id: string | null;
+  purchase_id?: string | null;
   storage_key: string;
   file_name: string;
   file_size: number;
@@ -302,6 +305,89 @@ export interface TransactionAttachmentRow {
   updated_at: Date | string;
   url?: string;
   download_url?: string;
+}
+
+export type PurchaseStatus = "DRAFT" | "UNPAID" | "PARTIALLY_PAID" | "PAID" | "VOIDED";
+export type PurchaseType = "EXPENSE" | "INVENTORY" | "ASSET";
+
+export interface PurchaseRow {
+  id: string;
+  workspace_id: string;
+  purchase_number: string;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  supplier_bill_number: string | null;
+  purchase_date: string;
+  due_date: string | null;
+  category_id: string | null;
+  status: PurchaseStatus;
+  purchase_type: PurchaseType;
+  currency: string;
+  subtotal_minor: string | number;
+  discount_minor: string | number;
+  tax_minor: string | number;
+  total_minor: string | number;
+  amount_paid_minor: string | number;
+  amount_due_minor: string | number;
+  total_amount_minor?: string | number;
+  paid_amount_minor?: string | number;
+  balance_due_minor?: string | number;
+  notes: string | null;
+  posted_journal_entry_id: string | null;
+  transaction_id: string | null;
+  created_by: string | null;
+  voided_at?: Date | string | null;
+  voided_by?: string | null;
+  void_reason?: string | null;
+  created_at: Date;
+  updated_at: Date;
+  // Joined / computed fields
+  supplier_email?: string | null;
+  supplier_phone?: string | null;
+  supplier_address?: string | null;
+  category_name?: string | null;
+  parent_category_name?: string | null;
+  main_category_name?: string | null;
+  subcategory_name?: string | null;
+  attachment_count?: number;
+  attachments?: TransactionAttachmentRow[];
+  lines?: PurchaseLineRow[];
+  payments?: PurchasePaymentRow[];
+}
+
+export interface PurchaseLineRow {
+  id: string;
+  purchase_id: string;
+  product_id: string | null;
+  description: string;
+  quantity: string | number;
+  unit_price_minor: string | number;
+  discount_minor: string | number;
+  tax_minor: string | number;
+  total_minor: string | number;
+  sort_order: number;
+  product_name?: string | null;
+  sku?: string | null;
+}
+
+export interface PurchasePaymentRow {
+  id: string;
+  workspace_id: string;
+  purchase_id: string;
+  payment_id: string | null;
+  financial_account_id: string;
+  amount_minor: string | number;
+  payment_date: string;
+  payment_method: string;
+  reference_number: string | null;
+  notes: string | null;
+  journal_entry_id: string | null;
+  status: "POSTED" | "VOIDED";
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+  account_name?: string;
+  account_code?: string;
 }
 
 export interface LoanRow {
@@ -410,6 +496,9 @@ export interface RecoveryRecordCounts {
   budgets: number;
   recurringRules: number;
   reminders: number;
+  purchases?: number;
+  purchaseLines?: number;
+  purchasePayments?: number;
 }
 
 export interface FinancialSummary {

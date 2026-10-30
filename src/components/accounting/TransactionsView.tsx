@@ -8,7 +8,10 @@ import FormattedMoneyInput from "../ui/FormattedMoneyInput";
 import { Paperclip } from "lucide-react";
 import TransactionAttachmentsDropzone from "./TransactionAttachmentsDropzone";
 import TransactionAttachmentViewerModal from "./TransactionAttachmentViewerModal";
-import type { TransactionAttachmentRow } from "@/lib/accounting/types";
+import CreatePurchaseModal from "./CreatePurchaseModal";
+import PurchaseDetailModal from "./PurchaseDetailModal";
+import type { TransactionAttachmentRow, PurchaseRow } from "@/lib/accounting/types";
+import { ShoppingBag, Search, Plus, Filter, CreditCard, ChevronRight } from "lucide-react";
 
 interface TransactionItem {
   id: string;
@@ -33,10 +36,12 @@ interface TransactionItem {
   restored_by_name?: string | null;
   attachment_count?: number;
   attachments?: TransactionAttachmentRow[];
+  purchase_id?: string | null;
+  purchase_number?: string | null;
 }
 
 interface TransactionsViewProps {
-  initialSubtab?: "TRANSACTIONS" | "BALANCES" | "VOIDED";
+  initialSubtab?: "TRANSACTIONS" | "PURCHASES" | "BALANCES" | "VOIDED";
 }
 
 function formatVoidDate(dateVal?: Date | string | null): string {
@@ -62,13 +67,30 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     canMutate,
   } = useAccounting();
 
-  const [subtab, setSubtab] = useState<"TRANSACTIONS" | "BALANCES" | "VOIDED">(initialSubtab);
+  const [subtab, setSubtab] = useState<"TRANSACTIONS" | "PURCHASES" | "BALANCES" | "VOIDED">(initialSubtab);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [activeTotal, setActiveTotal] = useState(0);
   const [voidedTransactions, setVoidedTransactions] = useState<TransactionItem[]>([]);
   const [voidedTotal, setVoidedTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingVoided, setLoadingVoided] = useState(true);
+
+  // Purchases State
+  const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
+  const [purchasesTotal, setPurchasesTotal] = useState(0);
+  const [loadingPurchases, setLoadingPurchases] = useState(true);
+
+  // Filters for Purchases
+  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>("ALL");
+  const [purchaseSearchTerm, setPurchaseSearchTerm] = useState("");
+  const [purchaseStartDate, setPurchaseStartDate] = useState("");
+  const [purchaseEndDate, setPurchaseEndDate] = useState("");
+
+  // Purchases Modals State
+  const [createPurchaseOpen, setCreatePurchaseOpen] = useState(false);
+  const [editingDraftData, setEditingDraftData] = useState<any | null>(null);
+  const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
+  const [purchaseDetailOpen, setPurchaseDetailOpen] = useState(false);
 
   // Filters for All Transactions
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -151,11 +173,13 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (voidingTx && !submittingVoid) setVoidingTx(null);
-        if (restoringTx && !submittingRestore) setRestoringTx(null);
-        if (editingTx && !submittingEdit) setEditingTx(null);
-        if (openingModalOpen && !submittingOpening) setOpeningModalOpen(false);
-        if (correctingEntry && !submittingCorrection) setCorrectingEntry(null);
+        if (createPurchaseOpen && !loadingPurchases) setCreatePurchaseOpen(false);
+        else if (purchaseDetailOpen) setPurchaseDetailOpen(false);
+        else if (voidingTx && !submittingVoid) setVoidingTx(null);
+        else if (restoringTx && !submittingRestore) setRestoringTx(null);
+        else if (editingTx && !submittingEdit) setEditingTx(null);
+        else if (openingModalOpen && !submittingOpening) setOpeningModalOpen(false);
+        else if (correctingEntry && !submittingCorrection) setCorrectingEntry(null);
         else if (reversingEntry && !submittingReversal) setReversingEntry(null);
         else if (historyModalOpen) setHistoryModalOpen(false);
       }
@@ -163,6 +187,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    createPurchaseOpen,
+    purchaseDetailOpen,
+    loadingPurchases,
     voidingTx,
     submittingVoid,
     restoringTx,
@@ -221,6 +248,70 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
     loadData();
     return () => { isMounted = false; };
   }, [activeWorkspace, refreshKey]);
+
+  // Load purchases from server
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    let isMounted = true;
+
+    async function loadPurchases() {
+      try {
+        setLoadingPurchases(true);
+        const params = new URLSearchParams({ workspaceId: activeWorkspace!.id });
+        if (purchaseStatusFilter && purchaseStatusFilter !== "ALL") {
+          params.set("status", purchaseStatusFilter);
+        }
+        if (purchaseSearchTerm.trim()) {
+          params.set("search", purchaseSearchTerm.trim());
+        }
+        if (purchaseStartDate) {
+          params.set("startDate", purchaseStartDate);
+        }
+        if (purchaseEndDate) {
+          params.set("endDate", purchaseEndDate);
+        }
+
+        const res = await fetch(`/api/accounting/purchases?${params.toString()}`);
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setPurchases(data.purchases || []);
+          setPurchasesTotal(data.total ?? (data.purchases || []).length);
+        }
+      } catch (err) {
+        console.error("Failed to load purchases:", err);
+      } finally {
+        if (isMounted) setLoadingPurchases(false);
+      }
+    }
+
+    loadPurchases();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeWorkspace, refreshKey, purchaseStatusFilter, purchaseSearchTerm, purchaseStartDate, purchaseEndDate]);
+
+  useEffect(() => {
+    if (initialSubtab) {
+      setSubtab(initialSubtab);
+    }
+  }, [initialSubtab]);
+
+  // Handle editing a draft purchase
+  const handleEditDraft = async (purchase: PurchaseRow) => {
+    try {
+      const res = await fetch(`/api/accounting/purchases/${purchase.id}?workspaceId=${activeWorkspace?.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEditingDraftData(data.purchase);
+      } else {
+        setEditingDraftData(purchase);
+      }
+    } catch {
+      setEditingDraftData(purchase);
+    }
+    setCreatePurchaseOpen(true);
+  };
+
 
   // Void confirmation submit
   const handleConfirmVoid = async (e: React.FormEvent) => {
@@ -654,7 +745,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
         </div>
       </div>
 
-      {/* Secondary Navigation Segmented Control: All Transactions, Account Balances, Voided */}
+      {/* Secondary Navigation Segmented Control: All Transactions, Purchases, Account Balances, Voided */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
         <button
           type="button"
@@ -662,6 +753,13 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           onClick={() => setSubtab("TRANSACTIONS")}
         >
           💳 All Transactions ({activeTotal})
+        </button>
+        <button
+          type="button"
+          className={`acc-btn acc-btn-sm ${subtab === "PURCHASES" ? "acc-btn-primary" : "acc-btn-outline"}`}
+          onClick={() => setSubtab("PURCHASES")}
+        >
+          🛒 Purchases ({purchasesTotal})
         </button>
         <button
           type="button"
@@ -799,6 +897,31 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                               <span style={{ fontWeight: 600 }}>
                                 {tx.contact_name || tx.notes || "General Entry"}
                               </span>
+                              {Boolean(tx.purchase_id) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPurchaseId(tx.purchase_id!);
+                                    setPurchaseDetailOpen(true);
+                                  }}
+                                  className="acc-badge"
+                                  style={{
+                                    cursor: "pointer",
+                                    backgroundColor: "var(--acc-blue-soft, rgba(37,99,235,0.2))",
+                                    color: "var(--acc-blue-accent, #2583FF)",
+                                    border: "1px solid var(--acc-blue-border, #303030)",
+                                    fontSize: "0.6875rem",
+                                    padding: "0.15rem 0.45rem",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "0.25rem",
+                                  }}
+                                  title="View linked purchase details"
+                                >
+                                  🛒 {tx.purchase_number || "Purchase"}
+                                </button>
+                              )}
                               {Boolean(tx.attachment_count && tx.attachment_count > 0) && (
                                 <button
                                   type="button"
@@ -895,6 +1018,432 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
                               )}
                             </td>
                           )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 1B: Purchases */}
+      {subtab === "PURCHASES" && (
+        <div>
+          {/* Header & New Purchase Action */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1.25rem",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}
+          >
+            <div>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>
+                Purchases &amp; Supplier Bills
+              </h2>
+              <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
+                Track supplier bills, record payments from Cash in Hand or Bank Account, and monitor Accounts Payable.
+              </p>
+            </div>
+            {canMutate && (
+              <button
+                type="button"
+                className="acc-btn acc-btn-primary"
+                onClick={() => {
+                  setEditingDraftData(null);
+                  setCreatePurchaseOpen(true);
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.45rem",
+                  padding: "0.55rem 1.1rem",
+                  fontWeight: 600,
+                  boxShadow: "0 1px 3px rgba(37, 99, 235, 0.3)",
+                }}
+              >
+                <Plus size={16} />
+                + New Purchase
+              </button>
+            )}
+          </div>
+
+          {/* Filters Bar: Search & Status / Date Filters */}
+          <div className="acc-card" style={{ marginBottom: "1.25rem", padding: "1rem" }}>
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+              {/* Search input */}
+              <div style={{ flex: 1, minWidth: "240px", position: "relative" }}>
+                <Search
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--acc-text-muted)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  type="text"
+                  className="acc-form-input"
+                  style={{ paddingLeft: "2.25rem" }}
+                  placeholder="Search by supplier, reference (PUR-...), or bill #..."
+                  value={purchaseSearchTerm}
+                  onChange={(e) => setPurchaseSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {/* Status filter pills */}
+              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center" }}>
+                {[
+                  { key: "ALL", label: "All" },
+                  { key: "DRAFT", label: "Drafts" },
+                  { key: "UNPAID", label: "Unpaid" },
+                  { key: "PARTIALLY_PAID", label: "Partially Paid" },
+                  { key: "PAID", label: "Paid" },
+                  { key: "VOIDED", label: "Voided" },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`acc-btn acc-btn-sm ${purchaseStatusFilter === key ? "acc-btn-primary" : "acc-btn-outline"}`}
+                    onClick={() => setPurchaseStatusFilter(key)}
+                    style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem" }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Date Filters */}
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>From:</span>
+                  <input
+                    type="date"
+                    className="acc-form-input"
+                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.8125rem", width: "135px" }}
+                    value={purchaseStartDate}
+                    onChange={(e) => setPurchaseStartDate(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>To:</span>
+                  <input
+                    type="date"
+                    className="acc-form-input"
+                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.8125rem", width: "135px" }}
+                    value={purchaseEndDate}
+                    onChange={(e) => setPurchaseEndDate(e.target.value)}
+                  />
+                </div>
+                {(Boolean(purchaseStartDate) || Boolean(purchaseEndDate) || Boolean(purchaseSearchTerm) || purchaseStatusFilter !== "ALL") && (
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn-sm acc-btn-outline"
+                    onClick={() => {
+                      setPurchaseSearchTerm("");
+                      setPurchaseStatusFilter("ALL");
+                      setPurchaseStartDate("");
+                      setPurchaseEndDate("");
+                    }}
+                    style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Purchases Table or Empty State */}
+          <div className="acc-card">
+            {loadingPurchases ? (
+              <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
+                Loading purchases ledger...
+              </div>
+            ) : purchases.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "3.5rem 1.5rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(37, 99, 235, 0.1)",
+                    border: "1px solid rgba(37, 99, 235, 0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <ShoppingBag size={32} color="var(--acc-blue, #3B82F6)" />
+                </div>
+                <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: "0 0 0.5rem 0" }}>
+                  {purchaseSearchTerm || purchaseStatusFilter !== "ALL" || purchaseStartDate || purchaseEndDate
+                    ? "No purchases match your filters"
+                    : "Record your first purchase"}
+                </h3>
+                <p
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "var(--acc-text-muted)",
+                    maxWidth: "460px",
+                    margin: "0 0 1.5rem 0",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {purchaseSearchTerm || purchaseStatusFilter !== "ALL" || purchaseStartDate || purchaseEndDate
+                    ? "Try adjusting your search terms, status filters, or date range."
+                    : "Add supplier bills, link item lines and expense categories, track outstanding balances under Accounts Payable, and record cash/bank disbursements."}
+                </p>
+                {canMutate && (
+                  purchaseSearchTerm || purchaseStatusFilter !== "ALL" || purchaseStartDate || purchaseEndDate ? (
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-outline"
+                      onClick={() => {
+                        setPurchaseSearchTerm("");
+                        setPurchaseStatusFilter("ALL");
+                        setPurchaseStartDate("");
+                        setPurchaseEndDate("");
+                      }}
+                    >
+                      Clear All Filters
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-primary"
+                      onClick={() => {
+                        setEditingDraftData(null);
+                        setCreatePurchaseOpen(true);
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        padding: "0.6rem 1.25rem",
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Plus size={16} />
+                      + Record First Purchase
+                    </button>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className="acc-table-wrapper">
+                <table className="acc-table">
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Reference</th>
+                      <th style={{ minWidth: "95px", whiteSpace: "nowrap" }}>Date</th>
+                      <th style={{ minWidth: "160px" }}>Supplier</th>
+                      <th className="acc-align-right" style={{ minWidth: "105px", whiteSpace: "nowrap" }}>Total</th>
+                      <th className="acc-align-right" style={{ minWidth: "95px", whiteSpace: "nowrap" }}>Paid</th>
+                      <th className="acc-align-right" style={{ minWidth: "105px", whiteSpace: "nowrap" }}>Balance</th>
+                      <th style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Status</th>
+                      <th className="acc-align-right" style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchases.map((p) => {
+                      const totalMinor = Number(p.total_minor ?? p.total_amount_minor ?? 0);
+                      const paidMinor = Number(p.amount_paid_minor ?? p.paid_amount_minor ?? 0);
+                      const dueMinor = Number(p.amount_due_minor ?? p.balance_due_minor ?? 0);
+                      const isDraft = p.status === "DRAFT";
+                      const isVoided = p.status === "VOIDED";
+                      const hasBalance = !isDraft && !isVoided && dueMinor > 0;
+
+                      return (
+                        <tr
+                          key={p.id}
+                          style={{
+                            cursor: "pointer",
+                            opacity: isVoided ? 0.65 : 1,
+                          }}
+                          onClick={() => {
+                            setSelectedPurchaseId(p.id);
+                            setPurchaseDetailOpen(true);
+                          }}
+                        >
+                          {/* Reference */}
+                          <td>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                                <span style={{ fontWeight: 700, color: "var(--acc-blue, #60A5FA)" }}>
+                                  {p.purchase_number}
+                                </span>
+                                {Boolean(p.attachment_count && p.attachment_count > 0) && (
+                                  <span
+                                    title={`${p.attachment_count} attachment(s)`}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "0.15rem",
+                                      fontSize: "0.6875rem",
+                                      color: "var(--acc-text-muted)",
+                                    }}
+                                  >
+                                    <Paperclip size={12} />
+                                    {p.attachment_count}
+                                  </span>
+                                )}
+                              </div>
+                              {p.supplier_bill_number && (
+                                <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                                  Bill #{p.supplier_bill_number}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Date */}
+                          <td style={{ fontSize: "0.8125rem", whiteSpace: "nowrap" }}>
+                            <div>{p.purchase_date}</div>
+                            {p.due_date && (
+                              <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                Due: {p.due_date}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Supplier */}
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{p.supplier_name || "Unknown Supplier"}</div>
+                            {p.category_name && (
+                              <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                                {p.category_name}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Total */}
+                          <td className="acc-align-right tabular-nums font-bold" style={{ whiteSpace: "nowrap" }}>
+                            {formatMoney(totalMinor, activeWorkspace?.currency)}
+                          </td>
+
+                          {/* Paid */}
+                          <td
+                            className="acc-align-right tabular-nums"
+                            style={{
+                              whiteSpace: "nowrap",
+                              color: paidMinor > 0 ? "var(--acc-success, #10B981)" : "var(--acc-text-muted)",
+                            }}
+                          >
+                            {formatMoney(paidMinor, activeWorkspace?.currency)}
+                          </td>
+
+                          {/* Balance */}
+                          <td
+                            className="acc-align-right tabular-nums font-bold"
+                            style={{
+                              whiteSpace: "nowrap",
+                              color: hasBalance
+                                ? "var(--acc-danger, #EF4444)"
+                                : isDraft
+                                ? "var(--acc-text-muted)"
+                                : "var(--acc-success, #10B981)",
+                            }}
+                          >
+                            {formatMoney(dueMinor, activeWorkspace?.currency)}
+                          </td>
+
+                          {/* Status */}
+                          <td>
+                            <span
+                              className={`acc-badge ${
+                                p.status === "PAID"
+                                  ? "acc-badge-success"
+                                  : p.status === "PARTIALLY_PAID"
+                                  ? "acc-badge-warning"
+                                  : p.status === "UNPAID"
+                                  ? "acc-badge-danger"
+                                  : isVoided
+                                  ? "acc-badge-neutral"
+                                  : "acc-badge-neutral"
+                              }`}
+                              style={{
+                                fontSize: "0.6875rem",
+                                textDecoration: isVoided ? "line-through" : "none",
+                              }}
+                            >
+                              {p.status === "PARTIALLY_PAID"
+                                ? "Partially Paid"
+                                : p.status === "UNPAID"
+                                ? "Unpaid"
+                                : p.status === "PAID"
+                                ? "Paid"
+                                : p.status === "DRAFT"
+                                ? "Draft"
+                                : p.status === "VOIDED"
+                                ? "Voided"
+                                : p.status}
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="acc-align-right" style={{ whiteSpace: "nowrap" }}>
+                            <div
+                              style={{ display: "inline-flex", gap: "0.35rem" }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="acc-btn acc-btn-sm acc-btn-outline"
+                                style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                                onClick={() => {
+                                  setSelectedPurchaseId(p.id);
+                                  setPurchaseDetailOpen(true);
+                                }}
+                              >
+                                View
+                              </button>
+
+                              {canMutate && isDraft && (
+                                <button
+                                  type="button"
+                                  className="acc-btn acc-btn-sm acc-btn-outline"
+                                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", color: "var(--acc-blue, #60A5FA)" }}
+                                  onClick={() => handleEditDraft(p)}
+                                >
+                                  Edit
+                                </button>
+                              )}
+
+                              {canMutate && hasBalance && (
+                                <button
+                                  type="button"
+                                  className="acc-btn acc-btn-sm acc-btn-primary"
+                                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                                  onClick={() => {
+                                    setSelectedPurchaseId(p.id);
+                                    setPurchaseDetailOpen(true);
+                                  }}
+                                >
+                                  Pay
+                                </button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -2267,6 +2816,44 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           transactionTitle={viewerTx.contact_name || viewerTx.notes || "Transaction"}
           transactionSubtitle={`${viewerTx.type} • ${formatMoney(viewerTx.amount_minor, activeWorkspace?.currency)} • ${viewerTx.date}`}
           attachments={viewerAttachments}
+        />
+      )}
+
+      {/* Create / Edit Purchase Modal */}
+      {createPurchaseOpen && (
+        <CreatePurchaseModal
+          isOpen={createPurchaseOpen}
+          onClose={() => {
+            setCreatePurchaseOpen(false);
+            setEditingDraftData(null);
+          }}
+          onSuccess={() => {
+            setCreatePurchaseOpen(false);
+            setEditingDraftData(null);
+            triggerRefresh();
+            setFeedbackToast({ type: "success", message: "Purchase saved successfully." });
+          }}
+          initialDraftData={editingDraftData}
+        />
+      )}
+
+      {/* Purchase Detail Modal */}
+      {purchaseDetailOpen && selectedPurchaseId && (
+        <PurchaseDetailModal
+          isOpen={purchaseDetailOpen}
+          purchaseId={selectedPurchaseId}
+          onClose={() => {
+            setPurchaseDetailOpen(false);
+            setSelectedPurchaseId(null);
+          }}
+          onRefresh={() => {
+            triggerRefresh();
+          }}
+          onEditDraft={(p) => {
+            setPurchaseDetailOpen(false);
+            setEditingDraftData(p);
+            setCreatePurchaseOpen(true);
+          }}
         />
       )}
     </div>

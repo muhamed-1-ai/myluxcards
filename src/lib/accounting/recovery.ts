@@ -68,7 +68,10 @@ export async function fetchWorkspaceRecordCounts(
       (SELECT COUNT(*)::int FROM accounting_loan_installments i JOIN accounting_loans l ON i.loan_id = l.id WHERE l.workspace_id = $1) AS loan_installments,
       (SELECT COUNT(*)::int FROM accounting_budgets WHERE workspace_id = $1) AS budgets,
       (SELECT COUNT(*)::int FROM accounting_recurring_rules WHERE workspace_id = $1) AS recurring_rules,
-      (SELECT COUNT(*)::int FROM accounting_reminders WHERE workspace_id = $1) AS reminders
+      (SELECT COUNT(*)::int FROM accounting_reminders WHERE workspace_id = $1) AS reminders,
+      (SELECT COUNT(*)::int FROM accounting_purchases WHERE workspace_id = $1) AS purchases,
+      (SELECT COUNT(*)::int FROM accounting_purchase_lines l JOIN accounting_purchases p ON l.purchase_id = p.id WHERE p.workspace_id = $1) AS purchase_lines,
+      (SELECT COUNT(*)::int FROM accounting_purchase_payments WHERE workspace_id = $1) AS purchase_payments
   `, [workspaceId]);
 
   const row = res.rows[0] || {};
@@ -92,6 +95,9 @@ export async function fetchWorkspaceRecordCounts(
     budgets: row.budgets || 0,
     recurringRules: row.recurring_rules || 0,
     reminders: row.reminders || 0,
+    purchases: row.purchases || 0,
+    purchaseLines: row.purchase_lines || 0,
+    purchasePayments: row.purchase_payments || 0,
   };
 }
 
@@ -415,6 +421,16 @@ export async function wipeActiveAccountingRecords(
 
   // 4. Quick UI transactions
   await client.query(`DELETE FROM accounting_transactions WHERE workspace_id = $1`, [workspaceId]);
+
+  // 4b. Purchase payments, lines, purchases, sequences
+  await client.query(`DELETE FROM accounting_purchase_payments WHERE workspace_id = $1`, [workspaceId]);
+  await client.query(
+    `DELETE FROM accounting_purchase_lines
+     WHERE purchase_id IN (SELECT id FROM accounting_purchases WHERE workspace_id = $1)`,
+    [workspaceId]
+  );
+  await client.query(`DELETE FROM accounting_purchases WHERE workspace_id = $1`, [workspaceId]);
+  await client.query(`DELETE FROM accounting_purchase_sequences WHERE workspace_id = $1`, [workspaceId]);
 
   // 5. Sales
   await client.query(`DELETE FROM accounting_sales WHERE workspace_id = $1`, [workspaceId]);

@@ -577,6 +577,7 @@ export async function listTransactions(
   params.push(limit, offset);
   const dataQuery = `
     SELECT t.*, cat.name as category_name, parent_cat.name as parent_category_name,
+           p.purchase_number,
            CASE
              WHEN parent_cat.id IS NOT NULL THEN parent_cat.name
              ELSE cat.name
@@ -590,9 +591,10 @@ export async function listTransactions(
            COALESCE((
              SELECT COUNT(*)
              FROM accounting_transaction_attachments att
-             WHERE att.transaction_id = t.id
+             WHERE att.transaction_id = t.id OR att.purchase_id = t.purchase_id
            ), 0)::int as attachment_count
     FROM accounting_transactions t
+    LEFT JOIN accounting_purchases p ON p.id = t.purchase_id
     LEFT JOIN accounting_categories cat ON cat.id = t.category_id
     LEFT JOIN accounting_categories parent_cat ON parent_cat.id = cat.parent_id
     LEFT JOIN accounting_financial_accounts fa ON fa.id = t.financial_account_id
@@ -774,6 +776,15 @@ export async function voidTransaction(
       [userId || null, transactionId]
     );
 
+    if (tx.purchase_id) {
+      await client.query(
+        `UPDATE accounting_purchases
+         SET status = 'VOIDED', voided_at = NOW(), voided_by = $1, void_reason = $2, updated_at = NOW()
+         WHERE id = $3`,
+        [userId || null, reason, tx.purchase_id]
+      );
+    }
+
     // Audit Log for the transaction entity
     let actorId = userId || tx.created_by;
     if (!actorId) {
@@ -906,6 +917,15 @@ export async function restoreTransaction(
        WHERE id = $3`,
       [reinstatement.id, userId || null, transactionId]
     );
+
+    if (tx.purchase_id) {
+      await client.query(
+        `UPDATE accounting_purchases
+         SET status = 'UNPAID', posted_journal_entry_id = $1, voided_at = NULL, voided_by = NULL, void_reason = NULL, updated_at = NOW()
+         WHERE id = $2`,
+        [reinstatement.id, tx.purchase_id]
+      );
+    }
 
     // 6. Audit Log
     let actorId = userId || tx.created_by;

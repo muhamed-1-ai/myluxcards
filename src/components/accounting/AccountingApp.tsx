@@ -18,6 +18,7 @@ export type AccountingTab =
   | "accounting-overview"
   | "accounting-home"
   | "accounting-transactions"
+  | "accounting-purchases"
   | "accounting-people"
   | "accounting-sales-invoices"
   | "accounting-invoices"
@@ -46,6 +47,8 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
     switch (currentTab) {
       case "accounting-transactions":
         return <TransactionsView initialSubtab="TRANSACTIONS" />;
+      case "accounting-purchases":
+        return <TransactionsView initialSubtab="PURCHASES" />;
       case "accounting-accounts-transfers":
         return <TransactionsView initialSubtab="BALANCES" />;
       case "accounting-voided":
@@ -82,7 +85,9 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
 
   const isHomeActive = currentTab === "accounting-overview" || currentTab === "accounting-home";
   const isTransactionsActive =
-    currentTab === "accounting-transactions" || currentTab === "accounting-accounts-transfers";
+    currentTab === "accounting-transactions" ||
+    currentTab === "accounting-purchases" ||
+    currentTab === "accounting-accounts-transfers";
   const isPeopleActive = currentTab === "accounting-people";
   const isReportsActive = currentTab === "accounting-reports";
   const isMoreActive = [
