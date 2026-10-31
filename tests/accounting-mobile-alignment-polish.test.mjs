@@ -4,12 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 test("Zappit Accounting Mobile Alignment & Polish Verification Suite", async (t) => {
-  const accountingAppCode = fs.readFileSync(path.resolve("src/components/accounting/AccountingApp.tsx"), "utf8");
-  const budgetsViewCode = fs.readFileSync(path.resolve("src/components/accounting/BudgetsView.tsx"), "utf8");
-  const transactionsViewCode = fs.readFileSync(path.resolve("src/components/accounting/TransactionsView.tsx"), "utf8");
-  const overviewCode = fs.readFileSync(path.resolve("src/components/accounting/AccountingOverview.tsx"), "utf8");
-  const pickerCode = fs.readFileSync(path.resolve("src/components/accounting/PaymentAccountPicker.tsx"), "utf8");
-  const accountingCss = fs.readFileSync(path.resolve("src/components/accounting/accounting.css"), "utf8");
+  const accountingAppCode = fs.readFileSync(path.resolve("src/components/accounting/AccountingApp.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const budgetsViewCode = fs.readFileSync(path.resolve("src/components/accounting/BudgetsView.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const transactionsViewCode = fs.readFileSync(path.resolve("src/components/accounting/TransactionsView.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const overviewCode = fs.readFileSync(path.resolve("src/components/accounting/AccountingOverview.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const pickerCode = fs.readFileSync(path.resolve("src/components/accounting/PaymentAccountPicker.tsx"), "utf8").replace(/\r\n/g, "\n");
+  const accountingCss = fs.readFileSync(path.resolve("src/components/accounting/accounting.css"), "utf8").replace(/\r\n/g, "\n");
 
   await t.test("1. Screenshot 1: Budget details and Add Expense form layout", () => {
     // 1a. Scope & Period metadata uses responsive stacking and nowrap on date string
@@ -31,8 +31,8 @@ test("Zappit Accounting Mobile Alignment & Polish Verification Suite", async (t)
     assert.ok(accountingCss.includes('.acc-detail-summary-card,') && accountingCss.includes('padding: 1rem;'), "Mobile card padding must be 1rem (~16px)");
 
     // 1e. PaymentAccountPicker trigger is compact, single-row (~44-48px), and not tall cramped box
-    assert.ok(!accountingCss.includes('.acc-picker-trigger.has-selected {\n    flex-wrap: wrap;'), "Payment account picker trigger must not wrap into a tall cramped box on mobile");
-    assert.ok(accountingCss.includes('.acc-picker-trigger.has-selected {\n    flex-wrap: nowrap;'), "Trigger must stay single-row (nowrap)");
+    assert.ok(!/\.acc-picker-trigger\.has-selected\s*\{[^}]*flex-wrap:\s*wrap;/s.test(accountingCss), "Payment account picker trigger must not wrap into a tall cramped box on mobile");
+    assert.ok(/\.acc-picker-trigger\.has-selected\s*\{[^}]*flex-wrap:\s*nowrap;/s.test(accountingCss), "Trigger must stay single-row (nowrap)");
     assert.ok(accountingCss.includes('min-height: 44px;'), "Trigger must have minimum accessible touch height");
   });
 
@@ -82,14 +82,14 @@ test("Zappit Accounting Mobile Alignment & Polish Verification Suite", async (t)
 
   await t.test("4. Screenshot 4: Cash-flow category filters stacked cleanly", () => {
     // 4a. Stacked form groups with label above select on mobile
-    assert.ok(accountingCss.includes('.acc-chart-filter-item {\n    display: flex;\n    flex-direction: column;'), "Filter item must stack label above control on mobile");
-    assert.ok(accountingCss.includes('.acc-chart-filter-label {\n    display: block;'), "Filter label must be display: block");
+    assert.ok(/\.acc-chart-filter-item\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s.test(accountingCss), "Filter item must stack label above control on mobile");
+    assert.ok(accountingCss.includes('.acc-chart-filter-label {\n    display: block;') || /\.acc-chart-filter-label\s*\{[^}]*display:\s*block;/s.test(accountingCss), "Filter label must be display: block");
 
     // 4b. 12-16px gap between filter groups
     assert.ok(accountingCss.includes('gap: 14px;'), "Must have ~12-16px gap between filter groups");
 
     // 4c. Selects fill 100% width with min-width: 0 and text-overflow: ellipsis
-    assert.ok(accountingCss.includes('.acc-chart-filter-select {\n    width: 100%;\n    max-width: 100%;\n    min-width: 0;'), "Dropdowns must fill 100% width without overflowing");
+    assert.ok(/\.acc-chart-filter-select\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*min-width:\s*0;/s.test(accountingCss), "Dropdowns must fill 100% width without overflowing");
 
     // 4d. Dropdown arrows visible
     assert.ok(accountingCss.includes('background-position: right 0.75rem center;'), "Arrow icon must be positioned clearly visible");
@@ -101,10 +101,10 @@ test("Zappit Accounting Mobile Alignment & Polish Verification Suite", async (t)
     assert.ok(overviewCode.includes('className="acc-chart-header-controls"'), "Header controls must use .acc-chart-header-controls");
     assert.ok(overviewCode.includes('className="acc-chart-footer-totals"'), "Footer totals must use .acc-chart-footer-totals");
     assert.ok(overviewCode.includes('className="acc-chart-footer-net"'), "Footer net flow must use .acc-chart-footer-net");
-    assert.ok(accountingCss.includes('.acc-chart-footer {\n    flex-direction: column;'), "Totals must stack on mobile");
+    assert.ok(/\.acc-chart-footer\s*\{[^}]*flex-direction:\s*column;/s.test(accountingCss), "Totals must stack on mobile");
 
     // 4g. Empty state has compact height
-    assert.ok(accountingCss.includes('.acc-chart-empty-compact {\n    min-height: 140px;'), "Empty state must have compact height without excessive fixed space");
+    assert.ok(/\.acc-chart-empty-compact\s*\{[^}]*min-height:\s*140px;/s.test(accountingCss), "Empty state must have compact height without excessive fixed space");
   });
 
   await t.test("5. Multi-viewport geometry calculation across all target screen widths", () => {
@@ -128,7 +128,7 @@ test("Zappit Accounting Mobile Alignment & Polish Verification Suite", async (t)
         // Form inputs get full available width minus ~32px card padding (16px left + 16px right)
         const cardInnerWidth = availableWidth - 32;
         assert.ok(cardInnerWidth >= 264, `Card inner width on ${vp.name} (${cardInnerWidth}px) is comfortable for single column`);
-        
+
         // Tab buttons get (availableWidth - 8px gap) / 2
         const tabWidth = (availableWidth - 8) / 2;
         assert.ok(tabWidth >= 140, `Tab width on ${vp.name} (${tabWidth}px) fits icon, label, and badge cleanly`);
