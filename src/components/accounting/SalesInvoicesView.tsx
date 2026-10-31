@@ -212,18 +212,18 @@ export default function SalesInvoicesView() {
   };
 
   return (
-    <div className="acc-view-container">
+    <div className="acc-sales-view">
       {/* Header */}
-      <div className="acc-view-header">
-        <div>
+      <div className="acc-sales-header">
+        <div className="acc-sales-title-group">
           <h2 className="acc-title">Sales &amp; Invoices</h2>
           <p className="acc-subtitle">Customer invoices, walk-in sales, and receipts.</p>
         </div>
 
-        <div className="acc-header-actions" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div className="acc-sales-header-actions">
           <button
             type="button"
-            className="acc-btn acc-btn-outline acc-btn-sm"
+            className="acc-btn acc-btn-outline acc-sales-action-btn"
             onClick={() => setInvoiceSettingsOpen(true)}
             title="Configure invoice logo, tax details, terms, and numbering"
           >
@@ -233,14 +233,14 @@ export default function SalesInvoicesView() {
             <>
               <button
                 type="button"
-                className="acc-btn acc-btn-outline acc-btn-sm"
+                className="acc-btn acc-btn-outline acc-sales-action-btn"
                 onClick={() => setWalkinSaleOpen(true)}
               >
                 + Walk-in Direct Sale
               </button>
               <button
                 type="button"
-                className="acc-btn acc-btn-primary acc-btn-sm"
+                className="acc-btn acc-btn-primary acc-sales-action-btn"
                 onClick={() => {
                   setEditingInvoiceId(null);
                   setDirectSaleToConvert(null);
@@ -259,7 +259,8 @@ export default function SalesInvoicesView() {
         <div
           className="acc-alert acc-alert-success"
           style={{
-            marginBottom: "1.25rem",
+            marginTop: "1rem",
+            marginBottom: "0.25rem",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -286,21 +287,27 @@ export default function SalesInvoicesView() {
       )}
 
       {/* Sub Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", borderBottom: "1px solid var(--acc-border)", paddingBottom: "0.5rem" }}>
-        <button
-          type="button"
-          className={`acc-btn acc-btn-sm ${activeTab === "INVOICES" ? "acc-btn-primary" : "acc-btn-outline"}`}
-          onClick={() => setActiveTab("INVOICES")}
-        >
-          📄 Invoices ({invoices.length})
-        </button>
-        <button
-          type="button"
-          className={`acc-btn acc-btn-sm ${activeTab === "SALES" ? "acc-btn-primary" : "acc-btn-outline"}`}
-          onClick={() => setActiveTab("SALES")}
-        >
-          ⚡ Walk-in Direct Sales ({directSales.length})
-        </button>
+      <div className={`acc-sales-tabs-wrapper ${successToast ? "acc-has-toast" : ""}`}>
+        <div className="acc-sales-tabs-scroll" role="tablist" aria-label="Sales and Invoices Sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "INVOICES"}
+            className={`acc-btn acc-sales-tab-btn ${activeTab === "INVOICES" ? "acc-btn-primary" : "acc-btn-outline"}`}
+            onClick={() => setActiveTab("INVOICES")}
+          >
+            📄 Invoices ({invoices.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "SALES"}
+            className={`acc-btn acc-sales-tab-btn ${activeTab === "SALES" ? "acc-btn-primary" : "acc-btn-outline"}`}
+            onClick={() => setActiveTab("SALES")}
+          >
+            ⚡ Walk-in Direct Sales ({directSales.length})
+          </button>
+        </div>
       </div>
 
       <div className="acc-card">

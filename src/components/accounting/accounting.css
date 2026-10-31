@@ -4099,3 +4099,147 @@
   font-weight: 700;
   gap: 1px;
 }
+
+/* ==========================================================================
+   SALES & INVOICES - HEADER, ACTION BAR & TAB ROW
+   ========================================================================== */
+.acc-sales-view {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.acc-sales-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .acc-sales-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+}
+
+@container accountingRoot (min-width: 768px) {
+  .acc-sales-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+}
+
+.acc-sales-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px; /* ~6-8px between title and subtitle */
+  min-width: 240px;
+  flex: 1 1 auto;
+}
+
+.acc-sales-title-group .acc-title {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.acc-sales-title-group .acc-subtitle {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.acc-sales-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* 8-12px gap between action buttons */
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  justify-content: flex-start;
+}
+
+@media (min-width: 768px) {
+  .acc-sales-header-actions {
+    justify-content: flex-end;
+  }
+}
+
+@container accountingRoot (min-width: 768px) {
+  .acc-sales-header-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 640px) {
+  .acc-sales-header-actions {
+    width: 100%;
+  }
+}
+
+.acc-sales-action-btn {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: var(--acc-radius-md);
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+/* Tabs Bar */
+.acc-sales-tabs-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 1.375rem; /* ~22px below header */
+  border-bottom: 1px solid var(--acc-border);
+  padding-bottom: 0.75rem; /* ~12px */
+  margin-bottom: 1rem; /* ~16px spacing before content panel */
+}
+
+.acc-sales-tabs-wrapper.acc-has-toast {
+  margin-top: 0.75rem;
+}
+
+.acc-sales-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 8px gap between tabs */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.acc-sales-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.acc-sales-tab-btn {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--acc-radius-md);
+  box-sizing: border-box;
+  line-height: 1;
+}
