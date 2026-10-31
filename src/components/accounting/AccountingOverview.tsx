@@ -97,12 +97,12 @@ function formatCompactAxis(minorUnits: number, currency = "INR"): string {
     currency === "INR"
       ? "₹"
       : currency === "USD"
-      ? "$"
-      : currency === "EUR"
-      ? "€"
-      : currency === "GBP"
-      ? "£"
-      : `${currency} `;
+        ? "$"
+        : currency === "EUR"
+          ? "€"
+          : currency === "GBP"
+            ? "£"
+            : `${currency} `;
   const abs = Math.abs(units);
   if (currency === "INR") {
     if (abs >= 10000000) {
@@ -609,13 +609,13 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     metrics?.cashFlowTrend && metrics.cashFlowTrend.length > 0
       ? metrics.cashFlowTrend
       : (metrics?.monthlyTrend || []).map((m) => ({
-          label: m.month,
-          sublabel: undefined,
-          date: undefined,
-          inflow_minor: m.cashInMinor,
-          outflow_minor: m.cashOutMinor,
-          net_minor: m.cashInMinor - m.cashOutMinor,
-        }));
+        label: m.month,
+        sublabel: undefined,
+        date: undefined,
+        inflow_minor: m.cashInMinor,
+        outflow_minor: m.cashOutMinor,
+        net_minor: m.cashInMinor - m.cashOutMinor,
+      }));
 
   const hasCashActivity = trendBars.some(
     (b) => (b.inflow_minor || 0) > 0 || (b.outflow_minor || 0) > 0
@@ -970,12 +970,12 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                 {period === "today"
                   ? "Cash movements for today"
                   : period === "week"
-                  ? "Daily cash movements for this week (7 days)"
-                  : period === "month"
-                  ? `Daily cash movements for ${activePeriodLabel.toLowerCase()} (Days 1–${trendBars.length})`
-                  : period === "year"
-                  ? `Monthly cash movements for ${activePeriodLabel.toLowerCase()}`
-                  : `Cash movements for ${activePeriodLabel.toLowerCase()}`}
+                    ? "Daily cash movements for this week (7 days)"
+                    : period === "month"
+                      ? `Daily cash movements for ${activePeriodLabel.toLowerCase()} (Days 1–${trendBars.length})`
+                      : period === "year"
+                        ? `Monthly cash movements for ${activePeriodLabel.toLowerCase()}`
+                        : `Cash movements for ${activePeriodLabel.toLowerCase()}`}
                 {isFilterActive && (
                   <span style={{ color: "var(--acc-blue-accent, #2583FF)", fontWeight: 600 }}>
                     {" "}• {activeFilterLabel}
@@ -984,949 +984,949 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               </span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-              {/* Dual-line Legend */}
-              <div className="acc-chart-legend">
-                <span className="acc-chart-legend-item">
-                  <span
-                    style={{
-                      width: "16px",
-                      height: "3px",
-                      backgroundColor: "#2583FF",
-                      display: "inline-block",
-                      borderRadius: "2px",
-                    }}
-                  />
-                  <span>Money In</span>
-                </span>
-                <span className="acc-chart-legend-item">
-                  <span
-                    style={{
-                      width: "16px",
-                      height: "0px",
-                      borderTop: "2px dashed var(--acc-text-muted, #A3A3A3)",
-                      display: "inline-block",
-                    }}
-                  />
-                  <span>Money Out</span>
-                </span>
-              </div>
+              <div className="acc-chart-header-controls">
+                {/* Dual-line Legend */}
+                <div className="acc-chart-legend">
+                  <span className="acc-chart-legend-item">
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "3px",
+                        backgroundColor: "#2583FF",
+                        display: "inline-block",
+                        borderRadius: "2px",
+                      }}
+                    />
+                    <span>Money In</span>
+                  </span>
+                  <span className="acc-chart-legend-item">
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "0px",
+                        borderTop: "2px dashed var(--acc-text-muted, #A3A3A3)",
+                        display: "inline-block",
+                      }}
+                    />
+                    <span>Money Out</span>
+                  </span>
+                </div>
 
-              {/* Data Table / Line Chart Switcher */}
-              <button
-                type="button"
-                className="acc-btn acc-btn-sm acc-btn-outline"
-                style={{
-                  minHeight: "28px",
-                  padding: "0.2rem 0.6rem",
-                  fontSize: "0.75rem",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.35rem",
-                }}
-                onClick={() => setChartViewMode(chartViewMode === "chart" ? "table" : "chart")}
-                title={chartViewMode === "chart" ? "View accessible data table" : "View line chart"}
-              >
-                {chartViewMode === "chart" ? (
-                  <>
-                    <TableIcon size={12} />
-                    <span>Table</span>
-                  </>
-                ) : (
-                  <>
-                    <BarChart3 size={12} />
-                    <span>Chart</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Category & Subcategory Filter Toolbar */}
-          <div className="acc-chart-toolbar">
-            <div className="acc-chart-filters">
-              {/* Main Category */}
-              <div className="acc-chart-filter-item">
-                <label htmlFor="cashflow-filter-category" className="acc-chart-filter-label">
-                  Category
-                </label>
-                <select
-                  id="cashflow-filter-category"
-                  className="acc-chart-filter-select"
-                  value={selectedCategoryId}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  aria-label="Filter cash flow by category"
-                >
-                  <option value="all">All Categories</option>
-                  {incomeCategories.length > 0 && (
-                    <optgroup label="Income Categories">
-                      {incomeCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {expenseCategories.length > 0 && (
-                    <optgroup label="Expense Categories">
-                      {expenseCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  <option value="uncategorized">Uncategorized</option>
-                </select>
-              </div>
-
-              {/* Subcategory */}
-              <div className="acc-chart-filter-item">
-                <label htmlFor="cashflow-filter-subcategory" className="acc-chart-filter-label">
-                  Subcategory
-                </label>
-                <select
-                  id="cashflow-filter-subcategory"
-                  className="acc-chart-filter-select"
-                  value={selectedSubcategoryId}
-                  onChange={(e) => setSelectedSubcategoryId(e.target.value)}
-                  disabled={isSubcategoryDisabled}
-                  aria-label="Filter cash flow by subcategory"
-                >
-                  {selectedCategoryId === "all" ? (
-                    <option value="all">All Subcategories</option>
-                  ) : selectedCategoryId === "uncategorized" ? (
-                    <option value="all">No subcategories</option>
-                  ) : availableSubcategories.length === 0 ? (
-                    <option value="all">No subcategories</option>
-                  ) : (
-                    <>
-                      <option value="all">All Subcategories</option>
-                      {availableSubcategories.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* Clear Filters Action */}
-              {isFilterActive && (
+                {/* Data Table / Line Chart Switcher */}
                 <button
                   type="button"
-                  className="acc-chart-filter-clear-btn"
-                  onClick={handleClearFilters}
-                  title="Clear active category filters"
-                  aria-label="Clear active category filters"
-                >
-                  <span aria-hidden="true" style={{ fontSize: "0.875rem", lineHeight: 1 }}>✕</span>
-                  <span>Clear filter</span>
-                </button>
-              )}
-            </div>
-
-            {/* Active Filter Pill */}
-            {isFilterActive && (
-              <div className="acc-chart-active-filter-pill" title={`Active filter: ${activeFilterLabel}`}>
-                <span className="acc-chart-filter-pill-dot" />
-                <span>{activeFilterLabel}</span>
-              </div>
-            )}
-          </div>
-
-          {/* SVG Dual-Line Chart or Accessible Table View */}
-          {isLoadingInitial ? (
-            <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
-              Loading cash flow data…
-            </div>
-          ) : isUnavailable ? (
-            <div style={{ height: "220px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
-              <AlertTriangle size={24} style={{ color: "var(--acc-danger)" }} />
-              <span style={{ fontWeight: 600 }}>Cash flow data unavailable</span>
-              <button
-                type="button"
-                className="acc-btn acc-btn-sm acc-btn-outline"
-                style={{ minHeight: "28px", padding: "0.2rem 0.75rem", fontSize: "0.75rem" }}
-                onClick={handleRetry}
-              >
-                Retry
-              </button>
-            </div>
-          ) : !hasCashActivity && chartViewMode === "chart" ? (
-            <div className="acc-chart-empty-compact">
-              <div className="acc-chart-empty-icon-pill">
-                <BarChart3 size={20} />
-              </div>
-              <div style={{ fontWeight: 600, fontSize: "0.9375rem", color: "var(--acc-text-main)" }}>
-                {isFilterActive
-                  ? "No cash activity for this selection."
-                  : period === "today"
-                  ? "No cash activity today"
-                  : period === "week"
-                  ? "No cash activity this week"
-                  : period === "month"
-                  ? "No cash activity this month"
-                  : period === "year"
-                  ? "No cash activity this year"
-                  : `No cash activity for ${activePeriodLabel.toLowerCase()}`}
-              </div>
-              <div style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", maxWidth: "320px", textAlign: "center", lineHeight: 1.4 }}>
-                {isFilterActive
-                  ? "No recorded money movements found matching this category filter and date range."
-                  : "Recorded receipts and payments will appear here."}
-              </div>
-            </div>
-          ) : chartViewMode === "table" ? (
-            <div className="acc-table-wrapper" style={{ maxHeight: "250px" }}>
-              <table className="acc-table" aria-label="Cash Flow Data Table">
-                <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th className="acc-align-right">Money In</th>
-                    <th className="acc-align-right">Money Out</th>
-                    <th className="acc-align-right">Net Flow</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trendBars.length === 0 || !hasCashActivity ? (
-                    <tr>
-                      <td colSpan={4} style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
-                        {isFilterActive ? "No cash activity for this selection." : "No cash activity for this period."}
-                      </td>
-                    </tr>
-                  ) : (
-                    trendBars.map((bar, idx) => {
-                      const net = bar.inflow_minor - bar.outflow_minor;
-                      return (
-                        <tr key={idx}>
-                          <td style={{ fontWeight: 500 }}>
-                            <div>{bar.label}</div>
-                            {bar.sublabel && (
-                              <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
-                                {bar.sublabel}
-                              </span>
-                            )}
-                          </td>
-                          <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-success)", fontWeight: 600 }}>
-                            {formatMoney(bar.inflow_minor, activeWorkspace.currency)}
-                          </td>
-                          <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-danger)", fontWeight: 600 }}>
-                            {formatMoney(bar.outflow_minor, activeWorkspace.currency)}
-                          </td>
-                          <td
-                            className="acc-align-right tabular-nums"
-                            style={{
-                              fontWeight: 700,
-                              color: net >= 0 ? "var(--acc-text-main)" : "var(--acc-danger)",
-                            }}
-                          >
-                            {net >= 0 ? "+" : ""}
-                            {formatMoney(net, activeWorkspace.currency)}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div ref={chartWrapRef} className="acc-chart-svg-wrap" onMouseLeave={() => setHoveredPointIndex(null)}>
-              {/* Tooltip Overlay */}
-              {hoveredPointIndex !== null && trendBars[hoveredPointIndex] && tooltipPos && (
-                <div
-                  className="acc-chart-tooltip"
+                  className="acc-btn acc-btn-sm acc-btn-outline"
                   style={{
-                    left: `${tooltipPos.x}px`,
-                    top: `${tooltipPos.y}px`,
+                    minHeight: "28px",
+                    padding: "0.2rem 0.6rem",
+                    fontSize: "0.75rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
                   }}
-                  role="tooltip"
+                  onClick={() => setChartViewMode(chartViewMode === "chart" ? "table" : "chart")}
+                  title={chartViewMode === "chart" ? "View accessible data table" : "View line chart"}
                 >
-                  <div style={{ fontWeight: 700, fontSize: "0.75rem", marginBottom: "0.3rem", color: "var(--acc-text-main)" }}>
-                    {trendBars[hoveredPointIndex].sublabel || trendBars[hoveredPointIndex].label}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.75rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.25rem" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--acc-text-muted)" }}>
-                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#2583FF", display: "inline-block" }} />
-                        <span>Money In:</span>
-                      </span>
-                      <strong className="tabular-nums" style={{ color: "#2583FF" }}>
-                        {formatMoney(trendBars[hoveredPointIndex].inflow_minor, activeWorkspace.currency)}
-                      </strong>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.25rem" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--acc-text-muted)" }}>
-                        <span style={{ width: "8px", height: "2px", borderTop: "2px dashed var(--acc-text-muted, #A3A3A3)", display: "inline-block" }} />
-                        <span>Money Out:</span>
-                      </span>
-                      <strong className="tabular-nums" style={{ color: "var(--acc-text-muted, #A3A3A3)" }}>
-                        {formatMoney(trendBars[hoveredPointIndex].outflow_minor, activeWorkspace.currency)}
-                      </strong>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "1.25rem",
-                        paddingTop: "0.3rem",
-                        borderTop: "1px solid var(--acc-border)",
-                      }}
-                    >
-                      <span style={{ color: "var(--acc-text-muted)", fontWeight: 500 }}>Net Flow:</span>
-                      <strong
-                        className="tabular-nums"
-                        style={{
-                          color:
-                            trendBars[hoveredPointIndex].inflow_minor >= trendBars[hoveredPointIndex].outflow_minor
-                              ? "var(--acc-text-main)"
-                              : "var(--acc-danger)",
-                        }}
-                      >
-                        {trendBars[hoveredPointIndex].inflow_minor >= trendBars[hoveredPointIndex].outflow_minor ? "+" : ""}
-                        {formatMoney(
-                          trendBars[hoveredPointIndex].inflow_minor - trendBars[hoveredPointIndex].outflow_minor,
-                          activeWorkspace.currency
-                        )}
-                      </strong>
-                    </div>
-                  </div>
+                  {chartViewMode === "chart" ? (
+                    <>
+                      <TableIcon size={12} />
+                      <span>Table</span>
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 size={12} />
+                      <span>Chart</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Category & Subcategory Filter Toolbar */}
+            <div className="acc-chart-toolbar">
+              <div className="acc-chart-filters">
+                {/* Main Category */}
+                <div className="acc-chart-filter-item">
+                  <label htmlFor="cashflow-filter-category" className="acc-chart-filter-label">
+                    Category
+                  </label>
+                  <select
+                    id="cashflow-filter-category"
+                    className="acc-chart-filter-select"
+                    value={selectedCategoryId}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    aria-label="Filter cash flow by category"
+                  >
+                    <option value="all">All Categories</option>
+                    {incomeCategories.length > 0 && (
+                      <optgroup label="Income Categories">
+                        {incomeCategories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {expenseCategories.length > 0 && (
+                      <optgroup label="Expense Categories">
+                        {expenseCategories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <option value="uncategorized">Uncategorized</option>
+                  </select>
+                </div>
+
+                {/* Subcategory */}
+                <div className="acc-chart-filter-item">
+                  <label htmlFor="cashflow-filter-subcategory" className="acc-chart-filter-label">
+                    Subcategory
+                  </label>
+                  <select
+                    id="cashflow-filter-subcategory"
+                    className="acc-chart-filter-select"
+                    value={selectedSubcategoryId}
+                    onChange={(e) => setSelectedSubcategoryId(e.target.value)}
+                    disabled={isSubcategoryDisabled}
+                    aria-label="Filter cash flow by subcategory"
+                  >
+                    {selectedCategoryId === "all" ? (
+                      <option value="all">All Subcategories</option>
+                    ) : selectedCategoryId === "uncategorized" ? (
+                      <option value="all">No subcategories</option>
+                    ) : availableSubcategories.length === 0 ? (
+                      <option value="all">No subcategories</option>
+                    ) : (
+                      <>
+                        <option value="all">All Subcategories</option>
+                        {availableSubcategories.map((sub) => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {/* Clear Filters Action */}
+                {isFilterActive && (
+                  <button
+                    type="button"
+                    className="acc-chart-filter-clear-btn"
+                    onClick={handleClearFilters}
+                    title="Clear active category filters"
+                    aria-label="Clear active category filters"
+                  >
+                    <span aria-hidden="true" style={{ fontSize: "0.875rem", lineHeight: 1 }}>✕</span>
+                    <span>Clear filter</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Active Filter Pill */}
+              {isFilterActive && (
+                <div className="acc-chart-active-filter-pill" title={`Active filter: ${activeFilterLabel}`}>
+                  <span className="acc-chart-filter-pill-dot" />
+                  <span>{activeFilterLabel}</span>
                 </div>
               )}
+            </div>
 
-              {/* Dual-Line SVG Chart with Monotone Cubic Spline Curves & Gradient Area */}
-              {(() => {
-                const svgWidth = chartWidth > 0 ? chartWidth : 680;
-                const svgHeight = 250;
-                const padLeft = 58;
-                const padRight = 20;
-                const padTop = 18;
-                const padBottom = 28;
-
-                const plotWidth = Math.max(10, svgWidth - padLeft - padRight);
-                const plotHeight = Math.max(10, svgHeight - padTop - padBottom);
-                const baseY = padTop + plotHeight;
-
-                const numPoints = trendBars.length;
-                const scaleVal = maxSeriesVal > 0 ? maxSeriesVal : 1;
-
-                // Compute exact data coordinates
-                const points = trendBars.map((bar, idx) => {
-                  let x = padLeft + plotWidth / 2;
-                  if (numPoints > 1) {
-                    x = padLeft + (idx / (numPoints - 1)) * plotWidth;
-                  }
-                  const inY = padTop + plotHeight - (bar.inflow_minor / scaleVal) * plotHeight;
-                  const outY = padTop + plotHeight - (bar.outflow_minor / scaleVal) * plotHeight;
-                  return { x, inY, outY, bar, idx };
-                });
-
-                // Generate shape-preserving monotone cubic curves (Fritsch-Carlson algorithm)
-                const inPoints = points.map((p) => ({ x: p.x, y: p.inY }));
-                const outPoints = points.map((p) => ({ x: p.x, y: p.outY }));
-
-                const inCurvePath = numPoints > 1 ? getMonotoneCubicPath(inPoints) : "";
-                const inAreaPath = numPoints > 1 ? getMonotoneCubicAreaPath(inPoints, baseY) : "";
-                const outCurvePath = numPoints > 1 ? getMonotoneCubicPath(outPoints) : "";
-
-                // 5 Clean grid ticks: 0%, 25%, 50%, 75%, 100% of scaleVal
-                const ticks = [0, 0.25, 0.5, 0.75, 1.0].map((pct) => ({
-                  pct,
-                  valMinor: Math.round(scaleVal * pct),
-                  y: padTop + plotHeight * (1 - pct),
-                }));
-
-                return (
-                  <svg
-                    className="acc-chart-svg"
-                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                    width="100%"
-                    height={svgHeight}
-                    role="img"
-                    aria-label={`Cash flow line chart displaying Money In vs Money Out for ${activePeriodLabel}`}
-                  >
-                    <defs>
-                      <linearGradient id="accMoneyInGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#2583FF" stopOpacity="0.22" />
-                        <stop offset="65%" stopColor="#2583FF" stopOpacity="0.05" />
-                        <stop offset="100%" stopColor="#2583FF" stopOpacity="0.00" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Faint Horizontal Gridlines & Y-Axis Scale (no vertical gridlines) */}
-                    {ticks.map((t, idx) => (
-                      <g key={idx}>
-                        <line
-                          x1={padLeft}
-                          y1={t.y}
-                          x2={svgWidth - padRight}
-                          y2={t.y}
-                          className="acc-chart-gridline"
-                        />
-                        <text
-                          x={padLeft - 10}
-                          y={t.y + 3.5}
-                          textAnchor="end"
-                          className="acc-chart-axis-text"
-                          style={{ fontSize: "11px", fill: "var(--acc-text-muted)" }}
-                        >
-                          {formatCompactAxis(t.valMinor, activeWorkspace.currency)}
-                        </text>
-                      </g>
-                    ))}
-
-                    {/* Subtle Blue Area Fill Fading Toward Transparent Beneath Money In */}
-                    {numPoints > 1 && inAreaPath && (
-                      <path
-                        d={inAreaPath}
-                        fill="url(#accMoneyInGradient)"
-                        stroke="none"
-                        role="presentation"
-                      />
+            {/* SVG Dual-Line Chart or Accessible Table View */}
+            {isLoadingInitial ? (
+              <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                Loading cash flow data…
+              </div>
+            ) : isUnavailable ? (
+              <div style={{ height: "220px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                <AlertTriangle size={24} style={{ color: "var(--acc-danger)" }} />
+                <span style={{ fontWeight: 600 }}>Cash flow data unavailable</span>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-sm acc-btn-outline"
+                  style={{ minHeight: "28px", padding: "0.2rem 0.75rem", fontSize: "0.75rem" }}
+                  onClick={handleRetry}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : !hasCashActivity && chartViewMode === "chart" ? (
+              <div className="acc-chart-empty-compact">
+                <div className="acc-chart-empty-icon-pill">
+                  <BarChart3 size={20} />
+                </div>
+                <div style={{ fontWeight: 600, fontSize: "0.9375rem", color: "var(--acc-text-main)" }}>
+                  {isFilterActive
+                    ? "No cash activity for this selection."
+                    : period === "today"
+                      ? "No cash activity today"
+                      : period === "week"
+                        ? "No cash activity this week"
+                        : period === "month"
+                          ? "No cash activity this month"
+                          : period === "year"
+                            ? "No cash activity this year"
+                            : `No cash activity for ${activePeriodLabel.toLowerCase()}`}
+                </div>
+                <div style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)", maxWidth: "320px", textAlign: "center", lineHeight: 1.4 }}>
+                  {isFilterActive
+                    ? "No recorded money movements found matching this category filter and date range."
+                    : "Recorded receipts and payments will appear here."}
+                </div>
+              </div>
+            ) : chartViewMode === "table" ? (
+              <div className="acc-table-wrapper" style={{ maxHeight: "250px" }}>
+                <table className="acc-table" aria-label="Cash Flow Data Table">
+                  <thead>
+                    <tr>
+                      <th>Period</th>
+                      <th className="acc-align-right">Money In</th>
+                      <th className="acc-align-right">Money Out</th>
+                      <th className="acc-align-right">Net Flow</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trendBars.length === 0 || !hasCashActivity ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                          {isFilterActive ? "No cash activity for this selection." : "No cash activity for this period."}
+                        </td>
+                      </tr>
+                    ) : (
+                      trendBars.map((bar, idx) => {
+                        const net = bar.inflow_minor - bar.outflow_minor;
+                        return (
+                          <tr key={idx}>
+                            <td style={{ fontWeight: 500 }}>
+                              <div>{bar.label}</div>
+                              {bar.sublabel && (
+                                <span style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>
+                                  {bar.sublabel}
+                                </span>
+                              )}
+                            </td>
+                            <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-success)", fontWeight: 600 }}>
+                              {formatMoney(bar.inflow_minor, activeWorkspace.currency)}
+                            </td>
+                            <td className="acc-align-right tabular-nums" style={{ color: "var(--acc-danger)", fontWeight: 600 }}>
+                              {formatMoney(bar.outflow_minor, activeWorkspace.currency)}
+                            </td>
+                            <td
+                              className="acc-align-right tabular-nums"
+                              style={{
+                                fontWeight: 700,
+                                color: net >= 0 ? "var(--acc-text-main)" : "var(--acc-danger)",
+                              }}
+                            >
+                              {net >= 0 ? "+" : ""}
+                              {formatMoney(net, activeWorkspace.currency)}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div ref={chartWrapRef} className="acc-chart-svg-wrap" onMouseLeave={() => setHoveredPointIndex(null)}>
+                {/* Tooltip Overlay */}
+                {hoveredPointIndex !== null && trendBars[hoveredPointIndex] && tooltipPos && (
+                  <div
+                    className="acc-chart-tooltip"
+                    style={{
+                      left: `${tooltipPos.x}px`,
+                      top: `${tooltipPos.y}px`,
+                    }}
+                    role="tooltip"
+                  >
+                    <div style={{ fontWeight: 700, fontSize: "0.75rem", marginBottom: "0.3rem", color: "var(--acc-text-main)" }}>
+                      {trendBars[hoveredPointIndex].sublabel || trendBars[hoveredPointIndex].label}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.75rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.25rem" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--acc-text-muted)" }}>
+                          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#2583FF", display: "inline-block" }} />
+                          <span>Money In:</span>
+                        </span>
+                        <strong className="tabular-nums" style={{ color: "#2583FF" }}>
+                          {formatMoney(trendBars[hoveredPointIndex].inflow_minor, activeWorkspace.currency)}
+                        </strong>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1.25rem" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--acc-text-muted)" }}>
+                          <span style={{ width: "8px", height: "2px", borderTop: "2px dashed var(--acc-text-muted, #A3A3A3)", display: "inline-block" }} />
+                          <span>Money Out:</span>
+                        </span>
+                        <strong className="tabular-nums" style={{ color: "var(--acc-text-muted, #A3A3A3)" }}>
+                          {formatMoney(trendBars[hoveredPointIndex].outflow_minor, activeWorkspace.currency)}
+                        </strong>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "1.25rem",
+                          paddingTop: "0.3rem",
+                          borderTop: "1px solid var(--acc-border)",
+                        }}
+                      >
+                        <span style={{ color: "var(--acc-text-muted)", fontWeight: 500 }}>Net Flow:</span>
+                        <strong
+                          className="tabular-nums"
+                          style={{
+                            color:
+                              trendBars[hoveredPointIndex].inflow_minor >= trendBars[hoveredPointIndex].outflow_minor
+                                ? "var(--acc-text-main)"
+                                : "var(--acc-danger)",
+                          }}
+                        >
+                          {trendBars[hoveredPointIndex].inflow_minor >= trendBars[hoveredPointIndex].outflow_minor ? "+" : ""}
+                          {formatMoney(
+                            trendBars[hoveredPointIndex].inflow_minor - trendBars[hoveredPointIndex].outflow_minor,
+                            activeWorkspace.currency
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                    {/* For 1 data point: show vertical dashed guide and clear value summary badge */}
-                    {numPoints === 1 && points[0] && (
-                      <g>
+                {/* Dual-Line SVG Chart with Monotone Cubic Spline Curves & Gradient Area */}
+                {(() => {
+                  const svgWidth = chartWidth > 0 ? chartWidth : 680;
+                  const svgHeight = 250;
+                  const padLeft = 58;
+                  const padRight = 20;
+                  const padTop = 18;
+                  const padBottom = 28;
+
+                  const plotWidth = Math.max(10, svgWidth - padLeft - padRight);
+                  const plotHeight = Math.max(10, svgHeight - padTop - padBottom);
+                  const baseY = padTop + plotHeight;
+
+                  const numPoints = trendBars.length;
+                  const scaleVal = maxSeriesVal > 0 ? maxSeriesVal : 1;
+
+                  // Compute exact data coordinates
+                  const points = trendBars.map((bar, idx) => {
+                    let x = padLeft + plotWidth / 2;
+                    if (numPoints > 1) {
+                      x = padLeft + (idx / (numPoints - 1)) * plotWidth;
+                    }
+                    const inY = padTop + plotHeight - (bar.inflow_minor / scaleVal) * plotHeight;
+                    const outY = padTop + plotHeight - (bar.outflow_minor / scaleVal) * plotHeight;
+                    return { x, inY, outY, bar, idx };
+                  });
+
+                  // Generate shape-preserving monotone cubic curves (Fritsch-Carlson algorithm)
+                  const inPoints = points.map((p) => ({ x: p.x, y: p.inY }));
+                  const outPoints = points.map((p) => ({ x: p.x, y: p.outY }));
+
+                  const inCurvePath = numPoints > 1 ? getMonotoneCubicPath(inPoints) : "";
+                  const inAreaPath = numPoints > 1 ? getMonotoneCubicAreaPath(inPoints, baseY) : "";
+                  const outCurvePath = numPoints > 1 ? getMonotoneCubicPath(outPoints) : "";
+
+                  // 5 Clean grid ticks: 0%, 25%, 50%, 75%, 100% of scaleVal
+                  const ticks = [0, 0.25, 0.5, 0.75, 1.0].map((pct) => ({
+                    pct,
+                    valMinor: Math.round(scaleVal * pct),
+                    y: padTop + plotHeight * (1 - pct),
+                  }));
+
+                  return (
+                    <svg
+                      className="acc-chart-svg"
+                      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                      width="100%"
+                      height={svgHeight}
+                      role="img"
+                      aria-label={`Cash flow line chart displaying Money In vs Money Out for ${activePeriodLabel}`}
+                    >
+                      <defs>
+                        <linearGradient id="accMoneyInGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#2583FF" stopOpacity="0.22" />
+                          <stop offset="65%" stopColor="#2583FF" stopOpacity="0.05" />
+                          <stop offset="100%" stopColor="#2583FF" stopOpacity="0.00" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Faint Horizontal Gridlines & Y-Axis Scale (no vertical gridlines) */}
+                      {ticks.map((t, idx) => (
+                        <g key={idx}>
+                          <line
+                            x1={padLeft}
+                            y1={t.y}
+                            x2={svgWidth - padRight}
+                            y2={t.y}
+                            className="acc-chart-gridline"
+                          />
+                          <text
+                            x={padLeft - 10}
+                            y={t.y + 3.5}
+                            textAnchor="end"
+                            className="acc-chart-axis-text"
+                            style={{ fontSize: "11px", fill: "var(--acc-text-muted)" }}
+                          >
+                            {formatCompactAxis(t.valMinor, activeWorkspace.currency)}
+                          </text>
+                        </g>
+                      ))}
+
+                      {/* Subtle Blue Area Fill Fading Toward Transparent Beneath Money In */}
+                      {numPoints > 1 && inAreaPath && (
+                        <path
+                          d={inAreaPath}
+                          fill="url(#accMoneyInGradient)"
+                          stroke="none"
+                          role="presentation"
+                        />
+                      )}
+
+                      {/* For 1 data point: show vertical dashed guide and clear value summary badge */}
+                      {numPoints === 1 && points[0] && (
+                        <g>
+                          <line
+                            x1={points[0].x}
+                            y1={padTop}
+                            x2={points[0].x}
+                            y2={baseY}
+                            stroke="var(--acc-border-hover, #64748B)"
+                            strokeDasharray="3 3"
+                            strokeWidth="1.25"
+                            opacity="0.85"
+                          />
+                          <g transform={`translate(${points[0].x}, ${Math.max(padTop + 24, Math.min(points[0].inY, points[0].outY) - 16)})`}>
+                            <rect
+                              x={-56}
+                              y={-22}
+                              width={112}
+                              height={22}
+                              rx={4}
+                              fill="var(--acc-surface)"
+                              stroke="var(--acc-border)"
+                              strokeWidth={1}
+                            />
+                            <text
+                              x={0}
+                              y={-7}
+                              textAnchor="middle"
+                              style={{ fontSize: "11px", fontWeight: 700, fill: "var(--acc-text-main)" }}
+                            >
+                              {points[0].bar.inflow_minor > 0
+                                ? `+${formatMoney(points[0].bar.inflow_minor, activeWorkspace.currency)}`
+                                : formatMoney(points[0].bar.outflow_minor, activeWorkspace.currency)}
+                            </text>
+                          </g>
+                        </g>
+                      )}
+
+                      {/* Active Hover Guide Line for multi-point series */}
+                      {numPoints > 1 && hoveredPointIndex !== null && points[hoveredPointIndex] && (
                         <line
-                          x1={points[0].x}
+                          x1={points[hoveredPointIndex].x}
                           y1={padTop}
-                          x2={points[0].x}
+                          x2={points[hoveredPointIndex].x}
                           y2={baseY}
                           stroke="var(--acc-border-hover, #64748B)"
                           strokeDasharray="3 3"
                           strokeWidth="1.25"
                           opacity="0.85"
                         />
-                        <g transform={`translate(${points[0].x}, ${Math.max(padTop + 24, Math.min(points[0].inY, points[0].outY) - 16)})`}>
-                          <rect
-                            x={-56}
-                            y={-22}
-                            width={112}
-                            height={22}
-                            rx={4}
-                            fill="var(--acc-surface)"
-                            stroke="var(--acc-border)"
-                            strokeWidth={1}
-                          />
-                          <text
-                            x={0}
-                            y={-7}
-                            textAnchor="middle"
-                            style={{ fontSize: "11px", fontWeight: 700, fill: "var(--acc-text-main)" }}
+                      )}
+
+                      {/* Line Series: Money In (Electric blue ~2px monotone smooth curve) */}
+                      {numPoints > 1 && inCurvePath && (
+                        <path
+                          d={inCurvePath}
+                          fill="none"
+                          stroke="#2583FF"
+                          strokeWidth="2.25"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      )}
+
+                      {/* Line Series: Money Out (Contrasting light slate ~2px dashed monotone curve) */}
+                      {numPoints > 1 && outCurvePath && (
+                        <path
+                          d={outCurvePath}
+                          fill="none"
+                          stroke="var(--acc-text-muted, #A3A3A3)"
+                          strokeWidth="2"
+                          strokeDasharray="5 4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      )}
+
+                      {/* Interactive Touch & Hover Trigger Zones */}
+                      {points.map((pt) => {
+                        const isHovered = hoveredPointIndex === pt.idx;
+                        const slotW = numPoints > 1 ? plotWidth / (numPoints - 1) : plotWidth;
+                        const showMarker = isHovered || numPoints === 1;
+
+                        // Decide whether to show X-axis tick label
+                        // If <= 12 points, show all. If > 12 points (e.g. Month view with 24-31 days):
+                        // show Day 1, multiples of 5, the final cutoff day, or the actively hovered point.
+                        const showXLabel =
+                          numPoints <= 12 ||
+                          pt.idx === 0 ||
+                          pt.idx === numPoints - 1 ||
+                          (pt.idx + 1) % 5 === 0 ||
+                          isHovered;
+
+                        const updateTooltipCoords = () => {
+                          const clampedX = Math.max(75, Math.min(svgWidth - 75, pt.x));
+                          setTooltipPos({
+                            x: clampedX,
+                            y: Math.min(pt.inY, pt.outY),
+                          });
+                        };
+
+                        return (
+                          <g
+                            key={pt.idx}
+                            tabIndex={0}
+                            role="graphics-symbol"
+                            aria-label={`${pt.bar.label}: Money In ${formatMoney(pt.bar.inflow_minor, activeWorkspace.currency)}, Money Out ${formatMoney(pt.bar.outflow_minor, activeWorkspace.currency)}`}
+                            onMouseEnter={() => {
+                              updateTooltipCoords();
+                              setHoveredPointIndex(pt.idx);
+                            }}
+                            onClick={() => {
+                              updateTooltipCoords();
+                              setHoveredPointIndex(hoveredPointIndex === pt.idx ? null : pt.idx);
+                            }}
+                            onTouchStart={() => {
+                              updateTooltipCoords();
+                              setHoveredPointIndex(pt.idx);
+                            }}
+                            onFocus={() => setHoveredPointIndex(pt.idx)}
+                            onBlur={() => setHoveredPointIndex(null)}
+                            style={{ outline: "none", cursor: "pointer" }}
                           >
-                            {points[0].bar.inflow_minor > 0
-                              ? `+${formatMoney(points[0].bar.inflow_minor, activeWorkspace.currency)}`
-                              : formatMoney(points[0].bar.outflow_minor, activeWorkspace.currency)}
-                          </text>
-                        </g>
-                      </g>
+                            {/* Invisible hover trigger area */}
+                            <rect
+                              x={pt.x - slotW / 2}
+                              y={padTop}
+                              width={slotW}
+                              height={plotHeight}
+                              fill="transparent"
+                            />
+
+                            {/* Point markers: Hidden permanently for multi-point; visible on hover, touch, or single-point views */}
+                            {showMarker && (
+                              <>
+                                <circle
+                                  cx={pt.x}
+                                  cy={pt.inY}
+                                  r={isHovered ? 5 : 4}
+                                  fill="#2583FF"
+                                  stroke="var(--acc-surface, #ffffff)"
+                                  strokeWidth={2}
+                                />
+                                <circle
+                                  cx={pt.x}
+                                  cy={pt.outY}
+                                  r={isHovered ? 4.5 : 3.5}
+                                  fill="var(--acc-text-muted, #A3A3A3)"
+                                  stroke="var(--acc-surface, #ffffff)"
+                                  strokeWidth={1.75}
+                                />
+                              </>
+                            )}
+
+                            {/* X-Axis Date/Bucket Label */}
+                            {showXLabel && (
+                              <text
+                                x={pt.x}
+                                y={baseY + 18}
+                                textAnchor="middle"
+                                className="acc-chart-axis-text"
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: isHovered ? 700 : 500,
+                                  fill: isHovered ? "var(--acc-text-main)" : "var(--acc-text-muted)",
+                                }}
+                              >
+                                {pt.bar.label}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Chart Footer with Reconciled Supporting Totals */}
+            <div className="acc-chart-footer">
+                <div className="acc-chart-footer-totals">
+                  <span>
+                    Total Inflow:{" "}
+                    <strong className="tabular-nums" style={{ color: "var(--acc-text-main)" }}>
+                      {formatMoney(currentInflow, activeWorkspace.currency)}
+                    </strong>
+                  </span>
+                  <span>
+                    Total Outflow:{" "}
+                    <strong className="tabular-nums" style={{ color: "var(--acc-text-muted)" }}>
+                      {formatMoney(currentOutflow, activeWorkspace.currency)}
+                    </strong>
+                  </span>
+                </div>
+                  <div className="acc-chart-footer-net">
+                    <span>
+                      Net Cash Flow:{" "}
+                      <strong
+                        className="tabular-nums"
+                        style={{
+                          color:
+                            currentNet >= 0
+                              ? "var(--acc-text-main)"
+                              : "var(--acc-danger)",
+                        }}
+                      >
+                        {currentNet >= 0 ? "+" : ""}
+                        {formatMoney(currentNet, activeWorkspace.currency)}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Upcoming Bills (~39% Width) */}
+              <div className="acc-card acc-commitments-card">
+                <div className="acc-commitments-content">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
+                    <div>
+                      <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0, color: "var(--acc-text-main)" }}>
+                        Upcoming bills
+                      </h3>
+                      <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                        Bills and obligations due
+                      </span>
+                    </div>
+                    {onNavigateTab && (
+                      <button
+                        type="button"
+                        className="acc-btn acc-btn-sm acc-btn-outline"
+                        style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
+                        onClick={() => onNavigateTab("accounting-reminders")}
+                        title="View all reminders and bills"
+                      >
+                        <span>Reminders</span>
+                        <ChevronRight size={12} />
+                      </button>
                     )}
+                  </div>
 
-                    {/* Active Hover Guide Line for multi-point series */}
-                    {numPoints > 1 && hoveredPointIndex !== null && points[hoveredPointIndex] && (
-                      <line
-                        x1={points[hoveredPointIndex].x}
-                        y1={padTop}
-                        x2={points[hoveredPointIndex].x}
-                        y2={baseY}
-                        stroke="var(--acc-border-hover, #64748B)"
-                        strokeDasharray="3 3"
-                        strokeWidth="1.25"
-                        opacity="0.85"
-                      />
-                    )}
+                  {isLoadingInitial ? (
+                    <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                      Loading bills…
+                    </div>
+                  ) : isUnavailable ? (
+                    <div className="acc-empty-compact">
+                      <AlertTriangle size={20} style={{ color: "var(--acc-danger)" }} />
+                      <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
+                        Commitments unavailable
+                      </strong>
+                      <p style={{ fontSize: "0.75rem", margin: 0 }}>Could not load pending bills.</p>
+                      <button
+                        type="button"
+                        className="acc-btn acc-btn-sm acc-btn-outline"
+                        style={{ minHeight: "28px", padding: "0.2rem 0.65rem", fontSize: "0.75rem", marginTop: "0.35rem" }}
+                        onClick={handleRetry}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : (metrics?.upcomingCommitments || []).length === 0 ? (
+                    <div className="acc-empty-compact">
+                      <div
+                        className="acc-empty-icon-wrap"
+                        style={{ backgroundColor: "var(--acc-raised)", color: "#2583FF", width: "36px", height: "36px", border: "1px solid var(--acc-border)" }}
+                      >
+                        <CheckCircle2 size={20} />
+                      </div>
+                      <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
+                        No upcoming bills scheduled
+                      </strong>
+                      <p style={{ fontSize: "0.75rem", margin: 0, maxWidth: "260px", color: "var(--acc-text-muted)", textAlign: "center", lineHeight: 1.4 }}>
+                        No scheduled bills or invoice payments due in the immediate schedule.
+                        {(metrics?.iOweMinor ?? 0) > 0 && (
+                          <span style={{ display: "block", marginTop: "0.25rem", color: "var(--acc-warning)" }}>
+                            Total obligations: {formatMoney(metrics!.iOweMinor, activeWorkspace.currency)}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {(metrics?.upcomingCommitments || []).map((c, idx) => {
+                        const info = parseCommitmentInfo(c.title);
+                        const palette = AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
+                        return (
+                          <div
+                            key={c.id}
+                            className={`acc-bill-row ${c.is_overdue ? "is-overdue" : ""}`}
+                            onClick={() => onNavigateTab && onNavigateTab(c.type === "INVOICE" ? "accounting-invoices" : "accounting-reminders")}
+                            title="Click to view details"
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+                              <div
+                                className="acc-bill-avatar"
+                                style={{ backgroundColor: palette.bg, color: palette.text }}
+                              >
+                                {info.initial}
+                              </div>
+                              <div className="acc-bill-details">
+                                <div className="acc-bill-name">
+                                  {info.name}
+                                </div>
+                                <div className="acc-bill-sub">
+                                  {c.is_overdue ? (
+                                    <span
+                                      className="acc-badge acc-badge-danger"
+                                      style={{ fontSize: "0.625rem", padding: "0.05rem 0.35rem", fontWeight: 700 }}
+                                    >
+                                      OVERDUE • {c.due_date}
+                                    </span>
+                                  ) : (
+                                    <span>Due {c.due_date}</span>
+                                  )}
+                                  {info.subtitle && (
+                                    <>
+                                      <span>·</span>
+                                      <span>{info.subtitle}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div
+                              className="acc-bill-amount tabular-nums"
+                              style={{ color: c.is_overdue ? "var(--acc-danger)" : "var(--acc-text-main)" }}
+                            >
+                              {formatMoney(c.amount_minor, activeWorkspace.currency)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                    {/* Line Series: Money In (Electric blue ~2px monotone smooth curve) */}
-                    {numPoints > 1 && inCurvePath && (
-                      <path
-                        d={inCurvePath}
-                        fill="none"
-                        stroke="#2583FF"
-                        strokeWidth="2.25"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    )}
+                {onNavigateTab && (
+                  <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--acc-border)", display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-sm acc-btn-outline"
+                      style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem", minHeight: "28px" }}
+                      onClick={() => onNavigateTab("accounting-invoices")}
+                    >
+                      Manage Invoices →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
-                    {/* Line Series: Money Out (Contrasting light slate ~2px dashed monotone curve) */}
-                    {numPoints > 1 && outCurvePath && (
-                      <path
-                        d={outCurvePath}
-                        fill="none"
-                        stroke="var(--acc-text-muted, #A3A3A3)"
-                        strokeWidth="2"
-                        strokeDasharray="5 4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    )}
+            {/* 5. FULL-WIDTH RECENT TRANSACTIONS TABLE */}
+            <div className="acc-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <div>
+                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0 }}>Recent transactions</h3>
+                  <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+                    Latest cash movements and posted transactions
+                  </span>
+                </div>
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn-sm acc-btn-outline"
+                    style={{ padding: "0.2rem 0.65rem", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
+                    onClick={() => onNavigateTab("accounting-transactions")}
+                  >
+                    <span>View all</span>
+                    <ChevronRight size={12} />
+                  </button>
+                )}
+              </div>
 
-                    {/* Interactive Touch & Hover Trigger Zones */}
-                    {points.map((pt) => {
-                      const isHovered = hoveredPointIndex === pt.idx;
-                      const slotW = numPoints > 1 ? plotWidth / (numPoints - 1) : plotWidth;
-                      const showMarker = isHovered || numPoints === 1;
-
-                      // Decide whether to show X-axis tick label
-                      // If <= 12 points, show all. If > 12 points (e.g. Month view with 24-31 days):
-                      // show Day 1, multiples of 5, the final cutoff day, or the actively hovered point.
-                      const showXLabel =
-                        numPoints <= 12 ||
-                        pt.idx === 0 ||
-                        pt.idx === numPoints - 1 ||
-                        (pt.idx + 1) % 5 === 0 ||
-                        isHovered;
-
-                      const updateTooltipCoords = () => {
-                        const clampedX = Math.max(75, Math.min(svgWidth - 75, pt.x));
-                        setTooltipPos({
-                          x: clampedX,
-                          y: Math.min(pt.inY, pt.outY),
-                        });
-                      };
-
-                      return (
-                        <g
-                          key={pt.idx}
-                          tabIndex={0}
-                          role="graphics-symbol"
-                          aria-label={`${pt.bar.label}: Money In ${formatMoney(pt.bar.inflow_minor, activeWorkspace.currency)}, Money Out ${formatMoney(pt.bar.outflow_minor, activeWorkspace.currency)}`}
-                          onMouseEnter={() => {
-                            updateTooltipCoords();
-                            setHoveredPointIndex(pt.idx);
-                          }}
-                          onClick={() => {
-                            updateTooltipCoords();
-                            setHoveredPointIndex(hoveredPointIndex === pt.idx ? null : pt.idx);
-                          }}
-                          onTouchStart={() => {
-                            updateTooltipCoords();
-                            setHoveredPointIndex(pt.idx);
-                          }}
-                          onFocus={() => setHoveredPointIndex(pt.idx)}
-                          onBlur={() => setHoveredPointIndex(null)}
-                          style={{ outline: "none", cursor: "pointer" }}
-                        >
-                          {/* Invisible hover trigger area */}
-                          <rect
-                            x={pt.x - slotW / 2}
-                            y={padTop}
-                            width={slotW}
-                            height={plotHeight}
-                            fill="transparent"
-                          />
-
-                          {/* Point markers: Hidden permanently for multi-point; visible on hover, touch, or single-point views */}
-                          {showMarker && (
-                            <>
-                              <circle
-                                cx={pt.x}
-                                cy={pt.inY}
-                                r={isHovered ? 5 : 4}
-                                fill="#2583FF"
-                                stroke="var(--acc-surface, #ffffff)"
-                                strokeWidth={2}
-                              />
-                              <circle
-                                cx={pt.x}
-                                cy={pt.outY}
-                                r={isHovered ? 4.5 : 3.5}
-                                fill="var(--acc-text-muted, #A3A3A3)"
-                                stroke="var(--acc-surface, #ffffff)"
-                                strokeWidth={1.75}
-                              />
-                            </>
-                          )}
-
-                          {/* X-Axis Date/Bucket Label */}
-                          {showXLabel && (
-                            <text
-                              x={pt.x}
-                              y={baseY + 18}
-                              textAnchor="middle"
-                              className="acc-chart-axis-text"
+              {isLoadingInitial ? (
+                <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                  Loading recent transactions…
+                </div>
+              ) : isUnavailable ? (
+                <div className="acc-empty-compact">
+                  <AlertTriangle size={20} style={{ color: "var(--acc-danger)" }} />
+                  <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
+                    Transactions history unavailable
+                  </strong>
+                  <button
+                    type="button"
+                    className="acc-btn acc-btn-sm acc-btn-outline"
+                    style={{ minHeight: "28px", padding: "0.2rem 0.65rem", fontSize: "0.75rem", marginTop: "0.35rem" }}
+                    onClick={handleRetry}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (metrics?.recentTransactions || []).length === 0 ? (
+                <div className="acc-empty-compact">
+                  <div
+                    className="acc-empty-icon-wrap"
+                    style={{ backgroundColor: "var(--acc-raised)", color: "var(--acc-text-muted)", width: "36px", height: "36px" }}
+                  >
+                    <Receipt size={18} />
+                  </div>
+                  <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
+                    No transactions recorded yet
+                  </strong>
+                  <p style={{ fontSize: "0.75rem", margin: 0, maxWidth: "340px" }}>
+                    Start recording sales, expenses, and account transfers to build your financial statements.
+                  </p>
+                  <div style={{ marginTop: "0.625rem" }}>
+                    <button
+                      type="button"
+                      className="acc-btn acc-btn-primary acc-btn-sm"
+                      onClick={() => openFastModal("INCOME")}
+                    >
+                      + Record Your First Transaction
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="acc-table-wrapper">
+                  <table className="acc-table" aria-label="Recent Transactions">
+                    <thead>
+                      <tr>
+                        <th style={{ minWidth: "160px" }}>Description / Contact</th>
+                        <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Category</th>
+                        <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Subcategory</th>
+                        <th style={{ minWidth: "90px", whiteSpace: "nowrap" }}>Date</th>
+                        <th style={{ minWidth: "110px", whiteSpace: "nowrap" }}>Account</th>
+                        <th style={{ minWidth: "80px", whiteSpace: "nowrap" }}>Status</th>
+                        <th className="acc-align-right" style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(metrics?.recentTransactions || []).slice(0, 5).map((tx) => {
+                        const catInfo = resolveTransactionCategory(tx);
+                        return (
+                          <tr key={tx.id}>
+                            <td>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                                <span style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
+                                  {tx.contact_name || tx.notes || "General Entry"}
+                                </span>
+                                {Boolean(tx.attachment_count && tx.attachment_count > 0) && (
+                                  <button
+                                    type="button"
+                                    className="acc-tx-attachment-badge"
+                                    title={`View ${tx.attachment_count} attachment${(tx.attachment_count || 0) > 1 ? "s" : ""}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openAttachmentViewer(tx);
+                                    }}
+                                  >
+                                    <Paperclip size={12} />
+                                    <span>{tx.attachment_count}</span>
+                                  </button>
+                                )}
+                              </div>
+                              {tx.notes && tx.contact_name && (
+                                <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>{tx.notes}</div>
+                              )}
+                            </td>
+                            <td>
+                              <span className="acc-badge acc-badge-neutral">{catInfo.category}</span>
+                            </td>
+                            <td>
+                              {catInfo.hasSubcategory ? (
+                                <span className="acc-badge acc-badge-neutral" style={{ fontWeight: 600 }}>
+                                  {catInfo.subcategory}
+                                </span>
+                              ) : (
+                                <span style={{ color: "var(--acc-text-muted)" }}>—</span>
+                              )}
+                            </td>
+                            <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
+                              {tx.date}
+                            </td>
+                            <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
+                              {tx.account_name || "—"}
+                            </td>
+                            <td>
+                              <span
+                                className={
+                                  tx.status === "POSTED"
+                                    ? "acc-badge acc-badge-success"
+                                    : tx.status === "VOIDED"
+                                      ? "acc-badge acc-badge-danger"
+                                      : "acc-badge acc-badge-neutral"
+                                }
+                                style={{ fontSize: "0.6875rem" }}
+                              >
+                                {tx.status}
+                              </span>
+                            </td>
+                            <td
+                              className="acc-align-right tabular-nums"
                               style={{
-                                fontSize: "11px",
-                                fontWeight: isHovered ? 700 : 500,
-                                fill: isHovered ? "var(--acc-text-main)" : "var(--acc-text-muted)",
+                                fontWeight: 700,
+                                color:
+                                  tx.type === "INCOME"
+                                    ? "var(--acc-success)"
+                                    : tx.type === "EXPENSE"
+                                      ? "var(--acc-danger)"
+                                      : "var(--acc-text-main)",
                               }}
                             >
-                              {pt.bar.label}
-                            </text>
-                          )}
-                        </g>
-                      );
-                    })}
-                  </svg>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* Chart Footer with Reconciled Supporting Totals */}
-          <div className="acc-chart-footer">
-            <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap" }}>
-              <span>
-                Total Inflow:{" "}
-                <strong className="tabular-nums" style={{ color: "var(--acc-text-main)" }}>
-                  {formatMoney(currentInflow, activeWorkspace.currency)}
-                </strong>
-              </span>
-              <span>
-                Total Outflow:{" "}
-                <strong className="tabular-nums" style={{ color: "var(--acc-text-muted)" }}>
-                  {formatMoney(currentOutflow, activeWorkspace.currency)}
-                </strong>
-              </span>
-            </div>
-            <div>
-              <span>
-                Net Cash Flow:{" "}
-                <strong
-                  className="tabular-nums"
-                  style={{
-                    color:
-                      currentNet >= 0
-                        ? "var(--acc-text-main)"
-                        : "var(--acc-danger)",
-                  }}
-                >
-                  {currentNet >= 0 ? "+" : ""}
-                  {formatMoney(currentNet, activeWorkspace.currency)}
-                </strong>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Upcoming Bills (~39% Width) */}
-        <div className="acc-card acc-commitments-card">
-          <div className="acc-commitments-content">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
-              <div>
-                <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0, color: "var(--acc-text-main)" }}>
-                  Upcoming bills
-                </h3>
-                <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                  Bills and obligations due
-                </span>
-              </div>
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  className="acc-btn acc-btn-sm acc-btn-outline"
-                  style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => onNavigateTab("accounting-reminders")}
-                  title="View all reminders and bills"
-                >
-                  <span>Reminders</span>
-                  <ChevronRight size={12} />
-                </button>
+                              {tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "-" : ""}
+                              {formatMoney(tx.amount_minor, activeWorkspace.currency)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
-            {isLoadingInitial ? (
-              <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
-                Loading bills…
-              </div>
-            ) : isUnavailable ? (
-              <div className="acc-empty-compact">
-                <AlertTriangle size={20} style={{ color: "var(--acc-danger)" }} />
-                <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
-                  Commitments unavailable
-                </strong>
-                <p style={{ fontSize: "0.75rem", margin: 0 }}>Could not load pending bills.</p>
-                <button
-                  type="button"
-                  className="acc-btn acc-btn-sm acc-btn-outline"
-                  style={{ minHeight: "28px", padding: "0.2rem 0.65rem", fontSize: "0.75rem", marginTop: "0.35rem" }}
-                  onClick={handleRetry}
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (metrics?.upcomingCommitments || []).length === 0 ? (
-              <div className="acc-empty-compact">
-                <div
-                  className="acc-empty-icon-wrap"
-                  style={{ backgroundColor: "var(--acc-raised)", color: "#2583FF", width: "36px", height: "36px", border: "1px solid var(--acc-border)" }}
-                >
-                  <CheckCircle2 size={20} />
-                </div>
-                <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
-                  No upcoming bills scheduled
-                </strong>
-                <p style={{ fontSize: "0.75rem", margin: 0, maxWidth: "260px", color: "var(--acc-text-muted)", textAlign: "center", lineHeight: 1.4 }}>
-                  No scheduled bills or invoice payments due in the immediate schedule.
-                  {(metrics?.iOweMinor ?? 0) > 0 && (
-                    <span style={{ display: "block", marginTop: "0.25rem", color: "var(--acc-warning)" }}>
-                      Total obligations: {formatMoney(metrics!.iOweMinor, activeWorkspace.currency)}
-                    </span>
-                  )}
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {(metrics?.upcomingCommitments || []).map((c, idx) => {
-                  const info = parseCommitmentInfo(c.title);
-                  const palette = AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
-                  return (
-                    <div
-                      key={c.id}
-                      className={`acc-bill-row ${c.is_overdue ? "is-overdue" : ""}`}
-                      onClick={() => onNavigateTab && onNavigateTab(c.type === "INVOICE" ? "accounting-invoices" : "accounting-reminders")}
-                      title="Click to view details"
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
-                        <div
-                          className="acc-bill-avatar"
-                          style={{ backgroundColor: palette.bg, color: palette.text }}
-                        >
-                          {info.initial}
-                        </div>
-                        <div className="acc-bill-details">
-                          <div className="acc-bill-name">
-                            {info.name}
-                          </div>
-                          <div className="acc-bill-sub">
-                            {c.is_overdue ? (
-                              <span
-                                className="acc-badge acc-badge-danger"
-                                style={{ fontSize: "0.625rem", padding: "0.05rem 0.35rem", fontWeight: 700 }}
-                              >
-                                OVERDUE • {c.due_date}
-                              </span>
-                            ) : (
-                              <span>Due {c.due_date}</span>
-                            )}
-                            {info.subtitle && (
-                              <>
-                                <span>·</span>
-                                <span>{info.subtitle}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div
-                        className="acc-bill-amount tabular-nums"
-                        style={{ color: c.is_overdue ? "var(--acc-danger)" : "var(--acc-text-main)" }}
-                      >
-                        {formatMoney(c.amount_minor, activeWorkspace.currency)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Transaction Attachment Lightbox Viewer Modal */}
+            {viewerOpen && viewerTx && (
+              <TransactionAttachmentViewerModal
+                isOpen={viewerOpen}
+                onClose={() => {
+                  setViewerOpen(false);
+                  setViewerTx(null);
+                  setViewerAttachments([]);
+                }}
+                transactionTitle={viewerTx.contact_name || viewerTx.notes || "Transaction"}
+                transactionSubtitle={`${viewerTx.type} • ${formatMoney(viewerTx.amount_minor || 0, activeWorkspace?.currency)} • ${viewerTx.date}`}
+                attachments={viewerAttachments}
+              />
             )}
-          </div>
 
-          {onNavigateTab && (
-            <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid var(--acc-border)", display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                className="acc-btn acc-btn-sm acc-btn-outline"
-                style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem", minHeight: "28px" }}
-                onClick={() => onNavigateTab("accounting-invoices")}
-              >
-                Manage Invoices →
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 5. FULL-WIDTH RECENT TRANSACTIONS TABLE */}
-      <div className="acc-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <div>
-            <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0 }}>Recent transactions</h3>
-            <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-              Latest cash movements and posted transactions
-            </span>
+            {/* Wipe Accounting Confirmation Modal */}
+            <WipeAccountingModal
+              isOpen={wipeModalOpen}
+              onClose={() => setWipeModalOpen(false)}
+              workspace={activeWorkspace}
+              onSuccess={handleWipeSuccess}
+              formatMoney={formatMoney}
+            />
           </div>
-          {onNavigateTab && (
-            <button
-              type="button"
-              className="acc-btn acc-btn-sm acc-btn-outline"
-              style={{ padding: "0.2rem 0.65rem", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-              onClick={() => onNavigateTab("accounting-transactions")}
-            >
-              <span>View all</span>
-              <ChevronRight size={12} />
-            </button>
-          )}
-        </div>
-
-        {isLoadingInitial ? (
-          <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
-            Loading recent transactions…
-          </div>
-        ) : isUnavailable ? (
-          <div className="acc-empty-compact">
-            <AlertTriangle size={20} style={{ color: "var(--acc-danger)" }} />
-            <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
-              Transactions history unavailable
-            </strong>
-            <button
-              type="button"
-              className="acc-btn acc-btn-sm acc-btn-outline"
-              style={{ minHeight: "28px", padding: "0.2rem 0.65rem", fontSize: "0.75rem", marginTop: "0.35rem" }}
-              onClick={handleRetry}
-            >
-              Retry
-            </button>
-          </div>
-        ) : (metrics?.recentTransactions || []).length === 0 ? (
-          <div className="acc-empty-compact">
-            <div
-              className="acc-empty-icon-wrap"
-              style={{ backgroundColor: "var(--acc-raised)", color: "var(--acc-text-muted)", width: "36px", height: "36px" }}
-            >
-              <Receipt size={18} />
-            </div>
-            <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
-              No transactions recorded yet
-            </strong>
-            <p style={{ fontSize: "0.75rem", margin: 0, maxWidth: "340px" }}>
-              Start recording sales, expenses, and account transfers to build your financial statements.
-            </p>
-            <div style={{ marginTop: "0.625rem" }}>
-              <button
-                type="button"
-                className="acc-btn acc-btn-primary acc-btn-sm"
-                onClick={() => openFastModal("INCOME")}
-              >
-                + Record Your First Transaction
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="acc-table-wrapper">
-            <table className="acc-table" aria-label="Recent Transactions">
-              <thead>
-                <tr>
-                  <th style={{ minWidth: "160px" }}>Description / Contact</th>
-                  <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Category</th>
-                  <th style={{ minWidth: "120px", whiteSpace: "nowrap" }}>Subcategory</th>
-                  <th style={{ minWidth: "90px", whiteSpace: "nowrap" }}>Date</th>
-                  <th style={{ minWidth: "110px", whiteSpace: "nowrap" }}>Account</th>
-                  <th style={{ minWidth: "80px", whiteSpace: "nowrap" }}>Status</th>
-                  <th className="acc-align-right" style={{ minWidth: "100px", whiteSpace: "nowrap" }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(metrics?.recentTransactions || []).slice(0, 5).map((tx) => {
-                  const catInfo = resolveTransactionCategory(tx);
-                  return (
-                    <tr key={tx.id}>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
-                          <span style={{ fontWeight: 600, color: "var(--acc-text-main)" }}>
-                            {tx.contact_name || tx.notes || "General Entry"}
-                          </span>
-                          {Boolean(tx.attachment_count && tx.attachment_count > 0) && (
-                            <button
-                              type="button"
-                              className="acc-tx-attachment-badge"
-                              title={`View ${tx.attachment_count} attachment${(tx.attachment_count || 0) > 1 ? "s" : ""}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAttachmentViewer(tx);
-                              }}
-                            >
-                              <Paperclip size={12} />
-                              <span>{tx.attachment_count}</span>
-                            </button>
-                          )}
-                        </div>
-                        {tx.notes && tx.contact_name && (
-                          <div style={{ fontSize: "0.6875rem", color: "var(--acc-text-muted)" }}>{tx.notes}</div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="acc-badge acc-badge-neutral">{catInfo.category}</span>
-                      </td>
-                      <td>
-                        {catInfo.hasSubcategory ? (
-                          <span className="acc-badge acc-badge-neutral" style={{ fontWeight: 600 }}>
-                            {catInfo.subcategory}
-                          </span>
-                        ) : (
-                          <span style={{ color: "var(--acc-text-muted)" }}>—</span>
-                        )}
-                      </td>
-                    <td style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", whiteSpace: "nowrap" }}>
-                      {tx.date}
-                    </td>
-                    <td style={{ fontSize: "0.8125rem", color: "var(--acc-text-muted)" }}>
-                      {tx.account_name || "—"}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          tx.status === "POSTED"
-                            ? "acc-badge acc-badge-success"
-                            : tx.status === "VOIDED"
-                            ? "acc-badge acc-badge-danger"
-                            : "acc-badge acc-badge-neutral"
-                        }
-                        style={{ fontSize: "0.6875rem" }}
-                      >
-                        {tx.status}
-                      </span>
-                    </td>
-                    <td
-                      className="acc-align-right tabular-nums"
-                      style={{
-                        fontWeight: 700,
-                        color:
-                          tx.type === "INCOME"
-                            ? "var(--acc-success)"
-                            : tx.type === "EXPENSE"
-                            ? "var(--acc-danger)"
-                            : "var(--acc-text-main)",
-                      }}
-                    >
-                      {tx.type === "INCOME" ? "+" : tx.type === "EXPENSE" ? "-" : ""}
-                      {formatMoney(tx.amount_minor, activeWorkspace.currency)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Transaction Attachment Lightbox Viewer Modal */}
-      {viewerOpen && viewerTx && (
-        <TransactionAttachmentViewerModal
-          isOpen={viewerOpen}
-          onClose={() => {
-            setViewerOpen(false);
-            setViewerTx(null);
-            setViewerAttachments([]);
-          }}
-          transactionTitle={viewerTx.contact_name || viewerTx.notes || "Transaction"}
-          transactionSubtitle={`${viewerTx.type} • ${formatMoney(viewerTx.amount_minor || 0, activeWorkspace?.currency)} • ${viewerTx.date}`}
-          attachments={viewerAttachments}
-        />
-      )}
-
-      {/* Wipe Accounting Confirmation Modal */}
-      <WipeAccountingModal
-        isOpen={wipeModalOpen}
-        onClose={() => setWipeModalOpen(false)}
-        workspace={activeWorkspace}
-        onSuccess={handleWipeSuccess}
-        formatMoney={formatMoney}
-      />
-    </div>
-  );
+          );
 }
