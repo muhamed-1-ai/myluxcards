@@ -2683,9 +2683,9 @@
   border: 1px solid var(--acc-border);
   border-radius: var(--acc-radius-md);
   box-shadow: var(--acc-shadow-lg);
-  max-height: 220px;
+  max-height: 260px;
   overflow-y: auto;
-  z-index: 50;
+  z-index: 1000;
 }
 
 .acc-customer-dropdown-item {
@@ -2699,8 +2699,27 @@
   border-bottom: none;
 }
 
-.acc-customer-dropdown-item:hover {
+.acc-customer-dropdown-item:hover,
+.acc-customer-dropdown-item-active {
   background: var(--acc-raised);
+}
+
+.acc-selected-customer-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--acc-raised);
+  border: 1px solid var(--acc-border);
+  border-radius: var(--acc-radius-md);
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .acc-selected-customer-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 /* Inline New Customer Box */

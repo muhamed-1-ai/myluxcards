@@ -65,6 +65,7 @@ export async function PUT(
       (err.message.includes("Cannot edit invoice") ||
         err.message.includes("Invoice must have at least one line") ||
         err.message.includes("Invoice not found") ||
+        err.message.includes("does not exist in this workspace") ||
         err.message.includes("Chart of accounts missing"));
 
     if (isClientError) {

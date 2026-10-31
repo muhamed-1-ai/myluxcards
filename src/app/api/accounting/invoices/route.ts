@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       (err.message.includes("must have at least one line item") ||
         err.message.includes("invalid unit price") ||
         err.message.includes("select or add a customer") ||
+        err.message.includes("does not exist in this workspace") ||
         err.message.includes("Chart of accounts missing"));
 
     if (isClientValidation) {

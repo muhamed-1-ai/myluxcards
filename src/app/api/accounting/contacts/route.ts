@@ -48,6 +48,16 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (err: any) {
+    if (err.code === "DUPLICATE_CONTACT") {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: "DUPLICATE_CONTACT",
+          existingContact: err.existingContact,
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: err.message || "Failed to create contact" }, { status: 400 });
   }
 }

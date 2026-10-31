@@ -440,6 +440,17 @@ export async function createInvoice(
   const status: InvoiceStatus = input.status || "DRAFT";
 
   return withTransaction(async (db) => {
+    // Validate customer workspace ownership if contactId provided
+    if (input.contactId) {
+      const contactCheck = await db.query(
+        `SELECT id FROM accounting_contacts WHERE id = $1 AND workspace_id = $2 AND is_active = true LIMIT 1`,
+        [input.contactId, input.workspaceId]
+      );
+      if (contactCheck.rows.length === 0) {
+        throw new Error("Selected customer does not exist in this workspace.");
+      }
+    }
+
     // 1. Fetch settings and generate invoice number
     const settings = await getInvoiceSettings(input.workspaceId, db);
     const invoiceNumber = await generateInvoiceNumber(input.workspaceId, settings.invoice_prefix || "INV", db);
@@ -589,6 +600,15 @@ export async function updateDraftInvoice(
     const issueDate = input.issueDate || existing.issue_date;
     const dueDate = input.dueDate || existing.due_date;
     const contactId = input.contactId !== undefined ? input.contactId : existing.contact_id;
+    if (contactId) {
+      const contactCheck = await db.query(
+        `SELECT id FROM accounting_contacts WHERE id = $1 AND workspace_id = $2 AND is_active = true LIMIT 1`,
+        [contactId, input.workspaceId]
+      );
+      if (contactCheck.rows.length === 0) {
+        throw new Error("Selected customer does not exist in this workspace.");
+      }
+    }
     const notes = input.notes !== undefined ? input.notes : existing.notes;
     const terms = input.terms !== undefined ? input.terms : existing.terms;
     const warrantyTerms = input.warrantyTerms !== undefined ? input.warrantyTerms : existing.warranty_terms;

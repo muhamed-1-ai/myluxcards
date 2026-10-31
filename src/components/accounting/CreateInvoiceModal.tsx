@@ -26,8 +26,11 @@ interface Contact {
   type: string;
   email?: string | null;
   phone?: string | null;
+  phone_normalized?: string | null;
   address?: string | null;
   receivable_balance_minor?: number;
+  total_receivable_minor?: number | string;
+  total_payable_minor?: number | string;
 }
 
 export interface InvoiceLineItemState {
@@ -73,7 +76,7 @@ export default function CreateInvoiceModal({
   initialProducts,
   onInvoiceSaved,
 }: CreateInvoiceModalProps) {
-  const { activeWorkspace, formatMoney, canMutate } = useAccounting();
+  const { activeWorkspace, formatMoney, canMutate, triggerRefresh } = useAccounting();
 
   // Mode: "EDIT" or "PREVIEW"
   const [viewMode, setViewMode] = useState<"EDIT" | "PREVIEW">("EDIT");
@@ -86,11 +89,14 @@ export default function CreateInvoiceModal({
   const [products, setProducts] = useState<Product[]>([]);
   const [invoiceSettings, setInvoiceSettings] = useState<any>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsError, setContactsError] = useState<string | null>(null);
 
   // Customer Selector State
   const [selectedContactId, setSelectedContactId] = useState<string>("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [showInlineNewCustomer, setShowInlineNewCustomer] = useState(false);
 
   // Inline New Customer form fields
@@ -98,9 +104,13 @@ export default function CreateInvoiceModal({
   const [newCustEmail, setNewCustEmail] = useState("");
   const [newCustPhone, setNewCustPhone] = useState("");
   const [newCustAddress, setNewCustAddress] = useState("");
-  const [showCustExtraFields, setShowCustExtraFields] = useState(false);
   const [inlineCustomerSaving, setInlineCustomerSaving] = useState(false);
   const [inlineCustomerError, setInlineCustomerError] = useState<string | null>(null);
+  const [suggestedDuplicate, setSuggestedDuplicate] = useState<Contact | null>(null);
+
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
+  const customerInputRef = useRef<HTMLInputElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Invoice Form Fields
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -128,8 +138,6 @@ export default function CreateInvoiceModal({
   // Submitting & Feedback
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const customerDropdownRef = useRef<HTMLDivElement>(null);
 
   const isTaxConfigured = Boolean(
     (activeWorkspace as any)?.settings?.enable_tax || (activeWorkspace as any)?.settings?.tax_rate
@@ -163,17 +171,24 @@ export default function CreateInvoiceModal({
 
     async function loadDependencies() {
       setLoadingData(true);
+      setContactsLoading(true);
+      setContactsError(null);
       try {
+        const headers: HeadersInit = activeWorkspace ? { "x-workspace-id": activeWorkspace.id } : {};
         const [contactsRes, productsRes, settingsRes] = await Promise.all([
-          !initialContacts ? fetch(`/api/accounting/contacts?workspaceId=${activeWorkspace?.id}&type=CUSTOMER`) : null,
-          !initialProducts ? fetch(`/api/accounting/products?workspaceId=${activeWorkspace?.id}`) : null,
-          fetch(`/api/accounting/invoices/settings`),
+          !initialContacts ? fetch(`/api/accounting/contacts?workspaceId=${activeWorkspace?.id}`, { headers }) : null,
+          !initialProducts ? fetch(`/api/accounting/products?workspaceId=${activeWorkspace?.id}`, { headers }) : null,
+          fetch(`/api/accounting/invoices/settings`, { headers }),
         ]);
 
         if (isMounted) {
-          if (contactsRes && contactsRes.ok) {
-            const data = await contactsRes.json();
-            setContacts(data.contacts || []);
+          if (contactsRes) {
+            if (contactsRes.ok) {
+              const data = await contactsRes.json();
+              setContacts(data.contacts || []);
+            } else {
+              setContactsError("Could not load eligible contacts from People.");
+            }
           }
           if (productsRes && productsRes.ok) {
             const data = await productsRes.json();
@@ -189,10 +204,14 @@ export default function CreateInvoiceModal({
             }
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load invoice dependencies:", err);
+        if (isMounted) setContactsError(err?.message || "Failed to load customers.");
       } finally {
-        if (isMounted) setLoadingData(false);
+        if (isMounted) {
+          setLoadingData(false);
+          setContactsLoading(false);
+        }
       }
     }
 
@@ -237,6 +256,28 @@ export default function CreateInvoiceModal({
 
         const inv = data.invoice;
         setSelectedContactId(inv.contact_id || "");
+        if (data.contact) {
+          setContacts((prev) => {
+            if (prev.some((c) => c.id === data.contact.id)) return prev;
+            return [data.contact, ...prev];
+          });
+        } else if (inv.customer_snapshot) {
+          setContacts((prev) => {
+            const snapId = inv.customer_snapshot.id || inv.contact_id || "snapshot-contact";
+            if (prev.some((c) => c.id === snapId)) return prev;
+            return [
+              {
+                id: snapId,
+                name: inv.customer_snapshot.name,
+                type: "CUSTOMER",
+                email: inv.customer_snapshot.email,
+                phone: inv.customer_snapshot.phone,
+                address: inv.customer_snapshot.address,
+              },
+              ...prev,
+            ];
+          });
+        }
         if (inv.issue_date) setIssueDate(inv.issue_date.slice(0, 10));
         if (inv.due_date) setDueDate(inv.due_date.slice(0, 10));
         setCustomerNotes(inv.notes || "");
@@ -304,19 +345,77 @@ export default function CreateInvoiceModal({
 
   // Filtered customer list
   const filteredCustomers = useMemo(() => {
-    if (!customerSearch.trim()) return contacts;
-    const q = customerSearch.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.phone?.includes(q)
-    );
+    if (!customerSearch.trim()) {
+      return [...contacts].sort((a, b) => {
+        if (a.type === "CUSTOMER" && b.type !== "CUSTOMER") return -1;
+        if (b.type === "CUSTOMER" && a.type !== "CUSTOMER") return 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    const q = customerSearch.trim().toLowerCase();
+    const qDigits = customerSearch.replace(/\D/g, "");
+    return contacts.filter((c) => {
+      const matchName = c.name.toLowerCase().includes(q);
+      const matchEmail = c.email ? c.email.toLowerCase().includes(q) : false;
+      const matchPhone = c.phone ? c.phone.includes(q) : false;
+      const matchPhoneNorm = c.phone_normalized && qDigits.length >= 3 ? c.phone_normalized.includes(qDigits) : false;
+      const matchAddress = c.address ? c.address.toLowerCase().includes(q) : false;
+      return matchName || matchEmail || matchPhone || matchPhoneNorm || matchAddress;
+    });
   }, [contacts, customerSearch]);
 
   const selectedContact = useMemo(() => {
     return contacts.find((c) => c.id === selectedContactId) || null;
   }, [contacts, selectedContactId]);
+
+  // Reset keyboard highlight whenever search changes or dropdown closes
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [customerSearch, isCustomerDropdownOpen]);
+
+  // Keep highlighted item visible inside dropdown scroll container
+  useEffect(() => {
+    if (highlightedIndex >= 0 && itemRefs.current[highlightedIndex]) {
+      itemRefs.current[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex]);
+
+  const handleCustomerKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isCustomerDropdownOpen) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setIsCustomerDropdownOpen(true);
+        return;
+      }
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev < filteredCustomers.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : filteredCustomers.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredCustomers.length) {
+        const chosen = filteredCustomers[highlightedIndex];
+        setSelectedContactId(chosen.id);
+        setIsCustomerDropdownOpen(false);
+        setCustomerSearch("");
+        setHighlightedIndex(-1);
+      } else if (filteredCustomers.length === 1 && customerSearch.trim().length > 0) {
+        const chosen = filteredCustomers[0];
+        setSelectedContactId(chosen.id);
+        setIsCustomerDropdownOpen(false);
+        setCustomerSearch("");
+        setHighlightedIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setIsCustomerDropdownOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
 
   // Line Calculations
   const lineCalculations = useMemo(() => {
@@ -376,19 +475,46 @@ export default function CreateInvoiceModal({
   const handleSaveInlineCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeWorkspace) return;
+    if (inlineCustomerSaving) return;
+
     const name = newCustName.trim();
     if (name.length < 2) {
-      setInlineCustomerError("Customer name must be at least 2 characters.");
+      setInlineCustomerError("Customer / Business Name is required (minimum 2 characters).");
       return;
+    }
+
+    // Client-side duplicate phone/email detection against already loaded contacts
+    const trimmedEmail = newCustEmail.trim().toLowerCase();
+    const cleanPhoneDigits = newCustPhone.replace(/\D/g, "");
+    if (trimmedEmail || cleanPhoneDigits.length >= 7) {
+      const existingMatch = contacts.find((c) => {
+        if (trimmedEmail && c.email && c.email.toLowerCase() === trimmedEmail) return true;
+        if (cleanPhoneDigits.length >= 7) {
+          const cDigits = (c.phone_normalized || c.phone || "").replace(/\D/g, "");
+          if (cDigits && cDigits.endsWith(cleanPhoneDigits.slice(-10))) return true;
+        }
+        return false;
+      });
+      if (existingMatch && !suggestedDuplicate) {
+        setSuggestedDuplicate(existingMatch);
+        setInlineCustomerError(
+          `A contact with this ${trimmedEmail && existingMatch.email?.toLowerCase() === trimmedEmail ? "email" : "phone"} already exists in People (${existingMatch.name}).`
+        );
+        return;
+      }
     }
 
     setInlineCustomerSaving(true);
     setInlineCustomerError(null);
+    setSuggestedDuplicate(null);
 
     try {
       const res = await fetch("/api/accounting/contacts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-workspace-id": activeWorkspace.id,
+        },
         body: JSON.stringify({
           workspaceId: activeWorkspace.id,
           name,
@@ -400,8 +526,17 @@ export default function CreateInvoiceModal({
       });
 
       const data = await res.json();
+
+      if (res.status === 409 && data.existingContact) {
+        setSuggestedDuplicate(data.existingContact);
+        setInlineCustomerError(data.error || "A contact with these details already exists in People.");
+        setInlineCustomerSaving(false);
+        return;
+      }
+
       if (!res.ok) {
         setInlineCustomerError(data.error || "Failed to create customer");
+        setInlineCustomerSaving(false);
         return;
       }
 
@@ -413,8 +548,12 @@ export default function CreateInvoiceModal({
       setNewCustEmail("");
       setNewCustPhone("");
       setNewCustAddress("");
-      setShowCustExtraFields(false);
+      setInlineCustomerError(null);
+      setSuggestedDuplicate(null);
       setIsCustomerDropdownOpen(false);
+
+      // Trigger refresh across entire workspace so People view & counts update immediately
+      triggerRefresh();
     } catch (err: any) {
       setInlineCustomerError(err.message || "Failed to save customer");
     } finally {
@@ -1003,119 +1142,202 @@ export default function CreateInvoiceModal({
                   </div>
 
                   {selectedContact ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "0.75rem 1rem",
-                        background: "var(--acc-raised)",
-                        border: "1px solid var(--acc-border)",
-                        borderRadius: "var(--acc-radius-sm)",
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{selectedContact.name}</div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
-                          {[selectedContact.email, selectedContact.phone].filter(Boolean).join(" · ") || "No email/phone"}
+                    /* Selected Customer Summary Card */
+                    <div className="acc-selected-customer-card">
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "50%",
+                            background: "var(--acc-primary-soft, rgba(59, 130, 246, 0.15))",
+                            color: "var(--acc-primary, #3b82f6)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 700,
+                            fontSize: "0.9rem",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {selectedContact.name.charAt(0).toUpperCase()}
                         </div>
-                        {selectedContact.address && (
-                          <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", marginTop: "0.15rem" }}>
-                            📍 {selectedContact.address}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <strong style={{ fontSize: "0.95rem", color: "var(--acc-text)" }}>{selectedContact.name}</strong>
+                            <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.7rem" }}>
+                              {selectedContact.type === "VENDOR"
+                                ? "Vendor / Supplier"
+                                : selectedContact.type === "PERSONAL"
+                                ? "Personal Contact"
+                                : "Customer"}
+                            </span>
                           </div>
-                        )}
+                          <div style={{ fontSize: "0.8rem", color: "var(--acc-text-muted)", marginTop: "0.2rem" }}>
+                            {[selectedContact.phone, selectedContact.email].filter(Boolean).join(" · ") || (
+                              <span style={{ fontStyle: "italic", opacity: 0.7 }}>No phone or email on file</span>
+                            )}
+                          </div>
+                          {selectedContact.address && (
+                            <div style={{ fontSize: "0.775rem", color: "var(--acc-text-muted)", marginTop: "0.15rem" }}>
+                              📍 {selectedContact.address}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <button
                         type="button"
                         className="acc-btn acc-btn-outline acc-btn-sm"
+                        style={{ whiteSpace: "nowrap" }}
                         onClick={() => {
                           setSelectedContactId("");
                           setCustomerSearch("");
                           setIsCustomerDropdownOpen(true);
+                          setTimeout(() => customerInputRef.current?.focus(), 50);
                         }}
                       >
-                        Change Customer
+                        Change
                       </button>
                     </div>
                   ) : showInlineNewCustomer ? (
-                    /* Inline Add Customer */
-                    <div className="acc-inline-new-customer-box" style={{ background: "var(--acc-raised)", border: "1px solid var(--acc-border)", borderRadius: "var(--acc-radius-sm)", padding: "1rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                        <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>+ Add New Customer</span>
+                    /* Inline Add Customer Form */
+                    <div className="acc-inline-new-customer-box">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>+ Add New Customer</span>
+                          <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.675rem" }}>
+                            Saves directly to People
+                          </span>
+                        </div>
                         <button
                           type="button"
                           className="acc-link-btn"
-                          style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)", background: "none", border: "none", cursor: "pointer" }}
-                          onClick={() => setShowInlineNewCustomer(false)}
+                          style={{ fontSize: "0.8rem", color: "var(--acc-text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                          onClick={() => {
+                            setShowInlineNewCustomer(false);
+                            setInlineCustomerError(null);
+                            setSuggestedDuplicate(null);
+                          }}
                         >
-                          Cancel
+                          ✕ Cancel
                         </button>
                       </div>
+
                       {inlineCustomerError && (
-                        <div className="acc-alert acc-alert-danger" style={{ marginBottom: "0.5rem", padding: "0.4rem 0.6rem", fontSize: "0.75rem" }}>
+                        <div className="acc-alert acc-alert-danger" style={{ marginBottom: "0.75rem", padding: "0.5rem 0.75rem", fontSize: "0.775rem" }}>
                           {inlineCustomerError}
                         </div>
                       )}
-                      <form onSubmit={handleSaveInlineCustomer}>
-                        <div className="acc-form-group">
-                          <label className="acc-form-label">Full Name *</label>
-                          <input
-                            type="text"
-                            required
-                            className="acc-form-input"
-                            placeholder="e.g. Rahul Sharma"
-                            value={newCustName}
-                            onChange={(e) => setNewCustName(e.target.value)}
-                          />
-                        </div>
-                        {!showCustExtraFields ? (
-                          <button
-                            type="button"
-                            className="acc-link-btn"
-                            style={{ fontSize: "0.75rem", color: "var(--acc-blue)", margin: "0.35rem 0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                            onClick={() => setShowCustExtraFields(true)}
-                          >
-                            + Add Email, Phone &amp; Address
-                          </button>
-                        ) : (
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.35rem" }}>
-                            <div>
-                              <label className="acc-form-label">Email</label>
-                              <input
-                                type="email"
-                                className="acc-form-input"
-                                placeholder="customer@email.com"
-                                value={newCustEmail}
-                                onChange={(e) => setNewCustEmail(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <label className="acc-form-label">Phone</label>
-                              <input
-                                type="tel"
-                                className="acc-form-input"
-                                placeholder="+91 98765 43210"
-                                value={newCustPhone}
-                                onChange={(e) => setNewCustPhone(e.target.value)}
-                              />
-                            </div>
-                            <div style={{ gridColumn: "span 2" }}>
-                              <label className="acc-form-label">Billing Address</label>
-                              <input
-                                type="text"
-                                className="acc-form-input"
-                                placeholder="Street, City, PIN Code"
-                                value={newCustAddress}
-                                onChange={(e) => setNewCustAddress(e.target.value)}
-                              />
-                            </div>
+
+                      {suggestedDuplicate && (
+                        <div className="acc-alert acc-alert-warning" style={{ marginBottom: "0.75rem", padding: "0.6rem 0.75rem", fontSize: "0.8rem" }}>
+                          <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>
+                            ⚠️ Contact with matching details already exists in People:
                           </div>
-                        )}
-                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.4rem" }}>
+                            <strong>{suggestedDuplicate.name}</strong>
+                            <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.675rem" }}>
+                              {suggestedDuplicate.type === "VENDOR" ? "Vendor / Supplier" : suggestedDuplicate.type === "PERSONAL" ? "Personal Contact" : "Customer"}
+                            </span>
+                            {suggestedDuplicate.phone && <span style={{ color: "var(--acc-text-muted)" }}>· {suggestedDuplicate.phone}</span>}
+                            {suggestedDuplicate.email && <span style={{ color: "var(--acc-text-muted)" }}>· {suggestedDuplicate.email}</span>}
+                          </div>
+                          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.35rem" }}>
+                            <button
+                              type="button"
+                              className="acc-btn acc-btn-primary acc-btn-sm"
+                              onClick={() => {
+                                setSelectedContactId(suggestedDuplicate.id);
+                                if (!contacts.some((c) => c.id === suggestedDuplicate.id)) {
+                                  setContacts((prev) => [suggestedDuplicate, ...prev]);
+                                }
+                                setShowInlineNewCustomer(false);
+                                setSuggestedDuplicate(null);
+                                setInlineCustomerError(null);
+                              }}
+                            >
+                              Select "{suggestedDuplicate.name}" for this invoice
+                            </button>
+                            <button
+                              type="button"
+                              className="acc-btn acc-btn-outline acc-btn-sm"
+                              onClick={() => setSuggestedDuplicate(null)}
+                            >
+                              Edit Details
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <form onSubmit={handleSaveInlineCustomer}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                          <div style={{ gridColumn: "span 2" }}>
+                            <label className="acc-form-label" style={{ marginBottom: "0.25rem" }}>
+                              Customer / Business Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              autoFocus
+                              className="acc-form-input"
+                              placeholder="e.g. Acme Corporation or Rahul Sharma"
+                              value={newCustName}
+                              onChange={(e) => setNewCustName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="acc-form-label" style={{ marginBottom: "0.25rem" }}>
+                              Phone (optional)
+                            </label>
+                            <input
+                              type="tel"
+                              className="acc-form-input"
+                              placeholder="+91 98765 43210"
+                              value={newCustPhone}
+                              onChange={(e) => {
+                                setNewCustPhone(e.target.value);
+                                if (suggestedDuplicate) setSuggestedDuplicate(null);
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label className="acc-form-label" style={{ marginBottom: "0.25rem" }}>
+                              Email (optional)
+                            </label>
+                            <input
+                              type="email"
+                              className="acc-form-input"
+                              placeholder="customer@email.com"
+                              value={newCustEmail}
+                              onChange={(e) => {
+                                setNewCustEmail(e.target.value);
+                                if (suggestedDuplicate) setSuggestedDuplicate(null);
+                              }}
+                            />
+                          </div>
+                          <div style={{ gridColumn: "span 2" }}>
+                            <label className="acc-form-label" style={{ marginBottom: "0.25rem" }}>
+                              Billing Address (optional)
+                            </label>
+                            <input
+                              type="text"
+                              className="acc-form-input"
+                              placeholder="Street, City, PIN Code"
+                              value={newCustAddress}
+                              onChange={(e) => setNewCustAddress(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
                           <button
                             type="button"
                             className="acc-btn acc-btn-outline acc-btn-sm"
-                            onClick={() => setShowInlineNewCustomer(false)}
+                            onClick={() => {
+                              setShowInlineNewCustomer(false);
+                              setInlineCustomerError(null);
+                              setSuggestedDuplicate(null);
+                            }}
                           >
                             Cancel
                           </button>
@@ -1134,7 +1356,26 @@ export default function CreateInvoiceModal({
                     <div className="acc-customer-combobox-wrapper" ref={customerDropdownRef}>
                       <div style={{ display: "flex", gap: "0.5rem" }}>
                         <input
+                          ref={customerInputRef}
                           type="text"
+                          role="combobox"
+                          aria-expanded={isCustomerDropdownOpen}
+                          aria-haspopup="listbox"
+                          aria-autocomplete="list"
+                          aria-controls="customer-dropdown-options"
+                          aria-activedescendant={
+                            highlightedIndex >= 0 && filteredCustomers[highlightedIndex]
+                              ? `customer-opt-${filteredCustomers[highlightedIndex].id}`
+                              : undefined
+                          }
+                          id="invoice-customer-search-input"
+                          name="customer_search_query"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          data-form-type="other"
+                          data-lpignore="true"
                           className="acc-form-input"
                           placeholder="Search existing customer by name, email, or phone..."
                           value={customerSearch}
@@ -1143,52 +1384,103 @@ export default function CreateInvoiceModal({
                             setCustomerSearch(e.target.value);
                             setIsCustomerDropdownOpen(true);
                           }}
+                          onKeyDown={handleCustomerKeyDown}
                         />
                         {canMutate && (
                           <button
                             type="button"
                             className="acc-btn acc-btn-outline"
                             style={{ whiteSpace: "nowrap" }}
-                            onClick={() => setShowInlineNewCustomer(true)}
+                            onClick={() => {
+                              setShowInlineNewCustomer(true);
+                              setIsCustomerDropdownOpen(false);
+                            }}
                           >
                             + New Customer
                           </button>
                         )}
                       </div>
                       {isCustomerDropdownOpen && (
-                        <div className="acc-customer-dropdown-menu">
-                          {filteredCustomers.length === 0 ? (
-                            <div style={{ padding: "0.75rem", fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
-                              No customers found.
+                        <div
+                          id="customer-dropdown-options"
+                          role="listbox"
+                          aria-label="Eligible Customers"
+                          className="acc-customer-dropdown-menu"
+                        >
+                          {contactsLoading ? (
+                            <div style={{ padding: "0.85rem 1rem", fontSize: "0.8rem", color: "var(--acc-text-muted)" }}>
+                              Loading customers from People...
+                            </div>
+                          ) : contactsError ? (
+                            <div style={{ padding: "0.85rem 1rem", fontSize: "0.8rem", color: "var(--acc-danger)" }}>
+                              {contactsError}
+                            </div>
+                          ) : filteredCustomers.length === 0 ? (
+                            <div style={{ padding: "0.85rem 1rem", fontSize: "0.825rem", color: "var(--acc-text-muted)" }}>
+                              <div>No customers or contacts found{customerSearch.trim() ? ` matching "${customerSearch}"` : ""}.</div>
                               {canMutate && (
                                 <button
                                   type="button"
                                   className="acc-link-btn"
-                                  style={{ display: "block", marginTop: "0.25rem", color: "var(--acc-blue)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                                  style={{
+                                    display: "inline-block",
+                                    marginTop: "0.4rem",
+                                    color: "var(--acc-blue)",
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    fontWeight: 600,
+                                  }}
                                   onClick={() => {
                                     setNewCustName(customerSearch);
                                     setShowInlineNewCustomer(true);
                                     setIsCustomerDropdownOpen(false);
                                   }}
                                 >
-                                  + Create "{customerSearch}" as customer
+                                  + Create "{customerSearch.trim() || "New Customer"}" as customer
                                 </button>
                               )}
                             </div>
                           ) : (
-                            filteredCustomers.map((c) => (
+                            filteredCustomers.map((c, idx) => (
                               <div
                                 key={c.id}
-                                className="acc-customer-dropdown-item"
+                                id={`customer-opt-${c.id}`}
+                                role="option"
+                                aria-selected={highlightedIndex === idx}
+                                ref={(el) => {
+                                  itemRefs.current[idx] = el;
+                                }}
+                                className={`acc-customer-dropdown-item ${
+                                  highlightedIndex === idx ? "acc-customer-dropdown-item-active" : ""
+                                }`}
+                                onMouseEnter={() => setHighlightedIndex(idx)}
                                 onClick={() => {
                                   setSelectedContactId(c.id);
                                   setIsCustomerDropdownOpen(false);
+                                  setCustomerSearch("");
+                                  setHighlightedIndex(-1);
                                 }}
                               >
-                                <div style={{ fontWeight: 600 }}>{c.name}</div>
-                                <div style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                                  {[c.email, c.phone].filter(Boolean).join(" · ")}
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                                  <span style={{ fontWeight: 600, color: "var(--acc-text)" }}>{c.name}</span>
+                                  {c.type !== "CUSTOMER" && (
+                                    <span className="acc-badge acc-badge-neutral" style={{ fontSize: "0.675rem", padding: "1px 6px" }}>
+                                      {c.type === "VENDOR" ? "Vendor / Supplier" : "Personal"}
+                                    </span>
+                                  )}
                                 </div>
+                                <div style={{ fontSize: "0.775rem", color: "var(--acc-text-muted)", marginTop: "0.15rem" }}>
+                                  {[c.phone, c.email].filter(Boolean).join(" · ") || (
+                                    <span style={{ fontStyle: "italic", opacity: 0.65 }}>No phone or email</span>
+                                  )}
+                                </div>
+                                {c.address && (
+                                  <div style={{ fontSize: "0.725rem", color: "var(--acc-text-muted)", marginTop: "0.1rem" }}>
+                                    📍 {c.address}
+                                  </div>
+                                )}
                               </div>
                             ))
                           )}

@@ -76,22 +76,30 @@ export async function createContact(
 
   // 2. Meaningful duplicate checks (only if unique identifier values are present)
   if (email) {
-    const dupEmail = await db.query(
-      `SELECT id, name FROM accounting_contacts WHERE workspace_id = $1 AND LOWER(email) = LOWER($2) AND is_active = true LIMIT 1`,
-      [input.workspaceId, email]
-    );
+    const dupEmail = await db.query<ContactRow>(
+        `SELECT id, name, type, phone, email, address FROM accounting_contacts WHERE workspace_id = $1 AND LOWER(email) = LOWER($2) AND is_active = true LIMIT 1`,
+        [input.workspaceId, email]
+      );
     if (dupEmail.rows.length > 0) {
-      throw new Error(`A contact with email "${email}" already exists (${dupEmail.rows[0].name}).`);
+      const dupRow = dupEmail.rows[0];
+      const err: any = new Error(`A contact with email "${email}" already exists (${dupRow.name}).`);
+      err.code = "DUPLICATE_CONTACT";
+      err.existingContact = dupRow;
+      throw err;
     }
   }
 
   if (phoneNormalized) {
-    const dupPhone = await db.query(
-      `SELECT id, name FROM accounting_contacts WHERE workspace_id = $1 AND phone_normalized = $2 AND is_active = true LIMIT 1`,
-      [input.workspaceId, phoneNormalized]
-    );
+    const dupPhone = await db.query<ContactRow>(
+        `SELECT id, name, type, phone, email, address FROM accounting_contacts WHERE workspace_id = $1 AND phone_normalized = $2 AND is_active = true LIMIT 1`,
+        [input.workspaceId, phoneNormalized]
+      );
     if (dupPhone.rows.length > 0) {
-      throw new Error(`A contact with phone "${input.phone}" already exists (${dupPhone.rows[0].name}).`);
+      const dupRow = dupPhone.rows[0];
+      const err: any = new Error(`A contact with phone "${input.phone}" already exists (${dupRow.name}).`);
+      err.code = "DUPLICATE_CONTACT";
+      err.existingContact = dupRow;
+      throw err;
     }
   }
 
