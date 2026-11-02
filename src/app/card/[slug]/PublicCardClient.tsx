@@ -599,6 +599,16 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
   const { styleObj: cssVars } = resolveThemeTokens(card);
 
+  useEffect(() => {
+    const bg = (cssVars as any)?.["--profile-background"] || (cssVars as any)?.["--pc-bg"];
+    if (bg && typeof document !== "undefined") {
+      document.body.style.backgroundColor = bg;
+      return () => {
+        document.body.style.backgroundColor = "";
+      };
+    }
+  }, [cssVars]);
+
   const canEditTheme = Boolean(card?.isOwner || card?.previewAuthorized);
 
   const handleThemeChange = async (newPref: ProfileThemePreference) => {

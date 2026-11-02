@@ -513,9 +513,10 @@ export function resolveThemeTokens(card: {
   const borderHover = bgIsLight ? "#CBD5E1" : hexToRgba(primary, 0.40);
 
   const primaryIsLight = isLightColor(primary);
-  const primaryText =
-    (isDashboardTheme ? mc.primaryBtnText : undefined) ||
-    ensureReadableTextColor(primary, primaryIsLight ? "#0F172A" : "#ffffff", 4.5);
+  const rawPrimaryText = (isDashboardTheme ? mc.primaryBtnText : undefined) || (primaryIsLight ? "#0F172A" : "#ffffff");
+  const primaryText = getContrastRatio(rawPrimaryText, primary) >= 4.5
+    ? rawPrimaryText
+    : ensureReadableTextColor(primary, primaryIsLight ? "#0F172A" : "#ffffff", 4.5);
   const primaryGradient =
     (isDashboardTheme ? mc.primaryBtnBg : undefined) || primary;
   const secondaryGradient =
@@ -552,7 +553,10 @@ export function resolveThemeTokens(card: {
     ? presetDefaultText
     : (getContrastRatio(rawText, surface) >= 4.5 ? rawText : ensureReadableTextColor(surface, rawText, 4.5));
 
-  const secondaryBtnText = (isDashboardTheme ? mc.secondaryBtnText : undefined) || text;
+  const rawSecondaryBtnText = (isDashboardTheme ? mc.secondaryBtnText : undefined) || text;
+  const secondaryBtnText = getContrastRatio(rawSecondaryBtnText, surface) >= 4.5
+    ? rawSecondaryBtnText
+    : ensureReadableTextColor(surface, rawSecondaryBtnText, 4.5, bgIsLight ? "#0F172A" : "#FFFFFF");
 
   // Explicit user customization vs theme default for Profile Name:
   const explicitName = isDashboardTheme
@@ -589,10 +593,23 @@ export function resolveThemeTokens(card: {
     resolvedNameColor = presetDefaultNameColor;
   }
 
-  const mutedText =
+  // Final contrast guard: ensure resolvedNameColor is always accessible against surface (>= 4.5:1)
+  if (getContrastRatio(resolvedNameColor, surface) < 4.5) {
+    resolvedNameColor = ensureReadableTextColor(
+      surface,
+      resolvedNameColor,
+      4.5,
+      bgIsLight ? "#0F172A" : "#FFFFFF"
+    );
+  }
+
+  const rawMuted =
     (isDashboardTheme ? mc.mutedText : undefined) ||
     preset?.mutedText ||
     (bgIsLight ? "#64748B" : "#94A3B8");
+  const mutedText = getContrastRatio(rawMuted, surface) >= 3.0
+    ? rawMuted
+    : ensureReadableTextColor(surface, rawMuted, 3.0, bgIsLight ? "#64748B" : "#94A3B8");
 
   // 7. Icons & Extras:
   const iconColor = primary;
@@ -950,6 +967,16 @@ export function resolveSimpleProfileTokens(card: {
     resolvedNameColor = ensureReadableTextColor(cardBg, card.profileText, 4.5, presetDefaultNameColor);
   } else {
     resolvedNameColor = presetDefaultNameColor;
+  }
+
+  // Final contrast guard: ensure resolvedNameColor is always accessible against cardBg (>= 4.5:1)
+  if (getContrastRatio(resolvedNameColor, cardBg) < 4.5) {
+    resolvedNameColor = ensureReadableTextColor(
+      cardBg,
+      resolvedNameColor,
+      4.5,
+      bgIsLight ? "#0F172A" : "#FFFFFF"
+    );
   }
 
   // 4. Derive Secondary & Muted Text consistently from textPrimary & bg:

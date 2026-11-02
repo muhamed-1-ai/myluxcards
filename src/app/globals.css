@@ -6817,9 +6817,9 @@ h1.zappit-modern-name {
   min-width: 110px;
   height: 42px;
   border-radius: 9999px;
-  background: var(--profile-primary, #2563EB) !important;
+  background: var(--profile-primary-gradient, var(--profile-primary, #2563EB));
   border: none;
-  color: #FFFFFF !important;
+  color: var(--profile-primary-text, #FFFFFF);
   font-size: 13px;
   font-weight: 600;
   display: flex;
@@ -6828,17 +6828,23 @@ h1.zappit-modern-name {
   gap: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   user-select: none;
   text-decoration: none;
   padding: 0 14px;
   white-space: nowrap;
 }
 
+.zappit-modern-btn-primary svg {
+  color: inherit;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
 .zappit-modern-btn-primary:hover {
-  background: #1D4ED8 !important;
+  filter: brightness(1.1);
   transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
 }
 
 .zappit-modern-btn-primary:active {
@@ -6846,7 +6852,7 @@ h1.zappit-modern-name {
 }
 
 .zappit-modern-btn-primary:focus-visible {
-  outline: 2px solid #2563EB;
+  outline: 2px solid var(--profile-primary, #2563EB);
   outline-offset: 2px;
 }
 
@@ -6855,9 +6861,9 @@ h1.zappit-modern-name {
   min-width: 110px;
   height: 42px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  color: var(--profile-text, #F8FAFC) !important;
+  background: var(--profile-secondary-bg, var(--mod-btn-glass-bg, rgba(255, 255, 255, 0.05)));
+  border: 1px solid var(--profile-secondary-border, var(--mod-btn-glass-border, rgba(255, 255, 255, 0.12)));
+  color: var(--profile-secondary-text, var(--mod-btn-glass-text, var(--profile-text, #F8FAFC)));
   font-size: 13px;
   font-weight: 500;
   display: flex;
@@ -7296,158 +7302,11 @@ a.zappit-modern-val:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   LIGHT MODE SEMANTIC SUPPORT FOR MODERN PUBLIC PROFILE
-   White surfaces, soft gray borders, charcoal text, muted labels
+   THEME-AWARE SUBTLE ADJUSTMENTS FOR LIGHT PROFILE THEMES
+   Purely driven by dynamic theme tokens with strict theme isolation
    ═══════════════════════════════════════════════════════════════ */
-[data-theme="light"] .zappit-modern-container,
-body.light-mode .zappit-modern-container,
-.light-mode .zappit-modern-container {
-  background: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-  color: #0F172A !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.06) !important;
-}
-
-[data-theme="light"] .zappit-modern-cover-gradient,
-body.light-mode .zappit-modern-cover-gradient {
-  background: linear-gradient(180deg, #E2E8F0 0%, #F1F5F9 100%) !important;
-}
-
-[data-theme="light"] .zappit-modern-avatar-circle,
-body.light-mode .zappit-modern-avatar-circle {
-  background: #FFFFFF !important;
-  border-color: #FFFFFF !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-}
-
-[data-theme="light"] .zappit-modern-avatar-fallback,
-body.light-mode .zappit-modern-avatar-fallback {
-  background: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-subtitle,
-body.light-mode .zappit-modern-subtitle {
-  color: #64748B !important;
-}
-
-[data-theme="light"] .zappit-modern-btn-glass,
-body.light-mode .zappit-modern-btn-glass {
-  background: #F1F5F9 !important;
-  border-color: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-btn-glass:hover,
-body.light-mode .zappit-modern-btn-glass:hover {
-  background: #E2E8F0 !important;
-  border-color: #CBD5E1 !important;
-}
-
-[data-theme="light"] .zappit-modern-card,
-body.light-mode .zappit-modern-card {
-  background: #F8FAFC !important;
-  border-color: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-card-header,
-body.light-mode .zappit-modern-card-header {
-  color: #0F172A !important;
-  border-bottom-color: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-contact-row,
-body.light-mode .zappit-modern-contact-row {
-  background: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-contact-row.green-border,
-body.light-mode .zappit-modern-contact-row.green-border {
-  border-color: #A7F3D0 !important;
-}
-
-[data-theme="light"] .zappit-modern-icon-circle,
-body.light-mode .zappit-modern-icon-circle {
-  background: #EFF6FF !important;
-  color: #2563EB !important;
-}
-
-[data-theme="light"] .zappit-modern-icon-circle.green,
-body.light-mode .zappit-modern-icon-circle.green {
-  background: #ECFDF5 !important;
-  color: #059669 !important;
-}
-
-[data-theme="light"] .zappit-modern-val,
-body.light-mode .zappit-modern-val {
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-label,
-body.light-mode .zappit-modern-label {
-  color: #64748B !important;
-}
-
-[data-theme="light"] .zappit-modern-copy-btn,
-body.light-mode .zappit-modern-copy-btn {
-  color: #64748B !important;
-}
-
-[data-theme="light"] .zappit-modern-copy-btn:hover,
-body.light-mode .zappit-modern-copy-btn:hover {
-  color: #0F172A !important;
-  background: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-chat-btn,
-body.light-mode .zappit-modern-chat-btn {
-  background: #ECFDF5 !important;
-  color: #059669 !important;
-  border-color: #A7F3D0 !important;
-}
-
-[data-theme="light"] .zappit-modern-service-row,
-body.light-mode .zappit-modern-service-row {
-  background: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-service-name,
-body.light-mode .zappit-modern-service-name {
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-product-card,
-body.light-mode .zappit-modern-product-card {
-  background: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-product-title,
-body.light-mode .zappit-modern-product-title {
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-app-tile,
-body.light-mode .zappit-modern-app-tile {
-  background: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-}
-
-[data-theme="light"] .zappit-modern-app-name,
-body.light-mode .zappit-modern-app-name {
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .zappit-modern-about-body,
-body.light-mode .zappit-modern-about-body {
-  color: #475569 !important;
-}
-
-[data-theme="light"] .zappit-modern-footer,
-body.light-mode .zappit-modern-footer {
-  border-top-color: #E2E8F0 !important;
+.zappit-modern-wrapper.zappit-modern-theme-light .zappit-modern-container {
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
 }
 
 
@@ -8783,6 +8642,32 @@ body.light-mode .pts-container {
   background: #FFFFFF;
   border-color: #E2E8F0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Public Card Scope: Strictly isolated to card theme tokens, immune to global light-mode */
+.pc-page .pts-container {
+  background: var(--profile-surface, rgba(17, 24, 39, 0.7)) !important;
+  border-color: var(--profile-border, rgba(255, 255, 255, 0.1)) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+.pc-page .pts-card {
+  background: var(--profile-secondary-bg, rgba(255, 255, 255, 0.04)) !important;
+  border-color: var(--profile-border, rgba(255, 255, 255, 0.1)) !important;
+}
+
+.pc-page .pts-card.selected {
+  border-color: var(--profile-primary, #0066FF) !important;
+  background: rgba(0, 102, 255, 0.14) !important;
+  box-shadow: 0 0 0 1px var(--profile-primary, #0066FF) !important;
+}
+
+.pc-page .pts-card-label {
+  color: var(--profile-text, #F5F7FA) !important;
+}
+
+.pc-page .pts-header-title {
+  color: var(--profile-muted, #94A3B8) !important;
 }
 
 .pts-header {

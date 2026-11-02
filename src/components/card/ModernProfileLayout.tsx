@@ -118,11 +118,12 @@ function SocialBrandLogo({ brand, name }: { brand: string; name?: string }) {
 }
 
 export function resolveModernThemeTokens(card: ModernProfileLayoutProps["card"]) {
-  const { styleObj } = resolveThemeTokens(card);
+  const resolved = resolveThemeTokens(card);
+  const { styleObj, bgIsLight } = resolved;
   const fontFamily = card.modernConfig?.fontFamily || "'Inter', system-ui, -apple-system, sans-serif";
 
   return {
-    bgIsLight: (resolveThemeTokens(card) as any).bgIsLight ?? isLightColor(card.profileBackground || "#050B14"),
+    bgIsLight: Boolean(bgIsLight),
     styleVars: {
       width: "100%",
       maxWidth: 480,
@@ -277,15 +278,16 @@ export function ModernProfileLayout({
     .slice(0, 2)
     .toUpperCase() || "ZP";
 
-  const { styleVars } = resolveModernThemeTokens(card);
+  const { styleVars, bgIsLight } = resolveModernThemeTokens(card);
+  const themeClass = bgIsLight ? "zappit-modern-theme-light" : "zappit-modern-theme-dark";
 
   const hasCover = card.cover !== "none";
   const avatarDiameter = resolveAvatarDiameter(card.logoScale);
   const spacing = calculateAvatarSpacing(avatarDiameter, hasCover);
 
   return (
-    <div className="zappit-modern-wrapper" style={styleVars}>
-      <div className="zappit-modern-container">
+    <div className={`zappit-modern-wrapper ${themeClass}`} style={styleVars}>
+      <div className={`zappit-modern-container ${themeClass}`}>
         
         {/* ── TOP-RIGHT EDIT BUTTON ── */}
         {onEditProfile && (

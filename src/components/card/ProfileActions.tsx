@@ -41,7 +41,7 @@ export function ProfileActions({
               color: "var(--profile-primary-text, var(--mod-btn-primary-text))",
             }}
           >
-            <UserPlus className="w-4 h-4 flex-shrink-0" />
+            <UserPlus className="w-4 h-4 flex-shrink-0" style={{ color: "inherit", stroke: "currentColor" }} />
             <span>Save Contact</span>
           </button>
         )}
@@ -111,7 +111,7 @@ export function ProfileActions({
             borderColor: "var(--profile-primary, var(--pc-accent))",
           }}
         >
-          <UserPlus className="w-4 h-4 flex-shrink-0 mr-1.5" />
+          <UserPlus className="w-4 h-4 flex-shrink-0 mr-1.5" style={{ color: "inherit", stroke: "currentColor" }} />
           <span>Save Contact</span>
         </button>
       )}
