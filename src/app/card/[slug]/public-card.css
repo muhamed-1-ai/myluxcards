@@ -1383,12 +1383,123 @@ body:has(.pc-page) {
   box-sizing: border-box;
 }
 
-@media (max-width: 440px) {
+.pts-mobile-retry {
+  display: none;
+}
 
+@media (max-width: 640px) {
+
+  /* ── Compact Mobile Theme Switcher (Screens <= 640px) ── */
+  .pts-container {
+    width: fit-content !important;
+    max-width: calc(100% - 24px) !important;
+    margin: 2px auto 12px auto !important;
+    padding: 5px 8px !important;
+    min-height: 52px !important;
+    height: 56px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  .pts-container:has(.pts-mobile-retry) {
+    height: auto !important;
+    padding-bottom: 8px !important;
+  }
+
+  /* Hide header and profile theme heading on mobile */
+  .pts-header {
+    display: none !important;
+  }
+
+  .pts-mobile-retry {
+    display: flex !important;
+    margin-top: 6px !important;
+    justify-content: center !important;
+  }
+
+  /* Single horizontal track: exactly 4 swatches in one row */
   .pts-options-grid,
   .pts-options-track {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    grid-template-columns: none !important;
+  }
+
+  /* Compact button with accessible touch target (>= 44x44px) */
+  .pts-card {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    background: var(--profile-secondary-bg, rgba(255, 255, 255, 0.04)) !important;
+    border: 1px solid var(--profile-border, rgba(255, 255, 255, 0.1)) !important;
+    box-sizing: border-box !important;
+  }
+
+  .pts-card:hover:not(.selected) {
+    border-color: rgba(0, 102, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .pts-card:active {
+    transform: scale(0.94) !important;
+  }
+
+  .pts-card.selected {
+    border-color: #0066FF !important;
+    background: rgba(0, 102, 255, 0.14) !important;
+    box-shadow: 0 0 0 1.5px #0066FF !important;
+  }
+
+  /* Swatch color preview: target 28 x 24 px rounded square */
+  .pts-swatch-split {
+    width: 28px !important;
+    height: 24px !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+    position: relative !important;
+    display: flex !important;
+    flex-shrink: 0 !important;
+  }
+
+  .pts-swatch-inner {
+    border-radius: 5px !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  }
+
+  /* Checkmark badge on active selection */
+  .pts-check-badge {
+    top: -4px !important;
+    right: -5px !important;
+    width: 13px !important;
+    height: 13px !important;
+    border-radius: 50% !important;
+    background: #0066FF !important;
+    color: #FFFFFF !important;
+  }
+
+  /* Hide all 4 theme names visually on mobile */
+  .pts-card-label {
+    display: none !important;
   }
 }
 

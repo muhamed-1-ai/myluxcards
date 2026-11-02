@@ -172,6 +172,7 @@ export function ProfileThemeSwitcher({
               onClick={() => onSelectTheme(opt.id)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
               title={`${opt.label}: ${opt.descriptor}`}
+              aria-label={`${opt.label} Theme: ${opt.descriptor}`}
             >
               <div className="pts-swatch-split" aria-hidden="true">
                 <div className="pts-swatch-inner">
@@ -200,6 +201,19 @@ export function ProfileThemeSwitcher({
           );
         })}
       </div>
+
+      {saveError && (
+        <div className="pts-mobile-retry" role="alert">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="pts-retry-btn"
+            title="Failed to save theme. Tap to retry."
+          >
+            Save failed · Tap to retry
+          </button>
+        </div>
+      )}
     </section>
   );
 }
