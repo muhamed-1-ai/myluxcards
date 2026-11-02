@@ -17,7 +17,7 @@ import LegalConsentModal from "@/components/auth/LegalConsentModal";
 import { getPublicCardUrl } from "@/lib/url";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
-import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter } from "@/lib/themeTokens";
+import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter, normalizeProfileThemePreference } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { ProfileThemeSwitcher } from "@/components/card/ProfileThemeSwitcher";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
@@ -312,6 +312,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     emergencyContact: { name: "", relationship: "", phone: "", notifyOnScan: false },
     lostAndFound: { itemName: "", itemCategory: "Other", rewardNote: "A reward will be offered upon safe return of this item. Thank you for your honesty!", returnInstructions: "Please contact me using the form below or drop this item off at building reception.", allowAnonymousMessage: true },
     contactNumbers: [],
+    profileThemePreference: "dashboard",
     appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
   };
 };
@@ -331,6 +332,7 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
     analytics: card.analytics && typeof card.analytics === "object" ? card.analytics : {},
     profileMode: card.profileMode || fallback.profileMode,
     profileFormat: card.profileFormat === "simple" ? "simple" : "modern",
+    profileThemePreference: normalizeProfileThemePreference(card.profileThemePreference || fallback.profileThemePreference),
     enabledFeatures: {
       digitalProfile: card.enabledFeatures?.digitalProfile !== false,
       vehicleConnect: card.enabledFeatures?.vehicleConnect !== false,
@@ -1980,7 +1982,20 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             <PreviewPanel
               card={{ ...draft, profileFormat: effectivePreviewDesign }}
               onOpen={requestCardOpen}
-              onUpdateThemePreference={(pref) => update("profileThemePreference", pref)}
+              onUpdateThemePreference={async (pref) => {
+                update("profileThemePreference", pref);
+                if (draft.slug) {
+                  try {
+                    await fetchWithSessionRefresh(`/api/cards/public/${encodeURIComponent(draft.slug)}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ profileThemePreference: pref }),
+                    });
+                  } catch (err) {
+                    console.warn("[DashboardDemo] Failed to sync profileThemePreference:", err);
+                  }
+                }
+              }}
             />
           </div>
         </section>}
@@ -6414,11 +6429,13 @@ function PreviewPanel({
       </div>
       <div style={{ padding: "8px 0" }}>
         {onUpdateThemePreference && (
-          <ProfileThemeSwitcher
-            card={card}
-            currentPreference={card.profileThemePreference || "dashboard"}
-            onSelectTheme={onUpdateThemePreference}
-          />
+          <div className="preview-theme-selector-wrapper" style={{ marginBottom: "14px" }}>
+            <ProfileThemeSwitcher
+              card={card}
+              currentPreference={card.profileThemePreference || "dashboard"}
+              onSelectTheme={onUpdateThemePreference}
+            />
+          </div>
         )}
         {card.profileFormat === "simple" ? (
           <SimpleProfileLayout

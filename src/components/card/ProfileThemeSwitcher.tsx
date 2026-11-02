@@ -56,7 +56,7 @@ export function ProfileThemeSwitcher({
   const options: ThemeCardOption[] = [
     {
       id: "dashboard",
-      label: "Dashboard Theme",
+      label: "Dashboard",
       descriptor: "Follows saved dashboard appearance",
       leftColor: dashBg,
       rightColor: dashAccent,
@@ -153,7 +153,7 @@ export function ProfileThemeSwitcher({
       </div>
 
       <div
-        className="pts-options-track"
+        className="pts-options-grid pts-options-track"
         role="radiogroup"
         aria-label="Select digital profile theme"
         ref={trackRef}

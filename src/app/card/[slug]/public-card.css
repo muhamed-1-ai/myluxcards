@@ -1222,17 +1222,21 @@ body.light-mode .pc-mode-switch-btn.active {
   background: rgba(239, 68, 68, 0.12);
 }
 
+.pts-options-grid,
 .pts-options-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  padding: 2px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.pts-options-track::-webkit-scrollbar {
-  display: none;
+@media (max-width: 440px) {
+  .pts-options-grid,
+  .pts-options-track {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
 }
 
 .pts-card {
