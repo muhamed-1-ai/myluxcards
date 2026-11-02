@@ -558,6 +558,20 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     }
   }, [slug]);
 
+  // Synchronize document body background with active profile theme
+  // Placed at top-level before early returns to guarantee strict hook call order (prevents React error #310)
+  useEffect(() => {
+    if (!card) return;
+    const tokens = resolveThemeTokens(card);
+    const bg = (tokens.styleObj as any)?.["--profile-background"] || (tokens.styleObj as any)?.["--pc-bg"];
+    if (bg && typeof document !== "undefined") {
+      document.body.style.backgroundColor = bg;
+      return () => {
+        document.body.style.backgroundColor = "";
+      };
+    }
+  }, [card]);
+
   if (!loaded) return <main className="pc-state">Loading card…</main>;
   if (!card) return (
     <main className="pc-state">
@@ -598,16 +612,6 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const initials = card.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "ML";
 
   const { styleObj: cssVars } = resolveThemeTokens(card);
-
-  useEffect(() => {
-    const bg = (cssVars as any)?.["--profile-background"] || (cssVars as any)?.["--pc-bg"];
-    if (bg && typeof document !== "undefined") {
-      document.body.style.backgroundColor = bg;
-      return () => {
-        document.body.style.backgroundColor = "";
-      };
-    }
-  }, [cssVars]);
 
   const canEditTheme = Boolean(card?.isOwner || card?.previewAuthorized);
 
