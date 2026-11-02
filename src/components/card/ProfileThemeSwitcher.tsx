@@ -132,7 +132,7 @@ export function ProfileThemeSwitcher({
       role="region"
       aria-label="Profile Theme Switcher"
     >
-      <div className="pts-header">
+      <div className="pts-header pts-desktop-only">
         <div className="pts-header-left">
           <Palette size={13} className="pts-header-icon" aria-hidden="true" />
           <span className="pts-header-title">Profile Theme</span>
@@ -191,7 +191,7 @@ export function ProfileThemeSwitcher({
                   </span>
                 )}
               </div>
-              <span className="pts-card-label">
+              <span className="pts-card-label pts-desktop-only">
                 {opt.isDashboard && (
                   <RefreshCw size={9} className="pts-sync-icon" aria-hidden="true" />
                 )}
