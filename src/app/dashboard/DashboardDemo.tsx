@@ -19,6 +19,7 @@ import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, ProfileThemePreset, resolveAvatarDiameter } from "@/lib/themeTokens";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
+import { ProfileThemeSwitcher } from "@/components/card/ProfileThemeSwitcher";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileContactNumbers, AppDownloadSettings, isValidStoreUrl } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
@@ -172,6 +173,7 @@ type Card = {
   contactNumbers?: CardContactNumber[];
   theme?: string;
   profileTheme?: string;
+  profileThemePreference?: "dashboard" | "carbon_platinum" | "black_white" | "white_black";
   appDownload?: AppDownloadSettings;
 };
 type Lead = { id: string; card_id: string; name: string; email?: string; phone?: string; company?: string; message?: string; status: string; created_at: string };
@@ -1045,7 +1047,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const logout = async () => {
     try {
       const { unsubscribeDeviceFromPush } = await import("@/lib/pushClient");
-      await unsubscribeDeviceFromPush().catch(() => {});
+      await unsubscribeDeviceFromPush().catch(() => { });
     } catch {
       // ignore
     }
@@ -1758,32 +1760,31 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 {tab === "security"
                   ? "Security Settings"
                   : tab === "cards"
-                  ? "My Cards"
-                  : tab === "dashboard"
-                    ? "Dashboard"
-                    : tab === "leads"
-                      ? "All Leads"
-                      : tab.startsWith("accounting-")
-                        ? `Zappit Accounts · ${
-                            tab === "accounting-overview" || tab === "accounting-home"
-                              ? "HOME"
-                              : tab === "accounting-sales-invoices" || tab === "accounting-invoices"
+                    ? "My Cards"
+                    : tab === "dashboard"
+                      ? "Dashboard"
+                      : tab === "leads"
+                        ? "All Leads"
+                        : tab.startsWith("accounting-")
+                          ? `Zappit Accounts · ${tab === "accounting-overview" || tab === "accounting-home"
+                            ? "HOME"
+                            : tab === "accounting-sales-invoices" || tab === "accounting-invoices"
                               ? "INVOICES"
                               : tab === "accounting-products"
-                              ? "PRODUCTS & SERVICES"
-                              : tab === "accounting-categories"
-                              ? "CATEGORIES"
-                              : tab === "accounting-accounts-transfers"
-                              ? "TRANSACTIONS & BALANCES"
-                              : tab === "accounting-more"
-                              ? "MORE TOOLS"
-                              : ["accounting-budgets", "accounting-loans", "accounting-recurring", "accounting-reminders"].includes(tab)
-                              ? `MORE · ${tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()}`
-                              : tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()
+                                ? "PRODUCTS & SERVICES"
+                                : tab === "accounting-categories"
+                                  ? "CATEGORIES"
+                                  : tab === "accounting-accounts-transfers"
+                                    ? "TRANSACTIONS & BALANCES"
+                                    : tab === "accounting-more"
+                                      ? "MORE TOOLS"
+                                      : ["accounting-budgets", "accounting-loans", "accounting-recurring", "accounting-reminders"].includes(tab)
+                                        ? `MORE · ${tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()}`
+                                        : tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()
                           }`
-                        : tab.startsWith("config-")
-                          ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
-                          : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
+                          : tab.startsWith("config-")
+                            ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
+                            : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
               </span>
               <span className={`save-state ${saveStatus}`}>
                 {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
@@ -1976,7 +1977,11 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
               </div>
             </div>
-            <PreviewPanel card={{ ...draft, profileFormat: effectivePreviewDesign }} onOpen={requestCardOpen} />
+            <PreviewPanel
+              card={{ ...draft, profileFormat: effectivePreviewDesign }}
+              onOpen={requestCardOpen}
+              onUpdateThemePreference={(pref) => update("profileThemePreference", pref)}
+            />
           </div>
         </section>}
 
@@ -5201,8 +5206,8 @@ function SocialForm({ draft, update, errors }: any) {
                     isMaps
                       ? "Paste your Google Maps place or directions link"
                       : isReviews
-                      ? "Paste your Google review link (e.g. https://g.page/r/.../review)"
-                      : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`
+                        ? "Paste your Google review link (e.g. https://g.page/r/.../review)"
+                        : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`
                   }
                 />
               </div>
@@ -5436,6 +5441,45 @@ function AppearanceForm({
   const currentApplied = appliedDesign || (draft.profileFormat === "simple" ? "simple" : "modern");
   const currentPreview = previewDesign || currentApplied;
 
+  const [selectedThemeId, setSelectedThemeId] = useState<string>(() => {
+    if (draft.theme && draft.theme !== "custom" && profileThemes.some((t) => t.id === draft.theme)) {
+      return draft.theme;
+    }
+    if (draft.profileTheme && profileThemes.some((t) => t.id === draft.profileTheme)) {
+      return draft.profileTheme;
+    }
+    const matching = profileThemes.find(
+      (t) =>
+        t.background.toLowerCase() === draft.profileBackground?.toLowerCase() &&
+        t.accent.toLowerCase() === draft.profileAccent?.toLowerCase()
+    );
+    if (matching) return matching.id;
+    return "obsidian-luxe";
+  });
+
+  const activePreset: ProfileThemePreset = useMemo(() => {
+    if (draft.theme && draft.theme !== "custom") {
+      const found = profileThemes.find((t) => t.id.toLowerCase() === draft.theme.toLowerCase());
+      if (found) return found;
+    }
+    if (selectedThemeId) {
+      const found = profileThemes.find((t) => t.id.toLowerCase() === selectedThemeId.toLowerCase());
+      if (found) return found;
+    }
+    if (draft.profileTheme) {
+      const found = profileThemes.find((t) => t.id.toLowerCase() === draft.profileTheme.toLowerCase());
+      if (found) return found;
+    }
+    const matching = profileThemes.find(
+      (t) =>
+        t.background.toLowerCase() === draft.profileBackground?.toLowerCase() &&
+        t.accent.toLowerCase() === draft.profileAccent?.toLowerCase()
+    );
+    if (matching) return matching;
+
+    return profileThemes.find((t) => t.id === "obsidian-luxe") || profileThemes[0];
+  }, [draft.theme, draft.profileTheme, draft.profileBackground, draft.profileAccent, selectedThemeId]);
+
   const handleCustomColorChange = (key: "profileBackground" | "profileAccent" | "profileText", nextHex: string) => {
     update(key, nextHex);
 
@@ -5450,39 +5494,58 @@ function AppearanceForm({
         (!t.text || t.text.toLowerCase() === nextText?.toLowerCase())
     );
 
-    update("theme", matching ? matching.id : "custom");
-  };
-
-  const handleResetToObsidianLuxe = () => {
-    const obsidian = profileThemes.find((t) => t.id === "obsidian-luxe");
-    const bg = obsidian?.background || "#0B0D12";
-    const accent = obsidian?.accent || "#D4AF62";
-    const text = obsidian?.text || "#F7F3EA";
-    update("profileBackground", bg);
-    update("profileAccent", accent);
-    update("profileText", text);
-    update("theme", "obsidian-luxe");
-    if (draft.modernConfig?.nameColor) {
-      const { nameColor, ...rest } = draft.modernConfig;
-      update("modernConfig", rest);
+    if (matching) {
+      setSelectedThemeId(matching.id);
+      update("theme", matching.id);
+    } else {
+      update("theme", "custom");
     }
   };
 
-  const handleResetNameToTheme = () => {
-    const activeTheme =
-      profileThemes.find((t) => t.id === draft.theme) ||
-      profileThemes.find(
-        (t) =>
-          t.background.toLowerCase() === draft.profileBackground?.toLowerCase() &&
-          t.accent.toLowerCase() === draft.profileAccent?.toLowerCase()
-      ) ||
-      profileThemes[0];
+  const handleResetColours = () => {
+    const targetPreset = activePreset;
+    update("profileBackground", targetPreset.background);
+    update("profileAccent", targetPreset.accent);
+    update("profileText", targetPreset.text);
+    update("theme", targetPreset.id);
+    setSelectedThemeId(targetPreset.id);
 
+    if (draft.modernConfig) {
+      const {
+        nameColor,
+        cardBackground,
+        cardBorder,
+        mutedText,
+        primaryBtnBg,
+        primaryBtnText,
+        secondaryBtnBg,
+        secondaryBtnText,
+        secondaryBtnBorder,
+        headerGradientStart,
+        headerGradientEnd,
+        ...restModernConfig
+      } = draft.modernConfig;
+
+      const nextConfig = targetPreset.nameColor
+        ? { ...restModernConfig, nameColor: targetPreset.nameColor }
+        : restModernConfig;
+
+      update("modernConfig", nextConfig);
+    }
+  };
+
+  const handleResetName = () => {
+    const targetPreset = activePreset;
     if (draft.modernConfig?.nameColor) {
       const { nameColor, ...rest } = draft.modernConfig;
-      update("modernConfig", rest);
+      const nextConfig = targetPreset.nameColor
+        ? { ...rest, nameColor: targetPreset.nameColor }
+        : rest;
+      update("modernConfig", nextConfig);
+    } else if (targetPreset.nameColor) {
+      update("modernConfig", { ...draft.modernConfig, nameColor: targetPreset.nameColor });
     }
-    update("profileText", activeTheme.text);
+    update("profileText", targetPreset.text);
   };
 
   return (
@@ -5633,434 +5696,434 @@ function AppearanceForm({
       </div>
 
       <div className="form-intro"><h2>Brand assets</h2><p>Upload images to personalise your card.</p></div>
-    <div className="profile-colours">
-      <div>
-        <span className="step">01</span>
-        <h3>Profile colours</h3>
-        <p>Start with a curated premium theme, then customize any colour.</p>
-        <div className="profile-theme-grid">
-          {profileThemes.map((theme) => {
-            const active =
-              (draft.theme?.toLowerCase() === theme.id.toLowerCase()) ||
-              (draft.profileBackground?.toLowerCase() === theme.background.toLowerCase() &&
-                draft.profileAccent?.toLowerCase() === theme.accent.toLowerCase() &&
-                (draft.profileText?.toLowerCase() === theme.text.toLowerCase() ||
-                  !draft.profileText ||
-                  draft.profileText.toLowerCase() === "#ffffff"));
+      <div className="profile-colours">
+        <div>
+          <span className="step">01</span>
+          <h3>Profile colours</h3>
+          <p>Start with a curated premium theme, then customize any colour.</p>
+          <div className="profile-theme-grid">
+            {profileThemes.map((theme) => {
+              const active =
+                (draft.theme?.toLowerCase() === theme.id.toLowerCase()) ||
+                (draft.theme === "custom" && activePreset.id.toLowerCase() === theme.id.toLowerCase()) ||
+                (!draft.theme && activePreset.id.toLowerCase() === theme.id.toLowerCase());
 
-            return (
-              <button
-                key={theme.id}
-                type="button"
-                className={`profile-preset-card ${active ? "active" : ""}`}
-                aria-pressed={active}
-                onClick={() => {
-                  update("profileBackground", theme.background);
-                  update("profileAccent", theme.accent);
-                  update("profileText", theme.text);
-                  update("theme", theme.id);
-                  if (theme.nameColor) {
-                    update("modernConfig", { ...draft.modernConfig, nameColor: theme.nameColor });
-                  } else if (draft.modernConfig?.nameColor) {
-                    const { nameColor, ...rest } = draft.modernConfig;
-                    update("modernConfig", rest);
-                  }
-                }}
-              >
-                {/* Visual Swatch representing theme relationship */}
-                <div
-                  className="preset-card-preview"
-                  style={{ background: theme.background }}
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  className={`profile-preset-card ${active ? "active" : ""}`}
+                  aria-pressed={active}
+                  onClick={() => {
+                    setSelectedThemeId(theme.id);
+                    update("profileBackground", theme.background);
+                    update("profileAccent", theme.accent);
+                    update("profileText", theme.text);
+                    update("theme", theme.id);
+                    if (theme.nameColor) {
+                      update("modernConfig", { ...draft.modernConfig, nameColor: theme.nameColor });
+                    } else if (draft.modernConfig?.nameColor) {
+                      const { nameColor, ...rest } = draft.modernConfig;
+                      update("modernConfig", rest);
+                    }
+                  }}
                 >
+                  {/* Visual Swatch representing theme relationship */}
                   <div
-                    className="preset-preview-bar"
-                    style={{ background: theme.accent }}
-                  />
-                  <div
-                    className="preset-preview-text-sample"
-                    style={{ color: theme.nameColor || theme.text }}
+                    className="preset-card-preview"
+                    style={{ background: theme.background }}
                   >
-                    Aa
-                  </div>
-                  {active && (
-                    <div className="preset-active-badge" title="Selected theme">
-                      <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                    <div
+                      className="preset-preview-bar"
+                      style={{ background: theme.accent }}
+                    />
+                    <div
+                      className="preset-preview-text-sample"
+                      style={{ color: theme.nameColor || theme.text }}
+                    >
+                      Aa
                     </div>
+                    {active && (
+                      <div className="preset-active-badge" title="Selected theme">
+                        <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 3.8L3.6 6.5L9 1" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Text Details */}
+                  <div className="preset-card-details">
+                    <span className="preset-card-title">{theme.name}</span>
+                    <span className="preset-card-desc">{theme.descriptor}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="colour-pickers">
+          <CustomColorField
+            label="Background"
+            colorKey="profileBackground"
+            colorValue={draft.profileBackground}
+            fallback={activePreset.background}
+            onColorChange={handleCustomColorChange}
+          />
+          <CustomColorField
+            label="Accent"
+            colorKey="profileAccent"
+            colorValue={draft.profileAccent}
+            fallback={activePreset.accent}
+            onColorChange={handleCustomColorChange}
+          />
+          <CustomColorField
+            label="Text"
+            colorKey="profileText"
+            colorValue={draft.profileText}
+            fallback={activePreset.text}
+            onColorChange={handleCustomColorChange}
+          />
+          <div className="reset-profile-buttons-row">
+            <button
+              type="button"
+              className="reset-profile-colours"
+              onClick={handleResetName}
+              title={`Reset profile name color to ${activePreset.name} default`}
+            >
+              Reset Name
+            </button>
+            <button
+              type="button"
+              className="reset-profile-colours"
+              onClick={handleResetColours}
+              title={`Reset colours to ${activePreset.name} defaults`}
+            >
+              Reset Colours
+            </button>
+          </div>
+          <p className="reset-theme-helper-text">
+            Restore defaults for {activePreset.name}.
+          </p>
+          {currentPreview === "simple" && resolveSimpleProfileTokens(draft).textReadabilityAdjusted && (
+            <div
+              className="profile-readability-notice"
+              style={{
+                width: "100%",
+                marginTop: "12px",
+                padding: "10px 14px",
+                borderRadius: "8px",
+                background: "rgba(0, 102, 255, 0.08)",
+                border: "1px solid rgba(0, 102, 255, 0.25)",
+                color: "#93c5fd",
+                fontSize: "12.5px",
+                lineHeight: 1.45,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "8px",
+              }}
+            >
+              <span style={{ fontSize: "14px" }}>ℹ️</span>
+              <span>
+                <strong>Readability safeguard active:</strong> Your card text foreground was automatically adjusted to ensure accessible 4.5:1 contrast against your chosen background. Your requested color remains saved.
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="upload-section">
+        <div>
+          <span className="step">01</span>
+          <h3>Logo or photo</h3>
+          <p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p>
+          <label className="upload-btn">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              disabled={uploadingKind === "logo"}
+              onChange={(e) => handleFile(e, "logo")}
+            />
+            {uploadingKind === "logo" ? "Uploading…" : "Select image"}
+          </label>
+        </div>
+        <div className="logo-upload-preview">
+          {draft.logo ? (
+            <img
+              src={resolveMediaUrl(draft.logo)}
+              alt="Image preview"
+              style={{
+                transform: `scale(${((draft.logoZoom || 100) / 100)}) rotate(${draft.logoRotation || 0}deg)`,
+                objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%`,
+              }}
+            />
+          ) : (
+            <span>YOUR<br />IMAGE</span>
+          )}
+        </div>
+      </div>
+      {draft.logo && (
+        <div className="image-controls">
+          <label>
+            Size (70px – 200px)
+            <input
+              type="range"
+              min="65"
+              max="185"
+              value={draft.logoScale || 100}
+              onChange={(event) => update("logoScale", Number(event.target.value))}
+            />
+            <output>
+              {resolveAvatarDiameter(draft.logoScale)}px
+            </output>
+          </label>
+          <label>
+            Image zoom (100% – 200%)
+            <input
+              type="range"
+              min="100"
+              max="200"
+              step="1"
+              value={draft.logoZoom || 100}
+              onChange={(event) => update("logoZoom", Number(event.target.value))}
+            />
+            <output>{draft.logoZoom || 100}%</output>
+          </label>
+          <label>
+            Rotation
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              value={draft.logoRotation || 0}
+              onChange={(event) => update("logoRotation", Number(event.target.value))}
+            />
+            <output>{draft.logoRotation || 0}°</output>
+          </label>
+          <label>
+            Horizontal position
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={draft.logoX || 50}
+              onChange={(event) => update("logoX", Number(event.target.value))}
+            />
+            <output>{draft.logoX || 50}%</output>
+          </label>
+          <label>
+            Vertical position
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={draft.logoY || 50}
+              onChange={(event) => update("logoY", Number(event.target.value))}
+            />
+            <output>{draft.logoY || 50}%</output>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              update("logoScale", 100);
+              update("logoZoom", 100);
+              update("logoRotation", 0);
+              update("logoX", 50);
+              update("logoY", 50);
+            }}
+          >
+            Reset image
+          </button>
+        </div>
+      )}
+
+      {/* Design-specific cover crop & controls */}
+      {(() => {
+        const isSimple = currentPreview === "simple";
+        const sc = draft.simpleConfig || {};
+        const activeCoverScale = isSimple ? (typeof sc.coverScale === "number" ? sc.coverScale : (draft.coverScale ?? 100)) : (draft.coverScale ?? 100);
+        const activeCoverRotation = isSimple ? (typeof sc.coverRotation === "number" ? sc.coverRotation : (draft.coverRotation ?? 0)) : (draft.coverRotation ?? 0);
+        const activeCoverX = isSimple ? (typeof sc.coverX === "number" ? sc.coverX : (draft.coverX ?? 50)) : (draft.coverX ?? 50);
+        const activeCoverY = isSimple ? (typeof sc.coverY === "number" ? sc.coverY : (draft.coverY ?? 50)) : (draft.coverY ?? 50);
+
+        const updateCrop = (prop: "coverScale" | "coverRotation" | "coverX" | "coverY", val: number) => {
+          if (isSimple) {
+            update("simpleConfig", {
+              ...(draft.simpleConfig || {}),
+              [prop]: val,
+            });
+          } else {
+            update(prop, val);
+          }
+        };
+
+        const resetCrop = () => {
+          if (isSimple) {
+            update("simpleConfig", {
+              ...(draft.simpleConfig || {}),
+              coverScale: 100,
+              coverRotation: 0,
+              coverX: 50,
+              coverY: 50,
+            });
+          } else {
+            update("coverScale", 100);
+            update("coverRotation", 0);
+            update("coverX", 50);
+            update("coverY", 50);
+          }
+        };
+
+        return (
+          <>
+            <div className="upload-section">
+              <div>
+                <span className="step">02</span>
+                <h3>Cover photo</h3>
+                <p>Wide landscape images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "12px" }}>
+                  <label className="upload-btn" style={{ margin: 0 }}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      disabled={uploadingKind === "cover"}
+                      onChange={(e) => handleFile(e, "cover")}
+                    />
+                    {uploadingKind === "cover" ? "Uploading…" : draft.cover ? "Replace cover photo" : "Select cover photo"}
+                  </label>
+                  {draft.cover && (
+                    <button
+                      type="button"
+                      className="remove-btn"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                        color: "#ef4444",
+                        padding: "8px 14px",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                      onClick={() => update("cover", "")}
+                    >
+                      Remove cover
+                    </button>
                   )}
                 </div>
-
-                {/* Text Details */}
-                <div className="preset-card-details">
-                  <span className="preset-card-title">{theme.name}</span>
-                  <span className="preset-card-desc">{theme.descriptor}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="colour-pickers">
-        <CustomColorField
-          label="Background"
-          colorKey="profileBackground"
-          colorValue={draft.profileBackground}
-          fallback="#0B0D12"
-          onColorChange={handleCustomColorChange}
-        />
-        <CustomColorField
-          label="Accent"
-          colorKey="profileAccent"
-          colorValue={draft.profileAccent}
-          fallback="#D4AF62"
-          onColorChange={handleCustomColorChange}
-        />
-        <CustomColorField
-          label="Text"
-          colorKey="profileText"
-          colorValue={draft.profileText}
-          fallback="#F7F3EA"
-          onColorChange={handleCustomColorChange}
-        />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", width: "100%", marginTop: "6px" }}>
-          <button
-            type="button"
-            className="reset-profile-colours"
-            style={{ marginTop: 0 }}
-            onClick={handleResetNameToTheme}
-            title="Reset profile name color to active theme default"
-          >
-            Reset Name to Theme
-          </button>
-          <button
-            type="button"
-            className="reset-profile-colours"
-            style={{ marginTop: 0 }}
-            onClick={handleResetToObsidianLuxe}
-          >
-            Reset to Obsidian Luxe
-          </button>
-        </div>
-        {currentPreview === "simple" && resolveSimpleProfileTokens(draft).textReadabilityAdjusted && (
-          <div
-            className="profile-readability-notice"
-            style={{
-              width: "100%",
-              marginTop: "12px",
-              padding: "10px 14px",
-              borderRadius: "8px",
-              background: "rgba(0, 102, 255, 0.08)",
-              border: "1px solid rgba(0, 102, 255, 0.25)",
-              color: "#93c5fd",
-              fontSize: "12.5px",
-              lineHeight: 1.45,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "8px",
-            }}
-          >
-            <span style={{ fontSize: "14px" }}>ℹ️</span>
-            <span>
-              <strong>Readability safeguard active:</strong> Your card text foreground was automatically adjusted to ensure accessible 4.5:1 contrast against your chosen background. Your requested color remains saved.
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-    <div className="upload-section">
-      <div>
-        <span className="step">01</span>
-        <h3>Logo or photo</h3>
-        <p>PNG, JPG, WebP, or GIF, up to 5 MB. Then resize, rotate, and position it.</p>
-        <label className="upload-btn">
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            disabled={uploadingKind === "logo"}
-            onChange={(e) => handleFile(e, "logo")}
-          />
-          {uploadingKind === "logo" ? "Uploading…" : "Select image"}
-        </label>
-      </div>
-      <div className="logo-upload-preview">
-        {draft.logo ? (
-          <img
-            src={resolveMediaUrl(draft.logo)}
-            alt="Image preview"
-            style={{
-              transform: `scale(${((draft.logoZoom || 100) / 100)}) rotate(${draft.logoRotation || 0}deg)`,
-              objectPosition: `${draft.logoX || 50}% ${draft.logoY || 50}%`,
-            }}
-          />
-        ) : (
-          <span>YOUR<br />IMAGE</span>
-        )}
-      </div>
-    </div>
-    {draft.logo && (
-      <div className="image-controls">
-        <label>
-          Size (70px – 200px)
-          <input
-            type="range"
-            min="65"
-            max="185"
-            value={draft.logoScale || 100}
-            onChange={(event) => update("logoScale", Number(event.target.value))}
-          />
-          <output>
-            {resolveAvatarDiameter(draft.logoScale)}px
-          </output>
-        </label>
-        <label>
-          Image zoom (100% – 200%)
-          <input
-            type="range"
-            min="100"
-            max="200"
-            step="1"
-            value={draft.logoZoom || 100}
-            onChange={(event) => update("logoZoom", Number(event.target.value))}
-          />
-          <output>{draft.logoZoom || 100}%</output>
-        </label>
-        <label>
-          Rotation
-          <input
-            type="range"
-            min="-180"
-            max="180"
-            value={draft.logoRotation || 0}
-            onChange={(event) => update("logoRotation", Number(event.target.value))}
-          />
-          <output>{draft.logoRotation || 0}°</output>
-        </label>
-        <label>
-          Horizontal position
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={draft.logoX || 50}
-            onChange={(event) => update("logoX", Number(event.target.value))}
-          />
-          <output>{draft.logoX || 50}%</output>
-        </label>
-        <label>
-          Vertical position
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={draft.logoY || 50}
-            onChange={(event) => update("logoY", Number(event.target.value))}
-          />
-          <output>{draft.logoY || 50}%</output>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            update("logoScale", 100);
-            update("logoZoom", 100);
-            update("logoRotation", 0);
-            update("logoX", 50);
-            update("logoY", 50);
-          }}
-        >
-          Reset image
-        </button>
-      </div>
-    )}
-
-    {/* Design-specific cover crop & controls */}
-    {(() => {
-      const isSimple = currentPreview === "simple";
-      const sc = draft.simpleConfig || {};
-      const activeCoverScale = isSimple ? (typeof sc.coverScale === "number" ? sc.coverScale : (draft.coverScale ?? 100)) : (draft.coverScale ?? 100);
-      const activeCoverRotation = isSimple ? (typeof sc.coverRotation === "number" ? sc.coverRotation : (draft.coverRotation ?? 0)) : (draft.coverRotation ?? 0);
-      const activeCoverX = isSimple ? (typeof sc.coverX === "number" ? sc.coverX : (draft.coverX ?? 50)) : (draft.coverX ?? 50);
-      const activeCoverY = isSimple ? (typeof sc.coverY === "number" ? sc.coverY : (draft.coverY ?? 50)) : (draft.coverY ?? 50);
-
-      const updateCrop = (prop: "coverScale" | "coverRotation" | "coverX" | "coverY", val: number) => {
-        if (isSimple) {
-          update("simpleConfig", {
-            ...(draft.simpleConfig || {}),
-            [prop]: val,
-          });
-        } else {
-          update(prop, val);
-        }
-      };
-
-      const resetCrop = () => {
-        if (isSimple) {
-          update("simpleConfig", {
-            ...(draft.simpleConfig || {}),
-            coverScale: 100,
-            coverRotation: 0,
-            coverX: 50,
-            coverY: 50,
-          });
-        } else {
-          update("coverScale", 100);
-          update("coverRotation", 0);
-          update("coverX", 50);
-          update("coverY", 50);
-        }
-      };
-
-      return (
-        <>
-          <div className="upload-section">
-            <div>
-              <span className="step">02</span>
-              <h3>Cover photo</h3>
-              <p>Wide landscape images work best (1600 × 600). PNG, JPG, WebP, or GIF, up to 5 MB.</p>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "12px" }}>
-                <label className="upload-btn" style={{ margin: 0 }}>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    disabled={uploadingKind === "cover"}
-                    onChange={(e) => handleFile(e, "cover")}
-                  />
-                  {uploadingKind === "cover" ? "Uploading…" : draft.cover ? "Replace cover photo" : "Select cover photo"}
-                </label>
-                {draft.cover && (
-                  <button
-                    type="button"
-                    className="remove-btn"
+              </div>
+              <div className="cover-upload-preview">
+                {draft.cover ? (
+                  <img
+                    src={resolveMediaUrl(draft.cover)}
+                    alt="Cover preview"
                     style={{
-                      background: "transparent",
-                      border: "1px solid rgba(239, 68, 68, 0.4)",
-                      color: "#ef4444",
-                      padding: "8px 14px",
-                      borderRadius: "8px",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
+                      transform: `scale(${activeCoverScale / 100}) rotate(${activeCoverRotation}deg)`,
+                      objectPosition: `${activeCoverX}% ${activeCoverY}%`,
                     }}
-                    onClick={() => update("cover", "")}
-                  >
-                    Remove cover
-                  </button>
+                  />
+                ) : (
+                  <span>Cover image preview</span>
                 )}
               </div>
             </div>
-            <div className="cover-upload-preview">
-              {draft.cover ? (
-                <img
-                  src={resolveMediaUrl(draft.cover)}
-                  alt="Cover preview"
-                  style={{
-                    transform: `scale(${activeCoverScale / 100}) rotate(${activeCoverRotation}deg)`,
-                    objectPosition: `${activeCoverX}% ${activeCoverY}%`,
-                  }}
-                />
-              ) : (
-                <span>Cover image preview</span>
-              )}
-            </div>
-          </div>
-          {draft.cover && (
-            <div className="image-controls cover-image-controls">
-              <label>
-                Zoom / Scale
-                <input
-                  type="range"
-                  min="100"
-                  max="200"
-                  step="1"
-                  aria-label="Cover zoom scale"
-                  value={activeCoverScale}
-                  onChange={(event) => updateCrop("coverScale", Number(event.target.value))}
-                  style={{ touchAction: "manipulation" }}
-                />
-                <output>{activeCoverScale}%</output>
-              </label>
-              <label>
-                Rotation
-                <input
-                  type="range"
-                  min="-180"
-                  max="180"
-                  step="1"
-                  aria-label="Cover rotation"
-                  value={activeCoverRotation}
-                  onChange={(event) => updateCrop("coverRotation", Number(event.target.value))}
-                  style={{ touchAction: "manipulation" }}
-                />
-                <output>{activeCoverRotation}°</output>
-              </label>
-              <label>
-                Horizontal position
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  aria-label="Cover horizontal position"
-                  value={activeCoverX}
-                  onChange={(event) => updateCrop("coverX", Number(event.target.value))}
-                  style={{ touchAction: "manipulation" }}
-                />
-                <output>{activeCoverX}%</output>
-              </label>
-              <label>
-                Vertical position
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  aria-label="Cover vertical position"
-                  value={activeCoverY}
-                  onChange={(event) => updateCrop("coverY", Number(event.target.value))}
-                  style={{ touchAction: "manipulation" }}
-                />
-                <output>{activeCoverY}%</output>
-              </label>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", width: "100%", marginTop: "4px" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Quick align:</span>
-                <button
-                  type="button"
-                  style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
-                  onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 0); }}
-                >
-                  Top
-                </button>
-                <button
-                  type="button"
-                  style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
-                  onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 50); }}
-                >
-                  Center
-                </button>
-                <button
-                  type="button"
-                  style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
-                  onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 100); }}
-                >
-                  Bottom
-                </button>
-                <button
-                  type="button"
-                  style={{ marginLeft: "auto" }}
-                  onClick={resetCrop}
-                >
-                  Reset cover crop
-                </button>
+            {draft.cover && (
+              <div className="image-controls cover-image-controls">
+                <label>
+                  Zoom / Scale
+                  <input
+                    type="range"
+                    min="100"
+                    max="200"
+                    step="1"
+                    aria-label="Cover zoom scale"
+                    value={activeCoverScale}
+                    onChange={(event) => updateCrop("coverScale", Number(event.target.value))}
+                    style={{ touchAction: "manipulation" }}
+                  />
+                  <output>{activeCoverScale}%</output>
+                </label>
+                <label>
+                  Rotation
+                  <input
+                    type="range"
+                    min="-180"
+                    max="180"
+                    step="1"
+                    aria-label="Cover rotation"
+                    value={activeCoverRotation}
+                    onChange={(event) => updateCrop("coverRotation", Number(event.target.value))}
+                    style={{ touchAction: "manipulation" }}
+                  />
+                  <output>{activeCoverRotation}°</output>
+                </label>
+                <label>
+                  Horizontal position
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    aria-label="Cover horizontal position"
+                    value={activeCoverX}
+                    onChange={(event) => updateCrop("coverX", Number(event.target.value))}
+                    style={{ touchAction: "manipulation" }}
+                  />
+                  <output>{activeCoverX}%</output>
+                </label>
+                <label>
+                  Vertical position
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    aria-label="Cover vertical position"
+                    value={activeCoverY}
+                    onChange={(event) => updateCrop("coverY", Number(event.target.value))}
+                    style={{ touchAction: "manipulation" }}
+                  />
+                  <output>{activeCoverY}%</output>
+                </label>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", width: "100%", marginTop: "4px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Quick align:</span>
+                  <button
+                    type="button"
+                    style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                    onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 0); }}
+                  >
+                    Top
+                  </button>
+                  <button
+                    type="button"
+                    style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                    onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 50); }}
+                  >
+                    Center
+                  </button>
+                  <button
+                    type="button"
+                    style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px", background: "var(--surface-soft)", border: "1px solid var(--border-color)", color: "var(--text-primary)", cursor: "pointer" }}
+                    onClick={() => { updateCrop("coverX", 50); updateCrop("coverY", 100); }}
+                  >
+                    Bottom
+                  </button>
+                  <button
+                    type="button"
+                    style={{ marginLeft: "auto" }}
+                    onClick={resetCrop}
+                  >
+                    Reset cover crop
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </>
-      );
-    })()}
-  </>
-);
+            )}
+          </>
+        );
+      })()}
+    </>
+  );
 }
 
 
@@ -6076,7 +6139,15 @@ function Field({ label, error, wide, hint, children }: { label: React.ReactNode;
   );
 }
 
-function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => void }) {
+function PreviewPanel({
+  card,
+  onOpen,
+  onUpdateThemePreference,
+}: {
+  card: Card;
+  onOpen: (card: Card) => void;
+  onUpdateThemePreference?: (pref: "dashboard" | "carbon_platinum" | "black_white" | "white_black") => void;
+}) {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [qrPngUrl, setQrPngUrl] = useState<string | null>(null);
@@ -6342,6 +6413,13 @@ function PreviewPanel({ card, onOpen }: { card: Card; onOpen: (card: Card) => vo
         </div>
       </div>
       <div style={{ padding: "8px 0" }}>
+        {onUpdateThemePreference && (
+          <ProfileThemeSwitcher
+            card={card}
+            currentPreference={card.profileThemePreference || "dashboard"}
+            onSelectTheme={onUpdateThemePreference}
+          />
+        )}
         {card.profileFormat === "simple" ? (
           <SimpleProfileLayout
             card={card}

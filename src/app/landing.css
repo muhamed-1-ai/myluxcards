@@ -240,52 +240,76 @@ body:has(.landing-page) {
   box-sizing: border-box !important;
 }
 
-/* Rounded Logo Container on Left */
+/* Legacy capsule reset: no inner pill container */
 .landing-page .logo-capsule {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: 44px !important;
-  padding: 0 16px !important;
-  border-radius: 9999px !important;
-  background: #FFFFFF !important;
-  border: 1px solid #E5EAF2 !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
-  flex-shrink: 0 !important;
-  cursor: pointer !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  display: contents !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  border-radius: 0 !important;
 }
 
 .landing-page .logo-capsule:hover {
-  transform: translateY(-0.5px);
-  box-shadow: 0 3px 10px rgba(0, 102, 255, 0.12) !important;
-  border-color: #93C5FD !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  transform: none !important;
 }
 
+/* Logo directly on Navbar */
 .landing-page .logo.logo-img-link {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   width: auto !important;
-  height: auto !important;
-  padding: 0 !important;
+  height: 100% !important;
+  padding: 0 0 0 14px !important;
   margin: 0 !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  border-radius: 0 !important;
+  border-radius: 8px !important;
   text-decoration: none !important;
   cursor: pointer !important;
+  flex-shrink: 0 !important;
+  line-height: 0 !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+.landing-page .logo.logo-img-link:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-0.5px) !important;
+}
+
+.landing-page .logo.logo-img-link:focus-visible {
+  outline: 2px solid #2563EB !important;
+  outline-offset: 4px !important;
+  border-radius: 6px !important;
+}
+
+.landing-page .logo .zappit-logo-container {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+  vertical-align: middle !important;
 }
 
 .landing-page .logo .brand-logo,
+.landing-page .logo .zappit-logo-img,
 .landing-page .logo img {
-  height: 24px !important;
-  max-height: 26px !important;
-  width: auto !important;
-  max-width: 105px !important;
+  width: 118px !important;
+  max-width: 125px !important;
+  height: 55px !important;
+  max-height: 55px !important;
   object-fit: contain !important;
+  aspect-ratio: 850 / 396 !important;
   display: block !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Center Navigation Grouped in One Light-Grey Capsule */
@@ -2661,6 +2685,19 @@ body.dark-mode .zappit-login-footer {
   .landing-page .nav-actions {
     gap: 8px !important;
   }
+
+  .landing-page .logo.logo-img-link {
+    padding: 0 0 0 10px !important;
+  }
+
+  .landing-page .logo .brand-logo,
+  .landing-page .logo .zappit-logo-img,
+  .landing-page .logo img {
+    width: 112px !important;
+    max-width: 116px !important;
+    height: 52px !important;
+    max-height: 52px !important;
+  }
 }
 
 @media (max-width: 960px) {
@@ -2683,13 +2720,25 @@ body.dark-mode .zappit-login-footer {
   }
 
   .landing-page .logo-capsule {
-    height: 40px !important;
-    padding: 0 12px !important;
+    display: contents !important;
+    height: auto !important;
+    padding: 0 !important;
   }
 
-  .landing-page .logo .brand-logo {
-    height: 20px !important;
-    max-width: 85px !important;
+  .landing-page .logo.logo-img-link {
+    padding: 0 0 0 8px !important;
+  }
+
+  .landing-page .logo .brand-logo,
+  .landing-page .logo .zappit-logo-img,
+  .landing-page .logo img {
+    width: 96px !important;
+    max-width: 100px !important;
+    height: 45px !important;
+    max-height: 45px !important;
+    object-fit: contain !important;
+    aspect-ratio: 850 / 396 !important;
+    display: block !important;
   }
 
   .landing-page .nav-design-cta {
@@ -2971,6 +3020,19 @@ body.dark-mode .zappit-login-footer {
 }
 
 @media (max-width: 480px) {
+  .landing-page .logo.logo-img-link {
+    padding: 0 0 0 6px !important;
+  }
+
+  .landing-page .logo .brand-logo,
+  .landing-page .logo .zappit-logo-img,
+  .landing-page .logo img {
+    width: 92px !important;
+    max-width: 96px !important;
+    height: 43px !important;
+    max-height: 43px !important;
+  }
+
   .landing-page .hero-headline {
     font-size: 2rem;
   }

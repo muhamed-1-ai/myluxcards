@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { cleanSlug, safePublicCard } from "@/lib/cards";
 import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
+import { normalizeProfileThemePreference } from "@/lib/themeTokens";
 import { pool } from "@/lib/db";
 
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -80,25 +81,23 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       );
     }
 
+    const identity = await currentIdentity().catch(() => null);
+    const isOwner = Boolean(identity && (identity.id === row.owner_id || identity.role === "SUPER_ADMIN"));
     const publiclyActive = Boolean(row.active && (row.activated_at || row.active));
-    let previewAuthorized = false;
-    if (!publiclyActive) {
-      const identity = await currentIdentity();
-      previewAuthorized = identity?.id === row.owner_id;
-      if (!previewAuthorized) {
-        console.log("[PUBLIC_CARD][CARD_STATUS] Inactive card requested", { cardId: row.id, active: row.active });
-        return Response.json({
-          message: "Card unavailable.",
-          reason: !row.active ? "SWITCHED_OFF" : "UNAVAILABLE",
-        }, {
-          status: 404,
-          headers: {
-            "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
-            "Pragma": "no-cache",
-            "Expires": "0",
-          },
-        });
-      }
+    let previewAuthorized = isOwner;
+    if (!publiclyActive && !previewAuthorized) {
+      console.log("[PUBLIC_CARD][CARD_STATUS] Inactive card requested", { cardId: row.id, active: row.active });
+      return Response.json({
+        message: "Card unavailable.",
+        reason: !row.active ? "SWITCHED_OFF" : "UNAVAILABLE",
+      }, {
+        status: 404,
+        headers: {
+          "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      });
     }
     console.log("[PUBLIC_CARD][SUCCESS]", { cardId: row.id, slug: row.slug });
 
@@ -614,7 +613,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       : allAccountNumbers;
 
     return Response.json({
-      card: { ...safeCard, contactNumbers: effectiveContactNumbers, previewAuthorized },
+      card: { ...safeCard, contactNumbers: effectiveContactNumbers, previewAuthorized, isOwner },
       contactNumbers: effectiveContactNumbers,
       vehicles,
       lostItems,
@@ -744,5 +743,74 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return Response.json({ ok: true, message: "Action processed successfully." });
   } catch {
     return Response.json({ ok: false }, { status: 202 });
+  }
+}
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  if (!validMutationOrigin(request)) return Response.json({ message: "Invalid request origin." }, { status: 403 });
+  const identity = await currentIdentity(request);
+  if (!identity) {
+    return Response.json({ message: "Authentication required to update profile theme." }, { status: 401 });
+  }
+
+  const { slug } = await params;
+  try {
+    const cleaned = cleanSlug(slug);
+    let result = await pool.query<{
+      id: string;
+      owner_id: string;
+      slug: string;
+      profile: unknown;
+    }>(
+      `select id, owner_id, slug, profile from digital_cards where slug = $1 limit 1`,
+      [cleaned]
+    );
+
+    let row = result.rows[0];
+    if (!row && /^[0-9a-f-]{36}$/i.test(slug.trim())) {
+      const fallbackByUuid = await pool.query<{
+        id: string;
+        owner_id: string;
+        slug: string;
+        profile: unknown;
+      }>(
+        `select id, owner_id, slug, profile from digital_cards where id = $1 limit 1`,
+        [slug.trim()]
+      );
+      row = fallbackByUuid.rows[0];
+    }
+
+    if (!row) {
+      return Response.json({ message: "Card not found." }, { status: 404 });
+    }
+
+    const isAuthorized = identity.id === row.owner_id || identity.role === "SUPER_ADMIN";
+    if (!isAuthorized) {
+      return Response.json({ message: "Unauthorized to modify this profile." }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const rawPref = body.profileThemePreference;
+    const normalizedPref = normalizeProfileThemePreference(rawPref);
+
+    const currentProfile = (row.profile && typeof row.profile === "object" ? row.profile : {}) as Record<string, unknown>;
+    const updatedProfile = {
+      ...currentProfile,
+      profileThemePreference: normalizedPref,
+    };
+
+    await pool.query(
+      `update digital_cards set profile = $1, updated_at = now() where id = $2`,
+      [JSON.stringify(updatedProfile), row.id]
+    );
+
+    return Response.json({
+      ok: true,
+      profileThemePreference: normalizedPref,
+      message: "Profile theme updated successfully.",
+    });
+  } catch (err: any) {
+    console.error("[PUBLIC_CARD][PATCH_THEME][ERROR]", err?.message || err);
+    return Response.json({ message: "Failed to update profile theme." }, { status: 500 });
   }
 }

@@ -34,7 +34,15 @@ function NavbarLogoPortal() {
   if (!target) return null;
 
   return createPortal(
-    <BrandLogo size="lg" priority />,
+    <BrandLogo
+      variant="header"
+      size="header"
+      priority
+      alt="Zappit Home"
+      src="/brand/zappit-logo-navbar.png"
+      width={118}
+      height={55}
+    />,
     target
   );
 }

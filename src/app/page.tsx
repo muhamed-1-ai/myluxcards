@@ -25,12 +25,10 @@ const redesignedMarkup = `
     <div class="navbar-glow-indicator" id="navbar-scroll-indicator" aria-hidden="true"></div>
     <nav class="navbar" id="main-navbar" aria-label="Main Navigation">
       <div class="navbar-container">
-        <!-- Rounded Logo Container on Left -->
-        <div class="logo-capsule">
-          <a href="/" class="logo logo-img-link" aria-label="Zappit Homepage">
-            <img src="/brand/zappit-logo-transparent.png" alt="Zappit" class="brand-logo" width="102" height="30">
-          </a>
-        </div>
+        <!-- Logo directly on Navbar on Left -->
+        <a href="/" class="logo logo-img-link" aria-label="Zappit Home">
+          <img src="/brand/zappit-logo-navbar.png" alt="Zappit" class="brand-logo" width="118" height="55" loading="eager" decoding="async">
+        </a>
         
         <!-- Navigation items grouped inside one light-grey rounded capsule in Center -->
         <ul class="nav-menu" id="nav-menu">

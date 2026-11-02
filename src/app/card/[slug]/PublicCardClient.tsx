@@ -5,12 +5,17 @@ import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { ProfileActions } from "@/components/card/ProfileActions";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
+import { ProfileThemeSwitcher } from "@/components/card/ProfileThemeSwitcher";
 import LeadContactCardDrawer from "@/components/leads/LeadContactCardDrawer";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { buildVCardString } from "@/lib/vcard";
-import { resolveThemeTokens } from "@/lib/themeTokens";
+import {
+  type ProfileThemePreference,
+  normalizeProfileThemePreference,
+  resolveThemeTokens,
+} from "@/lib/themeTokens";
 
 type VehicleConnectSettings = {
   vehicleMake?: string;
@@ -199,6 +204,8 @@ type Card = {
   logoScale?: number; logoZoom?: number; logoRotation?: number; logoX?: number; logoY?: number;
   coverScale?: number; coverRotation?: number; coverX?: number; coverY?: number;
   previewAuthorized?: boolean;
+  isOwner?: boolean;
+  profileThemePreference?: ProfileThemePreference;
   profileMode?: "DIGITAL_PROFILE" | "VEHICLE_CONNECT" | "LOST_AND_FOUND";
   profileFormat?: string;
   modernConfig?: Record<string, any>;
@@ -243,6 +250,11 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const [qrError, setQrError] = useState("");
   const [mounted, setMounted] = useState(false);
   const [isPreviewParam, setIsPreviewParam] = useState(false);
+  const [themePreference, setThemePreference] = useState<ProfileThemePreference>("dashboard");
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeError, setThemeError] = useState("");
+  const lastSavedPrefRef = useRef<ProfileThemePreference>("dashboard");
+  const themeReqSeqRef = useRef<number>(0);
   const handleEditProfileClick = () => {
     if (!card) return;
     const cardId = card.id || "";
@@ -488,6 +500,9 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         if (response.ok) {
           if (!cancelled) {
             setCard(payload.card);
+            const initialPref = normalizeProfileThemePreference(payload.card?.profileThemePreference);
+            setThemePreference(initialPref);
+            lastSavedPrefRef.current = initialPref;
             setVehicles(Array.isArray(payload.vehicles) ? payload.vehicles : []);
             setLostItems(Array.isArray(payload.lostItems) ? payload.lostItems : []);
             setProfileProducts(Array.isArray(payload.profileProducts) ? payload.profileProducts : []);
@@ -583,6 +598,49 @@ export default function PublicCardClient({ slug }: { slug: string }) {
   const initials = card.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "ML";
 
   const { styleObj: cssVars } = resolveThemeTokens(card);
+
+  const canEditTheme = Boolean(card?.isOwner || card?.previewAuthorized);
+
+  const handleThemeChange = async (newPref: ProfileThemePreference) => {
+    if (newPref === themePreference && !themeError) return;
+
+    const reqSeq = ++themeReqSeqRef.current;
+    setThemePreference(newPref);
+    setThemeError("");
+    setCard((prev) => (prev ? { ...prev, profileThemePreference: newPref } : prev));
+    setThemeSaving(true);
+
+    try {
+      const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileThemePreference: newPref }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to save theme preference");
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (reqSeq === themeReqSeqRef.current) {
+        const confirmedPref = normalizeProfileThemePreference(data.profileThemePreference || newPref);
+        lastSavedPrefRef.current = confirmedPref;
+        setThemePreference(confirmedPref);
+        setThemeSaving(false);
+      }
+    } catch (err: any) {
+      if (reqSeq === themeReqSeqRef.current) {
+        console.error("[ProfileThemeSwitcher] Save failed:", err);
+        setThemeSaving(false);
+        setThemeError(err?.message || "Failed to save theme");
+        setThemePreference(lastSavedPrefRef.current);
+        setCard((prev) => (prev ? { ...prev, profileThemePreference: lastSavedPrefRef.current } : prev));
+        setActionToast("Could not save theme preference. Reverted to previous theme.");
+        setTimeout(() => setActionToast(""), 4000);
+      }
+    }
+  };
 
   const share = async () => {
     const data = { title: card.name, text: `${card.name}'s digital business card`, url: window.location.href };
@@ -861,6 +919,18 @@ export default function PublicCardClient({ slug }: { slug: string }) {
             </button>
           )}
         </div>
+      )}
+
+      {/* ── PROFILE THEME SWITCHER (Authorized Owner/Editor only) ── */}
+      {canEditTheme && activeView === "profile" && card && (
+        <ProfileThemeSwitcher
+          card={card}
+          currentPreference={themePreference}
+          onSelectTheme={handleThemeChange}
+          saving={themeSaving}
+          saveError={themeError}
+          onRetry={() => handleThemeChange(themePreference)}
+        />
       )}
 
       {/* ── VIEW 1: VEHICLE CONNECT ── */}

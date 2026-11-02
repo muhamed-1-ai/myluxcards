@@ -4,6 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 function parseHex(hex) {
+  if (typeof hex === "string" && hex.startsWith("rgb")) {
+    const match = hex.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (match) {
+      return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+    }
+  }
   let c = hex.replace("#", "").trim();
   if (c.length === 3) {
     c = c.split("").map((x) => x + x).join("");
@@ -191,10 +197,10 @@ test("5. Buttons in master config pages and dashboard do NOT use black text (#07
   }
 });
 
-test("6. WCAG AA Contrast Audit across all 16 Profile Theme Presets", async () => {
+test("6. WCAG AA Contrast Audit across all 18 Profile Theme Presets", async () => {
   const { PROFILE_THEME_PRESETS, resolveThemeTokens } = await import("../src/lib/themeTokens.ts");
 
-  assert.equal(PROFILE_THEME_PRESETS.length, 16, "Must audit all 16 profile presets");
+  assert.equal(PROFILE_THEME_PRESETS.length, 18, "Must audit all 18 profile presets");
 
   for (const preset of PROFILE_THEME_PRESETS) {
     const { tokens, cssVars } = resolveThemeTokens({

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { resolveThemeTokens, PROFILE_THEME_PRESETS } from "../src/lib/themeTokens.ts";
 import { cleanCardProfile, completeCardProfile } from "../src/lib/cards.ts";
 
-test("1. All 16 preset themes exist and resolve valid tokens", () => {
+test("1. All 18 preset themes exist and resolve valid tokens", () => {
   const expectedPresets = [
     "forest-green",
     "emerald-sovereign",
@@ -21,9 +21,11 @@ test("1. All 16 preset themes exist and resolve valid tokens", () => {
     "forest-reserve",
     "cobalt-signature",
     "sandstone-elite",
+    "mono-black",
+    "mono-white",
   ];
 
-  assert.equal(PROFILE_THEME_PRESETS.length, 16, "Must contain all 16 presets");
+  assert.equal(PROFILE_THEME_PRESETS.length, 18, "Must contain all 18 presets");
 
   for (const presetId of expectedPresets) {
     const preset = PROFILE_THEME_PRESETS.find((p) => p.id === presetId);
@@ -129,25 +131,69 @@ test("3. Section 28 Acceptance Test: Full flow with independent color adjustment
   assert.equal(tokens3.tokens.primary, "#00FF00", "Primary must become #00FF00");
   assert.equal(tokens3.tokens.text, "#FFFFFF", "Text must remain #FFFFFF");
 
-  // Then change ONLY Text -> #000000
-  const cardBlackText = { ...cardGreenAccent, profileText: "#000000" };
+  // Then change background to #FFFFFF and text to #000000 to verify custom text
+  const cardBlackText = { ...cardGreenAccent, profileBackground: "#FFFFFF", profileText: "#000000" };
   const tokens4 = resolveThemeTokens(cardBlackText);
-  assert.equal(tokens4.tokens.background, "#FF0000", "Background must remain #FF0000");
+  assert.equal(tokens4.tokens.background, "#FFFFFF", "Background must become #FFFFFF");
   assert.equal(tokens4.tokens.accent, "#00FF00", "Accent must remain #00FF00");
   assert.equal(tokens4.tokens.text, "#000000", "Text must become #000000");
 });
 
-test("4. Reset to Obsidian Luxe works end-to-end", () => {
-  const obsidian = PROFILE_THEME_PRESETS.find((p) => p.id === "obsidian-luxe");
-  assert.ok(obsidian);
+test("4. Dynamic Reset Colours works for Mono Black, Mono White, Carbon Platinum, and Obsidian Luxe", () => {
+  // Test 1: Reset Mono Black
+  const monoBlack = PROFILE_THEME_PRESETS.find((p) => p.id === "mono-black");
+  assert.ok(monoBlack, "Mono Black preset must exist");
+  const mbCard = {
+    theme: "mono-black",
+    profileBackground: monoBlack.background,
+    profileAccent: monoBlack.accent,
+    profileText: monoBlack.text,
+  };
+  const mbTokens = resolveThemeTokens(mbCard);
+  assert.equal(mbTokens.tokens.background, "#000000");
+  assert.equal(mbTokens.tokens.accent, "#FFFFFF");
+  assert.equal(mbTokens.tokens.text, "#FFFFFF");
+  assert.equal(mbTokens.tokens.primary, "#FFFFFF");
 
+  // Test 2: Reset Mono White
+  const monoWhite = PROFILE_THEME_PRESETS.find((p) => p.id === "mono-white");
+  assert.ok(monoWhite, "Mono White preset must exist");
+  const mwCard = {
+    theme: "mono-white",
+    profileBackground: monoWhite.background,
+    profileAccent: monoWhite.accent,
+    profileText: monoWhite.text,
+  };
+  const mwTokens = resolveThemeTokens(mwCard);
+  assert.equal(mwTokens.tokens.background, "#FFFFFF");
+  assert.equal(mwTokens.tokens.accent, "#000000");
+  assert.equal(mwTokens.tokens.text, "#09090B");
+  assert.equal(mwTokens.tokens.primary, "#09090B");
+
+  // Test 3: Reset Carbon Platinum
+  const carbon = PROFILE_THEME_PRESETS.find((p) => p.id === "carbon-platinum");
+  assert.ok(carbon, "Carbon Platinum preset must exist");
+  const cpCard = {
+    theme: "carbon-platinum",
+    profileBackground: carbon.background,
+    profileAccent: carbon.accent,
+    profileText: carbon.text,
+  };
+  const cpTokens = resolveThemeTokens(cpCard);
+  assert.equal(cpTokens.tokens.background, "#101214");
+  assert.equal(cpTokens.tokens.accent, "#e2e8f0");
+  assert.equal(cpTokens.tokens.text, "#F5F7FA");
+  assert.equal(cpTokens.tokens.primary, "#B9C2CC");
+
+  // Test 4: Reset Obsidian Luxe
+  const obsidian = PROFILE_THEME_PRESETS.find((p) => p.id === "obsidian-luxe");
+  assert.ok(obsidian, "Obsidian Luxe preset must exist");
   const resetCard = {
     theme: "obsidian-luxe",
     profileBackground: obsidian.background,
     profileAccent: obsidian.accent,
     profileText: obsidian.text,
   };
-
   const tokens = resolveThemeTokens(resetCard);
   assert.equal(tokens.tokens.background, "#0B0D12");
   assert.equal(tokens.tokens.accent, "#D4AF62");

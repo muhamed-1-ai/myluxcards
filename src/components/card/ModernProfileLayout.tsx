@@ -122,7 +122,7 @@ export function resolveModernThemeTokens(card: ModernProfileLayoutProps["card"])
   const fontFamily = card.modernConfig?.fontFamily || "'Inter', system-ui, -apple-system, sans-serif";
 
   return {
-    bgIsLight: isLightColor(card.profileBackground || "#050B14"),
+    bgIsLight: (resolveThemeTokens(card) as any).bgIsLight ?? isLightColor(card.profileBackground || "#050B14"),
     styleVars: {
       width: "100%",
       maxWidth: 480,

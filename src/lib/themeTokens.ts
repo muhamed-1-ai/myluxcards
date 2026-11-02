@@ -284,6 +284,36 @@ export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
     text: "#FFF8E9",
     mutedText: "#9e917d",
   },
+  {
+    id: "mono-black",
+    name: "Mono Black",
+    descriptor: "Pure black · minimalist monochrome",
+    background: "#000000",
+    surface: "#111111",
+    surfaceSecondary: "#1A1A1A",
+    border: "#282828",
+    primary: "#FFFFFF",
+    secondary: "#A3A3A3",
+    accent: "#FFFFFF",
+    nameColor: "#FFFFFF",
+    text: "#FFFFFF",
+    mutedText: "#A3A3A3",
+  },
+  {
+    id: "mono-white",
+    name: "Mono White",
+    descriptor: "Pure white · minimalist monochrome",
+    background: "#FFFFFF",
+    surface: "#FFFFFF",
+    surfaceSecondary: "#F4F4F5",
+    border: "#E4E4E7",
+    primary: "#09090B",
+    secondary: "#52525B",
+    accent: "#000000",
+    nameColor: "#09090B",
+    text: "#09090B",
+    mutedText: "#52525B",
+  },
 ];
 
 export function parseHex(hexStr?: string): [number, number, number] {
@@ -383,6 +413,16 @@ export function mixHex(color1: string, color2: string, weight2: number): string 
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+export type ProfileThemePreference = "dashboard" | "carbon_platinum" | "black_white" | "white_black";
+
+export function normalizeProfileThemePreference(val: unknown): ProfileThemePreference {
+  const s = String(val || "").toLowerCase().trim();
+  if (s === "carbon_platinum" || s === "carbon-platinum") return "carbon_platinum";
+  if (s === "black_white" || s === "mono-black") return "black_white";
+  if (s === "white_black" || s === "mono-white") return "white_black";
+  return "dashboard";
+}
+
 export function resolveThemeTokens(card: {
   theme?: string;
   profileTheme?: string;
@@ -390,11 +430,42 @@ export function resolveThemeTokens(card: {
   profileAccent?: string;
   profileText?: string;
   modernConfig?: any;
+  profileThemePreference?: string;
 }) {
-  const themeId = (card.theme || card.profileTheme || "").toLowerCase();
-  const bg = card.profileBackground || "#050B14";
-  const accent = card.profileAccent || "#0066FF";
+  const pref = normalizeProfileThemePreference(card.profileThemePreference);
+  const isDashboardTheme = pref === "dashboard";
+
+  let themeId = (card.theme || card.profileTheme || "").toLowerCase();
+  let bg = card.profileBackground || "#050B14";
+  let accent = card.profileAccent || "#0066FF";
+  let customText = card.profileText;
   const mc = card.modernConfig || {};
+
+  if (pref === "carbon_platinum") {
+    themeId = "carbon-platinum";
+    const cpPreset = PROFILE_THEME_PRESETS.find((p) => p.id === "carbon-platinum");
+    if (cpPreset) {
+      bg = cpPreset.background;
+      accent = cpPreset.accent || cpPreset.primary || "#B9C2CC";
+      customText = cpPreset.text;
+    }
+  } else if (pref === "black_white") {
+    themeId = "mono-black";
+    const mbPreset = PROFILE_THEME_PRESETS.find((p) => p.id === "mono-black");
+    if (mbPreset) {
+      bg = mbPreset.background;
+      accent = mbPreset.primary || "#FFFFFF";
+      customText = mbPreset.text;
+    }
+  } else if (pref === "white_black") {
+    themeId = "mono-white";
+    const mwPreset = PROFILE_THEME_PRESETS.find((p) => p.id === "mono-white");
+    if (mwPreset) {
+      bg = mwPreset.background;
+      accent = mwPreset.primary || "#09090B";
+      customText = mwPreset.text;
+    }
+  }
 
   // Check matching preset:
   // A preset dictates curated tokens if matching by themeId or by background/accent
@@ -404,23 +475,25 @@ export function resolveThemeTokens(card: {
       p.accent.toLowerCase() === accent.toLowerCase()
   );
 
-  const preset = (
-    themeId && themeId !== "custom"
-      ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
-      : undefined
-  ) || matchingPreset;
+  const preset = !isDashboardTheme
+    ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
+    : (
+      themeId && themeId !== "custom"
+        ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
+        : undefined
+    ) || matchingPreset;
 
   const bgIsLight = isLightColor(bg);
 
   // 1. Surface Token (Card background):
   const surface =
-    mc.cardBackground ||
+    (isDashboardTheme ? mc.cardBackground : undefined) ||
     preset?.surface ||
     (bgIsLight ? mixHex(bg, "#FFFFFF", 0.7) : mixHex(bg, accent, 0.12));
 
   // 2. Secondary Surface (Rows, tiles, product cards):
   const surfaceSecondary =
-    mc.rowBg ||
+    (isDashboardTheme ? mc.rowBg : undefined) ||
     preset?.surfaceSecondary ||
     (bgIsLight ? mixHex(bg, "#000000", 0.05) : mixHex(bg, accent, 0.20));
 
@@ -433,7 +506,7 @@ export function resolveThemeTokens(card: {
 
   // 4. Border Token:
   const border =
-    mc.cardBorder ||
+    (isDashboardTheme ? mc.cardBorder : undefined) ||
     preset?.border ||
     (bgIsLight ? "#E2E8F0" : hexToRgba(primary, 0.22));
 
@@ -441,19 +514,19 @@ export function resolveThemeTokens(card: {
 
   const primaryIsLight = isLightColor(primary);
   const primaryText =
-    mc.primaryBtnText ||
+    (isDashboardTheme ? mc.primaryBtnText : undefined) ||
     ensureReadableTextColor(primary, primaryIsLight ? "#0F172A" : "#ffffff", 4.5);
   const primaryGradient =
-    mc.primaryBtnBg || primary;
+    (isDashboardTheme ? mc.primaryBtnBg : undefined) || primary;
   const secondaryGradient =
-    mc.secondaryGradient || (bgIsLight ? "#F1F5F9" : surfaceSecondary);
+    (isDashboardTheme ? mc.secondaryGradient : undefined) || (bgIsLight ? "#F1F5F9" : surfaceSecondary);
 
   // 5. Secondary / Glass Button Tokens (Neutral surfaces & borders):
   const secondaryBtnBg =
-    mc.secondaryBtnBg ||
+    (isDashboardTheme ? mc.secondaryBtnBg : undefined) ||
     (bgIsLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.05)");
   const secondaryBtnBorder =
-    mc.secondaryBtnBorder ||
+    (isDashboardTheme ? mc.secondaryBtnBorder : undefined) ||
     (bgIsLight ? "rgba(0, 0, 0, 0.10)" : "rgba(255, 255, 255, 0.12)");
 
   // 6. Typography, Text & Profile Name Tokens:
@@ -467,7 +540,7 @@ export function resolveThemeTokens(card: {
     (bgIsLight ? "#101820" : "#FFFFFF");
 
   // Safeguard against stale white/near-white defaults on light backgrounds (e.g. #ffffff on #EEF3F7 is unreadable 1.1:1)
-  const rawText = card.profileText || presetDefaultText;
+  const rawText = !isDashboardTheme ? presetDefaultText : (card.profileText || presetDefaultText);
   const isStaleWhiteOnLight =
     bgIsLight &&
     (rawText.toLowerCase() === "#ffffff" ||
@@ -479,10 +552,12 @@ export function resolveThemeTokens(card: {
     ? presetDefaultText
     : (getContrastRatio(rawText, surface) >= 4.5 ? rawText : ensureReadableTextColor(surface, rawText, 4.5));
 
-  const secondaryBtnText = mc.secondaryBtnText || text;
+  const secondaryBtnText = (isDashboardTheme ? mc.secondaryBtnText : undefined) || text;
 
   // Explicit user customization vs theme default for Profile Name:
-  const explicitName = card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor;
+  const explicitName = isDashboardTheme
+    ? (card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor)
+    : undefined;
   let resolvedNameColor: string;
 
   const isStaleWhiteExplicitName =
@@ -501,6 +576,7 @@ export function resolveThemeTokens(card: {
     // Intentional user custom name color: preserve it, ensuring readable contrast against surface
     resolvedNameColor = ensureReadableTextColor(surface, explicitName, 4.5, presetDefaultNameColor);
   } else if (
+    isDashboardTheme &&
     card.profileText &&
     !isStaleWhiteOnLight &&
     card.profileText.toLowerCase() !== presetDefaultText.toLowerCase() &&
@@ -514,7 +590,7 @@ export function resolveThemeTokens(card: {
   }
 
   const mutedText =
-    mc.mutedText ||
+    (isDashboardTheme ? mc.mutedText : undefined) ||
     preset?.mutedText ||
     (bgIsLight ? "#64748B" : "#94A3B8");
 
@@ -524,35 +600,37 @@ export function resolveThemeTokens(card: {
 
   // 8. Header background:
   const headerGradStart =
-    mc.headerGradientStart ||
+    (isDashboardTheme ? mc.headerGradientStart : undefined) ||
     (bgIsLight ? primary : mixHex(bg, primary, 0.20));
-  const headerGradEnd = mc.headerGradientEnd || bg;
+  const headerGradEnd = (isDashboardTheme ? mc.headerGradientEnd : undefined) || bg;
   const headerBg =
-    mc.headerStyle === "solid"
+    !isDashboardTheme
       ? bg
-      : `linear-gradient(135deg, ${headerGradStart}, ${headerGradEnd})`;
+      : mc.headerStyle === "solid"
+        ? bg
+        : `linear-gradient(135deg, ${headerGradStart}, ${headerGradEnd})`;
 
   // 9. Navigation Bar Tokens:
   const navBg =
-    mc.navBg ||
+    (isDashboardTheme ? mc.navBg : undefined) ||
     preset?.navBg ||
     (bgIsLight ? "rgba(241, 245, 249, 0.95)" : "rgba(13, 22, 38, 0.85)");
   const navBgIsLight = isLightColor(navBg);
 
   const navBorder =
-    mc.navBorder ||
+    (isDashboardTheme ? mc.navBorder : undefined) ||
     (navBgIsLight
       ? "rgba(0, 0, 0, 0.10)"
       : "rgba(148, 163, 184, 0.20)");
 
   const navText =
-    mc.navText ||
+    (isDashboardTheme ? mc.navText : undefined) ||
     (navBgIsLight
-      ? "#64748B"
+      ? "#475569"
       : "#94A3B8");
 
   const navTextHover =
-    mc.navTextHover ||
+    (isDashboardTheme ? mc.navTextHover : undefined) ||
     (navBgIsLight
       ? "#0F172A"
       : "#FFFFFF");
@@ -563,31 +641,31 @@ export function resolveThemeTokens(card: {
     navBgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.10)";
 
   const navSelectedBg =
-    mc.navSelectedBg || primary;
+    (isDashboardTheme ? mc.navSelectedBg : undefined) || primary;
 
   const navSelectedBorder =
-    mc.navSelectedBorder || primary;
+    (isDashboardTheme ? mc.navSelectedBorder : undefined) || primary;
 
   const navSelectedText =
-    mc.navSelectedText || ensureReadableTextColor(primary, primaryText, 4.5);
+    (isDashboardTheme ? mc.navSelectedText : undefined) || ensureReadableTextColor(primary, primaryText, 4.5);
 
   const navSelectedShadow =
-    mc.navSelectedShadow || "0 2px 6px rgba(37, 99, 235, 0.25)";
+    (isDashboardTheme ? mc.navSelectedShadow : undefined) || "0 2px 6px rgba(37, 99, 235, 0.25)";
 
   // 10. Edit Button Tokens:
   const editBtnBg =
-    mc.editBtnBg ||
+    (isDashboardTheme ? mc.editBtnBg : undefined) ||
     (bgIsLight ? "rgba(0, 0, 0, 0.05)" : "rgba(0, 0, 0, 0.45)");
   const editBtnBorder =
-    mc.editBtnBorder ||
+    (isDashboardTheme ? mc.editBtnBorder : undefined) ||
     (bgIsLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.18)");
   const editBtnText =
-    mc.editBtnText ||
-    ensureReadableTextColor(editBtnBg, bgIsLight ? "#0F172A" : "#FFFFFF", 4.5);
+    (isDashboardTheme ? mc.editBtnText : undefined) ||
+    ensureReadableTextColor(bgIsLight ? surface : editBtnBg, bgIsLight ? "#0F172A" : "#FFFFFF", 4.5);
   const editBtnHoverBg =
-    mc.editBtnHoverBg || (bgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.65)");
+    (isDashboardTheme ? mc.editBtnHoverBg : undefined) || (bgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.65)");
   const editBtnHoverText =
-    mc.editBtnHoverText || editBtnText;
+    (isDashboardTheme ? mc.editBtnHoverText : undefined) || editBtnText;
 
   // Combine CSS custom properties into a single dictionary:
   const cssVars: Record<string, string> = {
@@ -676,13 +754,12 @@ export function resolveThemeTokens(card: {
     "--mod-body-size": `${mc.bodySize || 14}px`,
     "--mod-card-radius": `${mc.cardRadius ?? 14}px`,
     "--mod-btn-radius": `${mc.buttonRadius ?? 24}px`,
-    "--mod-gap": `${
-      mc.spacingDensity === "compact"
-        ? 10
-        : mc.spacingDensity === "spacious"
+    "--mod-gap": `${mc.spacingDensity === "compact"
+      ? 10
+      : mc.spacingDensity === "spacious"
         ? 18
         : 14
-    }px`,
+      }px`,
   };
 
   // Merge Simple profile design system variables
@@ -726,6 +803,7 @@ export function resolveThemeTokens(card: {
       editBtnBorder,
       editBtnText,
     },
+    bgIsLight,
     cssVars,
     styleObj: cssVars as unknown as React.CSSProperties,
     simpleTokens,
@@ -775,21 +853,57 @@ export function resolveSimpleProfileTokens(card: {
   profileAccent?: string;
   profileText?: string;
   modernConfig?: any;
+  profileThemePreference?: string;
 }): SimpleProfileThemeTokens {
-  const themeId = (card.theme || card.profileTheme || "").toLowerCase();
-  const preset = themeId && themeId !== "custom"
+  const pref = normalizeProfileThemePreference(card.profileThemePreference);
+  const isDashboardTheme = pref === "dashboard";
+
+  let themeId = (card.theme || card.profileTheme || "").toLowerCase();
+  let bgCandidate = card.profileBackground;
+  let accentCandidate = card.profileAccent;
+  let textCandidate = card.profileText;
+
+  if (pref === "carbon_platinum") {
+    themeId = "carbon-platinum";
+    const cpPreset = PROFILE_THEME_PRESETS.find((p) => p.id === "carbon-platinum");
+    if (cpPreset) {
+      bgCandidate = cpPreset.background;
+      accentCandidate = cpPreset.accent || cpPreset.primary;
+      textCandidate = cpPreset.text;
+    }
+  } else if (pref === "black_white") {
+    themeId = "mono-black";
+    const mbPreset = PROFILE_THEME_PRESETS.find((p) => p.id === "mono-black");
+    if (mbPreset) {
+      bgCandidate = mbPreset.background;
+      accentCandidate = mbPreset.primary;
+      textCandidate = mbPreset.text;
+    }
+  } else if (pref === "white_black") {
+    themeId = "mono-white";
+    const mwPreset = PROFILE_THEME_PRESETS.find((p) => p.id === "mono-white");
+    if (mwPreset) {
+      bgCandidate = mwPreset.background;
+      accentCandidate = mwPreset.primary;
+      textCandidate = mwPreset.text;
+    }
+  }
+
+  const preset = !isDashboardTheme
     ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
-    : undefined;
+    : (themeId && themeId !== "custom"
+        ? PROFILE_THEME_PRESETS.find((p) => p.id === themeId)
+        : undefined);
 
   // 1. Resolve Background: explicit selection > preset background > fallback
   const fallbackBg = preset?.background || "#0F141C";
-  const bg = sanitizeHexColor(card.profileBackground, fallbackBg);
+  const bg = sanitizeHexColor(bgCandidate, fallbackBg);
   const cardBg = bg;
   const bgIsLight = isLightColor(bg);
 
   // 2. Resolve Accent: explicit selection > preset accent > fallback
   const fallbackAccent = preset?.accent || (bgIsLight ? "#0066FF" : "#2563EB");
-  const accent = sanitizeHexColor(card.profileAccent, fallbackAccent);
+  const accent = sanitizeHexColor(accentCandidate, fallbackAccent);
 
   // 3. Resolve Primary Text with Readability / Contrast Protection
   // Target at least 4.5:1 contrast for normal text and 3:1 for large text.
@@ -800,7 +914,7 @@ export function resolveSimpleProfileTokens(card: {
     (bgIsLight ? "#0F172A" : "#F9FAFB");
 
   const fallbackText = preset?.text || (bgIsLight ? "#0F172A" : "#F9FAFB");
-  const rawTextPrimary = sanitizeHexColor(card.profileText, fallbackText);
+  const rawTextPrimary = !isDashboardTheme ? fallbackText : sanitizeHexColor(textCandidate, fallbackText);
   const rawTextRatio = getContrastRatio(rawTextPrimary, bg);
   const textReadabilityAdjusted = rawTextRatio < 4.5;
   const textPrimary = textReadabilityAdjusted
@@ -808,7 +922,9 @@ export function resolveSimpleProfileTokens(card: {
     : rawTextPrimary;
 
   // Explicit user customization vs theme default for Profile Name:
-  const explicitName = card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor;
+  const explicitName = isDashboardTheme
+    ? (card.modernConfig?.nameColor || (card as any).nameColor || (card as any).profileNameColor)
+    : undefined;
   let resolvedNameColor: string;
 
   const isStaleWhiteExplicitName =
@@ -847,7 +963,7 @@ export function resolveSimpleProfileTokens(card: {
 
   // 5. Button Colors & Accessible Foreground (Contrast-based selection):
   const mc = card.modernConfig || {};
-  const primaryBtnBg = mc.primaryBtnBg || accent;
+  const primaryBtnBg = (!isDashboardTheme ? (preset?.primary || accent) : mc.primaryBtnBg) || accent;
   const btnIsLight = isLightColor(primaryBtnBg);
 
   const requestedBtnText = mc.primaryBtnText;

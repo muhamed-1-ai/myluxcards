@@ -16,7 +16,7 @@ export const CARD_FIELDS = [
   "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
   "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
   "profileFeatures","featureOrder","profileFormat","modernConfig","simpleConfig",
-  "contactNumbers","appDownload",
+  "contactNumbers","appDownload","profileThemePreference",
 ] as const;
 
 export interface AppDownloadSettings {
@@ -388,6 +388,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT },
   lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
   appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
+  profileThemePreference: "dashboard",
 };
 
 export function cleanSlug(value: unknown) {
@@ -564,6 +565,17 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       output[field] = clamp(value, -180, 180, 0);
     } else if (["logoX","logoY","coverX","coverY"].includes(field)) {
       output[field] = clamp(value, 0, 100, 50);
+    } else if (field === "profileThemePreference") {
+      const norm = String(value || "").toLowerCase().trim();
+      if (norm === "carbon_platinum" || norm === "carbon-platinum") {
+        output[field] = "carbon_platinum";
+      } else if (norm === "black_white" || norm === "mono-black") {
+        output[field] = "black_white";
+      } else if (norm === "white_black" || norm === "mono-white") {
+        output[field] = "white_black";
+      } else {
+        output[field] = "dashboard";
+      }
     } else if (typeof value === "string") {
       const trimmed = value.trim();
       if (field === "website") output[field] = cleanUrl(trimmed);
