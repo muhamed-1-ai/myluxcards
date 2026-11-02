@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { User, Car, Tag } from "lucide-react";
 import { ModernProfileLayout } from "@/components/card/ModernProfileLayout";
 import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { ProfileActions } from "@/components/card/ProfileActions";
@@ -495,7 +496,10 @@ export default function PublicCardClient({ slug }: { slug: string }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const response = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, { cache: "no-store" });
+        const response = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) {
           if (!cancelled) {
@@ -613,7 +617,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
   const { styleObj: cssVars } = resolveThemeTokens(card);
 
-  const canEditTheme = Boolean(card?.isOwner || card?.previewAuthorized);
+  const canEditTheme = Boolean(card?.isOwner || card?.previewAuthorized || isDashboardPreview);
 
   const handleThemeChange = async (newPref: ProfileThemePreference) => {
     if (newPref === themePreference && !themeError) return;
@@ -628,6 +632,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
       const res = await fetch(`/api/cards/public/${encodeURIComponent(slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ profileThemePreference: newPref }),
       });
 
@@ -907,7 +912,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               className={`pc-mode-switch-btn ${activeView === "profile" ? "active" : ""}`}
               onClick={() => handleTabSwitch("profile")}
             >
-              Profile
+              <User size={14} className="pc-mode-tab-icon" aria-hidden="true" />
+              <span>Profile</span>
             </button>
           )}
           {vehicleEnabled && (
@@ -918,7 +924,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               className={`pc-mode-switch-btn ${activeView === "vehicle" ? "active" : ""}`}
               onClick={() => handleTabSwitch("vehicle")}
             >
-              🚗 Vehicle
+              <Car size={14} className="pc-mode-tab-icon" aria-hidden="true" />
+              <span>Vehicle</span>
             </button>
           )}
           {lostFoundEnabled && (
@@ -929,7 +936,8 @@ export default function PublicCardClient({ slug }: { slug: string }) {
               className={`pc-mode-switch-btn ${activeView === "lost_found" ? "active" : ""}`}
               onClick={() => handleTabSwitch("lost_found")}
             >
-              🏷️ Lost &amp; Found
+              <Tag size={14} className="pc-mode-tab-icon" aria-hidden="true" />
+              <span>Lost &amp; Found</span>
             </button>
           )}
         </div>

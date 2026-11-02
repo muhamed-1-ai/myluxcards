@@ -4,7 +4,7 @@ import { currentIdentity, validMutationOrigin } from "@/lib/adminAuth";
 import { normalizeProfileThemePreference } from "@/lib/themeTokens";
 import { pool } from "@/lib/db";
 
-export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   console.log("[PUBLIC_CARD][REQUEST]", { slug });
   try {
@@ -81,7 +81,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       );
     }
 
-    const identity = await currentIdentity().catch(() => null);
+    const identity = await currentIdentity(request).catch(() => null);
     const isOwner = Boolean(identity && (identity.id === row.owner_id || identity.role === "SUPER_ADMIN"));
     const publiclyActive = Boolean(row.active && (row.activated_at || row.active));
     let previewAuthorized = isOwner;

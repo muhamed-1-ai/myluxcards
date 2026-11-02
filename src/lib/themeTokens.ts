@@ -55,6 +55,13 @@ export interface ProfileThemePreset {
   secondary?: string;
   mutedText?: string;
   navBg?: string;
+  navBorder?: string;
+  navText?: string;
+  navTextHover?: string;
+  navSelectedBg?: string;
+  navSelectedBorder?: string;
+  navSelectedText?: string;
+  navSelectedShadow?: string;
 }
 
 export const PROFILE_THEME_PRESETS: ProfileThemePreset[] = [
@@ -627,47 +634,103 @@ export function resolveThemeTokens(card: {
         ? bg
         : `linear-gradient(135deg, ${headerGradStart}, ${headerGradEnd})`;
 
-  // 9. Navigation Bar Tokens:
-  const navBg =
-    (isDashboardTheme ? mc.navBg : undefined) ||
-    preset?.navBg ||
-    (bgIsLight ? "rgba(241, 245, 249, 0.95)" : "rgba(13, 22, 38, 0.85)");
-  const navBgIsLight = isLightColor(navBg);
+  // 9. Navigation Bar Tokens (Centralized Theme-Driven Palette):
+  let navBg: string;
+  let navBorder: string;
+  let navText: string;
+  let navTextHover: string;
+  let navHoverBg: string;
+  let navActiveHoverBg: string;
+  let navSelectedBg: string;
+  let navSelectedBorder: string;
+  let navSelectedText: string;
+  let navSelectedShadow: string;
 
-  const navBorder =
-    (isDashboardTheme ? mc.navBorder : undefined) ||
-    (navBgIsLight
-      ? "rgba(0, 0, 0, 0.10)"
-      : "rgba(148, 163, 184, 0.20)");
+  if (pref === "black_white") {
+    navBg = "#000000";
+    navBorder = "#282828";
+    navText = "#A3A3A3";
+    navTextHover = "#FFFFFF";
+    navHoverBg = "rgba(255, 255, 255, 0.08)";
+    navActiveHoverBg = "rgba(255, 255, 255, 0.12)";
+    navSelectedBg = "#FFFFFF";
+    navSelectedBorder = "#FFFFFF";
+    navSelectedText = "#000000";
+    navSelectedShadow = "0 2px 8px rgba(255, 255, 255, 0.2)";
+  } else if (pref === "white_black") {
+    navBg = "#FFFFFF";
+    navBorder = "#E4E4E7";
+    navText = "#71717A";
+    navTextHover = "#09090B";
+    navHoverBg = "rgba(0, 0, 0, 0.05)";
+    navActiveHoverBg = "rgba(0, 0, 0, 0.08)";
+    navSelectedBg = "#09090B";
+    navSelectedBorder = "#09090B";
+    navSelectedText = "#FFFFFF";
+    navSelectedShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
+  } else if (pref === "carbon_platinum") {
+    navBg = "#14171A";
+    navBorder = "rgba(255, 255, 255, 0.12)";
+    navText = "#94A3B8";
+    navTextHover = "#FFFFFF";
+    navHoverBg = "rgba(255, 255, 255, 0.08)";
+    navActiveHoverBg = "rgba(255, 255, 255, 0.12)";
+    navSelectedBg = "#B9C2CC";
+    navSelectedBorder = "#B9C2CC";
+    navSelectedText = "#0F1216";
+    navSelectedShadow = "0 2px 8px rgba(0, 0, 0, 0.35)";
+  } else {
+    // Dashboard Theme & fallback presets: dynamically derive from dashboard appearance
+    const navBgIsLight = bgIsLight;
+    navBg =
+      (isDashboardTheme ? mc.navBg : undefined) ||
+      preset?.navBg ||
+      (navBgIsLight
+        ? "rgba(241, 245, 249, 0.95)"
+        : (surfaceSecondary ? hexToRgba(surfaceSecondary, 0.92) : "rgba(18, 24, 38, 0.88)"));
+    const isNavLight = isLightColor(navBg);
 
-  const navText =
-    (isDashboardTheme ? mc.navText : undefined) ||
-    (navBgIsLight
-      ? "#475569"
-      : "#94A3B8");
+    navBorder =
+      (isDashboardTheme ? mc.navBorder : undefined) ||
+      preset?.navBorder ||
+      border ||
+      (isNavLight ? "rgba(0, 0, 0, 0.10)" : "rgba(255, 255, 255, 0.12)");
 
-  const navTextHover =
-    (isDashboardTheme ? mc.navTextHover : undefined) ||
-    (navBgIsLight
-      ? "#0F172A"
-      : "#FFFFFF");
+    navText =
+      (isDashboardTheme ? mc.navText : undefined) ||
+      preset?.navText ||
+      (isNavLight ? "#475569" : "#94A3B8");
+    navText = ensureReadableTextColor(navBg, navText, 4.5);
 
-  const navHoverBg =
-    navBgIsLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
-  const navActiveHoverBg =
-    navBgIsLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.10)";
+    navTextHover =
+      (isDashboardTheme ? mc.navTextHover : undefined) ||
+      preset?.navTextHover ||
+      text ||
+      (isNavLight ? "#0F172A" : "#FFFFFF");
 
-  const navSelectedBg =
-    (isDashboardTheme ? mc.navSelectedBg : undefined) || primary;
+    navHoverBg = isNavLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
+    navActiveHoverBg = isNavLight ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.10)";
 
-  const navSelectedBorder =
-    (isDashboardTheme ? mc.navSelectedBorder : undefined) || primary;
+    navSelectedBg =
+      (isDashboardTheme ? mc.navSelectedBg : undefined) ||
+      preset?.navSelectedBg ||
+      primary;
 
-  const navSelectedText =
-    (isDashboardTheme ? mc.navSelectedText : undefined) || ensureReadableTextColor(primary, primaryText, 4.5);
+    navSelectedBorder =
+      (isDashboardTheme ? mc.navSelectedBorder : undefined) ||
+      preset?.navSelectedBorder ||
+      primary;
 
-  const navSelectedShadow =
-    (isDashboardTheme ? mc.navSelectedShadow : undefined) || "0 2px 6px rgba(37, 99, 235, 0.25)";
+    navSelectedText =
+      (isDashboardTheme ? mc.navSelectedText : undefined) ||
+      preset?.navSelectedText ||
+      ensureReadableTextColor(navSelectedBg, primaryText, 4.5);
+
+    navSelectedShadow =
+      (isDashboardTheme ? mc.navSelectedShadow : undefined) ||
+      preset?.navSelectedShadow ||
+      (isNavLight ? "0 2px 6px rgba(0, 0, 0, 0.08)" : "0 2px 6px rgba(0, 0, 0, 0.25)");
+  }
 
   // 10. Edit Button Tokens:
   const editBtnBg =
