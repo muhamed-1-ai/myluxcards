@@ -391,7 +391,7 @@ export function LeadGrowthChart({
           })}
 
           {/* Soft Gradient Fade Area Underneath Curve */}
-          <path d={areaPath} fill="url(#leadSmoothGradient)" />
+          <path d={areaPath} fill="url(#leadSmoothGradient)" className="dash-chart-area-reveal" />
 
           {/* Smooth Monotone Cubic Spline Line (2.5px width) */}
           <path
@@ -401,6 +401,7 @@ export function LeadGrowthChart({
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
+            className="dash-chart-line-reveal"
           />
 
           {/* X-Axis Ticks & Labels */}

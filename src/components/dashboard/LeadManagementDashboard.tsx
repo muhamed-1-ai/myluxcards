@@ -46,6 +46,7 @@ import {
   UserDashboardPreferences,
   ItemPreference,
 } from "./CustomizeDashboardDrawer";
+import { AnimatedNumber, useDashboardEntrance } from "@/lib/dashboardMotion";
 
 const CrmActivityCalendar = dynamic(
   () => import("./CrmActivityCalendar").then((mod) => mod.CrmActivityCalendar),
@@ -73,6 +74,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const { shouldAnimateEntrance } = useDashboardEntrance(!loading && Boolean(data));
 
   // Customization Preferences State
   const [userPrefs, setUserPrefs] = useState<UserDashboardPreferences>(() => ({
@@ -497,7 +499,11 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const renderCapacityCard = (secPref?: ItemPreference) => {
     const title = secPref?.displayName || secPref?.defaultTitle || "Daily Follow-Up Capacity";
     return (
-      <div key="daily_capacity" className="crm-capacity-card">
+      <div
+        key="daily_capacity"
+        className={`crm-capacity-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+        style={{ "--entrance-delay": "220ms" } as React.CSSProperties}
+      >
         <div className="crm-capacity-header">
           <div className="crm-capacity-icon-wrap">
             <Calendar style={{ width: 20, height: 20, color: "var(--accent-blue, #168BFF)" }} />
@@ -513,14 +519,18 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           className="crm-capacity-badge-btn"
         >
           <CheckCircle2 style={{ width: 16, height: 16 }} />
-          Today's Follow-Ups: {todaysFollowUps.length}
+          Today's Follow-Ups: <AnimatedNumber value={todaysFollowUps.length} />
         </button>
       </div>
     );
   };
 
   const renderGrowthChartCard = (orderStyle?: React.CSSProperties) => (
-    <div key="growth_velocity_card" className="crm-chart-card" style={orderStyle}>
+    <div
+      key="growth_velocity_card"
+      className={`crm-chart-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+      style={{ ...orderStyle, "--entrance-delay": "260ms" } as React.CSSProperties}
+    >
       <LeadGrowthChart
         growthTimeline={data?.growthTimeline}
         recentActivity={recentActivity}
@@ -530,7 +540,11 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   );
 
   const renderPipelineCard = (orderStyle?: React.CSSProperties) => (
-    <div key="pipeline_stages_card" className="crm-pipeline-card" style={orderStyle}>
+    <div
+      key="pipeline_stages_card"
+      className={`crm-pipeline-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+      style={{ ...orderStyle, "--entrance-delay": "290ms" } as React.CSSProperties}
+    >
       <LeadLivePipeline
         pipelineCounts={pipelineCounts}
         totalLeads={kpis.totalLeads}
@@ -540,7 +554,11 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   );
 
   const renderLobCard = (orderStyle?: React.CSSProperties) => (
-    <div key="lob_analysis_card" className="crm-lob-card" style={orderStyle}>
+    <div
+      key="lob_analysis_card"
+      className={`crm-lob-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+      style={{ ...orderStyle, "--entrance-delay": "310ms" } as React.CSSProperties}
+    >
       <div className="crm-card-header-row">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
@@ -678,7 +696,11 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   );
 
   const renderCalendarCard = (orderStyle?: React.CSSProperties) => (
-    <div key="calendar_companion_card" className="crm-calendar-widget-card" style={orderStyle}>
+    <div
+      key="calendar_companion_card"
+      className={`crm-calendar-widget-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+      style={{ ...orderStyle, "--entrance-delay": "320ms" } as React.CSSProperties}
+    >
       <CompactDashboardCalendar
         onNavigateTab={onNavigateTab}
         todaysFollowUps={todaysFollowUps}
@@ -772,7 +794,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       </div>
 
       {/* DASHBOARD FILTERS CARD */}
-      <div className="crm-filter-card">
+      <div className={`crm-filter-card ${shouldAnimateEntrance ? "dash-entrance-header" : ""}`}>
         <div className="crm-filter-card-header">
           <div>
             <span className="crm-filter-label-title">DASHBOARD FILTERS</span>
@@ -1028,17 +1050,23 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       {/* PRIMARY METRIC CARDS — only rendered after data loads */}
       {(!loading || data) && visibleCards.length > 0 && (
         <div className="crm-kpi-grid">
-          {visibleCards.map((cardPref) => {
+          {visibleCards.map((cardPref, cardIdx) => {
             const label = (cardPref.displayName || cardPref.defaultTitle).toUpperCase();
+            const cardDelay = `${cardIdx * 55}ms`;
+            const cardClass = `crm-kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`;
+            const cardStyle = { "--entrance-delay": cardDelay } as React.CSSProperties;
+
             switch (cardPref.id) {
               case "todays_leads":
                 return (
-                  <div key="todays_leads" className="crm-kpi-card">
+                  <div key="todays_leads" className={cardClass} style={cardStyle}>
                     <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
                       <Flame style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{kpis.todaysLeads ?? kpis.newLeads ?? 0}</div>
+                    <div className="crm-kpi-value">
+                      <AnimatedNumber value={kpis.todaysLeads ?? kpis.newLeads ?? 0} />
+                    </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total leads
                     </div>
@@ -1046,12 +1074,14 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                 );
               case "total_leads":
                 return (
-                  <div key="total_leads" className="crm-kpi-card">
+                  <div key="total_leads" className={cardClass} style={cardStyle}>
                     <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
                       <Users style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{kpis.totalLeads ?? 0}</div>
+                    <div className="crm-kpi-value">
+                      <AnimatedNumber value={kpis.totalLeads ?? 0} />
+                    </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> All leads
                     </div>
@@ -1059,12 +1089,14 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                 );
               case "closed_leads":
                 return (
-                  <div key="closed_leads" className="crm-kpi-card">
+                  <div key="closed_leads" className={cardClass} style={cardStyle}>
                     <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
                       <CheckCircle2 style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{kpis.closedLeads ?? kpis.wonLeads ?? 0}</div>
+                    <div className="crm-kpi-value">
+                      <AnimatedNumber value={kpis.closedLeads ?? kpis.wonLeads ?? 0} />
+                    </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total closed deals
                     </div>
@@ -1073,12 +1105,14 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
               case "active_users":
                 return (
-                  <div key="active_users" className="crm-kpi-card">
+                  <div key="active_users" className={cardClass} style={cardStyle}>
                     <div className="crm-kpi-icon-wrap" style={{ background: "rgba(0, 102, 255, 0.12)", color: "#0066FF" }}>
                       <TrendingUp style={{ width: 20, height: 20 }} />
                     </div>
                     <span className="crm-kpi-label">{label}</span>
-                    <div className="crm-kpi-value">{activeUsersVal}</div>
+                    <div className="crm-kpi-value">
+                      <AnimatedNumber value={Number(kpis.activeUsers ?? data?.activeUsers ?? 1)} />
+                    </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total active users
                     </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { LeadStage } from "@/lib/crm";
 import { ArrowUpRight } from "lucide-react";
+import { AnimatedNumber } from "@/lib/dashboardMotion";
 
 interface LeadLivePipelineProps {
   pipelineCounts: Record<LeadStage, number>;
@@ -59,13 +60,13 @@ export function LeadLivePipeline({
           </p>
         </div>
         <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.25)", padding: "4px 12px", borderRadius: 50 }}>
-          {totalLeads} Total
+          <AnimatedNumber value={totalLeads} /> Total
         </span>
       </div>
 
       {/* Stage Rows Container (No Internal Scrollbar, Flow Natural) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {stages.map((stg) => {
+        {stages.map((stg, idx) => {
           const count = pipelineCounts?.[stg.key] || 0;
           const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
           const isSingular = count === 1;
@@ -97,7 +98,7 @@ export function LeadLivePipeline({
                 </div>
 
                 <div style={{ background: "rgba(0, 102, 255, 0.08)", border: "1px solid rgba(0, 102, 255, 0.2)", color: "#0066FF", padding: "2px 10px", borderRadius: 50, fontSize: 11, fontWeight: 800 }}>
-                  {count} {isSingular ? "Lead" : "Leads"}
+                  <AnimatedNumber value={count} /> {isSingular ? "Lead" : "Leads"}
                 </div>
               </div>
 
@@ -112,13 +113,15 @@ export function LeadLivePipeline({
                 aria-label={`${stg.label} Leads: ${count} of ${totalLeads}`}
               >
                 <div
+                  className="dash-animated-pipeline-fill"
                   style={{
                     height: "100%",
                     borderRadius: 999,
                     width: `${percentage}%`,
                     background: stg.fillGradient || "linear-gradient(90deg, #0066FF 0%, #F5D77F 100%)",
                     transition: "width 0.5s ease-out",
-                  }}
+                    "--bar-delay": `${idx * 45}ms`,
+                  } as React.CSSProperties}
                 />
               </div>
 

@@ -23,6 +23,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import "./accounting.css";
+import { AnimatedNumber, useDashboardEntrance, getCardEntranceDelay } from "@/lib/dashboardMotion";
 import { resolveTransactionCategory } from "@/lib/accounting/categoryResolver";
 import TransactionAttachmentViewerModal from "./TransactionAttachmentViewerModal";
 import WipeAccountingModal from "./WipeAccountingModal";
@@ -590,6 +591,8 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   const isUnavailable = Boolean(error && !hasData);
   const isLoadingInitial = Boolean(loading && !hasData);
 
+  const { shouldAnimateEntrance } = useDashboardEntrance(!isLoadingInitial && hasData);
+
   const periodLabelMap: Record<string, string> = {
     today: "Today",
     week: "This Week",
@@ -637,7 +640,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
   return (
     <div>
       {/* 1. Header: Deliberate 2-tier header grouping controls and actions cleanly */}
-      <div className="acc-header-v2">
+      <div className={`acc-header-v2 ${shouldAnimateEntrance ? "acc-entrance-header" : ""}`}>
         <div className="acc-header-top-tier">
           <div className="acc-title-group">
             <div className="acc-title-row">
@@ -812,7 +815,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
       {/* 2. ROW 1: Three Primary Cards (Available Balance, Money Received, Money Paid) */}
       <div className="acc-top-three-grid">
         {/* Card 1: Available Balance */}
-        <div className="acc-primary-card acc-card-balance">
+        <div
+          className={`acc-primary-card acc-card-balance ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(0, 55, 320)}ms` } as React.CSSProperties}
+        >
           <div>
             <div className="acc-card-header-row">
               <span className="acc-card-label">Available balance</span>
@@ -828,7 +834,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               ) : isUnavailable ? (
                 <span style={{ fontSize: "1.5rem", color: "var(--acc-text-muted)" }}>Unavailable</span>
               ) : (
-                formatMoney(metrics?.availableBalanceMinor ?? 0, activeWorkspace.currency)
+                <AnimatedNumber
+                  value={metrics?.availableBalanceMinor ?? 0}
+                  formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                  className="acc-animated-num"
+                />
               )}
             </div>
           </div>
@@ -850,7 +860,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         </div>
 
         {/* Card 2: Money Received */}
-        <div className="acc-primary-card">
+        <div
+          className={`acc-primary-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(1, 55, 320)}ms` } as React.CSSProperties}
+        >
           <div>
             <div className="acc-card-header-row">
               <span className="acc-card-label">Money received</span>
@@ -866,7 +879,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               ) : isUnavailable ? (
                 <span style={{ fontSize: "1.5rem", color: "var(--acc-text-muted)" }}>Unavailable</span>
               ) : (
-                formatMoney(metrics?.moneyReceivedMinor ?? 0, activeWorkspace.currency)
+                <AnimatedNumber
+                  value={metrics?.moneyReceivedMinor ?? 0}
+                  formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                  className="acc-animated-num"
+                />
               )}
             </div>
           </div>
@@ -879,7 +896,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         </div>
 
         {/* Card 3: Money Paid */}
-        <div className="acc-primary-card">
+        <div
+          className={`acc-primary-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(2, 55, 320)}ms` } as React.CSSProperties}
+        >
           <div>
             <div className="acc-card-header-row">
               <span className="acc-card-label">Money paid</span>
@@ -895,7 +915,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               ) : isUnavailable ? (
                 <span style={{ fontSize: "1.5rem", color: "var(--acc-text-muted)" }}>Unavailable</span>
               ) : (
-                formatMoney(metrics?.moneyPaidMinor ?? 0, activeWorkspace.currency)
+                <AnimatedNumber
+                  value={metrics?.moneyPaidMinor ?? 0}
+                  formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                  className="acc-animated-num"
+                />
               )}
             </div>
           </div>
@@ -911,7 +935,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
       {/* 3. ROW 2: Two Compact Outstanding-Money Cards (Owed to Me, I Owe - Height ~100-120px) */}
       <div className="acc-outstanding-grid">
         {/* Owed to Me */}
-        <div className="acc-compact-card">
+        <div
+          className={`acc-compact-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(3, 55, 320)}ms` } as React.CSSProperties}
+        >
           <div className="acc-card-header-row">
             <span className="acc-card-label">Owed to me</span>
             <Clock size={14} style={{ color: "#2583FF" }} />
@@ -923,7 +950,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             ) : isUnavailable ? (
               <span style={{ fontSize: "1.25rem", color: "var(--acc-text-muted)" }}>Unavailable</span>
             ) : (
-              formatMoney(metrics?.owedToMeMinor ?? 0, activeWorkspace.currency)
+              <AnimatedNumber
+                value={metrics?.owedToMeMinor ?? 0}
+                formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                className="acc-animated-num"
+              />
             )}
           </div>
 
@@ -935,7 +966,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         </div>
 
         {/* I Owe */}
-        <div className="acc-compact-card">
+        <div
+          className={`acc-compact-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(4, 55, 320)}ms` } as React.CSSProperties}
+        >
           <div className="acc-card-header-row">
             <span className="acc-card-label">I owe</span>
             <Receipt size={14} style={{ color: "#F59E0B" }} />
@@ -947,7 +981,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             ) : isUnavailable ? (
               <span style={{ fontSize: "1.25rem", color: "var(--acc-text-muted)" }}>Unavailable</span>
             ) : (
-              formatMoney(metrics?.iOweMinor ?? 0, activeWorkspace.currency)
+              <AnimatedNumber
+                value={metrics?.iOweMinor ?? 0}
+                formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                className="acc-animated-num"
+              />
             )}
           </div>
 
@@ -962,7 +1000,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
       {/* 4. MAIN ROW: Cash-Flow Line Chart (~2/3) and Upcoming Payments (~1/3) */}
       <div className="acc-main-split">
         {/* Left: Cash Flow Chart Card */}
-        <div className="acc-card acc-chart-card">
+        <div
+          className={`acc-card acc-chart-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(5, 55, 320)}ms` } as React.CSSProperties}
+        >
           <div className="acc-chart-header">
             <div>
               <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0 }}>Cash flow</h3>
@@ -1385,6 +1426,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                           fill="url(#accMoneyInGradient)"
                           stroke="none"
                           role="presentation"
+                          className={shouldAnimateEntrance ? "acc-chart-area-reveal" : undefined}
                         />
                       )}
 
@@ -1449,6 +1491,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                           strokeWidth="2.25"
                           strokeLinecap="round"
                           strokeLinejoin="round"
+                          className={shouldAnimateEntrance ? "acc-chart-line-reveal-in" : undefined}
                         />
                       )}
 
@@ -1462,6 +1505,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                           strokeDasharray="5 4"
                           strokeLinecap="round"
                           strokeLinejoin="round"
+                          className={shouldAnimateEntrance ? "acc-chart-line-reveal-out" : undefined}
                         />
                       )}
 
@@ -1569,42 +1613,49 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
 
             {/* Chart Footer with Reconciled Supporting Totals */}
             <div className="acc-chart-footer">
-                <div className="acc-chart-footer-totals">
-                  <span>
-                    Total Inflow:{" "}
-                    <strong className="tabular-nums" style={{ color: "var(--acc-text-main)" }}>
-                      {formatMoney(currentInflow, activeWorkspace.currency)}
-                    </strong>
-                  </span>
-                  <span>
-                    Total Outflow:{" "}
-                    <strong className="tabular-nums" style={{ color: "var(--acc-text-muted)" }}>
-                      {formatMoney(currentOutflow, activeWorkspace.currency)}
-                    </strong>
-                  </span>
-                </div>
-                  <div className="acc-chart-footer-net">
-                    <span>
-                      Net Cash Flow:{" "}
-                      <strong
-                        className="tabular-nums"
-                        style={{
-                          color:
-                            currentNet >= 0
-                              ? "var(--acc-text-main)"
-                              : "var(--acc-danger)",
-                        }}
-                      >
-                        {currentNet >= 0 ? "+" : ""}
-                        {formatMoney(currentNet, activeWorkspace.currency)}
-                      </strong>
-                    </span>
-                  </div>
-                </div>
+              <div className="acc-chart-footer-totals">
+                <span>
+                  Total Inflow:{" "}
+                  <AnimatedNumber
+                    value={currentInflow}
+                    formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                    className="acc-animated-num"
+                  />
+                </span>
+                <span>
+                  Total Outflow:{" "}
+                  <AnimatedNumber
+                    value={currentOutflow}
+                    formatter={(v) => formatMoney(Math.round(v), activeWorkspace.currency)}
+                    className="acc-animated-num"
+                  />
+                </span>
               </div>
+              <div className="acc-chart-footer-net">
+                <span>
+                  Net Cash Flow:{" "}
+                  <AnimatedNumber
+                    value={currentNet}
+                    formatter={(v) => `${Math.round(v) >= 0 ? "+" : ""}${formatMoney(Math.round(v), activeWorkspace.currency)}`}
+                    className="acc-animated-num"
+                    style={{
+                      color:
+                        currentNet >= 0
+                          ? "var(--acc-text-main)"
+                          : "var(--acc-danger)",
+                      fontWeight: 700,
+                    }}
+                  />
+                </span>
+              </div>
+            </div>
+          </div>
 
-              {/* Right: Upcoming Bills (~39% Width) */}
-              <div className="acc-card acc-commitments-card">
+          {/* Right: Upcoming Bills (~39% Width) */}
+          <div
+            className={`acc-card acc-commitments-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+            style={{ "--entrance-delay": `${getCardEntranceDelay(6, 55, 320)}ms` } as React.CSSProperties}
+          >
                 <div className="acc-commitments-content">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
                     <div>
@@ -1741,7 +1792,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
             </div>
 
             {/* 5. FULL-WIDTH RECENT TRANSACTIONS TABLE */}
-            <div className="acc-card">
+            <div
+              className={`acc-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
+              style={{ "--entrance-delay": `${getCardEntranceDelay(7, 55, 320)}ms` } as React.CSSProperties}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                 <div>
                   <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0 }}>Recent transactions</h3>
