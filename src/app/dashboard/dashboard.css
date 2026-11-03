@@ -10978,142 +10978,9 @@ body.light-mode .pts-card-label {
   opacity: 0.85;
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   COORDINATED DASHBOARD & ANALYTICS ENTRANCE MOTION (SORVO REFERENCE)
-   ══════════════════════════════════════════════════════════════════ */
 
-.dash-entrance-header {
-  animation: dashHeaderEntrance 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
-}
 
-@keyframes dashHeaderEntrance {
-  0% {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-.dash-entrance-card {
-  animation: dashCardEntrance 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--entrance-delay, 0ms);
-  will-change: transform, opacity;
-}
-
-@keyframes dashCardEntrance {
-  0% {
-    opacity: 0;
-    transform: perspective(1000px) translateY(16px) scale(0.985) rotateX(1deg);
-  }
-  100% {
-    opacity: 1;
-    transform: perspective(1000px) translateY(0) scale(1) rotateX(0deg);
-  }
-}
-
-@media (max-width: 640px) {
-  .dash-entrance-card {
-    animation-name: dashCardEntranceMobile;
-    animation-duration: 0.36s;
-  }
-  @keyframes dashCardEntranceMobile {
-    0% {
-      opacity: 0;
-      transform: translateY(10px) scale(0.99);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-}
-
-/* Chart Line & Area Reveals */
-.dash-chart-line-reveal {
-  stroke-dasharray: 3000;
-  stroke-dashoffset: 3000;
-  animation: dashChartLineDraw 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--chart-delay, 120ms);
-}
-
-@keyframes dashChartLineDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.dash-chart-area-reveal {
-  opacity: 0;
-  animation: dashChartAreaFade 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--chart-delay, 220ms);
-}
-
-@keyframes dashChartAreaFade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.dash-chart-point-reveal {
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scale(0.3);
-  animation: dashChartPointPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  animation-delay: calc(var(--chart-delay, 140ms) + var(--pt-index, 0) * 40ms);
-}
-
-@keyframes dashChartPointPop {
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Pipeline Progress Bar Growth */
-.dash-animated-pipeline-fill {
-  transform-origin: left center;
-  animation: dashPipelineGrow 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--bar-delay, 80ms);
-}
-
-@keyframes dashPipelineGrow {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-/* Animated Number Styling */
-.dash-animated-num {
-  display: inline-block;
-  font-variant-numeric: tabular-nums;
-  transition: color 0.15s ease;
-}
-
-/* Respect Prefers Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  .dash-entrance-header,
-  .dash-entrance-card,
-  .dash-chart-line-reveal,
-  .dash-chart-area-reveal,
-  .dash-chart-point-reveal,
-  .dash-animated-pipeline-fill {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    stroke-dashoffset: 0 !important;
-  }
-}
 
 @media (max-width: 640px) {
 
@@ -11243,6 +11110,9 @@ body.light-mode .pts-card-label {
   opacity: 0.85;
 }
 
+
+
+
 /* ══════════════════════════════════════════════════════════════════
    COORDINATED DASHBOARD & ANALYTICS ENTRANCE MOTION (SORVO REFERENCE)
    ══════════════════════════════════════════════════════════════════ */
@@ -11264,36 +11134,108 @@ body.light-mode .pts-card-label {
 }
 
 .dash-entrance-card {
-  animation: dashCardEntrance 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: dashCardEntrance 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--entrance-delay, 0ms);
+  transform-origin: center bottom;
   will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 @keyframes dashCardEntrance {
   0% {
     opacity: 0;
-    transform: perspective(1000px) translateY(16px) scale(0.985) rotateX(1deg);
+    transform: perspective(1200px) translateY(18px) scale(0.98) rotateX(4deg);
   }
   100% {
     opacity: 1;
-    transform: perspective(1000px) translateY(0) scale(1) rotateX(0deg);
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
   }
 }
 
 @media (max-width: 640px) {
   .dash-entrance-card {
     animation-name: dashCardEntranceMobile;
-    animation-duration: 0.36s;
+    animation-duration: 0.38s;
+    transform-origin: center center;
   }
   @keyframes dashCardEntranceMobile {
     0% {
       opacity: 0;
-      transform: translateY(10px) scale(0.99);
+      transform: translateY(12px) scale(0.985);
     }
     100% {
       opacity: 1;
       transform: translateY(0) scale(1);
     }
+  }
+}
+
+/* Reserved Skeleton Cards for Zero-Collapse Loading */
+.crm-kpi-card.is-skeleton {
+  pointer-events: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.crm-kpi-skeleton-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 12px;
+  animation: dashCardPulse 1.5s ease-in-out infinite;
+}
+
+.crm-kpi-skeleton-label {
+  width: 65%;
+  height: 11px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 8px;
+  animation: dashCardPulse 1.5s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+
+.crm-kpi-skeleton-val {
+  width: 45%;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+  animation: dashCardPulse 1.5s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+.crm-kpi-skeleton-sub {
+  width: 50%;
+  height: 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  animation: dashCardPulse 1.5s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+
+@keyframes dashCardPulse {
+  0%, 100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.dash-num-skeleton-dash {
+  display: inline-block;
+  opacity: 0.45;
+  animation: dashNumPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes dashNumPulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
   }
 }
 

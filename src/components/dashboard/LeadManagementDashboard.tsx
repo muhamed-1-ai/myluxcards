@@ -46,7 +46,7 @@ import {
   UserDashboardPreferences,
   ItemPreference,
 } from "./CustomizeDashboardDrawer";
-import { AnimatedNumber, useDashboardEntrance } from "@/lib/dashboardMotion";
+import { AnimatedNumber, useDashboardEntrance, getCardEntranceDelay } from "@/lib/dashboardMotion";
 
 const CrmActivityCalendar = dynamic(
   () => import("./CrmActivityCalendar").then((mod) => mod.CrmActivityCalendar),
@@ -519,7 +519,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
           className="crm-capacity-badge-btn"
         >
           <CheckCircle2 style={{ width: 16, height: 16 }} />
-          Today's Follow-Ups: <AnimatedNumber value={todaysFollowUps.length} />
+          Today's Follow-Ups: <AnimatedNumber value={todaysFollowUps.length} isLoaded={Boolean(data)} />
         </button>
       </div>
     );
@@ -529,7 +529,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     <div
       key="growth_velocity_card"
       className={`crm-chart-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "260ms" } as React.CSSProperties}
+      style={{ ...orderStyle, "--entrance-delay": "240ms" } as React.CSSProperties}
     >
       <LeadGrowthChart
         growthTimeline={data?.growthTimeline}
@@ -543,7 +543,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     <div
       key="pipeline_stages_card"
       className={`crm-pipeline-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "290ms" } as React.CSSProperties}
+      style={{ ...orderStyle, "--entrance-delay": "240ms" } as React.CSSProperties}
     >
       <LeadLivePipeline
         pipelineCounts={pipelineCounts}
@@ -557,7 +557,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     <div
       key="lob_analysis_card"
       className={`crm-lob-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "310ms" } as React.CSSProperties}
+      style={{ ...orderStyle, "--entrance-delay": "240ms" } as React.CSSProperties}
     >
       <div className="crm-card-header-row">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -960,18 +960,6 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       </div>
 
-      {/* INLINE LOADING STATE — shown in data area while top bar remains interactive */}
-      {loading && !data && (
-        <div className="crm-loading-container">
-          <div className="crm-loading-spinner" />
-          <p className="crm-loading-text">
-            {retryAttempt > 0
-              ? `Initializing Lead Command Center... Retrying (Attempt ${retryAttempt}/3)...`
-              : "Loading dashboard analytics..."}
-          </p>
-        </div>
-      )}
-
       {/* INLINE ERROR STATE — shown in data area while top bar remains interactive */}
       {error && !data && !loading && (
         <div className="crm-error-container">
@@ -990,7 +978,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       )}
 
       {/* EMPTY DASHBOARD STATE — only shown when loaded and genuinely empty */}
-      {!loading && !error && visibleCards.length === 0 && visibleSections.length === 0 && (
+      {!loading && !error && data && visibleCards.length === 0 && visibleSections.length === 0 && (
         <div
           style={{
             padding: "60px 24px",
@@ -1047,12 +1035,23 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         </div>
       )}
 
-      {/* PRIMARY METRIC CARDS — only rendered after data loads */}
-      {(!loading || data) && visibleCards.length > 0 && (
+      {/* PRIMARY METRIC CARDS — RESERVED SKELETON PLACEHOLDERS DURING INITIAL LOAD */}
+      {(!data && loading) ? (
+        <div className="crm-kpi-grid">
+          {visibleCards.map((cardPref) => (
+            <div key={cardPref.id} className="crm-kpi-card is-skeleton">
+              <div className="crm-kpi-skeleton-icon" />
+              <div className="crm-kpi-skeleton-label" />
+              <div className="crm-kpi-skeleton-val" />
+              <div className="crm-kpi-skeleton-sub" />
+            </div>
+          ))}
+        </div>
+      ) : (data && visibleCards.length > 0) && (
         <div className="crm-kpi-grid">
           {visibleCards.map((cardPref, cardIdx) => {
             const label = (cardPref.displayName || cardPref.defaultTitle).toUpperCase();
-            const cardDelay = `${cardIdx * 55}ms`;
+            const cardDelay = `${getCardEntranceDelay(cardIdx, 60, 240)}ms`;
             const cardClass = `crm-kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`;
             const cardStyle = { "--entrance-delay": cardDelay } as React.CSSProperties;
 
@@ -1065,7 +1064,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     </div>
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">
-                      <AnimatedNumber value={kpis.todaysLeads ?? kpis.newLeads ?? 0} />
+                      <AnimatedNumber value={kpis.todaysLeads ?? kpis.newLeads} isLoaded={Boolean(data)} />
                     </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total leads
@@ -1080,7 +1079,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     </div>
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">
-                      <AnimatedNumber value={kpis.totalLeads ?? 0} />
+                      <AnimatedNumber value={kpis.totalLeads} isLoaded={Boolean(data)} />
                     </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> All leads
@@ -1095,7 +1094,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     </div>
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">
-                      <AnimatedNumber value={kpis.closedLeads ?? kpis.wonLeads ?? 0} />
+                      <AnimatedNumber value={kpis.closedLeads ?? kpis.wonLeads} isLoaded={Boolean(data)} />
                     </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total closed deals
@@ -1111,7 +1110,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
                     </div>
                     <span className="crm-kpi-label">{label}</span>
                     <div className="crm-kpi-value">
-                      <AnimatedNumber value={Number(kpis.activeUsers ?? data?.activeUsers ?? 1)} />
+                      <AnimatedNumber value={Number(kpis.activeUsers ?? data?.activeUsers ?? 1)} isLoaded={Boolean(data)} />
                     </div>
                     <div className="crm-kpi-sub-link">
                       <TrendingUp style={{ width: 14, height: 14, color: "var(--accent-blue, #168BFF)" }} /> Total active users

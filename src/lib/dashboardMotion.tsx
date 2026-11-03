@@ -33,19 +33,19 @@ export function usePrefersReducedMotion(): boolean {
 /**
  * Calculates a capped stagger delay for dashboard cards.
  * Follows visual reading order: index 0, 1, 2, ...
- * Desktop stagger: 55ms, capped at 320ms.
- * Mobile stagger: 35ms, capped at 220ms.
+ * Desktop stagger: 60ms, capped at 240ms total delay.
+ * Mobile stagger: 35ms, capped at 140ms total delay.
  * Also supports custom (index, staggerMs, maxDelayMs).
  */
 export function getCardEntranceDelay(
   index: number,
-  staggerMsOrIsMobile: number | boolean = 55,
-  maxDelayMs: number = 320
+  staggerMsOrIsMobile: number | boolean = 60,
+  maxDelayMs: number = 240
 ): number {
   if (typeof staggerMsOrIsMobile === "boolean") {
     return staggerMsOrIsMobile
-      ? Math.min(index * 35, 220)
-      : Math.min(index * 55, 320);
+      ? Math.min(index * 35, 140)
+      : Math.min(index * 60, 240);
   }
   return Math.min(index * staggerMsOrIsMobile, maxDelayMs);
 }
@@ -55,27 +55,32 @@ export interface UseAnimatedNumberOptions {
   decimals?: number;
   formatter?: (val: number) => string;
   enabled?: boolean;
+  isLoaded?: boolean;
 }
 
 /**
- * Smoothly animates a numeric value from its previous value (or 0) to target.
- * Uses cubic-bezier out easing: power3.out (1 - (1 - t)^3).
- * Cancels outdated animations when new targets arrive.
- * When reduced motion is preferred, immediately reflects final target.
+ * Smoothly animates a numeric value once authoritative data is available.
+ * - Distinguishes genuine zero results from loading placeholders.
+ * - On first load with real data, animates up to target.
+ * - On background refresh, retains previous value and transitions smoothly without resetting to zero.
+ * - Uses cubic-bezier out easing: power3.out (1 - (1 - t)^3).
+ * - When reduced motion is preferred, immediately reflects final target.
  */
 export function useAnimatedNumber(
-  targetValue: number,
+  targetValue?: number | null,
   options: UseAnimatedNumberOptions = {}
 ): {
   displayValue: string;
   finalValue: string;
   isAnimating: boolean;
+  isReady: boolean;
 } {
   const {
-    duration = 850,
+    duration = 800,
     decimals = 0,
     formatter,
     enabled = true,
+    isLoaded: passedIsLoaded,
   } = options;
 
   const reducedMotion = usePrefersReducedMotion();
@@ -88,25 +93,41 @@ export function useAnimatedNumber(
     [formatter, decimals]
   );
 
-  const [currentValue, setCurrentValue] = useState<number>(() => targetValue);
+  const hasLoadedData = passedIsLoaded !== undefined
+    ? passedIsLoaded && targetValue !== null && targetValue !== undefined
+    : targetValue !== null && targetValue !== undefined;
+
+  const hasInitialLoadedRef = useRef<boolean>(false);
+  const previousTargetRef = useRef<number>(0);
+  const [currentValue, setCurrentValue] = useState<number>(0);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
-  const previousTargetRef = useRef<number>(targetValue);
+  const [isReady, setIsReady] = useState<boolean>(false);
   const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // If animations disabled, reduced motion, or value unchanged, jump immediately
-    if (!enabled || reducedMotion || duration <= 0) {
-      setCurrentValue(targetValue);
-      previousTargetRef.current = targetValue;
-      setIsAnimating(false);
+    // If data is not yet authoritative, remain unready (or retain previous value if already loaded once)
+    if (!hasLoadedData) {
+      if (!hasInitialLoadedRef.current) {
+        setIsReady(false);
+      }
       return;
     }
 
-    const startValue = previousTargetRef.current;
-    const endValue = targetValue;
-    previousTargetRef.current = targetValue;
+    const numericEnd = typeof targetValue === "number" ? targetValue : 0;
+    setIsReady(true);
 
-    if (startValue === endValue) {
+    // If first authoritative load: start from 0 to numericEnd
+    const isFirstLoad = !hasInitialLoadedRef.current;
+    if (isFirstLoad) {
+      hasInitialLoadedRef.current = true;
+    }
+
+    const startValue = isFirstLoad ? 0 : previousTargetRef.current;
+    const endValue = numericEnd;
+    previousTargetRef.current = endValue;
+
+    // If animations disabled, reduced motion, or values identical, set immediately
+    if (!enabled || reducedMotion || duration <= 0 || startValue === endValue) {
       setCurrentValue(endValue);
       setIsAnimating(false);
       return;
@@ -133,6 +154,9 @@ export function useAnimatedNumber(
       }
     };
 
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
     rafIdRef.current = requestAnimationFrame(tick);
 
     return () => {
@@ -141,16 +165,17 @@ export function useAnimatedNumber(
         rafIdRef.current = null;
       }
     };
-  }, [targetValue, duration, enabled, reducedMotion]);
+  }, [targetValue, hasLoadedData, duration, enabled, reducedMotion]);
 
-  const displayValue = formatFn(currentValue);
-  const finalValue = formatFn(targetValue);
+  const displayValue = isReady ? formatFn(currentValue) : "…";
+  const finalValue = isReady ? formatFn(typeof targetValue === "number" ? targetValue : 0) : "Loading…";
 
-  return { displayValue, finalValue, isAnimating };
+  return { displayValue, finalValue, isAnimating, isReady };
 }
 
 export interface AnimatedNumberProps {
-  value: number;
+  value?: number | null;
+  isLoaded?: boolean;
   duration?: number;
   decimals?: number;
   formatter?: (val: number) => string;
@@ -160,22 +185,37 @@ export interface AnimatedNumberProps {
 
 /**
  * Drop-in accessible animated number component.
- * Intermediate values are aria-hidden, while the container has an authoritative aria-label
- * with the final accurate value to prevent screen-reader spam.
+ * - Renders skeleton placeholder while loading without flashing fabricated zeros.
+ * - Intermediate counting values are aria-hidden, while container has authoritative aria-label
+ *   with exact final value to prevent screen-reader spam.
  */
 export function AnimatedNumber({
   value,
-  duration = 850,
+  isLoaded,
+  duration = 800,
   decimals = 0,
   formatter,
   className = "",
   style,
 }: AnimatedNumberProps) {
-  const { displayValue, finalValue, isAnimating } = useAnimatedNumber(value, {
+  const { displayValue, finalValue, isAnimating, isReady } = useAnimatedNumber(value, {
     duration,
     decimals,
     formatter,
+    isLoaded,
   });
+
+  if (!isReady) {
+    return (
+      <span
+        className={`dash-animated-num is-loading ${className}`}
+        style={style}
+        aria-label="Loading..."
+      >
+        <span className="dash-num-skeleton-dash" aria-hidden="true">…</span>
+      </span>
+    );
+  }
 
   return (
     <span
@@ -197,12 +237,14 @@ export function AnimatedNumber({
 export function useDashboardEntrance(isDataLoaded: boolean = true) {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
   const reducedMotion = usePrefersReducedMotion();
+  const triggeredRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (isDataLoaded && !hasEntered) {
+    if (isDataLoaded && !triggeredRef.current) {
+      triggeredRef.current = true;
       setHasEntered(true);
     }
-  }, [isDataLoaded, hasEntered]);
+  }, [isDataLoaded]);
 
   return {
     shouldAnimateEntrance: hasEntered && !reducedMotion,

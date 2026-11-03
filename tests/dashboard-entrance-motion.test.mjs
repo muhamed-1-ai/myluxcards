@@ -9,31 +9,31 @@ test("Dashboard Motion Module - getCardEntranceDelay calculations", () => {
   const motionTsx = fs.readFileSync(path.join(ROOT, "src/lib/dashboardMotion.tsx"), "utf8");
   assert.ok(motionTsx.includes("export function getCardEntranceDelay"), "Should export getCardEntranceDelay");
 
-  // Replicate logic to verify exact math
-  function getCardEntranceDelay(index, staggerMsOrIsMobile = 55, maxDelayMs = 320) {
+  // Replicate logic to verify exact math (refined to 60ms stagger, 240ms max delay)
+  function getCardEntranceDelay(index, staggerMsOrIsMobile = 60, maxDelayMs = 240) {
     if (typeof staggerMsOrIsMobile === "boolean") {
-      return staggerMsOrIsMobile ? Math.min(index * 35, 220) : Math.min(index * 55, 320);
+      return staggerMsOrIsMobile ? Math.min(index * 35, 140) : Math.min(index * 60, 240);
     }
     return Math.min(index * staggerMsOrIsMobile, maxDelayMs);
   }
 
-  // Desktop default
+  // Desktop default (60ms stagger capped at 240ms)
   assert.strictEqual(getCardEntranceDelay(0), 0);
-  assert.strictEqual(getCardEntranceDelay(1), 55);
-  assert.strictEqual(getCardEntranceDelay(2), 110);
-  assert.strictEqual(getCardEntranceDelay(3), 165);
-  assert.strictEqual(getCardEntranceDelay(4), 220);
-  assert.strictEqual(getCardEntranceDelay(5), 275);
-  assert.strictEqual(getCardEntranceDelay(6), 320); // capped at 320ms (6 * 55 = 330)
-  assert.strictEqual(getCardEntranceDelay(10), 320); // capped at 320ms
+  assert.strictEqual(getCardEntranceDelay(1), 60);
+  assert.strictEqual(getCardEntranceDelay(2), 120);
+  assert.strictEqual(getCardEntranceDelay(3), 180);
+  assert.strictEqual(getCardEntranceDelay(4), 240);
+  assert.strictEqual(getCardEntranceDelay(5), 240); // capped at 240ms
+  assert.strictEqual(getCardEntranceDelay(10), 240); // capped at 240ms
 
-  // Mobile boolean
+  // Mobile boolean (35ms stagger capped at 140ms)
   assert.strictEqual(getCardEntranceDelay(0, true), 0);
   assert.strictEqual(getCardEntranceDelay(1, true), 35);
   assert.strictEqual(getCardEntranceDelay(2, true), 70);
-  assert.strictEqual(getCardEntranceDelay(6, true), 210);
-  assert.strictEqual(getCardEntranceDelay(7, true), 220); // capped at 220ms
-  assert.strictEqual(getCardEntranceDelay(10, true), 220);
+  assert.strictEqual(getCardEntranceDelay(3, true), 105);
+  assert.strictEqual(getCardEntranceDelay(4, true), 140);
+  assert.strictEqual(getCardEntranceDelay(5, true), 140); // capped at 140ms
+  assert.strictEqual(getCardEntranceDelay(10, true), 140);
 
   // Custom parameters
   assert.strictEqual(getCardEntranceDelay(2, 40, 200), 80);
@@ -86,8 +86,8 @@ test("CSS Entrance Styles - dashboard.css definitions", () => {
   assert.ok(dashCss.includes(".dash-entrance-card"), "dashboard.css should define .dash-entrance-card");
   assert.ok(dashCss.includes("var(--entrance-delay, 0ms)"), "dashboard.css should use var(--entrance-delay)");
   assert.ok(dashCss.includes("@keyframes dashCardEntrance"), "dashboard.css should define dashCardEntrance keyframe");
-  assert.ok(dashCss.includes("perspective(1000px)"), "Card entrance should include subtle 3D perspective");
-  assert.ok(dashCss.includes("rotateX(1deg)"), "Card entrance should include settling tilt");
+  assert.ok(dashCss.includes("perspective(1200px)"), "Card entrance should include subtle 3D perspective");
+  assert.ok(dashCss.includes("rotateX(4deg)"), "Card entrance should include settling tilt");
 
   // Mobile reduced travel
   assert.ok(dashCss.includes("@media (max-width: 640px)"), "dashboard.css should have mobile responsive rule");

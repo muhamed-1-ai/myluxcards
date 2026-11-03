@@ -4980,31 +4980,34 @@ body.light-mode .acc-tool-card-desc {
 }
 
 .acc-entrance-card {
-  animation: accCardEntrance 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: accCardEntrance 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--entrance-delay, 0ms);
+  transform-origin: center bottom;
   will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 @keyframes accCardEntrance {
   0% {
     opacity: 0;
-    transform: perspective(1000px) translateY(16px) scale(0.985) rotateX(1deg);
+    transform: perspective(1200px) translateY(18px) scale(0.98) rotateX(4deg);
   }
   100% {
     opacity: 1;
-    transform: perspective(1000px) translateY(0) scale(1) rotateX(0deg);
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
   }
 }
 
 @media (max-width: 640px) {
   .acc-entrance-card {
     animation-name: accCardEntranceMobile;
-    animation-duration: 0.36s;
+    animation-duration: 0.38s;
+    transform-origin: center center;
   }
   @keyframes accCardEntranceMobile {
     0% {
       opacity: 0;
-      transform: translateY(10px) scale(0.99);
+      transform: translateY(12px) scale(0.985);
     }
     100% {
       opacity: 1;
