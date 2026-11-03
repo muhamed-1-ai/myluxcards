@@ -111,6 +111,7 @@ export interface ModernProfileLayoutProps {
   onEditProfile?: () => void;
   isDashboardPreview?: boolean;
   simulatedDevice?: "auto" | "ios" | "android";
+  themeSwitcher?: React.ReactNode;
 }
 
 function SocialBrandLogo({ brand, name }: { brand: string; name?: string }) {
@@ -145,6 +146,7 @@ export function ModernProfileLayout({
   onEditProfile,
   isDashboardPreview = false,
   simulatedDevice = "auto",
+  themeSwitcher,
 }: ModernProfileLayoutProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
@@ -336,8 +338,9 @@ export function ModernProfileLayout({
             marginBottom: `${spacing.gapBeforeName}px`,
           }}
         >
-          <div
-            className="zappit-modern-avatar-circle zappit-modern-avatar-ring"
+          <div className="zappit-modern-avatar-anchor">
+            <div
+              className="zappit-modern-avatar-circle zappit-modern-avatar-ring"
             style={{
               width: `${spacing.diameter}px`,
               height: `${spacing.diameter}px`,
@@ -358,6 +361,8 @@ export function ModernProfileLayout({
                 {initials}
               </div>
             )}
+            </div>
+            {themeSwitcher}
           </div>
         </div>
 

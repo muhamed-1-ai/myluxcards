@@ -84,6 +84,7 @@ export interface SimpleProfileLayoutProps {
   onEditProfile?: () => void;
   isDashboardPreview?: boolean;
   simulatedDevice?: "auto" | "ios" | "android";
+  themeSwitcher?: React.ReactNode;
 }
 
 function SocialBrandIcon({ brand, name }: { brand: string; name?: string }) {
@@ -100,6 +101,7 @@ export function SimpleProfileLayout({
   onEditProfile,
   isDashboardPreview = false,
   simulatedDevice = "auto",
+  themeSwitcher,
 }: SimpleProfileLayoutProps) {
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
@@ -320,8 +322,9 @@ export function SimpleProfileLayout({
               marginBottom: `${spacing.gapBeforeName}px`,
             }}
           >
-            <div
-              className="zappit-simple-photo-ring"
+            <div className="zappit-simple-avatar-anchor">
+              <div
+                className="zappit-simple-photo-ring"
               style={{
                 width: `${spacing.diameter}px`,
                 height: `${spacing.diameter}px`,
@@ -344,7 +347,9 @@ export function SimpleProfileLayout({
                 </div>
               )}
             </div>
+            {themeSwitcher}
           </div>
+        </div>
 
         {/* ── 2. Name Heading, Job Title & Company ── */}
         <div className="zappit-simple-identity">

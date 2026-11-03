@@ -7,6 +7,7 @@ import { SimpleProfileLayout } from "@/components/card/SimpleProfileLayout";
 import { ProfileActions } from "@/components/card/ProfileActions";
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { ProfileThemeSwitcher } from "@/components/card/ProfileThemeSwitcher";
+import { CompactProfileThemeSwitcher } from "@/components/card/CompactProfileThemeSwitcher";
 import LeadContactCardDrawer from "@/components/leads/LeadContactCardDrawer";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode } from "@/lib/cards";
@@ -943,16 +944,18 @@ export default function PublicCardClient({ slug }: { slug: string }) {
         </div>
       )}
 
-      {/* ── PROFILE THEME SWITCHER (Authorized Owner/Editor only) ── */}
+      {/* ── PROFILE THEME SWITCHER (Desktop: Authorized Owner/Editor only) ── */}
       {canEditTheme && activeView === "profile" && card && (
-        <ProfileThemeSwitcher
-          card={card}
-          currentPreference={themePreference}
-          onSelectTheme={handleThemeChange}
-          saving={themeSaving}
-          saveError={themeError}
-          onRetry={() => handleThemeChange(themePreference)}
-        />
+        <div className="pts-desktop-wrapper">
+          <ProfileThemeSwitcher
+            card={card}
+            currentPreference={themePreference}
+            onSelectTheme={handleThemeChange}
+            saving={themeSaving}
+            saveError={themeError}
+            onRetry={() => handleThemeChange(themePreference)}
+          />
+        </div>
       )}
 
       {/* ── VIEW 1: VEHICLE CONNECT ── */}
@@ -1323,6 +1326,18 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           <SimpleProfileLayout
             card={card}
             profileProducts={profileProducts}
+            themeSwitcher={
+              canEditTheme ? (
+                <CompactProfileThemeSwitcher
+                  card={card}
+                  currentPreference={themePreference}
+                  onSelectTheme={handleThemeChange}
+                  saving={themeSaving}
+                  saveError={themeError}
+                  onRetry={() => handleThemeChange(themePreference)}
+                />
+              ) : null
+            }
             onSaveContact={saveContact}
             onShareDetails={() => setLeadModalOpen(true)}
             onShare={() => { track("SHARE"); void share(); }}
@@ -1340,6 +1355,18 @@ export default function PublicCardClient({ slug }: { slug: string }) {
           <ModernProfileLayout
             card={card}
             profileProducts={profileProducts}
+            themeSwitcher={
+              canEditTheme ? (
+                <CompactProfileThemeSwitcher
+                  card={card}
+                  currentPreference={themePreference}
+                  onSelectTheme={handleThemeChange}
+                  saving={themeSaving}
+                  saveError={themeError}
+                  onRetry={() => handleThemeChange(themePreference)}
+                />
+              ) : null
+            }
             onSaveContact={saveContact}
             onShareDetails={() => setLeadModalOpen(true)}
             onShare={() => { track("SHARE"); void share(); }}
