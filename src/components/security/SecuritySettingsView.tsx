@@ -26,12 +26,13 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
   const [successMessage, setSuccessMessage] = useState("");
 
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [accountEmail, setAccountEmail] = useState<string>(user?.email || "");
   const [setupSubmitting, setSetupSubmitting] = useState(false);
   const [setupSuccessMessage, setSetupSuccessMessage] = useState("");
   const [setupErrorMessage, setSetupErrorMessage] = useState("");
   const [setupCooldown, setSetupCooldown] = useState(0);
 
-  // Check whether the user already has a password credential on mount
+  // Check whether the user already has a password credential and load verified account email on mount
   React.useEffect(() => {
     async function checkAccountType() {
       try {
@@ -39,6 +40,10 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
         if (profileRes && profileRes.ok) {
           const profileData = await profileRes.json().catch(() => ({}));
           setHasPassword(Boolean(profileData.hasPassword));
+          const verifiedEmail = profileData.email || profileData.user?.email || user?.email || "";
+          if (verifiedEmail) {
+            setAccountEmail(verifiedEmail);
+          }
         } else {
           setHasPassword(true);
         }
@@ -47,7 +52,7 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
       }
     }
     checkAccountType();
-  }, []);
+  }, [user]);
 
   React.useEffect(() => {
     if (setupCooldown <= 0) return;
@@ -179,7 +184,7 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
               Account Security
             </h1>
             <p style={{ fontSize: "0.875rem", color: "var(--acc-text-muted, #94a3b8)", margin: "0.25rem 0 0" }}>
-              Manage password credentials and active session protection for {user?.email || "your account"}.
+              Manage password credentials and active session protection for {accountEmail || user?.email || "your account"}.
             </p>
           </div>
         </div>
@@ -233,7 +238,7 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
             }}
           >
             <p style={{ fontSize: "0.875rem", color: "#e2e8f0", lineHeight: 1.6, margin: "0 0 0.75rem" }}>
-              Your account currently signs in through Google (<strong>{user?.email}</strong>). Adding a password enables direct email and password login to this same account while keeping your Google sign-in, profile, and records unchanged.
+              Your account currently signs in through Google (<strong>{accountEmail || user?.email}</strong>). Adding a password enables direct email and password login to this same account while keeping your Google sign-in, profile, and records unchanged.
             </p>
             <p style={{ fontSize: "0.8125rem", color: "#94a3b8", lineHeight: 1.5, margin: 0 }}>
               To verify email ownership securely, we’ll email a single-use setup link to your registered address.
@@ -632,7 +637,7 @@ export default function SecuritySettingsView({ user }: SecuritySettingsViewProps
           Registered Account Email
         </div>
         <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#FFFFFF", marginTop: "0.25rem" }}>
-          {user?.email || "Unknown"}
+          {accountEmail || user?.email || "—"}
         </div>
         <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "0.5rem 0 0" }}>
           Email address changes are kept separate from password authentication for account recovery integrity. Contact system administrators to update primary email.

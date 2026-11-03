@@ -67,6 +67,10 @@ const SecuritySettingsView = dynamic(
   () => import("@/components/security/SecuritySettingsView"),
   { ssr: false }
 );
+const GlobalAccountSettingsView = dynamic(
+  () => import("@/components/settings/GlobalAccountSettingsView"),
+  { ssr: false }
+);
 import {
   BusinessKpiGrid,
   DigitalCardKpiGrid,
@@ -108,6 +112,7 @@ import {
   Bell,
   Layout,
   Landmark,
+  Settings,
 } from "lucide-react";
 
 type Tab =
@@ -141,6 +146,7 @@ type Tab =
   | "accounting-reports"
   | "accounting-reminders"
   | "accounting-settings"
+  | "settings"
   | "security";
 type VehicleConnectSettings = {
   vehicleMake?: string; vehicleModel?: string; vehicleColor?: string; licensePlate?: string; parkingNote?: string;
@@ -419,13 +425,25 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       // Backward compatibility mapping for old bookmarks:
       if (qTab === "accounting-settings" && settingsTab === "categories") {
         qTab = "accounting-categories";
+      } else if (qTab === "accounting-settings") {
+        const section = (sp.get("section") || sp.get("settingsTab") || "").toUpperCase();
+        if (section === "SECURITY") {
+          qTab = "settings";
+        } else {
+          qTab = "accounting-more";
+          if (["ACCOUNTS", "WORKSPACE", "PERMISSIONS", "NOTIFICATIONS", "INTEGRATIONS", "DATA_MANAGEMENT", "DATA"].includes(section)) {
+            sp.set("tool", section === "DATA" ? "data_management" : section.toLowerCase());
+          } else {
+            sp.set("group", "configuration");
+          }
+        }
       } else if ((qTab === "accounting-invoices" || qTab === "accounting-sales-invoices") && subtab === "products") {
         qTab = "accounting-products";
       }
 
       if (qTab === "qr-activity" || qTab === "analytics") {
         setTab("dashboard");
-      } else if (qTab && (qTab.startsWith("accounting-") || ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic", "security"].includes(qTab))) {
+      } else if (qTab && (qTab.startsWith("accounting-") || ["dashboard", "leads", "modes", "contact", "social", "company", "appearance", "cards", "config-sources", "config-products", "config-stages", "config-calendar", "config-reasons", "config-dynamic", "security", "settings"].includes(qTab))) {
         setTab(qTab as Tab);
         if (qTab.startsWith("accounting-")) {
           setAccountingOpen(true);
@@ -460,6 +478,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         if (t === "company") return isFeatureAllowed(currentUser.featurePermissions, "company", currentUser.role);
         if (t === "appearance") return isFeatureAllowed(currentUser.featurePermissions, "card_design", currentUser.role);
         if (t === "cards") return isFeatureAllowed(currentUser.featurePermissions, "my_cards", currentUser.role);
+        if (t === "settings" || t === "security") return true;
         return false;
       };
 
@@ -906,12 +925,23 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.set("tab", next);
+      if (next === "accounting-settings") {
+        url.searchParams.set("tab", "accounting-more");
+        url.searchParams.set("group", "configuration");
+      } else {
+        url.searchParams.set("tab", next);
+      }
       if (next === "accounting-categories") {
         url.searchParams.delete("settingsTab");
       }
       if (next === "accounting-products") {
         url.searchParams.delete("subtab");
+      }
+      if (next === "settings" || next === "security") {
+        url.searchParams.delete("settingsTab");
+        url.searchParams.delete("subtab");
+        url.searchParams.delete("tool");
+        url.searchParams.delete("section");
       }
       window.history.pushState({ tab: next }, "", url.toString());
     }
@@ -1316,7 +1346,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 
         {/* Access Pending Card or Security Settings */}
         <div className="flex-1 flex items-center justify-center p-6">
-          {tab === "security" ? (
+          {tab === "settings" || tab === "security" ? (
             <div className="w-full max-w-2xl bg-[#1B1C21] border border-[#343740] rounded-2xl p-6 shadow-2xl">
               <button
                 type="button"
@@ -1325,7 +1355,13 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
               >
                 ← Back to Overview
               </button>
-              <SecuritySettingsView user={currentUser} />
+              <GlobalAccountSettingsView
+                currentUser={currentUser}
+                onUpdateNickname={(newName) => {
+                  setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
+                }}
+                onNavigateTab={(t) => selectTab(t as Tab)}
+              />
             </div>
           ) : (
             <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
@@ -1343,11 +1379,11 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 </div>
                 <button
                   type="button"
-                  onClick={() => selectTab("security")}
+                  onClick={() => selectTab("settings")}
                   className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
                 >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Security &amp; Password Settings</span>
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Account Settings</span>
                 </button>
               </div>
             </div>
@@ -1607,26 +1643,6 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                         "accounting-reminders",
                       ].includes(tab) && <span className="side-subnav-dot" />}
                     </button>
-
-                    {/* Visual Divider separating everyday actions from Accounting Settings */}
-                    <div
-                      className="side-subnav-divider"
-                      style={{
-                        margin: "0.5rem 0.5rem",
-                        borderTop: "1px solid var(--border-color, rgba(255, 255, 255, 0.08))",
-                        opacity: 0.6,
-                      }}
-                    />
-
-                    {/* Accounting Settings at the bottom */}
-                    <button
-                      type="button"
-                      className={`side-subnav-item ${tab === "accounting-settings" ? "active" : ""}`}
-                      onClick={() => { selectTab("accounting-settings" as Tab); setSidebar(false); }}
-                    >
-                      <span>Settings</span>
-                      {tab === "accounting-settings" && <span className="side-subnav-dot" />}
-                    </button>
                   </div>
                 )}
               </div>
@@ -1718,14 +1734,18 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 </span>
               </button>
             )}
+          </div>
+
+          {/* Section: Global Settings (outside all module-specific groups) */}
+          <div className="side-nav-group side-nav-settings-group">
             <button
               type="button"
-              className={`side-nav-item ${tab === "security" ? "active" : ""}`}
-              onClick={() => { selectTab("security" as Tab); setSidebar(false); }}
+              className={`side-nav-item ${tab === "settings" || tab === "security" ? "active" : ""}`}
+              onClick={() => { selectTab("settings" as Tab); setSidebar(false); }}
             >
               <span className="side-nav-item-left">
-                <Shield className="side-nav-icon" />
-                <span>Security</span>
+                <Settings className="side-nav-icon" />
+                <span>Settings</span>
               </span>
             </button>
             {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
@@ -1759,8 +1779,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
               <span className="crumb-brand">Zappit</span>
               <span className="crumb-slash">/</span>
               <span className="crumb-target">
-                {tab === "security"
-                  ? "Security Settings"
+                {tab === "settings" || tab === "security"
+                  ? "Settings · Account & Security"
                   : tab === "cards"
                     ? "My Cards"
                     : tab === "dashboard"
@@ -1844,8 +1864,12 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                         {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
                           <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
                         )}
+                        <button type="button" onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                          <Settings size={14} />
+                          <span>Settings</span>
+                        </button>
                         <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
-                        <button type="button" onClick={() => { selectTab("security" as Tab); setAccountMenu(false); }}>🛡 Security &amp; Password</button>
+                        <button type="button" onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}>🛡 Security &amp; Password</button>
                         <button type="button" onClick={logout}>Log out</button>
                       </div>
                     )}
@@ -1941,9 +1965,15 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           onClose={() => setLayoutModalOpen(false)}
         />
 
-        {tab === "security" && (
+        {(tab === "settings" || tab === "security") && (
           <section className="dashboard-content-section" style={{ minHeight: "80vh", padding: "1rem" }}>
-            <SecuritySettingsView user={currentUser} />
+            <GlobalAccountSettingsView
+              currentUser={currentUser}
+              onUpdateNickname={(newName) => {
+                setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
+              }}
+              onNavigateTab={(t) => selectTab(t as Tab)}
+            />
           </section>
         )}
 

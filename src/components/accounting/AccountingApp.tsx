@@ -63,7 +63,7 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
       case "accounting-reports":
         return <ReportsView />;
       case "accounting-more":
-        return <MoreView initialTool="BUDGETS" />;
+        return <MoreView />;
       case "accounting-budgets":
         return <MoreView initialTool="BUDGETS" />;
       case "accounting-loans":
@@ -73,7 +73,7 @@ function AccountingMainContent({ currentTab, onSelectTab, onReturnToDashboard }:
       case "accounting-reminders":
         return <MoreView initialTool="REMINDERS" />;
       case "accounting-settings":
-        return <SettingsView />;
+        return <MoreView initialGroup="CONFIGURATION" />;
       case "accounting-home":
       case "accounting-overview":
       default:
