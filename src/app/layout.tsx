@@ -29,7 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/brand/zappit-mark.png" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("zappit_theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var root=document.documentElement;root.setAttribute("data-theme",t);if(t==="light"){root.classList.add("light","light-mode");root.classList.remove("dark","dark-mode");root.style.colorScheme="light";}else{root.classList.add("dark","dark-mode");root.classList.remove("light","light-mode");root.style.colorScheme="dark";}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("zappit_theme");if(t!=="dark"&&t!=="light"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var root=document.documentElement;root.setAttribute("data-theme",t);if(t==="light"){root.classList.add("light","light-mode");root.classList.remove("dark","dark-mode");root.style.colorScheme="light";}else{root.classList.add("dark","dark-mode");root.classList.remove("light","light-mode");root.style.colorScheme="dark";}try{localStorage.removeItem("zappit_sidebar_collapsed");sessionStorage.removeItem("zappit_session_sidebar_open");}catch(e){}var w=window.innerWidth;if(w>1024){root.classList.add("is-rail");}else{root.classList.remove("is-rail");}}catch(e){}})();`,
           }}
         />
       </head>

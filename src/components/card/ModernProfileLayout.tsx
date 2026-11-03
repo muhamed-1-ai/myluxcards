@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { formatCountryCode, CardProfileProduct, isValidStoreUrl, resolveAppDownloadTile } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
 import { BrandLogo } from "./BrandLogo";
 import { AppStoreChooserModal, type AppDownloadSettings } from "./AppStoreChooserModal";
+import { SelectiveAppsShareModal } from "./SelectiveAppsShareModal";
 import { detectUserDevice, type DetectedOS } from "@/lib/device";
 import {
   resolveThemeTokens,
@@ -151,6 +152,8 @@ export function ModernProfileLayout({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [fetchedProducts, setFetchedProducts] = useState<CardProfileProduct[]>([]);
   const [storeChooserOpen, setStoreChooserOpen] = useState(false);
+  const [shareAppsModalOpen, setShareAppsModalOpen] = useState(false);
+  const appsShareTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [detectedOS, setDetectedOS] = useState<DetectedOS>("unknown");
 
   useEffect(() => {
@@ -341,26 +344,33 @@ export function ModernProfileLayout({
           <div className="zappit-modern-avatar-anchor">
             <div
               className="zappit-modern-avatar-circle zappit-modern-avatar-ring"
-            style={{
-              width: `${spacing.diameter}px`,
-              height: `${spacing.diameter}px`,
-            }}
-          >
-            {card.logo ? (
-              <img
-                src={resolveMediaUrl(card.logo)}
-                alt={name}
-                className="zappit-modern-avatar-img"
-                style={{
-                  transform: `scale(${((card.logoZoom || 100) / 100)}) rotate(${card.logoRotation || 0}deg)`,
-                  objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
-                }}
-              />
-            ) : (
-              <div className="zappit-modern-avatar-fallback">
-                {initials}
-              </div>
-            )}
+              style={{
+                width: `${spacing.diameter}px`,
+                height: `${spacing.diameter}px`,
+                aspectRatio: "1 / 1",
+                flexShrink: 0,
+              }}
+            >
+              {card.logo ? (
+                <img
+                  src={resolveMediaUrl(card.logo)}
+                  alt={name}
+                  className="zappit-modern-avatar-img"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    borderRadius: "50%",
+                    aspectRatio: "1 / 1",
+                    transform: `scale(${((card.logoZoom || 100) / 100)}) rotate(${card.logoRotation || 0}deg)`,
+                    objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
+                  }}
+                />
+              ) : (
+                <div className="zappit-modern-avatar-fallback">
+                  {initials}
+                </div>
+              )}
             </div>
             {themeSwitcher}
           </div>
@@ -597,6 +607,16 @@ export function ModernProfileLayout({
               <div className="flex items-center gap-2">
                 <LinkIcon className="w-4 h-4" style={{ color: "var(--profile-primary, var(--mod-accent))" }} />
                 <span>Apps &amp; Links</span>
+                <button
+                  ref={appsShareTriggerRef}
+                  type="button"
+                  onClick={() => setShareAppsModalOpen(true)}
+                  className="zappit-apps-share-btn"
+                  aria-label="Share apps and links"
+                  title="Share apps and links"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
               </div>
               <span className="text-[11px] text-slate-400 font-medium">Follow &amp; Explore →</span>
             </div>
@@ -668,6 +688,16 @@ export function ModernProfileLayout({
         onClose={() => setStoreChooserOpen(false)}
         appDownload={card.appDownload}
         detectedOS={effectiveOS}
+      />
+
+      {/* ── SELECTIVE APPS SHARE MODAL ── */}
+      <SelectiveAppsShareModal
+        isOpen={shareAppsModalOpen}
+        onClose={() => setShareAppsModalOpen(false)}
+        cardName={card.name || "Profile"}
+        items={socialLinks}
+        appDownload={card.appDownload}
+        triggerRef={appsShareTriggerRef}
       />
     </div>
   );

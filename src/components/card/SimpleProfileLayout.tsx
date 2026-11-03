@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
 import { CardProfileProduct, isValidStoreUrl, resolveAppDownloadTile } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { BrandLogo } from "./BrandLogo";
 import { AppStoreChooserModal, type AppDownloadSettings } from "./AppStoreChooserModal";
+import { SelectiveAppsShareModal } from "./SelectiveAppsShareModal";
 import { detectUserDevice, type DetectedOS } from "@/lib/device";
 import {
   resolveSimpleProfileTokens,
@@ -108,6 +109,8 @@ export function SimpleProfileLayout({
   const [imgError, setImgError] = useState(false);
   const [coverImgError, setCoverImgError] = useState(false);
   const [storeChooserOpen, setStoreChooserOpen] = useState(false);
+  const [shareAppsModalOpen, setShareAppsModalOpen] = useState(false);
+  const appsShareTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [detectedOS, setDetectedOS] = useState<DetectedOS>("unknown");
 
   useEffect(() => {
@@ -325,30 +328,37 @@ export function SimpleProfileLayout({
             <div className="zappit-simple-avatar-anchor">
               <div
                 className="zappit-simple-photo-ring"
-              style={{
-                width: `${spacing.diameter}px`,
-                height: `${spacing.diameter}px`,
-              }}
-            >
-              {card.logo && !imgError ? (
-                <img
-                  src={resolveMediaUrl(card.logo)}
-                  alt={name}
-                  className="zappit-simple-photo-img"
-                  onError={() => setImgError(true)}
-                  style={{
-                    transform: `scale(${((card.logoZoom || 100) / 100)}) rotate(${card.logoRotation || 0}deg)`,
-                    objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
-                  }}
-                />
-              ) : (
-                <div className="zappit-simple-photo-fallback">
-                  {initials}
-                </div>
-              )}
+                style={{
+                  width: `${spacing.diameter}px`,
+                  height: `${spacing.diameter}px`,
+                  aspectRatio: "1 / 1",
+                  flexShrink: 0,
+                }}
+              >
+                {card.logo && !imgError ? (
+                  <img
+                    src={resolveMediaUrl(card.logo)}
+                    alt={name}
+                    className="zappit-simple-photo-img"
+                    onError={() => setImgError(true)}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      borderRadius: "50%",
+                      aspectRatio: "1 / 1",
+                      transform: `scale(${((card.logoZoom || 100) / 100)}) rotate(${card.logoRotation || 0}deg)`,
+                      objectPosition: `${card.logoX || 50}% ${card.logoY || 50}%`,
+                    }}
+                  />
+                ) : (
+                  <div className="zappit-simple-photo-fallback">
+                    {initials}
+                  </div>
+                )}
+              </div>
+              {themeSwitcher}
             </div>
-            {themeSwitcher}
-          </div>
         </div>
 
         {/* ── 2. Name Heading, Job Title & Company ── */}
@@ -526,7 +536,19 @@ export function SimpleProfileLayout({
         {/* ── 6. Neatly Grouped Social Links ── */}
         {socialLinks.length > 0 && (
           <div className="zappit-simple-social-section">
-            <h2 className="zappit-simple-section-title">Connect &amp; Social</h2>
+            <div className="zappit-simple-section-header">
+              <h2 className="zappit-simple-section-title">Connect &amp; Social</h2>
+              <button
+                ref={appsShareTriggerRef}
+                type="button"
+                onClick={() => setShareAppsModalOpen(true)}
+                className="zappit-apps-share-btn"
+                aria-label="Share apps and links"
+                title="Share apps and links"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <div className="zappit-simple-social-grid">
               {socialLinks.map((item) => (
                 <a
@@ -660,6 +682,16 @@ export function SimpleProfileLayout({
         onClose={() => setStoreChooserOpen(false)}
         appDownload={card.appDownload}
         detectedOS={effectiveOS}
+      />
+
+      {/* ── SELECTIVE APPS SHARE MODAL ── */}
+      <SelectiveAppsShareModal
+        isOpen={shareAppsModalOpen}
+        onClose={() => setShareAppsModalOpen(false)}
+        cardName={card.name || "Profile"}
+        items={socialLinks}
+        appDownload={card.appDownload}
+        triggerRef={appsShareTriggerRef}
       />
     </div>
   );

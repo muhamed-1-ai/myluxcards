@@ -503,38 +503,53 @@
   margin-bottom: 20px;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
 }
 
 .zappit-simple-photo-ring {
   width: 108px;
   height: 108px;
-  border-radius: 50%;
-  overflow: hidden;
+  border-radius: 50% !important;
+  overflow: hidden !important;
   background: var(--simple-avatar-bg);
   border: 4px solid var(--simple-card-bg);
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  max-width: calc(100% - 32px);
-  aspect-ratio: 1 / 1;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vw - 32px);
+  aspect-ratio: 1 / 1 !important;
 }
 
 .zappit-simple-photo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
+  flex-shrink: 0 !important;
 }
 
 .zappit-simple-photo-fallback {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   font-size: 32px;
   font-weight: 700;
   color: var(--simple-text-primary);
   letter-spacing: 0.04em;
   user-select: none;
+  flex-shrink: 0 !important;
 }
 
 /* 2. Identity & Typography */
