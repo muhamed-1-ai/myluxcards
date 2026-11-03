@@ -1659,7 +1659,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Right: Upcoming Bills (~39% Width) */}
         <div
           className={`acc-card acc-commitments-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(6, 55, 320)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(6, 60, 240)}ms` } as React.CSSProperties}
         >
           <div className="acc-commitments-content">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
@@ -1685,57 +1685,89 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
               )}
             </div>
 
-          {/* Right: Upcoming Bills (~39% Width) */}
-          <div
-            className={`acc-card acc-commitments-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-            style={{ "--entrance-delay": `${getCardEntranceDelay(6, 60, 240)}ms` } as React.CSSProperties}
-          >
-                <div className="acc-commitments-content">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
-                    <div>
-                      <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0, color: "var(--acc-text-main)" }}>
-                        Upcoming bills
-                      </h3>
-                      <span style={{ fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
-                        Bills and obligations due
-                      </span>
-                    </div>
-                    {onNavigateTab && (
-                      <button
-                        type="button"
-                        className="acc-btn acc-btn-sm acc-btn-outline"
-                        style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                        onClick={() => onNavigateTab("accounting-reminders")}
-                        title="View all reminders and bills"
-                      >
-                        <span>Reminders</span>
-                        <ChevronRight size={12} />
-                      </button>
-                    )}
-                  </div>
-
-                  {isLoadingInitial ? (
-                    <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
-                      Loading bills…
-                    </div>
-                  ) : isUnavailable ? (
-                    <div className="acc-empty-compact">
-                      <AlertTriangle size={20} style={{ color: "var(--acc-danger)" }} />
-                      <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
-                        Commitments unavailable
-                      </strong>
-                      <p style={{ fontSize: "0.75rem", margin: 0 }}>Could not load pending bills.</p>
-                      <button
-                        type="button"
-                        className="acc-btn acc-btn-sm acc-btn-outline"
-                        style={{ minHeight: "28px", padding: "0.2rem 0.65rem", fontSize: "0.75rem", marginTop: "0.35rem" }}
-                        onClick={handleRetry}
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : (metrics?.upcomingCommitments || []).length === 0 ? (
-                    <div className="acc-empty-compact">
+            {isLoadingInitial ? (
+              <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--acc-text-muted)", fontSize: "0.875rem" }}>
+                Loading bills…
+              </div>
+            ) : isUnavailable ? (
+              <div className="acc-empty-compact">
+                <AlertTriangle size={20} style={{ color: "var(--acc-danger)" }} />
+                <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
+                  Commitments unavailable
+                </strong>
+                <p style={{ fontSize: "0.75rem", margin: 0 }}>Could not load pending bills.</p>
+                <button
+                  type="button"
+                  className="acc-btn acc-btn-sm acc-btn-outline"
+                  style={{ minHeight: "28px", padding: "0.2rem 0.65rem", fontSize: "0.75rem", marginTop: "0.35rem" }}
+                  onClick={handleRetry}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (metrics?.upcomingCommitments || []).length === 0 ? (
+              <div className="acc-empty-compact">
+                <div
+                  className="acc-empty-icon-wrap"
+                  style={{ backgroundColor: "var(--acc-raised)", color: "#2583FF", width: "36px", height: "36px", border: "1px solid var(--acc-border)" }}
+                >
+                  <CheckCircle2 size={20} />
+                </div>
+                <strong style={{ color: "var(--acc-text-main)", fontSize: "0.875rem" }}>
+                  No upcoming bills scheduled
+                </strong>
+                <p style={{ fontSize: "0.75rem", margin: 0, maxWidth: "260px", color: "var(--acc-text-muted)", textAlign: "center", lineHeight: 1.4 }}>
+                  No scheduled bills or invoice payments due in the immediate schedule.
+                  {(metrics?.iOweMinor ?? 0) > 0 && (
+                    <span style={{ display: "block", marginTop: "0.25rem", color: "var(--acc-warning)" }}>
+                      Total obligations: {formatMoney(metrics!.iOweMinor, activeWorkspace.currency)}
+                    </span>
+                  )}
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {(metrics?.upcomingCommitments || []).map((c, idx) => {
+                  const info = parseCommitmentInfo(c.title);
+                  const palette = AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
+                  return (
+                    <div
+                      key={c.id}
+                      className={`acc-bill-row ${c.is_overdue ? "is-overdue" : ""}`}
+                      onClick={() => onNavigateTab && onNavigateTab(c.type === "INVOICE" ? "accounting-invoices" : "accounting-reminders")}
+                      title="Click to view details"
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+                        <div
+                          className="acc-bill-avatar"
+                          style={{ backgroundColor: palette.bg, color: palette.text }}
+                        >
+                          {info.initial}
+                        </div>
+                        <div className="acc-bill-details">
+                          <div className="acc-bill-name">
+                            {info.name}
+                          </div>
+                          <div className="acc-bill-sub">
+                            {c.is_overdue ? (
+                              <span
+                                className="acc-badge acc-badge-danger"
+                                style={{ fontSize: "0.625rem", padding: "0.05rem 0.35rem", fontWeight: 700 }}
+                              >
+                                OVERDUE • {c.due_date}
+                              </span>
+                            ) : (
+                              <span>Due {c.due_date}</span>
+                            )}
+                            {info.subtitle && (
+                              <>
+                                <span>·</span>
+                                <span>{info.subtitle}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                       <div
                         className="acc-bill-amount tabular-nums"
                         style={{ color: c.is_overdue ? "var(--acc-danger)" : "var(--acc-text-main)" }}
@@ -1767,7 +1799,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
       {/* 5. FULL-WIDTH RECENT TRANSACTIONS TABLE */}
       <div
         className={`acc-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-        style={{ "--entrance-delay": `${getCardEntranceDelay(7, 55, 320)}ms` } as React.CSSProperties}
+        style={{ "--entrance-delay": `${getCardEntranceDelay(7, 60, 240)}ms` } as React.CSSProperties}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <div>
@@ -1811,8 +1843,8 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         ) : (metrics?.recentTransactions || []).length === 0 ? (
           <div className="acc-empty-compact">
             <div
-              className={`acc-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-              style={{ "--entrance-delay": `${getCardEntranceDelay(7, 60, 240)}ms` } as React.CSSProperties}
+              className="acc-empty-icon-wrap"
+              style={{ backgroundColor: "var(--acc-raised)", color: "var(--acc-text-muted)", width: "36px", height: "36px" }}
             >
               <Receipt size={18} />
             </div>
