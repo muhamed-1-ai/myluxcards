@@ -11192,6 +11192,20 @@ body.light-mode .pts-card-label {
   }
 }
 
+@keyframes dashCardEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.65) translateY(10px);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* 3. CARD CONTENT REVEAL: Reveals a beat after each surface starts growing (staggered +120ms) */
 .dash-entrance-card .dash-card-content {
   animation: dashCardContentReveal 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
