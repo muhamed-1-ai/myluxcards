@@ -113,7 +113,7 @@ function formatDynamicValue(val: any, inputType: string): string {
   if (typeof val === "string" && (val.startsWith("[") || val.startsWith("{") || val.startsWith('"'))) {
     try {
       parsed = JSON.parse(val);
-    } catch {}
+    } catch { }
   }
 
   const typeUpper = (inputType || "").toUpperCase();
@@ -130,7 +130,7 @@ function formatDynamicValue(val: any, inputType: string): string {
     try {
       const d = new Date(parsed);
       if (!isNaN(d.getTime())) return d.toLocaleDateString();
-    } catch {}
+    } catch { }
   }
 
   if (typeof parsed === "object") {
@@ -210,9 +210,15 @@ export async function POST(request: Request) {
 
     const assignedUserId = (body.userId || body.userFilter || "").trim();
     if (assignedUserId) {
-      whereClause += ` AND l.assigned_user_id = $${paramIndex}`;
-      params.push(assignedUserId);
-      paramIndex++;
+      if (identity.role === "SUPER_ADMIN" && (assignedUserId === "me" || assignedUserId === identity.id)) {
+        whereClause += ` AND (l.assigned_user_id = $${paramIndex} OR l.assigned_user_id IS NULL)`;
+        params.push(identity.id);
+        paramIndex++;
+      } else if (assignedUserId !== "all") {
+        whereClause += ` AND l.assigned_user_id = $${paramIndex}`;
+        params.push(assignedUserId);
+        paramIndex++;
+      }
     }
 
     const source = (body.source || body.sourceFilter || "").trim();
@@ -231,9 +237,15 @@ export async function POST(request: Request) {
 
     const scopeFilter = (body.scope || body.scopeFilter || "all").trim();
     if (scopeFilter === "mine") {
-      whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex})`;
-      params.push(identity.id);
-      paramIndex++;
+      if (identity.role === "SUPER_ADMIN") {
+        whereClause += ` AND (l.assigned_user_id = $${paramIndex} OR l.assigned_user_id IS NULL)`;
+        params.push(identity.id);
+        paramIndex++;
+      } else {
+        whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex})`;
+        params.push(identity.id);
+        paramIndex++;
+      }
     }
 
     const dateFrom = (body.startDate || body.dateFrom || "").trim();
@@ -279,11 +291,11 @@ export async function POST(request: Request) {
       SELECT 
         l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
         l.email, l.status as "stage", l.status as "status", l.source, l.created_at as "createdAt", l.updated_at as "updatedAt",
-        l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
+        l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.created_by_user_id as "createdByUserId", l.profile_image as "profileImage",
         COALESCE(l.payment_information, '{}'::jsonb) as "paymentInformation",
         COALESCE(l.products, '[]'::jsonb) as "products",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
-        u_owner.name as "createdByName", u_owner.email as "createdByEmail",
+        COALESCE(u_creator.name, u_owner.name) as "createdByName", COALESCE(u_creator.email, u_owner.email) as "createdByEmail",
         COALESCE(l.address, '')::text as "address",
         COALESCE(l.total_amount, 0)::float as "totalAmount",
         COALESCE(l.advance_amount, 0)::float as "advanceAmount",
@@ -295,6 +307,7 @@ export async function POST(request: Request) {
       FROM leads l
       LEFT JOIN users u ON u.id = l.assigned_user_id
       LEFT JOIN users u_owner ON u_owner.id = l.owner_user_id
+      LEFT JOIN users u_creator ON u_creator.id = l.created_by_user_id
       WHERE ${whereClause}
       ORDER BY ${sortColumn} ${sortOrder}
     `;

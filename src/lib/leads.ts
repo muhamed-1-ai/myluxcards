@@ -13,6 +13,7 @@ export interface CreateLeadInput {
   createdFrom?: string;
   profileImage?: string | null;
   assignedUserId?: string | null;
+  createdByUserId?: string | null;
   status?: string;
 }
 
@@ -21,6 +22,7 @@ export interface LeadRecord {
   owner_user_id: string;
   card_id: string;
   assigned_user_id: string | null;
+  created_by_user_id?: string | null;
   name: string;
   profile_image: string | null;
   company_name: string | null;
@@ -136,6 +138,9 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
   const finalStatus = status || 'NEW';
 
   const validAssignedUserId = (assignedUserId && uuidRegex.test(assignedUserId)) ? assignedUserId : input.ownerUserId;
+  const validCreatedByUserId = (input.createdByUserId && uuidRegex.test(input.createdByUserId))
+    ? input.createdByUserId
+    : (source === "MANUAL" || createdFrom === "DASHBOARD" ? input.ownerUserId : null);
 
   let normKey = contactNumberNormalized || "+91";
   if (source !== "MANUAL" && createdFrom !== "DASHBOARD") {
@@ -152,6 +157,7 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
        owner_user_id,
        card_id,
        assigned_user_id,
+       created_by_user_id,
        name,
        profile_image,
        company_name,
@@ -168,13 +174,14 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
        created_at,
        updated_at
      ) VALUES (
-       gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW(), 1, NOW(), NOW()
+       gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW(), 1, NOW(), NOW()
      )
      RETURNING
        id,
        owner_user_id,
        card_id,
        assigned_user_id,
+       created_by_user_id,
        name,
        profile_image,
        company_name,
@@ -194,6 +201,7 @@ export async function upsertLead(input: CreateLeadInput): Promise<UpsertLeadResu
       input.ownerUserId,
       input.cardId,
       validAssignedUserId,
+      validCreatedByUserId,
       name,
       profileImage,
       companyName,

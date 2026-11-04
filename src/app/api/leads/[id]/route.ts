@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     let accessClause = "(l.owner_user_id = $2 OR l.assigned_user_id = $2)";
     if (identity.role === "SUPER_ADMIN") {
-      accessClause = "1=1";
+      accessClause = "(l.created_by_user_id = $2 OR (l.created_by_user_id IS NULL AND EXISTS (SELECT 1 FROM lead_activities la WHERE la.lead_id = l.id AND la.type = 'LEAD_CREATED' AND la.owner_user_id = $2)))";
     } else if (identity.role === "ADMIN") {
       accessClause = "(l.owner_user_id = $2 OR l.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR l.assigned_user_id = $2)";
     }
@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
        LEFT JOIN users u_assigned ON u_assigned.id = l.assigned_user_id
        LEFT JOIN users u_owner ON u_owner.id = l.owner_user_id
        WHERE l.id = $1 AND ${accessClause}`,
-      identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
+      [id, identity.id]
     );
 
     const lead = leadRes.rows[0];
@@ -74,7 +74,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         if (typeof val === "string" && (val.startsWith("{") || val.startsWith("[") || val.startsWith('"'))) {
           val = JSON.parse(val);
         }
-      } catch {}
+      } catch { }
 
       const keyId = row.fieldDefinitionId;
       const keyName = row.fieldName || row.fieldKey;
@@ -307,7 +307,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     let accessClause = "(owner_user_id = $2 OR assigned_user_id = $2)";
     if (identity.role === "SUPER_ADMIN") {
-      accessClause = "1=1";
+      accessClause = "(created_by_user_id = $2 OR (created_by_user_id IS NULL AND EXISTS (SELECT 1 FROM lead_activities la WHERE la.lead_id = leads.id AND la.type = 'LEAD_CREATED' AND la.owner_user_id = $2)))";
     } else if (identity.role === "ADMIN") {
       accessClause = "(owner_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR assigned_user_id = $2)";
     }
@@ -329,7 +329,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       products: any;
     }>(
       `SELECT id, owner_user_id, status, total_amount, advance_amount, address, contact_number, contact_number_normalized, follow_up_type, follow_up_note, next_follow_up_at, payment_information, products FROM leads WHERE id = $1 AND ${accessClause}`,
-      identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
+      [id, identity.id]
     );
 
     const existingLead = permCheck.rows[0];
@@ -409,9 +409,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const safeAddress = body.address !== undefined ? (body.address ? String(body.address).trim() : "") : (existingLead.address || null);
     const safeTotalAmount = body.totalAmount !== undefined
       ? parseMonetaryValue(body.totalAmount, 0)
-      : (body.expectedRevenue !== undefined 
-          ? parseMonetaryValue(body.expectedRevenue, 0) 
-          : parseMonetaryValue(existingLead.total_amount, 0));
+      : (body.expectedRevenue !== undefined
+        ? parseMonetaryValue(body.expectedRevenue, 0)
+        : parseMonetaryValue(existingLead.total_amount, 0));
     const safeAdvanceAmount = body.advanceAmount !== undefined
       ? parseMonetaryValue(body.advanceAmount, 0)
       : parseMonetaryValue(existingLead.advance_amount, 0);
@@ -453,7 +453,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       };
     }
 
-    const products = body.products !== undefined 
+    const products = body.products !== undefined
       ? (Array.isArray(body.products) ? body.products : [])
       : (Array.isArray(existingLead.products) ? existingLead.products : []);
 
@@ -631,7 +631,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (typeof val === "string" && (val.startsWith("{") || val.startsWith("[") || val.startsWith('"'))) {
           val = JSON.parse(val);
         }
-      } catch {}
+      } catch { }
 
       const keyId = row.fieldDefinitionId;
       const keyName = row.fieldName || row.fieldKey;
@@ -710,14 +710,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   try {
     let accessClause = "(owner_user_id = $2 OR assigned_user_id = $2)";
     if (identity.role === "SUPER_ADMIN") {
-      accessClause = "1=1";
+      accessClause = "(created_by_user_id = $2 OR (created_by_user_id IS NULL AND EXISTS (SELECT 1 FROM lead_activities la WHERE la.lead_id = leads.id AND la.type = 'LEAD_CREATED' AND la.owner_user_id = $2)))";
     } else if (identity.role === "ADMIN") {
       accessClause = "(owner_user_id = $2 OR owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $2) OR assigned_user_id = $2)";
     }
 
     const result = await pool.query(
       `DELETE FROM leads WHERE id = $1 AND ${accessClause} RETURNING id, name`,
-      identity.role === "SUPER_ADMIN" ? [id] : [id, identity.id]
+      [id, identity.id]
     );
 
     const deleted = result.rows[0];

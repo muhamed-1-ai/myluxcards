@@ -99,15 +99,27 @@ export async function GET(request: NextRequest) {
     }
 
     if (assignedUserId) {
-      whereClause += ` AND l.assigned_user_id = $${paramIndex}`;
-      params.push(assignedUserId);
-      paramIndex++;
+      if (identity.role === "SUPER_ADMIN" && (assignedUserId === "me" || assignedUserId === identity.id)) {
+        whereClause += ` AND (l.assigned_user_id = $${paramIndex} OR l.assigned_user_id IS NULL)`;
+        params.push(identity.id);
+        paramIndex++;
+      } else if (assignedUserId !== "all") {
+        whereClause += ` AND l.assigned_user_id = $${paramIndex}`;
+        params.push(assignedUserId);
+        paramIndex++;
+      }
     }
 
     if (scopeFilter === "mine") {
-      whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex})`;
-      params.push(identity.id);
-      paramIndex++;
+      if (identity.role === "SUPER_ADMIN") {
+        whereClause += ` AND (l.assigned_user_id = $${paramIndex} OR l.assigned_user_id IS NULL)`;
+        params.push(identity.id);
+        paramIndex++;
+      } else {
+        whereClause += ` AND (l.owner_user_id = $${paramIndex} OR l.assigned_user_id = $${paramIndex})`;
+        params.push(identity.id);
+        paramIndex++;
+      }
     }
 
     if (dateFrom) {
@@ -211,7 +223,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         l.id, l.name, l.company_name as "companyName", l.contact_number as "contactNumber", 
         l.email, l.status as "stage", l.source, l.created_at as "createdAt",
-        l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.profile_image as "profileImage",
+        l.owner_user_id as "ownerUserId", l.assigned_user_id as "assignedUserId", l.created_by_user_id as "createdByUserId", l.profile_image as "profileImage",
         u.name as "assignedUserName", u.email as "assignedUserEmail",
         COALESCE(l.address, '')::text as "address",
         COALESCE(l.total_amount, 0)::float as "totalAmount",

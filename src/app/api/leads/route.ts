@@ -167,6 +167,7 @@ function parseMonetaryValue(val: any, fallback = 0): number {
       email: body.email,
       profileImage: body.profileImage,
       assignedUserId: safeAssignedUserId,
+      createdByUserId: identity.id,
       status: body.status || body.stage,
       source: body.source || "MANUAL",
     });

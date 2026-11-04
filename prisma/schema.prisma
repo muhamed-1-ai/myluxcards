@@ -33,6 +33,7 @@ model User {
   accounts             Account[]
   profile              Profile?
   leads                Lead[]
+  createdLeads         Lead[]                @relation("LeadCreatedUser")
   assignedLeads        Lead[]                @relation("LeadAssignedUser")
   followUps            LeadFollowUp[]
   activities           LeadActivity[]
@@ -123,6 +124,7 @@ model Lead {
   ownerUserId             String   @map("owner_user_id") @db.Uuid
   cardId                  String   @map("card_id") @db.Uuid
   assignedUserId          String?  @map("assigned_user_id") @db.Uuid
+  createdByUserId         String?  @map("created_by_user_id") @db.Uuid
   name                    String
   profileImage            String?  @map("profile_image")
   companyName             String?  @map("company_name")
@@ -146,6 +148,7 @@ model Lead {
   updatedAt               DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
   owner             User             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdByUser     User?            @relation("LeadCreatedUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
   assignedUser      User?            @relation("LeadAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
   card              DigitalCard      @relation(fields: [cardId], references: [id], onDelete: Cascade)
   followUps         LeadFollowUp[]

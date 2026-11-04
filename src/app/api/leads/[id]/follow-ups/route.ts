@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const followUpType = body.type || body.followUpType;
-    const item = await scheduleFollowUp(identity.id, id, scheduledAt, body.note, followUpType);
+    const item = await scheduleFollowUp(identity.id, id, scheduledAt, body.note, followUpType, identity.role);
 
     // Ensure scheduler is actively ticking
     startReminderScheduler();

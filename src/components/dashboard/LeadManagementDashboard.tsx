@@ -45,6 +45,7 @@ import {
   DEFAULT_DASHBOARD_SECTIONS,
   UserDashboardPreferences,
   ItemPreference,
+  normalizeDashboardPreferences,
 } from "./CustomizeDashboardDrawer";
 import { AnimatedNumber, useDashboardEntrance, getCardEntranceDelay } from "@/lib/dashboardMotion";
 
@@ -79,11 +80,13 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const { shouldAnimateEntrance } = useDashboardEntrance(true);
 
   // Customization Preferences State
-  const [userPrefs, setUserPrefs] = useState<UserDashboardPreferences>(() => ({
-    version: 1,
-    cards: DEFAULT_DASHBOARD_CARDS,
-    sections: DEFAULT_DASHBOARD_SECTIONS,
-  }));
+  const [userPrefs, setUserPrefs] = useState<UserDashboardPreferences>(() =>
+    normalizeDashboardPreferences({
+      version: 1,
+      cards: DEFAULT_DASHBOARD_CARDS,
+      sections: DEFAULT_DASHBOARD_SECTIONS,
+    })
+  );
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [customizeTab, setCustomizeTab] = useState<"cards" | "sections">("cards");
 
@@ -148,8 +151,8 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       const cached = localStorage.getItem(storageKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && Array.isArray(parsed.cards) && Array.isArray(parsed.sections)) {
-          setUserPrefs(parsed);
+        if (parsed && (Array.isArray(parsed.cards) || Array.isArray(parsed.sections))) {
+          setUserPrefs(normalizeDashboardPreferences(parsed));
         }
       }
     } catch {}
@@ -159,9 +162,10 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       .then((res) => (res.ok ? res.json() : null))
       .then((resData) => {
         if (active && resData?.preferences) {
-          setUserPrefs(resData.preferences);
+          const normalized = normalizeDashboardPreferences(resData.preferences);
+          setUserPrefs(normalized);
           try {
-            localStorage.setItem(storageKey, JSON.stringify(resData.preferences));
+            localStorage.setItem(storageKey, JSON.stringify(normalized));
           } catch {}
         }
       })
@@ -178,10 +182,6 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     }
 
     const storageKey = identity?.id ? `zappit_dashboard_prefs_${identity.id}` : "zappit_dashboard_prefs_guest";
-    setUserPrefs(newPrefs);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(newPrefs));
-    } catch {}
 
     const res = await fetch("/api/user/dashboard-preferences", {
       method: "PUT",
@@ -193,6 +193,12 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData?.message || "Failed to save dashboard customization.");
     }
+
+    // Only update local preferences if server write succeeded
+    setUserPrefs(newPrefs);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newPrefs));
+    } catch {}
   };
 
   const fetchDashboardData = useCallback(
@@ -411,6 +417,8 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         case "active_users":
         case "daily_capacity":
         case "growth_pipeline":
+        case "growth_velocity":
+        case "pipeline_stages":
           return isFeatureAllowed(perms, "all_leads", role);
         default:
           return true;
@@ -493,8 +501,11 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const isCapacityVisible = visibleSections.some((s) => s.id === "daily_capacity");
   const capacityPref = visibleSections.find((s) => s.id === "daily_capacity");
 
-  const isGrowthPipelineVisible = visibleSections.some((s) => s.id === "growth_pipeline");
-  const growthPipelinePref = visibleSections.find((s) => s.id === "growth_pipeline");
+  const isGrowthVelocityVisible = visibleSections.some((s) => s.id === "growth_velocity");
+  const growthVelocityPref = visibleSections.find((s) => s.id === "growth_velocity");
+
+  const isPipelineStagesVisible = visibleSections.some((s) => s.id === "pipeline_stages");
+  const pipelineStagesPref = visibleSections.find((s) => s.id === "pipeline_stages");
 
   const isLobVisible = visibleSections.some((s) => s.id === "lob_analysis");
   const lobPref = visibleSections.find((s) => s.id === "lob_analysis");
@@ -729,16 +740,16 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
   // Left column widgets: Growth Velocity & LOB Analysis
   const leftWidgets: { id: string; order: number; node: React.ReactNode }[] = [];
-  if (isGrowthPipelineVisible) {
-    const gpOrder = growthPipelinePref?.order ?? 1;
+  if (isGrowthVelocityVisible) {
+    const gvOrder = growthVelocityPref?.order ?? 1;
     leftWidgets.push({
-      id: "growth_pipeline",
-      order: gpOrder,
-      node: renderGrowthChartCard({ order: gpOrder * 10 + 1 }),
+      id: "growth_velocity",
+      order: gvOrder,
+      node: renderGrowthChartCard({ order: gvOrder * 10 }),
     });
   }
   if (isLobVisible) {
-    const lobOrder = lobPref?.order ?? 2;
+    const lobOrder = lobPref?.order ?? 3;
     leftWidgets.push({
       id: "lob_analysis",
       order: lobOrder,
@@ -749,16 +760,16 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
 
   // Right column widgets: Pipeline Stages & Calendar
   const rightWidgets: { id: string; order: number; node: React.ReactNode }[] = [];
-  if (isGrowthPipelineVisible) {
-    const gpOrder = growthPipelinePref?.order ?? 1;
+  if (isPipelineStagesVisible) {
+    const psOrder = pipelineStagesPref?.order ?? 2;
     rightWidgets.push({
-      id: "growth_pipeline",
-      order: gpOrder,
-      node: renderPipelineCard({ order: gpOrder * 10 + 2 }),
+      id: "pipeline_stages",
+      order: psOrder,
+      node: renderPipelineCard({ order: psOrder * 10 }),
     });
   }
   if (isCalendarVisible) {
-    const calOrder = calendarPref?.order ?? 3;
+    const calOrder = calendarPref?.order ?? 4;
     rightWidgets.push({
       id: "calendar_companion",
       order: calOrder,
@@ -773,9 +784,10 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const capacityOrder = capacityPref?.order ?? 0;
   const minColumnOrder = Math.min(
     ...[
-      isGrowthPipelineVisible ? (growthPipelinePref?.order ?? 1) : Infinity,
-      isLobVisible ? (lobPref?.order ?? 2) : Infinity,
-      isCalendarVisible ? (calendarPref?.order ?? 3) : Infinity,
+      isGrowthVelocityVisible ? (growthVelocityPref?.order ?? 1) : Infinity,
+      isPipelineStagesVisible ? (pipelineStagesPref?.order ?? 2) : Infinity,
+      isLobVisible ? (lobPref?.order ?? 3) : Infinity,
+      isCalendarVisible ? (calendarPref?.order ?? 4) : Infinity,
     ]
   );
   const isCapacityBeforeColumns = capacityOrder <= minColumnOrder;
@@ -899,9 +911,9 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
               onChange={(e) => setUserFilter(e.target.value)}
               className="crm-filter-select"
             >
-              <option value="">User</option>
-              <option value="all">All Users</option>
-              <option value="me">My Leads</option>
+              <option value="">{identity?.role === "SUPER_ADMIN" ? "Leads I Created" : "User"}</option>
+              <option value="all">{identity?.role === "SUPER_ADMIN" ? "All My Created Leads" : "All Users"}</option>
+              <option value="me">{identity?.role === "SUPER_ADMIN" ? "Assigned to Me" : "My Leads"}</option>
             </select>
             <ChevronDown className="crm-filter-arrow" />
           </div>

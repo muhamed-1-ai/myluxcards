@@ -113,157 +113,165 @@ export interface LeadAccessFilter {
   paramCount: number;
 }
 
-export function getLeadAccessFilter(identity: AdminIdentity, tableAlias = "l"): LeadAccessFilter {
-  if (identity.role === "SUPER_ADMIN") {
-    return {
-      whereClause: "1=1",
-      params: [],
-      paramCount: 0,
-    };
+  /**
+   * Returns the SQL condition representing verified lead creation provenance.
+   * Covers newly populated created_by_user_id and verified legacy LEAD_CREATED activities.
+   */
+  export function getLeadCreatorCondition(tableAlias = "l", paramPlaceholder = "$1"): string {
+    return `(${tableAlias}.created_by_user_id = ${paramPlaceholder} OR (${tableAlias}.created_by_user_id IS NULL AND EXISTS (SELECT 1 FROM lead_activities la WHERE la.lead_id = ${tableAlias}.id AND la.type = 'LEAD_CREATED' AND la.owner_user_id = ${paramPlaceholder})))`;
   }
 
-  if (identity.role === "ADMIN") {
+  export function getLeadAccessFilter(identity: AdminIdentity, tableAlias = "l", paramIndex = 1): LeadAccessFilter {
+    if (identity.role === "SUPER_ADMIN") {
+      return {
+        whereClause: getLeadCreatorCondition(tableAlias, `$${paramIndex}`),
+        params: [identity.id],
+        paramCount: 1,
+      };
+    }
+
+    if (identity.role === "ADMIN") {
+      return {
+        whereClause: `(${tableAlias}.owner_user_id = $${paramIndex} OR ${tableAlias}.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $${paramIndex}) OR ${tableAlias}.assigned_user_id = $${paramIndex})`,
+        params: [identity.id],
+        paramCount: 1,
+      };
+    }
+
+    // Normal Account User
     return {
-      whereClause: `(${tableAlias}.owner_user_id = $1 OR ${tableAlias}.owner_user_id IN (SELECT id FROM users WHERE created_by_admin_id = $1) OR ${tableAlias}.assigned_user_id = $1)`,
+      whereClause: `(${tableAlias}.owner_user_id = $${paramIndex} OR ${tableAlias}.assigned_user_id = $${paramIndex})`,
       params: [identity.id],
       paramCount: 1,
     };
   }
 
-  // Normal Account User
-  return {
-    whereClause: `(${tableAlias}.owner_user_id = $1 OR ${tableAlias}.assigned_user_id = $1)`,
-    params: [identity.id],
-    paramCount: 1,
-  };
-}
+  export async function requireManagedUserOwnership(targetUserId: string) {
+    const identity = await currentIdentity();
+    if (!identity) return null;
+    if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") return null;
 
-export async function requireManagedUserOwnership(targetUserId: string) {
-  const identity = await currentIdentity();
-  if (!identity) return null;
-  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") return null;
+    const isSuperAdmin = identity.role === "SUPER_ADMIN";
+    const managedUser = await findManagedUserById(identity.id, targetUserId, isSuperAdmin);
+    if (!managedUser) return null;
+    return { identity, managedUser };
+  }
 
-  const isSuperAdmin = identity.role === "SUPER_ADMIN";
-  const managedUser = await findManagedUserById(identity.id, targetUserId, isSuperAdmin);
-  if (!managedUser) return null;
-  return { identity, managedUser };
-}
+  function normalizeHost(value: string | null) {
+    if (!value) return "";
+    const firstHost = value.split(",")[0].trim();
+    const hostWithoutPort = firstHost.replace(/:[0-9]+$/, "").toLowerCase();
+    return hostWithoutPort.startsWith("www.") ? hostWithoutPort.slice(4) : hostWithoutPort;
+  }
 
-function normalizeHost(value: string | null) {
-  if (!value) return "";
-  const firstHost = value.split(",")[0].trim();
-  const hostWithoutPort = firstHost.replace(/:[0-9]+$/, "").toLowerCase();
-  return hostWithoutPort.startsWith("www.") ? hostWithoutPort.slice(4) : hostWithoutPort;
-}
+  export function validMutationOrigin(request: Request) {
+    const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
 
-export function validMutationOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const normalizedHost = normalizeHost(host);
+    let normalizedOrigin = "";
+    if (origin) {
+      try {
+        normalizedOrigin = normalizeHost(new URL(origin).host);
+      } catch { }
+    }
+    let normalizedReferer = "";
+    if (referer) {
+      try {
+        normalizedReferer = normalizeHost(new URL(referer).host);
+      } catch { }
+    }
 
-  const normalizedHost = normalizeHost(host);
-  let normalizedOrigin = "";
-  if (origin) {
+    // If origin is present, verify against host or referer
+    if (normalizedOrigin) {
+      if (!normalizedHost) return true;
+      if (normalizedOrigin === normalizedHost) return true;
+      if (normalizedReferer && normalizedOrigin === normalizedReferer) return true;
+      return false;
+    }
+
+    // If referer is present without origin, verify against host
+    if (normalizedReferer) {
+      if (!normalizedHost) return true;
+      if (normalizedReferer === normalizedHost) return true;
+      return false;
+    }
+
+    return process.env.NODE_ENV !== "production";
+  }
+
+  export async function requireAdminPage() {
+    const identity = await currentIdentity();
+    if (!identity) redirect("/?login=1&next=%2Fadmin");
+    if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") redirect("/forbidden");
+    if (identity.mustChangePassword) redirect("/reset-password?required=1");
+    return identity;
+  }
+
+  export async function requireSuperAdminPage() {
+    const identity = await currentIdentity();
+    if (!identity) redirect("/?login=1&next=%2Fsuper-admin");
+    if (identity.role !== "SUPER_ADMIN") redirect("/forbidden");
+    if (identity.mustChangePassword) redirect("/reset-password?required=1");
+    return identity;
+  }
+
+  export async function requestContext() {
     try {
-      normalizedOrigin = normalizeHost(new URL(origin).host);
-    } catch {}
-  }
-  let normalizedReferer = "";
-  if (referer) {
-    try {
-      normalizedReferer = normalizeHost(new URL(referer).host);
-    } catch {}
-  }
-
-  // If origin is present, verify against host or referer
-  if (normalizedOrigin) {
-    if (!normalizedHost) return true;
-    if (normalizedOrigin === normalizedHost) return true;
-    if (normalizedReferer && normalizedOrigin === normalizedReferer) return true;
-    return false;
+      const incoming = await headers();
+      return {
+        ip: (incoming.get("x-forwarded-for") || "").split(",")[0].trim().slice(0, 64) || null,
+        userAgent: incoming.get("user-agent")?.slice(0, 500) || null,
+      };
+    } catch {
+      return { ip: null, userAgent: null };
+    }
   }
 
-  // If referer is present without origin, verify against host
-  if (normalizedReferer) {
-    if (!normalizedHost) return true;
-    if (normalizedReferer === normalizedHost) return true;
-    return false;
-  }
-
-  return process.env.NODE_ENV !== "production";
-}
-
-export async function requireAdminPage() {
-  const identity = await currentIdentity();
-  if (!identity) redirect("/?login=1&next=%2Fadmin");
-  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") redirect("/forbidden");
-  if (identity.mustChangePassword) redirect("/reset-password?required=1");
-  return identity;
-}
-
-export async function requireSuperAdminPage() {
-  const identity = await currentIdentity();
-  if (!identity) redirect("/?login=1&next=%2Fsuper-admin");
-  if (identity.role !== "SUPER_ADMIN") redirect("/forbidden");
-  if (identity.mustChangePassword) redirect("/reset-password?required=1");
-  return identity;
-}
-
-export async function requestContext() {
-  try {
-    const incoming = await headers();
-    return {
-      ip: (incoming.get("x-forwarded-for") || "").split(",")[0].trim().slice(0, 64) || null,
-      userAgent: incoming.get("user-agent")?.slice(0, 500) || null,
+  export async function audit(
+    actor: AdminIdentity,
+    action: string,
+    entityType: string,
+    entityId: string | null,
+    before: unknown = null,
+    after: unknown = null,
+  ) {
+    const context = await requestContext();
+    const scrub = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(scrub);
+      if (!value || typeof value !== "object") return value;
+      const blocked = /password|token|secret|key|card|cvv|authorization/i;
+      return Object.fromEntries(
+        Object.entries(value)
+          .filter(([key]) => !blocked.test(key))
+          .map(([key, nested]) => [key, scrub(nested)])
+      );
     };
-  } catch {
-    return { ip: null, userAgent: null };
-  }
-}
-
-export async function audit(
-  actor: AdminIdentity,
-  action: string,
-  entityType: string,
-  entityId: string | null,
-  before: unknown = null,
-  after: unknown = null,
-) {
-  const context = await requestContext();
-  const scrub = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(scrub);
-    if (!value || typeof value !== "object") return value;
-    const blocked = /password|token|secret|key|card|cvv|authorization/i;
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([key]) => !blocked.test(key))
-        .map(([key, nested]) => [key, scrub(nested)])
-    );
-  };
-  await pool.query(
-    `insert into admin_audit_logs(actor_id,actor_role,action,entity_type,entity_id,before_summary,after_summary,ip_address,user_agent)
+    await pool.query(
+      `insert into admin_audit_logs(actor_id,actor_role,action,entity_type,entity_id,before_summary,after_summary,ip_address,user_agent)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-    [
-      actor.id,
-      actor.role,
-      action,
-      entityType,
-      entityId,
-      JSON.stringify(scrub(before)),
-      JSON.stringify(scrub(after)),
-      context.ip,
-      context.userAgent,
-    ]
-  );
-}
+      [
+        actor.id,
+        actor.role,
+        action,
+        entityType,
+        entityId,
+        JSON.stringify(scrub(before)),
+        JSON.stringify(scrub(after)),
+        context.ip,
+        context.userAgent,
+      ]
+    );
+  }
 
-export function safeError(error: unknown, context?: Record<string, unknown>) {
-  const err = error instanceof Error ? error : new Error(String(error));
-  console.error("[API_ERROR]", {
-    errorName: err.name,
-    errorMessage: err.message,
-    stack: err.stack,
-    ...context,
-  });
-  return Response.json({ message: "The request could not be completed." }, { status: 500 });
-}
+  export function safeError(error: unknown, context?: Record<string, unknown>) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[API_ERROR]", {
+      errorName: err.name,
+      errorMessage: err.message,
+      stack: err.stack,
+      ...context,
+    });
+    return Response.json({ message: "The request could not be completed." }, { status: 500 });
+  }

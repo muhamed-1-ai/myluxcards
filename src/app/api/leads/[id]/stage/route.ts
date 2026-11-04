@@ -16,7 +16,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json().catch(() => ({}));
     const targetStage = String(body.stage || body.status || "").toUpperCase() as LeadStage;
 
-    const result = await updateLeadStage(identity.id, id, targetStage);
+    const result = await updateLeadStage(identity.id, id, targetStage, identity.role);
     return Response.json({
       ok: true,
       message: `Lead moved to ${targetStage}`,
