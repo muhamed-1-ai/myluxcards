@@ -29,8 +29,12 @@ import {
   UserPlus,
   ChevronDown,
   FileSpreadsheet,
-  FileText
+  FileText,
+  Layers,
+  IndianRupee,
+  X
 } from "lucide-react";
+import Sparkline from "./Sparkline";
 import AddLeadDrawer from "./AddLeadDrawer";
 import LeadDetailsDrawer from "./LeadDetailsDrawer";
 import LeadIdentityBlock from "./LeadIdentityBlock";
@@ -55,7 +59,18 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [kpis, setKpis] = useState({ openPipeline: 0, wonLeads: 0, dueToday: 0, expectedRevenue: 0 });
+  const [kpis, setKpis] = useState<{
+    openPipeline: number;
+    wonLeads: number;
+    dueToday: number;
+    expectedRevenue: number;
+    series?: {
+      totalLeads?: any[];
+      openPipeline?: any[];
+      dueToday?: any[];
+      expectedRevenue?: any[];
+    };
+  }>({ openPipeline: 0, wonLeads: 0, dueToday: 0, expectedRevenue: 0 });
 
   // Sorting & Pagination States (URL sync initialized)
   const [page, setPage] = useState<number>(() => {
@@ -71,7 +86,9 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
 
   // Filter States
   const [showFilters, setShowFilters] = useState(true);
-  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get("q") || searchParams.get("search") || "");
+  const initialQ = searchParams.get("q") || searchParams.get("search") || "";
+  const [searchInput, setSearchInput] = useState<string>(initialQ);
+  const [searchQuery, setSearchQuery] = useState<string>(initialQ);
   const [stageFilter, setStageFilter] = useState<string>(searchParams.get("stage") || "");
   const [userFilter, setUserFilter] = useState<string>(searchParams.get("userId") || searchParams.get("user") || "");
   const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get("source") || "");
@@ -80,6 +97,10 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   const [scopeFilter, setScopeFilter] = useState<string>(searchParams.get("scope") || "all");
   const [startDate, setStartDate] = useState<string>(searchParams.get("startDate") || "");
   const [endDate, setEndDate] = useState<string>(searchParams.get("endDate") || "");
+
+  // Dynamic filter options populated from server dataset
+  const [availableAssignees, setAvailableAssignees] = useState<{ id: string; name: string }[]>([]);
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
 
   // Pagination Metadata
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -156,6 +177,18 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     [pathname, router, searchParams]
   );
 
+  // Debounce searchInput (300ms) to trigger server query and URL sync
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== searchQuery) {
+        setSearchQuery(searchInput);
+        setPage(1);
+        updateUrl({ q: searchInput || null, page: 1 });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchQuery, updateUrl]);
+
   // Sync state when searchParams change (e.g. browser Back / Forward navigation)
   useEffect(() => {
     const p = parseInt(searchParams.get("page") || "1", 10);
@@ -166,17 +199,22 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     const source = searchParams.get("source") || "";
     const status = searchParams.get("status") || "";
     const scope = searchParams.get("scope") || "all";
+    const sDate = searchParams.get("startDate") || "";
+    const eDate = searchParams.get("endDate") || "";
     const sBy = searchParams.get("sortBy") || "created_at";
     const sOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc";
 
     setPage(isNaN(p) || p < 1 ? 1 : p);
     setPageSize(isNaN(ps) || ps < 1 ? 10 : Math.min(100, ps));
+    setSearchInput(q);
     setSearchQuery(q);
     setStageFilter(stage);
     setUserFilter(user);
     setSourceFilter(source);
     setStatusFilter(status);
     setScopeFilter(scope);
+    setStartDate(sDate);
+    setEndDate(eDate);
     setSortBy(sBy);
     setSortOrder(sOrder);
     const paramLeadId = searchParams.get("leadId");
@@ -253,12 +291,22 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         setPage(fetchedPage);
       }
 
+      if (data.filterOptions) {
+        if (Array.isArray(data.filterOptions.assignees)) {
+          setAvailableAssignees(data.filterOptions.assignees);
+        }
+        if (Array.isArray(data.filterOptions.sources)) {
+          setAvailableSources(data.filterOptions.sources);
+        }
+      }
+
       if (data.kpis) {
         setKpis({
           openPipeline: data.kpis.openPipeline || 0,
           wonLeads: data.kpis.wonLeads || 0,
           dueToday: data.kpis.dueToday || 0,
           expectedRevenue: data.kpis.expectedRevenue || 0,
+          series: data.kpis.series,
         });
       }
     } catch (error: any) {
@@ -294,9 +342,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
 
   // Action Handlers (with mandatory page reset to 1 on filter/search/sort/pageSize change)
   const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    setPage(1);
-    updateUrl({ q: val, page: 1 });
+    setSearchInput(val);
   };
 
   const handleStageChange = (val: string) => {
@@ -329,6 +375,18 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     updateUrl({ scope: val, page: 1 });
   };
 
+  const handleStartDateChange = (val: string) => {
+    setStartDate(val);
+    setPage(1);
+    updateUrl({ startDate: val || null, page: 1 });
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setEndDate(val);
+    setPage(1);
+    updateUrl({ endDate: val || null, page: 1 });
+  };
+
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setPage(1);
@@ -352,7 +410,19 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     updateUrl({ page: newPage });
   };
 
+  const hasActiveFilters = Boolean(
+    searchQuery ||
+    stageFilter ||
+    userFilter ||
+    sourceFilter ||
+    statusFilter ||
+    (scopeFilter && scopeFilter !== "all") ||
+    startDate ||
+    endDate
+  );
+
   const handleResetFilters = () => {
+    setSearchInput("");
     setSearchQuery("");
     setStageFilter("");
     setUserFilter("");
@@ -534,842 +604,916 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         </div>
       </div>
 
-      {/* 2. 4 Stat Cards Row */}
+      {/* 2. 4 Stat Cards Row Matching Picture 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Leads */}
         <div className="kpi-card">
-          <div className="kpi-accent-bar bg-[#10B981]" />
-          <span className="kpi-label">TOTAL LEADS</span>
-          <span className="kpi-value">{total}</span>
+          <div className="kpi-left-group">
+            <div className="kpi-icon-box bg-emerald-500/10 text-emerald-400">
+              <Users className="w-5 h-5" />
+            </div>
+            <div className="kpi-body">
+              <span className="kpi-label">TOTAL LEADS</span>
+              <span className="kpi-value">{total}</span>
+            </div>
+          </div>
+          <Sparkline
+            data={kpis.series?.totalLeads}
+            color="#10B981"
+            ariaLabel="Total leads cumulative trend"
+            seriesTitle="Total Leads"
+          />
         </div>
 
         {/* Card 2: Open Pipeline */}
         <div className="kpi-card">
-          <div className="kpi-accent-bar bg-[#0066FF]" />
-          <span className="kpi-label">OPEN PIPELINE</span>
-          <span className="kpi-value">{kpis.openPipeline}</span>
+          <div className="kpi-left-group">
+            <div className="kpi-icon-box bg-blue-500/10 text-blue-400">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div className="kpi-body">
+              <span className="kpi-label">OPEN PIPELINE</span>
+              <span className="kpi-value">{kpis.openPipeline}</span>
+            </div>
+          </div>
+          <Sparkline
+            data={kpis.series?.openPipeline}
+            color="#3B82F6"
+            ariaLabel="Open pipeline cumulative trend"
+            seriesTitle="Open Pipeline"
+          />
         </div>
 
         {/* Card 3: Due Today */}
         <div className="kpi-card">
-          <div className="kpi-accent-bar bg-[#F97316]" />
-          <span className="kpi-label">DUE TODAY</span>
-          <span className="kpi-value">{kpis.dueToday}</span>
+          <div className="kpi-left-group">
+            <div className="kpi-icon-box bg-amber-500/10 text-amber-400">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div className="kpi-body">
+              <span className="kpi-label">DUE TODAY</span>
+              <span className="kpi-value">{kpis.dueToday}</span>
+            </div>
+          </div>
+          <Sparkline
+            data={kpis.series?.dueToday}
+            color="#F59E0B"
+            ariaLabel="Due today follow-ups cumulative trend"
+            seriesTitle="Due Today"
+          />
         </div>
 
         {/* Card 4: Expected Revenue */}
         <div className="kpi-card">
-          <div className="kpi-accent-bar bg-[#8B5CF6]" />
-          <span className="kpi-label">EXPECTED REVENUE</span>
-          <span className="kpi-value" style={{ color: "#8B5CF6" }}>{formatCurrency(expectedRevenue)}</span>
+          <div className="kpi-left-group">
+            <div className="kpi-icon-box bg-purple-500/10 text-purple-400">
+              <IndianRupee className="w-5 h-5" />
+            </div>
+            <div className="kpi-body">
+              <span className="kpi-label">EXPECTED REVENUE</span>
+              <span className="kpi-value" style={{ color: "#C084FC" }}>{formatCurrency(expectedRevenue)}</span>
+            </div>
+          </div>
+          <Sparkline
+            data={kpis.series?.expectedRevenue}
+            color="#A855F7"
+            ariaLabel="Expected revenue cumulative trend"
+            seriesTitle="Expected Revenue"
+          />
         </div>
       </div>
 
-      {/* 3. Filter Leads Panel */}
+      {/* 3. Compact Filter Toolbar Matching Picture 1 */}
       {showFilters && (
-        <div className="crm-filter-panel">
-          <div className="crm-filter-panel-header">
-            <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
-            <span>FILTER LEADS</span>
-          </div>
+            <div className="crm-filter-toolbar">
+              {/* Search Input */}
+              <div className="crm-toolbar-search">
+                <Search className="crm-toolbar-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search leads..."
+                  value={searchInput}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="crm-toolbar-search-input"
+                />
+              </div>
 
-          {/* First Filter Row: Search + Stage + Assigned User + Source + Status */}
-          <div className="crm-filter-row-primary">
-            {/* Search Input */}
-            <div className="crm-filter-input-wrap">
-              <Search className="crm-filter-icon" />
-              <input
-                type="text"
-                placeholder="Search name, email, phone..."
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="crm-filter-input"
-              />
-            </div>
+                {/* Stage Dropdown */}
+                <select
+                  value={stageFilter}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  className="crm-toolbar-select"
+                  aria-label="Filter by stage"
+                >
+                  <option value="">Stage</option>
+                  <option value="NEW">New</option>
+                  <option value="CONTACTED">Contacted</option>
+                  <option value="INTERESTED">Interested</option>
+                  <option value="PROPOSAL">Proposal</option>
+                  <option value="WON">Won</option>
+                  <option value="LOST">Lost</option>
+                </select>
 
-            {/* Stage Filter */}
-            <select
-              value={stageFilter}
-              onChange={(e) => handleStageChange(e.target.value)}
-              className="crm-filter-select"
-            >
-              <option value="">Stage</option>
-              <option value="NEW">NEW</option>
-              <option value="CONTACTED">CONTACTED</option>
-              <option value="INTERESTED">INTERESTED</option>
-              <option value="PROPOSAL">PROPOSAL</option>
-              <option value="WON">WON</option>
-              <option value="LOST">LOST</option>
-            </select>
+                {/* Assigned To Dropdown */}
+                <select
+                  value={userFilter}
+                  onChange={(e) => handleUserChange(e.target.value)}
+                  className="crm-toolbar-select"
+                  aria-label="Filter by assignee"
+                >
+                  <option value="">Assigned To</option>
+                  <option value="all">All Users</option>
+                  <option value="me">My Leads</option>
+                  {availableAssignees.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
 
-            {/* Assigned User Filter */}
-            <select
-              value={userFilter}
-              onChange={(e) => handleUserChange(e.target.value)}
-              className="crm-filter-select"
-            >
-              <option value="">Assigned User</option>
-              <option value="all">All Users</option>
-              <option value="me">My Leads</option>
-            </select>
+                {/* Source Dropdown */}
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => handleSourceChange(e.target.value)}
+                  className="crm-toolbar-select"
+                  aria-label="Filter by source"
+                >
+                  <option value="">Source</option>
+                  {availableSources.length > 0 ? (
+                    availableSources.map((src) => (
+                      <option key={src} value={src}>
+                        {src}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="NFC">NFC Tap</option>
+                      <option value="QR">QR Scan</option>
+                      <option value="DIRECT">Direct</option>
+                      <option value="MANUAL">Manual</option>
+                    </>
+                  )}
+                </select>
 
-            {/* Source Filter */}
-            <select
-              value={sourceFilter}
-              onChange={(e) => handleSourceChange(e.target.value)}
-              className="crm-filter-select"
-            >
-              <option value="">Source</option>
-              <option value="NFC">NFC Tap</option>
-              <option value="QR">QR Scan</option>
-              <option value="DIRECT">Direct</option>
-              <option value="MANUAL">Manual</option>
-            </select>
+                {/* Status Dropdown */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className="crm-toolbar-select"
+                  aria-label="Filter by status"
+                >
+                  <option value="">Status</option>
+                  <option value="active">Active</option>
+                  <option value="closed">Closed</option>
+                </select>
 
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="crm-filter-select"
-            >
-              <option value="">Status</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
-            </select>
-          </div>
-
-          {/* Second Filter Row: Scope Filter */}
-          <div className="crm-filter-row-secondary">
-            <div className="w-full sm:w-[200px]">
+              {/* All Leads / My Leads Dropdown */}
               <select
                 value={scopeFilter}
                 onChange={(e) => handleScopeChange(e.target.value)}
-                className="crm-filter-select"
+                className="crm-toolbar-select"
+                aria-label="Filter by scope"
               >
                 <option value="all">All Leads</option>
                 <option value="mine">My Leads</option>
               </select>
-            </div>
-          </div>
 
-          <div className="crm-filter-panel-footer">
-            <span className="crm-filter-note">
-              ★ Use filters to refine the pipeline view.
-            </span>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="crm-filter-reset-btn"
-            >
-              <RotateCcw className="w-3 h-3 inline mr-1" />
-              RESET FILTERS
-            </button>
-          </div>
-        </div>
+                {/* Date Range: Start Date & End Date */}
+                <div className="crm-toolbar-date-wrap">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    className="crm-toolbar-date"
+                    aria-label="Start date"
+                  />
+                  <span className="text-[var(--text-secondary,#94A3B8)] text-xs font-semibold px-0.5">-</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                    className="crm-toolbar-date"
+                    aria-label="End date"
+                  />
+                </div>
+
+                  {/* Clear Filters Action */}
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="crm-toolbar-clear-btn"
+                      title="Clear all active filters"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Clear filters</span>
+                    </button>
+          )}
+              </div>
       )}
 
-      {/* 4. Desktop Table (>= 768px) AND Dedicated Standalone Mobile Lead Cards (< 768px) */}
-      <div className="w-full">
-        {/* DESKTOP / TABLET VIEW (>= 768px): Preserved Standard Data Table Card */}
-        <div className="hidden md:block crm-table-card relative overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="crm-table">
-              <thead>
-                <tr>
-                  {selectMode && <th style={{ width: 40 }}><input type="checkbox" /></th>}
-                  <th style={{ minWidth: 340, width: 360 }}>LEAD NAME</th>
-                  <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
-                  <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
-                  <th>STAGE</th>
-                  <th>SOURCE</th>
-                  <th>LAST REMARK</th>
-                  <th
-                    className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
-                    onClick={() => handleSortChange("totalAmount")}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>TOTAL AMOUNT</span>
-                      <ArrowUpDown className="w-3 h-3 text-[var(--text-secondary,#94A3B8)]" />
-                    </div>
-                  </th>
-                  <th>ADVANCE AMOUNT</th>
-                  <th className="text-right">ACTIONS</th>
-                </tr>
-              </thead>
+              {/* 4. Desktop Table (>= 768px) AND Dedicated Standalone Mobile Lead Cards (< 768px) */}
+              <div className="w-full">
+                {/* DESKTOP / TABLET VIEW (>= 768px): Preserved Standard Data Table Card */}
+                <div className="hidden md:block crm-table-card relative overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="crm-table">
+                      <thead>
+                        <tr>
+                          {selectMode && <th style={{ width: 40 }}><input type="checkbox" /></th>}
+                          <th style={{ minWidth: 340, width: 360 }}>LEAD NAME</th>
+                          <th style={{ minWidth: 160 }}>NEXT FOLLOW-UP</th>
+                          <th style={{ minWidth: 170 }}>ASSIGNED TO</th>
+                          <th>STAGE</th>
+                          <th>SOURCE</th>
+                          <th>LAST REMARK</th>
+                          <th
+                            className="cursor-pointer hover:text-[var(--text-primary,#0F172A)] select-none"
+                            onClick={() => handleSortChange("totalAmount")}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>TOTAL AMOUNT</span>
+                              <ArrowUpDown className="w-3 h-3 text-[var(--text-secondary,#94A3B8)]" />
+                            </div>
+                          </th>
+                          <th>ADVANCE AMOUNT</th>
+                          <th className="text-right">ACTIONS</th>
+                        </tr>
+                      </thead>
 
-              <tbody>
-                {loading && leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={selectMode ? 9 : 8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
-                      <div className="flex justify-center items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                        <span>Loading leads...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : fetchError ? (
-                  <tr>
-                    <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center p-8">
+                      <tbody>
+                        {loading && leads.length === 0 ? (
+                          <tr>
+                            <td colSpan={selectMode ? 9 : 8} className="text-center text-[var(--text-secondary,#94A3B8)] py-12">
+                              <div className="flex justify-center items-center space-x-2">
+                                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                <span>Loading leads...</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : fetchError ? (
+                          <tr>
+                            <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center p-8">
+                              <div className="flex flex-col items-center justify-center">
+                                <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
+                                <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
+                                <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
+                                <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>Retry</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : displayedLeads.length === 0 ? (
+                          <tr>
+                            <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
+                              <div className="flex flex-col items-center justify-center">
+                                <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
+                                <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
+                                <button onClick={handleResetFilters} className="crm-btn-secondary">
+                                  Clear filters
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          displayedLeads.map((lead) => {
+                            const isStarred = !!starredLeads[lead.id];
+                            const isSelected = !!selectedLeadIds[lead.id];
+
+                            return (
+                              <tr
+                                key={lead.id}
+                                onClick={() => handleOpenLead(lead.id)}
+                                className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
+                              >
+                                {/* SELECT CHECKBOX */}
+                                {selectMode && (
+                                  <td onClick={(e) => toggleSelectLead(e, lead.id)}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => { }}
+                                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                  </td>
+                                )}
+
+                                {/* LEAD NAME COLUMN */}
+                                <td>
+                                  <LeadIdentityBlock
+                                    lead={lead}
+                                    isStarred={isStarred}
+                                    onToggleStar={toggleStar}
+                                  />
+                                </td>
+
+                                {/* NEXT FOLLOW-UP COLUMN */}
+                                <td onClick={(e) => { e.stopPropagation(); handleOpenLead(lead.id); }}>
+                                  <div className="crm-followup-pill-box cursor-pointer">
+                                    <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
+                                    <div className="text-left">
+                                      <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)]">
+                                        {lead.nextFollowUpAt
+                                          ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                                          : "NO FOLLOW-UP"}
+                                      </div>
+                                      <div className="text-[10px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[120px]">
+                                        {lead.nextFollowUpNote || "Not scheduled"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* ASSIGNED TO COLUMN */}
+                                <td>
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-7 h-7 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                      {(lead.assignedUserName || identity.name || "M").charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <div className="font-bold text-xs text-[var(--text-primary,#0F172A)]">
+                                        {lead.assignedUserName || identity.name || "Unassigned"}
+                                      </div>
+                                      <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[130px]">
+                                        {lead.assignedUserEmail || identity.email}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* STAGE COLUMN */}
+                                <td>
+                                  <span className={getStageBadgeClass(lead.stage || lead.status)}>
+                                    {lead.stage || lead.status || "NEW"}
+                                  </span>
+                                </td>
+
+                                {/* SOURCE COLUMN */}
+                                <td>
+                                  <LeadSourceBadge source={lead.source} />
+                                </td>
+
+                                {/* LAST REMARK COLUMN */}
+                                <td className="text-[var(--text-secondary,#64748B)] text-xs font-medium">
+                                  {lead.lastRemark || "—"}
+                                </td>
+
+                                {/* TOTAL AMOUNT COLUMN */}
+                                <td className="font-bold text-[var(--text-primary,#0F172A)]">
+                                  {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
+                                </td>
+
+                                {/* ADVANCE AMOUNT COLUMN */}
+                                <td className="font-semibold text-[var(--text-secondary,#64748B)]">
+                                  {lead.advanceAmount ? formatCurrency(lead.advanceAmount) : "₹0"}
+                                </td>
+
+                                {/* ACTIONS COLUMN */}
+                                <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenActionMenu(e, lead)}
+                                    className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors focus:outline-none"
+                                    title="Actions menu"
+                                    aria-label="Actions menu"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* MOBILE VIEW (< 768px): Dedicated Standalone Lead Cards Collection */}
+                <div className="block md:hidden">
+                  {loading && leads.length === 0 ? (
+                    /* Mobile Animated Skeletons */
+                    <div className="crm-mobile-leads-list">
+                      {[1, 2, 3].map((idx) => (
+                        <div key={idx} className="crm-mobile-lead-card animate-pulse flex flex-col gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 w-36 bg-slate-200 dark:bg-slate-700 rounded" />
+                              <div className="h-3 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
+                            </div>
+                          </div>
+                          <div className="h-10 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                          <div className="h-11 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : fetchError ? (
+                    <div className="crm-mobile-lead-card text-center p-6">
                       <div className="flex flex-col items-center justify-center">
-                        <AlertCircle className="w-8 h-8 text-rose-500 mb-2.5" />
+                        <AlertCircle className="w-8 h-8 text-rose-500 mb-2" />
                         <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
                         <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
-                        <button onClick={() => fetchLeads()} className="crm-btn-primary flex items-center gap-2">
-                          <RotateCcw className="w-3.5 h-3.5" />
+                        <button onClick={() => fetchLeads()} className="crm-btn-primary min-h-[44px] flex items-center gap-2 justify-center w-full">
+                          <RotateCcw className="w-4 h-4" />
                           <span>Retry</span>
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ) : displayedLeads.length === 0 ? (
-                  <tr>
-                    <td colSpan={selectMode ? 9 : 8} className="crm-table-empty-cell text-center text-[var(--text-secondary,#94A3B8)]">
+                    </div>
+                  ) : displayedLeads.length === 0 ? (
+                    <div className="crm-mobile-lead-card text-center p-8">
                       <div className="flex flex-col items-center justify-center">
-                        <Users className="w-8 h-8 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-2.5" />
-                        <div className="text-sm font-semibold mb-3.5">No leads found in this view.</div>
-                        <button onClick={handleResetFilters} className="crm-btn-secondary">
-                          Clear filters
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  displayedLeads.map((lead) => {
-                    const isStarred = !!starredLeads[lead.id];
-                    const isSelected = !!selectedLeadIds[lead.id];
-
-                    return (
-                      <tr
-                        key={lead.id}
-                        onClick={() => handleOpenLead(lead.id)}
-                        className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
-                      >
-                        {/* SELECT CHECKBOX */}
-                        {selectMode && (
-                          <td onClick={(e) => toggleSelectLead(e, lead.id)}>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}}
-                              className="rounded text-emerald-600 focus:ring-emerald-500"
-                            />
-                          </td>
-                        )}
-
-                        {/* LEAD NAME COLUMN */}
-                        <td>
-                          <LeadIdentityBlock
-                            lead={lead}
-                            isStarred={isStarred}
-                            onToggleStar={toggleStar}
-                          />
-                        </td>
-
-                        {/* NEXT FOLLOW-UP COLUMN */}
-                        <td onClick={(e) => { e.stopPropagation(); handleOpenLead(lead.id); }}>
-                          <div className="crm-followup-pill-box cursor-pointer">
-                            <Calendar className="w-3.5 h-3.5 text-[var(--text-secondary,#64748B)] flex-shrink-0" />
-                            <div className="text-left">
-                              <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)]">
-                                {lead.nextFollowUpAt
-                                  ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                                  : "NO FOLLOW-UP"}
-                              </div>
-                              <div className="text-[10px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[120px]">
-                                {lead.nextFollowUpNote || "Not scheduled"}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* ASSIGNED TO COLUMN */}
-                        <td>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-7 h-7 rounded-full bg-[var(--input-bg,#F8FAFC)] border border-[var(--border-color,#E2E8F0)] text-[var(--text-primary,#0F172A)] font-bold text-xs flex items-center justify-center flex-shrink-0">
-                              {(lead.assignedUserName || identity.name || "M").charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-bold text-xs text-[var(--text-primary,#0F172A)]">
-                                {lead.assignedUserName || identity.name || "Unassigned"}
-                              </div>
-                              <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate max-w-[130px]">
-                                {lead.assignedUserEmail || identity.email}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* STAGE COLUMN */}
-                        <td>
-                          <span className={getStageBadgeClass(lead.stage || lead.status)}>
-                            {lead.stage || lead.status || "NEW"}
-                          </span>
-                        </td>
-
-                        {/* SOURCE COLUMN */}
-                        <td>
-                          <LeadSourceBadge source={lead.source} />
-                        </td>
-
-                        {/* LAST REMARK COLUMN */}
-                        <td className="text-[var(--text-secondary,#64748B)] text-xs font-medium">
-                          {lead.lastRemark || "—"}
-                        </td>
-
-                        {/* TOTAL AMOUNT COLUMN */}
-                        <td className="font-bold text-[var(--text-primary,#0F172A)]">
-                          {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
-                        </td>
-
-                        {/* ADVANCE AMOUNT COLUMN */}
-                        <td className="font-semibold text-[var(--text-secondary,#64748B)]">
-                          {lead.advanceAmount ? formatCurrency(lead.advanceAmount) : "₹0"}
-                        </td>
-
-                        {/* ACTIONS COLUMN */}
-                        <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenActionMenu(e, lead)}
-                            className="p-1.5 rounded-lg hover:bg-[var(--border-color,#E2E8F0)]/40 text-[var(--text-secondary,#64748B)] transition-colors focus:outline-none"
-                            title="Actions menu"
-                            aria-label="Actions menu"
-                          >
-                            <MoreVertical className="w-4 h-4" />
+                        <Users className="w-10 h-10 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-3" />
+                        <div className="text-base font-bold text-[var(--text-primary,#0F172A)] mb-1">No leads found in this view</div>
+                        <div className="text-xs text-[var(--text-secondary,#64748B)] mb-4 max-w-xs">
+                          Try adjusting your search terms or filters to find what you're looking for.
+                        </div>
+                        <div className="flex flex-col gap-2.5 w-full max-w-xs">
+                          <button onClick={handleResetFilters} className="crm-btn-secondary min-h-[44px] justify-center w-full">
+                            Clear filters
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                          <button onClick={() => setIsAddOpen(true)} className="crm-btn-primary min-h-[44px] justify-center w-full">
+                            <Plus className="w-4 h-4" />
+                            <span>New Lead</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="crm-mobile-leads-list">
+                      {displayedLeads.map((lead) => {
+                        const isStarred = !!starredLeads[lead.id];
+                        const isSelected = !!selectedLeadIds[lead.id];
+                        const leadName = lead.name || "Unnamed Lead";
+                        const avatarLetter = leadName.charAt(0).toUpperCase();
 
-        {/* MOBILE VIEW (< 768px): Dedicated Standalone Lead Cards Collection */}
-        <div className="block md:hidden">
-          {loading && leads.length === 0 ? (
-            /* Mobile Animated Skeletons */
-            <div className="crm-mobile-leads-list">
-              {[1, 2, 3].map((idx) => (
-                <div key={idx} className="crm-mobile-lead-card animate-pulse flex flex-col gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 w-36 bg-slate-200 dark:bg-slate-700 rounded" />
-                      <div className="h-3 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
+                        return (
+                          <div
+                            key={lead.id}
+                            onClick={() => handleOpenLead(lead.id)}
+                            className={`crm-mobile-lead-card ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""}`}
+                          >
+                            {/* Header: Avatar, Name, Phone, Email, Company, Star, Actions Menu */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0 flex-1">
+                                {selectMode && (
+                                  <div onClick={(e) => toggleSelectLead(e, lead.id)} className="pt-1 flex-shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => { }}
+                                      className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Avatar */}
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-400/20">
+                                  {avatarLetter}
+                                </div>
+
+                                {/* Lead Identity Details */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-bold text-[15.5px] text-[var(--text-primary,#0F172A)] truncate leading-snug">
+                                    {leadName}
+                                  </div>
+
+                                  {lead.contactNumber && (
+                                    <div className="text-xs font-semibold text-[var(--text-secondary,#64748B)] dark:text-[#94A3B8] mt-0.5 flex items-center gap-1.5 truncate">
+                                      <Phone className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                                      <span>{lead.contactNumber}</span>
+                                    </div>
+                                  )}
+
+                                  {lead.email && (
+                                    <div className="text-xs text-[var(--text-secondary,#64748B)] truncate mt-0.5">
+                                      {lead.email}
+                                    </div>
+                                  )}
+
+                                  {lead.companyName && (
+                                    <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate mt-0.5 font-medium uppercase tracking-wider">
+                                      {lead.companyName}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Star & Actions Menu Buttons */}
+                              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => toggleStar(e, lead.id)}
+                                  className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-amber-400 hover:bg-amber-400/10 flex items-center justify-center transition-colors"
+                                  title={isStarred ? "Remove from favorites" : "Add to favorites"}
+                                  aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
+                                >
+                                  <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenActionMenu(e, lead)}
+                                  className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40 flex items-center justify-center transition-colors"
+                                  title="More actions"
+                                  aria-label="Open lead actions"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Badges & Total Amount Summary Row */}
+                            <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5 flex-wrap">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`${getStageBadgeClass(lead.stage || lead.status)} px-2.5 py-1 text-[10.5px] font-bold rounded-md uppercase tracking-wider`}>
+                                  {lead.stage || lead.status || "NEW"}
+                                </span>
+
+                                <LeadSourceBadge source={lead.source} />
+                              </div>
+
+                              <div className="text-right">
+                                <span className="text-[10px] text-[var(--text-secondary,#94A3B8)] block font-bold uppercase tracking-wider">Total</span>
+                                <span className="font-extrabold text-sm text-[var(--text-primary,#0F172A)]">
+                                  {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Follow-Up Section Box */}
+                            <div
+                              onClick={(e) => { e.stopPropagation(); handleOpenLead(lead.id); }}
+                              className="mt-3 p-2.5 rounded-xl bg-[var(--bg-secondary,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 transition-colors"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)] flex items-center gap-2 flex-wrap">
+                                    <span>
+                                      {lead.nextFollowUpAt
+                                        ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                                        : "NO FOLLOW-UP"}
+                                    </span>
+                                    {lead.nextFollowUpType && (
+                                      <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold uppercase">
+                                        {lead.nextFollowUpType}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-[var(--text-secondary,#64748B)] truncate max-w-[200px] mt-0.5">
+                                    {lead.nextFollowUpNote || "Not scheduled"}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 flex-shrink-0">
+                                <span>Details</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </div>
+                            </div>
+
+                            {/* Mobile Touch Quick Action Bar (Call -> Save -> Chat -> Edit) */}
+                            <div
+                              className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {/* 1. CALL */}
+                              {(() => {
+                                const norm = lead.contactNumber ? normalizePhoneNumber(lead.contactNumber) : null;
+                                return norm?.isValid ? (
+                                  <a
+                                    href={norm.telLink}
+                                    className="crm-mobile-btn-call whitespace-nowrap"
+                                    title={`Call ${norm.displayFormatted || norm.normalized}`}
+                                    aria-label={`Call ${lead.name || "lead"}`}
+                                  >
+                                    <Phone className="w-4 h-4 shrink-0" />
+                                    <span>Call</span>
+                                  </a>
+                                ) : (
+                                  <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed whitespace-nowrap">
+                                    <Phone className="w-4 h-4 shrink-0" />
+                                    <span>Call</span>
+                                  </button>
+                                );
+                              })()}
+
+                              {/* 2. SAVE */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setContactSheetLead(lead);
+                                }}
+                                className="crm-mobile-btn-save-contact whitespace-nowrap"
+                                title={`Save contact for ${lead.name || "lead"}`}
+                                aria-label={`Save contact for ${lead.name || "lead"}`}
+                              >
+                                <UserPlus className="w-4 h-4 shrink-0" />
+                                <span>Save</span>
+                              </button>
+
+                              {/* 3. CHAT */}
+                              {(() => {
+                                const norm = lead.contactNumber ? normalizePhoneNumber(lead.contactNumber) : null;
+                                return norm?.isValid ? (
+                                  <a
+                                    href={norm.waLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="crm-mobile-btn-chat whitespace-nowrap"
+                                    title="WhatsApp chat"
+                                    aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
+                                  >
+                                    <MessageSquare className="w-4 h-4 shrink-0" />
+                                    <span>Chat</span>
+                                  </a>
+                                ) : lead.contactNumber ? (
+                                  <a
+                                    href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="crm-mobile-btn-chat whitespace-nowrap"
+                                    title="WhatsApp chat"
+                                    aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
+                                  >
+                                    <MessageSquare className="w-4 h-4 shrink-0" />
+                                    <span>Chat</span>
+                                  </a>
+                                ) : (
+                                  <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed whitespace-nowrap">
+                                    <MessageSquare className="w-4 h-4 shrink-0" />
+                                    <span>Chat</span>
+                                  </button>
+                                );
+                              })()}
+
+                              {/* 4. EDIT */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingLead(lead);
+                                  setIsAddOpen(true);
+                                }}
+                                className="crm-mobile-btn-edit whitespace-nowrap"
+                                title="Edit lead"
+                                aria-label={`Edit ${lead.name || "lead"}`}
+                              >
+                                <Edit2 className="w-4 h-4 shrink-0" />
+                                <span>Edit</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Production Pagination Footer */}
+                <div className="crm-pagination-footer mt-4 md:mt-0">
+                  {/* Display Range */}
+                  <div className="crm-pagination-info">
+                    Showing <strong>{startRecord}–{endRecord}</strong> of <strong>{total}</strong>
+                  </div>
+
+                  {/* Controls: Rows per page & Navigation buttons */}
+                  <div className="crm-pagination-controls">
+                    {/* Rows per page select */}
+                    <div className="crm-pagination-rows">
+                      <span>Rows per page:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                        disabled={loading}
+                        className="crm-pagination-select"
+                        aria-label="Rows per page"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+
+                    {/* Navigation buttons */}
+                    <div className="crm-pagination-nav">
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(page - 1)}
+                        disabled={loading || !hasPreviousPage || page <= 1}
+                        className="crm-pagination-btn"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span className="crm-pagination-btn-text">Previous</span>
+                      </button>
+
+                      <span className="crm-pagination-page-indicator">
+                        Page <strong>{total === 0 ? 1 : page}</strong> of <strong>{total === 0 ? 1 : totalPages}</strong>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(page + 1)}
+                        disabled={loading || !hasNextPage || page >= totalPages || total === 0}
+                        className="crm-pagination-btn"
+                        aria-label="Next page"
+                      >
+                        <span className="crm-pagination-btn-text">Next</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="h-10 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
-                  <div className="h-11 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
                 </div>
-              ))}
-            </div>
-          ) : fetchError ? (
-            <div className="crm-mobile-lead-card text-center p-6">
-              <div className="flex flex-col items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-rose-500 mb-2" />
-                <div className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">Unable to load leads</div>
-                <div className="text-xs text-[var(--text-secondary,#94A3B8)] mb-4">{fetchError}</div>
-                <button onClick={() => fetchLeads()} className="crm-btn-primary min-h-[44px] flex items-center gap-2 justify-center w-full">
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Retry</span>
-                </button>
-              </div>
-            </div>
-          ) : displayedLeads.length === 0 ? (
-            <div className="crm-mobile-lead-card text-center p-8">
-              <div className="flex flex-col items-center justify-center">
-                <Users className="w-10 h-10 text-[var(--text-secondary,#94A3B8)] opacity-60 mb-3" />
-                <div className="text-base font-bold text-[var(--text-primary,#0F172A)] mb-1">No leads found in this view</div>
-                <div className="text-xs text-[var(--text-secondary,#64748B)] mb-4 max-w-xs">
-                  Try adjusting your search terms or filters to find what you're looking for.
-                </div>
-                <div className="flex flex-col gap-2.5 w-full max-w-xs">
-                  <button onClick={handleResetFilters} className="crm-btn-secondary min-h-[44px] justify-center w-full">
-                    Clear filters
-                  </button>
-                  <button onClick={() => setIsAddOpen(true)} className="crm-btn-primary min-h-[44px] justify-center w-full">
-                    <Plus className="w-4 h-4" />
-                    <span>New Lead</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="crm-mobile-leads-list">
-              {displayedLeads.map((lead) => {
-                const isStarred = !!starredLeads[lead.id];
-                const isSelected = !!selectedLeadIds[lead.id];
-                const leadName = lead.name || "Unnamed Lead";
-                const avatarLetter = leadName.charAt(0).toUpperCase();
 
-                return (
+              </div>
+
+              {/* Drawers */}
+              <AddLeadDrawer
+                isOpen={isAddOpen}
+                mode="create"
+                onClose={() => setIsAddOpen(false)}
+                onSuccess={(newLead?: any) => {
+                  setIsAddOpen(false);
+                  if (newLead?.id) {
+                    setLeads((prev) => [newLead, ...prev]);
+                    setTotal((prev) => prev + 1);
+                  }
+                  fetchLeads();
+                }}
+                identity={identity}
+              />
+
+              {editingLead && (
+                <AddLeadDrawer
+                  isOpen={!!editingLead}
+                  mode="edit"
+                  leadData={editingLead}
+                  onClose={() => setEditingLead(null)}
+                  onSuccess={(savedLead?: any) => {
+                    setEditingLead(null);
+                    if (savedLead?.id) {
+                      setLeads((prev) =>
+                        prev.map((l) => (l.id === savedLead.id ? { ...l, ...savedLead } : l))
+                      );
+                    }
+                    fetchLeads();
+                    if (selectedLeadId) {
+                      const currentId = selectedLeadId;
+                      setSelectedLeadId(null);
+                      setTimeout(() => setSelectedLeadId(currentId), 50);
+                    }
+                  }}
+                  identity={identity}
+                />
+              )}
+
+              {selectedLeadId && (
+                <LeadDetailsDrawer
+                  leadId={selectedLeadId}
+                  followUpId={selectedFollowUpId}
+                  notificationId={selectedNotificationId}
+                  onClose={() => {
+                    setSelectedLeadId(null);
+                    setSelectedFollowUpId(null);
+                    setSelectedNotificationId(null);
+                    updateUrl({ leadId: null, followUpId: null, notificationId: null });
+                  }}
+                  onUpdated={() => fetchLeads()}
+                  onEditLead={(lead) => {
+                    setSelectedLeadId(null);
+                    setSelectedFollowUpId(null);
+                    setSelectedNotificationId(null);
+                    updateUrl({ leadId: null, followUpId: null, notificationId: null });
+                    setEditingLead(lead);
+                  }}
+                />
+              )}
+
+              {/* PORTAL ACTIONS MENU */}
+              {actionMenuTarget && createPortal(
+                <div
+                  className="fixed inset-0 z-[100] pointer-events-auto"
+                  onClick={() => setActionMenuTarget(null)}
+                >
                   <div
-                    key={lead.id}
-                    onClick={() => handleOpenLead(lead.id)}
-                    className={`crm-mobile-lead-card ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""}`}
+                    style={{
+                      position: "fixed",
+                      top: `${actionMenuTarget.top}px`,
+                      left: `${actionMenuTarget.left}px`,
+                    }}
+                    className="w-[216px] bg-[#0B1528] border border-[#1E293B] shadow-2xl rounded-xl p-2 font-medium text-sm text-[#F1F5F9] animate-in fade-in zoom-in-95 duration-100"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {/* Header: Avatar, Name, Phone, Email, Company, Star, Actions Menu */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        {selectMode && (
-                          <div onClick={(e) => toggleSelectLead(e, lead.id)} className="pt-1 flex-shrink-0">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}}
-                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
-                            />
-                          </div>
-                        )}
-
-                        {/* Avatar */}
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-400/20">
-                          {avatarLetter}
-                        </div>
-
-                        {/* Lead Identity Details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-bold text-[15.5px] text-[var(--text-primary,#0F172A)] truncate leading-snug">
-                            {leadName}
-                          </div>
-
-                          {lead.contactNumber && (
-                            <div className="text-xs font-semibold text-[var(--text-secondary,#64748B)] dark:text-[#94A3B8] mt-0.5 flex items-center gap-1.5 truncate">
-                              <Phone className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-                              <span>{lead.contactNumber}</span>
-                            </div>
-                          )}
-
-                          {lead.email && (
-                            <div className="text-xs text-[var(--text-secondary,#64748B)] truncate mt-0.5">
-                              {lead.email}
-                            </div>
-                          )}
-
-                          {lead.companyName && (
-                            <div className="text-[11px] text-[var(--text-secondary,#94A3B8)] truncate mt-0.5 font-medium uppercase tracking-wider">
-                              {lead.companyName}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Star & Actions Menu Buttons */}
-                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => toggleStar(e, lead.id)}
-                          className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-amber-400 hover:bg-amber-400/10 flex items-center justify-center transition-colors"
-                          title={isStarred ? "Remove from favorites" : "Add to favorites"}
-                          aria-label={isStarred ? "Remove from favorites" : "Add to favorites"}
-                        >
-                          <Star className={`w-4 h-4 ${isStarred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenActionMenu(e, lead)}
-                          className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-[var(--text-secondary,#64748B)] hover:text-[var(--text-primary,#0F172A)] hover:bg-[var(--border-color,#E2E8F0)]/40 flex items-center justify-center transition-colors"
-                          title="More actions"
-                          aria-label="Open lead actions"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Badges & Total Amount Summary Row */}
-                    <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`${getStageBadgeClass(lead.stage || lead.status)} px-2.5 py-1 text-[10.5px] font-bold rounded-md uppercase tracking-wider`}>
-                          {lead.stage || lead.status || "NEW"}
-                        </span>
-
-                        <LeadSourceBadge source={lead.source} />
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] text-[var(--text-secondary,#94A3B8)] block font-bold uppercase tracking-wider">Total</span>
-                        <span className="font-extrabold text-sm text-[var(--text-primary,#0F172A)]">
-                          {lead.totalAmount ? formatCurrency(lead.totalAmount) : "₹0"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Follow-Up Section Box */}
-                    <div
-                      onClick={(e) => { e.stopPropagation(); handleOpenLead(lead.id); }}
-                      className="mt-3 p-2.5 rounded-xl bg-[var(--bg-secondary,#F8FAFC)] dark:bg-[#0B1528] border border-[var(--border-color,#E2E8F0)] dark:border-[#1E293B] flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = actionMenuTarget.lead.id;
+                        setActionMenuTarget(null);
+                        handleOpenLead(id);
+                      }}
+                      className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="font-bold text-[11px] uppercase tracking-wider text-[var(--text-primary,#0F172A)] flex items-center gap-2 flex-wrap">
-                            <span>
-                              {lead.nextFollowUpAt
-                                ? new Date(lead.nextFollowUpAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                                : "NO FOLLOW-UP"}
-                            </span>
-                            {lead.nextFollowUpType && (
-                              <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold uppercase">
-                                {lead.nextFollowUpType}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-[var(--text-secondary,#64748B)] truncate max-w-[200px] mt-0.5">
-                            {lead.nextFollowUpNote || "Not scheduled"}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 flex-shrink-0">
-                        <span>Details</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-
-                    {/* Mobile Touch Quick Action Bar (Call -> Save -> Chat -> Edit) */}
-                    <div
-                      className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-[var(--border-color,#E2E8F0)]/60 dark:border-white/5"
-                      onClick={(e) => e.stopPropagation()}
+                      <Eye className="w-4 h-4 text-blue-400" />
+                      <span>View Details</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const leadToEdit = actionMenuTarget.lead;
+                        setActionMenuTarget(null);
+                        setEditingLead(leadToEdit);
+                      }}
+                      className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
                     >
-                      {/* 1. CALL */}
-                      {(() => {
-                        const norm = lead.contactNumber ? normalizePhoneNumber(lead.contactNumber) : null;
-                        return norm?.isValid ? (
-                          <a
-                            href={norm.telLink}
-                            className="crm-mobile-btn-call whitespace-nowrap"
-                            title={`Call ${norm.displayFormatted || norm.normalized}`}
-                            aria-label={`Call ${lead.name || "lead"}`}
-                          >
-                            <Phone className="w-4 h-4 shrink-0" />
-                            <span>Call</span>
-                          </a>
-                        ) : (
-                          <button disabled className="crm-mobile-btn-call opacity-40 cursor-not-allowed whitespace-nowrap">
-                            <Phone className="w-4 h-4 shrink-0" />
-                            <span>Call</span>
-                          </button>
-                        );
-                      })()}
-
-                      {/* 2. SAVE */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setContactSheetLead(lead);
-                        }}
-                        className="crm-mobile-btn-save-contact whitespace-nowrap"
-                        title={`Save contact for ${lead.name || "lead"}`}
-                        aria-label={`Save contact for ${lead.name || "lead"}`}
-                      >
-                        <UserPlus className="w-4 h-4 shrink-0" />
-                        <span>Save</span>
-                      </button>
-
-                      {/* 3. CHAT */}
-                      {(() => {
-                        const norm = lead.contactNumber ? normalizePhoneNumber(lead.contactNumber) : null;
-                        return norm?.isValid ? (
-                          <a
-                            href={norm.waLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="crm-mobile-btn-chat whitespace-nowrap"
-                            title="WhatsApp chat"
-                            aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
-                          >
-                            <MessageSquare className="w-4 h-4 shrink-0" />
-                            <span>Chat</span>
-                          </a>
-                        ) : lead.contactNumber ? (
-                          <a
-                            href={`https://wa.me/${lead.contactNumber.replace(/[^0-9]/g, "")}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="crm-mobile-btn-chat whitespace-nowrap"
-                            title="WhatsApp chat"
-                            aria-label={`Message ${lead.name || "lead"} on WhatsApp`}
-                          >
-                            <MessageSquare className="w-4 h-4 shrink-0" />
-                            <span>Chat</span>
-                          </a>
-                        ) : (
-                          <button disabled className="crm-mobile-btn-chat opacity-40 cursor-not-allowed whitespace-nowrap">
-                            <MessageSquare className="w-4 h-4 shrink-0" />
-                            <span>Chat</span>
-                          </button>
-                        );
-                      })()}
-
-                      {/* 4. EDIT */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingLead(lead);
-                          setIsAddOpen(true);
-                        }}
-                        className="crm-mobile-btn-edit whitespace-nowrap"
-                        title="Edit lead"
-                        aria-label={`Edit ${lead.name || "lead"}`}
-                      >
-                        <Edit2 className="w-4 h-4 shrink-0" />
-                        <span>Edit</span>
-                      </button>
-                    </div>
+                      <Edit2 className="w-4 h-4 text-emerald-400" />
+                      <span>Edit Lead</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetLead = actionMenuTarget.lead;
+                        setActionMenuTarget(null);
+                        setContactSheetLead(targetLead);
+                      }}
+                      className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
+                    >
+                      <UserPlus className="w-4 h-4 text-cyan-400" />
+                      <span>Save Contact</span>
+                    </button>
+                    <div className="my-1 border-t border-[#1E293B]" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const idToDelete = actionMenuTarget.lead.id;
+                        setActionMenuTarget(null);
+                        handleDeleteLead(idToDelete);
+                      }}
+                      className="w-full h-10 px-3 hover:bg-red-500/10 rounded-lg flex items-center gap-3 text-left transition-colors text-red-400 focus:outline-none focus:bg-red-500/10"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <span>Delete Lead</span>
+                    </button>
                   </div>
-                );
-              })}
+                </div>,
+                document.body
+              )}
+
+              {/* Lead Export Modal */}
+              <LeadExportModal
+                isOpen={isExportOpen}
+                onClose={() => setIsExportOpen(false)}
+                initialFormat={selectedExportFormat}
+                totalCount={total}
+                activeFilters={{
+                  q: searchQuery,
+                  stage: stageFilter,
+                  userId: userFilter,
+                  source: sourceFilter,
+                  status: statusFilter,
+                  scope: scopeFilter,
+                  startDate,
+                  endDate,
+                  sortBy,
+                  sortOrder,
+                }}
+              />
+
+              {/* Bulk Lead Import Modal */}
+              <ImportLeadsModal
+                isOpen={isImportOpen}
+                onClose={() => setIsImportOpen(false)}
+                onSuccessRefresh={() => {
+                  fetchLeads();
+                }}
+              />
+
+              {/* Lead Contact Card Sheet (Screenshot 3 experience) */}
+              <LeadContactCardDrawer
+                isOpen={!!contactSheetLead}
+                onClose={() => setContactSheetLead(null)}
+                lead={contactSheetLead}
+                onToastFeedback={showToastNotification}
+              />
             </div>
-          )}
-        </div>
-
-        {/* 5. Production Pagination Footer */}
-        <div className="crm-pagination-footer mt-4 md:mt-0">
-          {/* Display Range */}
-          <div className="crm-pagination-info">
-            Showing <strong>{startRecord}–{endRecord}</strong> of <strong>{total}</strong>
-          </div>
-
-          {/* Controls: Rows per page & Navigation buttons */}
-          <div className="crm-pagination-controls">
-            {/* Rows per page select */}
-            <div className="crm-pagination-rows">
-              <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                disabled={loading}
-                className="crm-pagination-select"
-                aria-label="Rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-
-            {/* Navigation buttons */}
-            <div className="crm-pagination-nav">
-              <button
-                type="button"
-                onClick={() => handlePageChange(page - 1)}
-                disabled={loading || !hasPreviousPage || page <= 1}
-                className="crm-pagination-btn"
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="crm-pagination-btn-text">Previous</span>
-              </button>
-
-              <span className="crm-pagination-page-indicator">
-                Page <strong>{total === 0 ? 1 : page}</strong> of <strong>{total === 0 ? 1 : totalPages}</strong>
-              </span>
-
-              <button
-                type="button"
-                onClick={() => handlePageChange(page + 1)}
-                disabled={loading || !hasNextPage || page >= totalPages || total === 0}
-                className="crm-pagination-btn"
-                aria-label="Next page"
-              >
-                <span className="crm-pagination-btn-text">Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Drawers */}
-      <AddLeadDrawer
-        isOpen={isAddOpen}
-        mode="create"
-        onClose={() => setIsAddOpen(false)}
-        onSuccess={(newLead?: any) => {
-          setIsAddOpen(false);
-          if (newLead?.id) {
-            setLeads((prev) => [newLead, ...prev]);
-            setTotal((prev) => prev + 1);
-          }
-          fetchLeads();
-        }}
-        identity={identity}
-      />
-
-      {editingLead && (
-        <AddLeadDrawer
-          isOpen={!!editingLead}
-          mode="edit"
-          leadData={editingLead}
-          onClose={() => setEditingLead(null)}
-          onSuccess={(savedLead?: any) => {
-            setEditingLead(null);
-            if (savedLead?.id) {
-              setLeads((prev) =>
-                prev.map((l) => (l.id === savedLead.id ? { ...l, ...savedLead } : l))
-              );
-            }
-            fetchLeads();
-            if (selectedLeadId) {
-              const currentId = selectedLeadId;
-              setSelectedLeadId(null);
-              setTimeout(() => setSelectedLeadId(currentId), 50);
-            }
-          }}
-          identity={identity}
-        />
-      )}
-
-      {selectedLeadId && (
-        <LeadDetailsDrawer
-          leadId={selectedLeadId}
-          followUpId={selectedFollowUpId}
-          notificationId={selectedNotificationId}
-          onClose={() => {
-            setSelectedLeadId(null);
-            setSelectedFollowUpId(null);
-            setSelectedNotificationId(null);
-            updateUrl({ leadId: null, followUpId: null, notificationId: null });
-          }}
-          onUpdated={() => fetchLeads()}
-          onEditLead={(lead) => {
-            setSelectedLeadId(null);
-            setSelectedFollowUpId(null);
-            setSelectedNotificationId(null);
-            updateUrl({ leadId: null, followUpId: null, notificationId: null });
-            setEditingLead(lead);
-          }}
-        />
-      )}
-
-      {/* PORTAL ACTIONS MENU */}
-      {actionMenuTarget && createPortal(
-        <div
-          className="fixed inset-0 z-[100] pointer-events-auto"
-          onClick={() => setActionMenuTarget(null)}
-        >
-          <div
-            style={{
-              position: "fixed",
-              top: `${actionMenuTarget.top}px`,
-              left: `${actionMenuTarget.left}px`,
-            }}
-            className="w-[216px] bg-[#0B1528] border border-[#1E293B] shadow-2xl rounded-xl p-2 font-medium text-sm text-[#F1F5F9] animate-in fade-in zoom-in-95 duration-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                const id = actionMenuTarget.lead.id;
-                setActionMenuTarget(null);
-                handleOpenLead(id);
-              }}
-              className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
-            >
-              <Eye className="w-4 h-4 text-blue-400" />
-              <span>View Details</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const leadToEdit = actionMenuTarget.lead;
-                setActionMenuTarget(null);
-                setEditingLead(leadToEdit);
-              }}
-              className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
-            >
-              <Edit2 className="w-4 h-4 text-emerald-400" />
-              <span>Edit Lead</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const targetLead = actionMenuTarget.lead;
-                setActionMenuTarget(null);
-                setContactSheetLead(targetLead);
-              }}
-              className="w-full h-10 px-3 hover:bg-[#1E293B] rounded-lg flex items-center gap-3 text-left transition-colors text-[#F1F5F9] focus:outline-none focus:bg-[#1E293B]"
-            >
-              <UserPlus className="w-4 h-4 text-cyan-400" />
-              <span>Save Contact</span>
-            </button>
-            <div className="my-1 border-t border-[#1E293B]" />
-            <button
-              type="button"
-              onClick={() => {
-                const idToDelete = actionMenuTarget.lead.id;
-                setActionMenuTarget(null);
-                handleDeleteLead(idToDelete);
-              }}
-              className="w-full h-10 px-3 hover:bg-red-500/10 rounded-lg flex items-center gap-3 text-left transition-colors text-red-400 focus:outline-none focus:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4 text-red-400" />
-              <span>Delete Lead</span>
-            </button>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Lead Export Modal */}
-      <LeadExportModal
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        initialFormat={selectedExportFormat}
-        totalCount={total}
-        activeFilters={{
-          q: searchQuery,
-          stage: stageFilter,
-          userId: userFilter,
-          source: sourceFilter,
-          status: statusFilter,
-          scope: scopeFilter,
-          startDate,
-          endDate,
-          sortBy,
-          sortOrder,
-        }}
-      />
-
-      {/* Bulk Lead Import Modal */}
-      <ImportLeadsModal
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onSuccessRefresh={() => {
-          fetchLeads();
-        }}
-      />
-
-      {/* Lead Contact Card Sheet (Screenshot 3 experience) */}
-      <LeadContactCardDrawer
-        isOpen={!!contactSheetLead}
-        onClose={() => setContactSheetLead(null)}
-        lead={contactSheetLead}
-        onToastFeedback={showToastNotification}
-      />
-    </div>
-  );
+            );
 }
 
-export default function LeadsWorkspace(props: LeadsWorkspaceProps) {
+            export default function LeadsWorkspace(props: LeadsWorkspaceProps) {
   return (
-    <Suspense fallback={
-      <div className="p-8 text-center text-[var(--text-secondary,#94A3B8)]">
-        <div className="flex justify-center items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <span>Loading CRM Workspace...</span>
-        </div>
-      </div>
-    }>
-      <LeadsWorkspaceContent {...props} />
-    </Suspense>
-  );
+            <Suspense fallback={
+              <div className="p-8 text-center text-[var(--text-secondary,#94A3B8)]">
+                <div className="flex justify-center items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <span>Loading CRM Workspace...</span>
+                </div>
+              </div>
+            }>
+              <LeadsWorkspaceContent {...props} />
+            </Suspense>
+            );
 }

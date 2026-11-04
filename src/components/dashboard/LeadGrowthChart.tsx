@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useId } from "react";
 import { CrmActivityItem, LeadGrowthPoint } from "@/lib/crm";
 
 interface LeadGrowthChartProps {
@@ -90,9 +90,10 @@ export function LeadGrowthChart({
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const dStr = d.toISOString().slice(0, 10);
-        const label = period === "7d"
-          ? d.toLocaleDateString("en-US", { weekday: "short" })
-          : d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+        const label =
+          period === "7d"
+            ? d.toLocaleDateString("en-US", { weekday: "short" })
+            : d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
         result.push({ dateStr: dStr, label, count: pointsMap[dStr] || 0 });
       }
     }
@@ -211,305 +212,521 @@ export function LeadGrowthChart({
     return { linePath: path, areaPath: fill };
   }, [points, zeroY]);
 
-  // Summary Metrics calculations
-  const periodTotal = useMemo(() => chartData.reduce((acc, curr) => acc + curr.count, 0), [chartData]);
-  const peakVal = useMemo(() => Math.max(...chartData.map((d) => d.count), 0), [chartData]);
-  const avgVal = useMemo(() => (chartData.length > 0 ? (periodTotal / chartData.length).toFixed(1) : "0"), [chartData, periodTotal]);
+  // Unique SVG clip ID
+  const rawId = useId();
+  const clipId = useMemo(() => `lead-growth-clip-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [rawId]);
+
+  // SVG Elements and Animation Refs
+  const svgRef = useRef<SVGSVGElement>(null);
+  const clipRectRef = useRef<SVGRectElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const isRevealingRef = useRef<boolean>(false);
+  const revealedWidthRef = useRef<number>(plotWidth);
+  const [isSettled, setIsSettled] = useState<boolean>(false);
+
+  // Tracking refs to ensure reveal only triggers on initial appearance with data or range changes
+  const lastPeriodRef = useRef<Period>(period);
+  const hasInitializedRef = useRef<boolean>(false);
+  const plotWidthRef = useRef<number>(plotWidth);
+  plotWidthRef.current = plotWidth;
+
+  // Coordinated Horizontal Reveal Effect
+  useEffect(() => {
+    if (chartData.length === 0) return;
+
+    const isRangeChange = hasInitializedRef.current && period !== lastPeriodRef.current;
+    const isInitialDataReveal = !hasInitializedRef.current;
+
+    lastPeriodRef.current = period;
+
+    // Only run reveal on initial data appearance or when range changes
+    if (!isInitialDataReveal && !isRangeChange) {
+      return;
+    }
+
+    hasInitializedRef.current = true;
+
+    // Check prefers-reduced-motion
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      revealedWidthRef.current = plotWidth;
+      if (clipRectRef.current) {
+        clipRectRef.current.setAttribute("width", String(plotWidth));
+      }
+      setIsSettled(true);
+      isRevealingRef.current = false;
+      return;
+    }
+
+    // Cancel any previous animation frame
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    // Reset to 0 at the start of reveal
+    setIsSettled(false);
+    isRevealingRef.current = true;
+    revealedWidthRef.current = 0;
+    if (clipRectRef.current) {
+      clipRectRef.current.setAttribute("width", "0");
+    }
+
+    const duration = 1000; // ~1,000ms duration matching reference 0:02.1-0:03.3
+    const start = performance.now();
+    startTimeRef.current = start;
+
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(1, Math.max(0, elapsed / duration));
+      // Decelerating cubic-bezier curve matching cubic-bezier(0.16, 1, 0.3, 1)
+      const progress = 1 - Math.pow(1 - t, 3.5);
+      const currentW = progress * plotWidthRef.current;
+
+      revealedWidthRef.current = currentW;
+      if (clipRectRef.current) {
+        clipRectRef.current.setAttribute("width", currentW.toFixed(2));
+      }
+
+      if (t < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        revealedWidthRef.current = plotWidthRef.current;
+        if (clipRectRef.current) {
+          clipRectRef.current.setAttribute("width", String(plotWidthRef.current));
+        }
+        isRevealingRef.current = false;
+        setIsSettled(true);
+        animationFrameRef.current = null;
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [period, chartData.length > 0]);
+
+  // Keep clip width synchronized when window resizes after settled state
+  useEffect(() => {
+    if (isSettled && !isRevealingRef.current && clipRectRef.current) {
+      revealedWidthRef.current = plotWidth;
+      clipRectRef.current.setAttribute("width", String(plotWidth));
+    }
+  }, [plotWidth, isSettled]);
+
+  // Pointer Move Handler (Desktop Hover & Touch Scrubbing)
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!svgRef.current || points.length === 0) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const pointerX = e.clientX - rect.left;
+
+    // Do not respond if pointer is outside horizontal plot bounds
+    if (pointerX < paddingLeft - 20 || pointerX > measuredWidth - paddingRight + 20) {
+      return;
+    }
+
+    // Determine currently revealed maximum X coordinate
+    let maxAllowedX = paddingLeft + plotWidth;
+    if (isRevealingRef.current && startTimeRef.current !== null) {
+      const elapsed = performance.now() - startTimeRef.current;
+      const t = Math.min(1, Math.max(0, elapsed / 1000));
+      const p = 1 - Math.pow(1 - t, 3.5);
+      maxAllowedX = paddingLeft + p * plotWidth;
+    }
+
+    // Only allow selecting points within the portion already revealed
+    const revealedPoints = points.filter((pt) => pt.x <= maxAllowedX + 2);
+    if (revealedPoints.length === 0) {
+      setHoveredPoint(null);
+      return;
+    }
+
+    // Clamp pointer target to the revealed edge
+    const targetX = Math.min(pointerX, maxAllowedX);
+
+    // Find the nearest point along X
+    let closest = revealedPoints[0];
+    let minDist = Math.abs(closest.x - targetX);
+    for (let i = 1; i < revealedPoints.length; i++) {
+      const dist = Math.abs(revealedPoints[i].x - targetX);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = revealedPoints[i];
+      }
+    }
+
+    setHoveredPoint(closest);
+  };
+
+  const handlePointerLeave = () => {
+    setHoveredPoint(null);
+  };
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      minWidth: 0,
-      fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-    }}>
-      {/* 1. Header: Title on Left, Time-Range Selector on Right (18px bottom gap) */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: 16,
-        marginBottom: 18,
-      }}>
-        <div>
-          <h2 style={{
-            fontSize: 18,
-            fontWeight: 800,
-            color: "var(--text-primary)",
-            margin: 0,
-            letterSpacing: "-0.01em"
-          }}>
-            Growth Velocity <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}>— Lead Acquisition</span>
-          </h2>
-          <p style={{
-            fontSize: 13,
-            color: "var(--text-muted)",
-            margin: "4px 0 0",
-            fontWeight: 400
-          }}>
-            Daily new lead generation volume
-          </p>
-        </div>
-
-        {/* Period Selector Segmented Capsule */}
-        <div style={{
+    < div
+      style={{
           display: "flex",
-          alignItems: "center",
-          gap: 2,
-          background: "#161822",
-          border: "1px solid var(--border-color)",
-          padding: 3,
-          borderRadius: 10,
-          flexShrink: 0
-        }}>
-          {(["7d", "30d", "12m"] as Period[]).map((pKey) => {
-            const label = pKey === "7d" ? (isMobile ? "7D" : "7 Days") : pKey === "30d" ? (isMobile ? "30D" : "30 Days") : (isMobile ? "12M" : "12 Months");
-            const isActive = period === pKey;
-            return (
-              <button
-                key={pKey}
-                type="button"
-                onClick={() => setPeriod(pKey)}
+        flexDirection: "column",
+        width: "100%",
+        minWidth: 0,
+        fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+      }}
+    >
+        {/* 1. Header: Title on Left, Time-Range Selector on Right (Final position immediately, card still) */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 16,
+            marginBottom: 18,
+          }}
+        >
+          <div>
+              <h2
                 style={{
-                  height: 28,
-                  padding: isMobile ? "0 9px" : "0 12px",
-                  fontSize: isMobile ? 11 : 12,
-                  fontWeight: isActive ? 700 : 500,
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  borderRadius: 7,
-                  border: "none",
-                  cursor: "pointer",
-                  background: isActive ? "#0066FF" : "transparent",
-                  color: isActive ? "#FFFFFF" : "#94A3B8",
-                  boxShadow: isActive ? "0 2px 8px rgba(0, 102, 255, 0.25)" : "none",
-                  transition: "all 0.15s ease",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                  margin: 0,
+                  letterSpacing: "-0.01em",
                 }}
               >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                Growth Velocity{" "}
+                <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}>
+                  — Lead Acquisition
+                </span>
+              </h2>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-muted)",
+                    margin: "4px 0 0",
+                    fontWeight: 400,
+                  }}
+                >
+                  Daily new lead generation volume
+                </p>
+              </div>
 
-      {/* 3. Compact Legend Row: Aligned with the right edge of summary row (10px bottom gap) */}
-      <div style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        alignItems: "center",
-        paddingRight: paddingRight,
-        marginBottom: 10,
-      }}>
-        <span style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          color: "var(--text-muted, #969CA8)",
-          fontWeight: 500
-        }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#168BFF" }} />
-          New Leads
-        </span>
-      </div>
+              {/* Period Selector Segmented Capsule */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    background: "#161822",
+                    border: "1px solid var(--border-color)",
+                    padding: 3,
+                    borderRadius: 10,
+                    flexShrink: 0,
+                  }}
+                >
+                  {(["7d", "30d", "12m"] as Period[]).map((pKey) => {
+                    const label =
+                      pKey === "7d"
+                        ? isMobile
+                          ? "7D"
+                          : "7 Days"
+                        : pKey === "30d"
+                          ? isMobile
+                            ? "30D"
+                            : "30 Days"
+                          : isMobile
+                            ? "12M"
+                            : "12 Months";
+                    const isActive = period === pKey;
+                    return (
+                      <button
+                        key={pKey}
+                        type="button"
+                        onClick={() => setPeriod(pKey)}
+                        style={{
+                          height: 28,
+                          padding: isMobile ? "0 9px" : "0 12px",
+                          fontSize: isMobile ? 11 : 12,
+                          fontWeight: isActive ? 700 : 500,
+                          fontFamily: "Inter, system-ui, sans-serif",
+                          borderRadius: 7,
+                          border: "none",
+                          cursor: "pointer",
+                          background: isActive ? "#0066FF" : "transparent",
+                          color: isActive ? "#FFFFFF" : "#94A3B8",
+                          boxShadow: isActive ? "0 2px 8px rgba(0, 102, 255, 0.25)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-      {/* 4. Full-Width Responsive Graph (Exact measured dimensions, zero letterboxing) */}
+      {/* 2. Compact Legend Row: Aligned with the right edge (Final position immediately) */}
       <div
-        ref={chartWrapperRef}
-        style={{
-          position: "relative",
-          width: "100%",
-          minWidth: 0,
-          height: chartHeight,
-          overflow: "visible",
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                  paddingRight: paddingRight,
+                  marginBottom: 10,
         }}
       >
-        <svg
-          width={measuredWidth}
-          height={chartHeight}
-          viewBox={`0 0 ${measuredWidth} ${chartHeight}`}
-          style={{ display: "block", width: "100%", height: "100%", overflow: "visible" }}
-          onMouseLeave={() => setHoveredPoint(null)}
-        >
-          <defs>
-            <linearGradient id="leadSmoothGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#168BFF" stopOpacity="0.22" />
-              <stop offset="60%" stopColor="#168BFF" stopOpacity="0.08" />
-              <stop offset="100%" stopColor="#168BFF" stopOpacity="0.0" />
-            </linearGradient>
-            <filter id="pointGlow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#168BFF" floodOpacity="0.6" />
-            </filter>
-          </defs>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 12,
+                      color: "var(--text-muted, #969CA8)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#168BFF" }} />
+                    New Leads
+                  </span>
+                </div>
 
-          {/* Faint Horizontal Dashed Gridlines (0 to maxVal) */}
-          {[0, 1, 2, 3, 4].map((stepVal, idx) => {
-            const pct = 1 - stepVal / 4;
-            const y = paddingTop + pct * plotHeight;
-            const valLabel = Math.round((stepVal / 4) * maxVal);
-
-            return (
-              <g key={idx}>
-                {stepVal === 0 ? (
-                  // Solid zero baseline in subtle cyan/blue
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={measuredWidth - paddingRight}
-                    y2={y}
-                    stroke="rgba(22, 139, 255, 0.4)"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                ) : (
-                  // Faint dashed horizontal gridline
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={measuredWidth - paddingRight}
-                    y2={y}
-                    stroke="var(--border-color, #343740)"
-                    strokeDasharray="4 4"
-                    strokeWidth="1"
-                  />
-                )}
-                {/* Y-Axis Label */}
-                <text
-                  x={paddingLeft - 10}
-                  y={y + 4}
-                  fill="var(--text-muted, #969CA8)"
-                  fontSize="11"
-                  fontWeight="500"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  textAnchor="end"
+                {/* 3. Full-Width Responsive Graph (Exact measured dimensions, zero letterboxing) */}
+                <div
+                  ref={chartWrapperRef}
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    minWidth: 0,
+                    height: chartHeight,
+                    overflow: "visible",
+                  }}
                 >
-                  {valLabel}
-                </text>
-              </g>
-            );
-          })}
+                  <svg
+                    ref={svgRef}
+                    width={measuredWidth}
+                    height={chartHeight}
+                    viewBox={`0 0 ${measuredWidth} ${chartHeight}`}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      height: "100%",
+                      overflow: "visible",
+                      touchAction: "pan-y",
+                    }}
+                    onPointerMove={handlePointerMove}
+                    onPointerDown={handlePointerMove}
+                    onPointerLeave={handlePointerLeave}
+                  >
+                    <defs>
+                      {/* SVG ClipPath for Coordinated Horizontal Curve & Gradient Reveal */}
+                      <clipPath id={clipId}>
+                        <rect
+                          ref={clipRectRef}
+                          x={paddingLeft}
+                          y={0}
+                          width={isSettled ? plotWidth : 0}
+                          height={chartHeight}
+                        />
+                      </clipPath>
+                      <linearGradient id="leadSmoothGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#168BFF" stopOpacity="0.22" />
+                        <stop offset="60%" stopColor="#168BFF" stopOpacity="0.08" />
+                        <stop offset="100%" stopColor="#168BFF" stopOpacity="0.0" />
+                      </linearGradient>
+                      <filter id="pointGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#168BFF" floodOpacity="0.6" />
+                      </filter>
+                    </defs>
 
-          {/* Soft Gradient Fade Area Underneath Curve */}
-          <path d={areaPath} fill="url(#leadSmoothGradient)" className="dash-chart-area-reveal" />
+                    {/* Faint Horizontal Dashed Gridlines (0 to maxVal) - Stable shell */}
+                    {[0, 1, 2, 3, 4].map((stepVal, idx) => {
+                      const pct = 1 - stepVal / 4;
+                      const y = paddingTop + pct * plotHeight;
+                      const valLabel = Math.round((stepVal / 4) * maxVal);
 
-          {/* Smooth Monotone Cubic Spline Line (2.5px width) */}
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#168BFF"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="dash-chart-line-reveal"
-          />
+                      return (
+                        <g key={idx}>
+                          {stepVal === 0 ? (
+                            // Solid zero baseline in subtle cyan/blue
+                            <line
+                              x1={paddingLeft}
+                              y1={y}
+                              x2={measuredWidth - paddingRight}
+                              y2={y}
+                              stroke="rgba(22, 139, 255, 0.4)"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                          ) : (
+                            // Faint dashed horizontal gridline
+                            <line
+                              x1={paddingLeft}
+                              y1={y}
+                              x2={measuredWidth - paddingRight}
+                              y2={y}
+                              stroke="var(--border-color, #343740)"
+                              strokeDasharray="4 4"
+                              strokeWidth="1"
+                            />
+                          )}
+                          {/* Y-Axis Label */}
+                          <text
+                            x={paddingLeft - 10}
+                            y={y + 4}
+                            fill="var(--text-muted, #969CA8)"
+                            fontSize="11"
+                            fontWeight="500"
+                            fontFamily="Inter, system-ui, sans-serif"
+                            textAnchor="end"
+                          >
+                            {valLabel}
+                          </text>
+                        </g>
+                      );
+                    })}
 
-          {/* X-Axis Ticks & Labels */}
-          {points.map((pt, idx) => {
-            // In 30-day mode, skip intermediate labels for breathing room
-            if (period === "30d" && idx % 4 !== 0 && idx !== points.length - 1) return null;
-            // In 12-month mode on small screens, skip every other month
-            if (period === "12m" && measuredWidth < 460 && idx % 2 !== 0 && idx !== points.length - 1) return null;
+                    {/* Coordinated Horizontal Reveal (Curve & Gradient Fill share identical moving clip edge) */}
+                    <g clipPath={`url(#${clipId})`}>
+                      {/* Soft Gradient Fade Area Underneath Curve */}
+                      <path
+                        d={areaPath}
+                        fill="url(#leadSmoothGradient)"
+                        className="dash-chart-area-reveal"
+                      />
 
-            let displayLabel = pt.label;
-            if (isMobile && period === "7d" && measuredWidth < 360) {
-              displayLabel = pt.label.slice(0, 2);
-            }
+                      {/* Smooth Monotone Cubic Spline Line (2.5px width) */}
+                      <path
+                        d={linePath}
+                        fill="none"
+                        stroke="#168BFF"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="dash-chart-line-reveal"
+                      />
+                    </g>
 
-            return (
-              <text
-                key={`xlabel-${idx}`}
-                x={pt.x}
-                y={zeroY + 18}
-                fill="var(--text-muted, #969CA8)"
-                fontSize={isMobile ? "10" : "11"}
-                fontWeight="500"
-                fontFamily="Inter, system-ui, sans-serif"
-                textAnchor="middle"
-              >
-                {displayLabel}
-              </text>
-            );
-          })}
+                    {/* X-Axis Ticks & Labels - Stable shell */}
+                    {points.map((pt, idx) => {
+                      // In 30-day mode, skip intermediate labels for breathing room
+                      if (period === "30d" && idx % 4 !== 0 && idx !== points.length - 1) return null;
+                      // In 12-month mode on small screens, skip every other month
+                      if (period === "12m" && measuredWidth < 460 && idx % 2 !== 0 && idx !== points.length - 1) return null;
 
-          {/* Active Hover Guide Line & Glowing Point */}
-          {hoveredPoint && (
-            <g>
-              <line
-                x1={hoveredPoint.x}
-                y1={paddingTop}
-                x2={hoveredPoint.x}
-                y2={zeroY}
-                stroke="rgba(22, 139, 255, 0.4)"
-                strokeDasharray="3 3"
-                strokeWidth="1"
-              />
-              <circle
-                cx={hoveredPoint.x}
-                cy={hoveredPoint.y}
-                r="9"
-                fill="rgba(22, 139, 255, 0.2)"
-              />
-              <circle
-                cx={hoveredPoint.x}
-                cy={hoveredPoint.y}
-                r="4.5"
-                fill="#168BFF"
-                stroke="var(--surface, #1B1C21)"
-                strokeWidth="2"
-                filter="url(#pointGlow)"
-              />
-            </g>
-          )}
+                      let displayLabel = pt.label;
+                      if (isMobile && period === "7d" && measuredWidth < 360) {
+                        displayLabel = pt.label.slice(0, 2);
+                      }
 
-          {/* Interactive Invisible Hover Hitboxes (No Permanent Dots) */}
-          {points.map((pt, idx) => (
-            <circle
-              key={`hitbox-${idx}`}
-              cx={pt.x}
-              cy={pt.y}
-              r="16"
-              fill="transparent"
-              style={{ cursor: "pointer" }}
-              tabIndex={0}
-              aria-label={`${pt.label}: ${pt.count} leads`}
-              onMouseEnter={() => setHoveredPoint(pt)}
-              onFocus={() => setHoveredPoint(pt)}
-            />
-          ))}
-        </svg>
+                      return (
+                        <text
+                          key={`xlabel-${idx}`}
+                          x={pt.x}
+                          y={zeroY + 18}
+                          fill="var(--text-muted, #969CA8)"
+                          fontSize={isMobile ? "10" : "11"}
+                          fontWeight="500"
+                          fontFamily="Inter, system-ui, sans-serif"
+                          textAnchor="middle"
+                        >
+                          {displayLabel}
+                        </text>
+                      );
+                    })}
 
-        {/* Polished Floating Glassmorphic Tooltip */}
-        {hoveredPoint && (
-          <div
-            style={{
-              position: "absolute",
-              zIndex: 30,
-              pointerEvents: "none",
-              background: "var(--surface-elevated, #23252C)",
-              border: "1px solid var(--border-color, #343740)",
-              color: "var(--text-primary, #F5F6F8)",
-              padding: "8px 14px",
-              borderRadius: 10,
-              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.6)",
-              fontSize: 12,
-              fontFamily: "Inter, system-ui, sans-serif",
-              transform: "translate(-50%, -120%)",
-              left: `${hoveredPoint.x}px`,
-              top: `${hoveredPoint.y}px`,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <div style={{ fontSize: 11, color: "var(--text-muted, #969CA8)", marginBottom: 3 }}>
-              {hoveredPoint.dateStr || hoveredPoint.label}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#168BFF" }} />
-              <span style={{ color: "var(--text-primary, #F5F6F8)" }}>{hoveredPoint.count} New Leads</span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+                    {/* Active Hover Guide Line & Glowing Point (Clamped within revealed curve) */}
+                    {hoveredPoint && (
+                      <g>
+                        <line
+                          x1={hoveredPoint.x}
+                          y1={paddingTop}
+                          x2={hoveredPoint.x}
+                          y2={zeroY}
+                          stroke="rgba(22, 139, 255, 0.4)"
+                          strokeDasharray="3 3"
+                          strokeWidth="1"
+                        />
+                        <circle
+                          cx={hoveredPoint.x}
+                          cy={hoveredPoint.y}
+                          r="9"
+                          fill="rgba(22, 139, 255, 0.2)"
+                        />
+                        <circle
+                          cx={hoveredPoint.x}
+                          cy={hoveredPoint.y}
+                          r="4.5"
+                          fill="#168BFF"
+                          stroke="var(--surface, #1B1C21)"
+                          strokeWidth="2"
+                          filter="url(#pointGlow)"
+                        />
+                      </g>
+                    )}
+
+                    {/* Interactive Invisible Hover Hitboxes (For Keyboard Accessibility) */}
+                    {points.map((pt, idx) => (
+                      <circle
+                        key={`hitbox-${idx}`}
+                        cx={pt.x}
+                        cy={pt.y}
+                        r="16"
+                        fill="transparent"
+                        style={{ cursor: "pointer" }}
+                        tabIndex={0}
+                        aria-label={`${pt.label}: ${pt.count} leads`}
+                        onFocus={() => {
+                          const maxAllowedX = isRevealingRef.current
+                            ? paddingLeft + revealedWidthRef.current
+                            : paddingLeft + plotWidth;
+                          if (pt.x <= maxAllowedX + 2) {
+                            setHoveredPoint(pt);
+                          }
+                        }}
+                        onBlur={() => setHoveredPoint(null)}
+                      />
+                    ))}
+                  </svg>
+
+                  {/* Polished Floating Glassmorphic Tooltip */}
+                  {hoveredPoint && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        zIndex: 30,
+                        pointerEvents: "none",
+                        background: "var(--surface-elevated, #23252C)",
+                        border: "1px solid var(--border-color, #343740)",
+                        color: "var(--text-primary, #F5F6F8)",
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        boxShadow: "0 10px 24px rgba(0, 0, 0, 0.6)",
+                        fontSize: 12,
+                        fontFamily: "Inter, system-ui, sans-serif",
+                        transform: `translate(${hoveredPoint.x < 70 ? "-15%" : hoveredPoint.x > measuredWidth - 70 ? "-85%" : "-50%"}, -120%)`,
+                        left: `${hoveredPoint.x}px`,
+                        top: `${hoveredPoint.y}px`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: "var(--text-muted, #969CA8)", marginBottom: 3 }}>
+                        {hoveredPoint.dateStr || hoveredPoint.label}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#168BFF" }} />
+                        <span style={{ color: "var(--text-primary, #F5F6F8)" }}>{hoveredPoint.count} New Leads</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              );
 }

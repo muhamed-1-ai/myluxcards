@@ -11642,12 +11642,10 @@ body.light-mode .pts-card-label {
   }
 }
 
-/* Chart Line & Area Reveals (starts as chart card settles) */
+/* Chart Line & Area Reveals (coordinated horizontal clip reveal) */
 .dash-chart-line-reveal {
-  stroke-dasharray: 3000;
-  stroke-dashoffset: 3000;
-  animation: dashChartLineDraw 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--chart-delay, 380ms);
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
 }
 
 @keyframes dashChartLineDraw {
@@ -11657,9 +11655,7 @@ body.light-mode .pts-card-label {
 }
 
 .dash-chart-area-reveal {
-  opacity: 0;
-  animation: dashChartAreaFade 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--chart-delay, 440ms);
+  opacity: 1;
 }
 
 @keyframes dashChartAreaFade {

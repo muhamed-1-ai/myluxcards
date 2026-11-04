@@ -112,34 +112,84 @@ export async function GET(request: NextRequest) {
 
     if (dateFrom) {
       whereClause += ` AND l.created_at >= $${paramIndex}`;
-      params.push(new Date(dateFrom).toISOString());
+      const dFrom = new Date(dateFrom.length === 10 ? `${dateFrom}T00:00:00.000Z` : dateFrom);
+      params.push(isNaN(dFrom.getTime()) ? new Date(dateFrom).toISOString() : dFrom.toISOString());
       paramIndex++;
     }
 
     if (dateTo) {
       whereClause += ` AND l.created_at <= $${paramIndex}`;
-      params.push(new Date(dateTo).toISOString());
+      // Treat end date as inclusive for the full day in reporting timezone
+      const dTo = new Date(dateTo.length === 10 ? `${dateTo}T23:59:59.999Z` : dateTo);
+      params.push(isNaN(dTo.getTime()) ? new Date(dateTo).toISOString() : dTo.toISOString());
       paramIndex++;
     }
 
     const followUpOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "f.owner_user_id = $1";
     const activityOwnerFilter = identity.role === "SUPER_ADMIN" ? "1=1" : "a.owner_user_id = $1";
 
-    // Execute queries for total count on filtered dataset
+    // Execute queries for total count and KPI aggregates on filtered dataset before pagination
     const countQuery = `SELECT COUNT(*)::int as total FROM leads l WHERE ${whereClause}`;
     const kpiQuery = `
       SELECT 
         SUM(CASE WHEN l.status NOT IN ('WON', 'LOST', 'CLOSED') THEN 1 ELSE 0 END)::int as open_pipeline,
         SUM(CASE WHEN l.status = 'WON' THEN 1 ELSE 0 END)::int as won_leads,
-        COALESCE(SUM(l.total_amount), 0)::float as expected_revenue,
-        (SELECT COUNT(*)::int FROM lead_follow_ups f WHERE ${followUpOwnerFilter} AND f.status = 'SCHEDULED' AND DATE(f.scheduled_at) = CURRENT_DATE) as due_today
+        COALESCE(SUM(l.total_amount), 0)::float as expected_revenue
       FROM leads l
       WHERE ${whereClause}
     `;
 
-    const [countRes, kpiRes] = await Promise.all([
+    // Query daily timeline for cumulative Total Leads, Open Pipeline, and Expected Revenue sparklines
+    const timelineQuery = `
+      SELECT 
+        DATE(l.created_at) as "day",
+        COUNT(*)::int as "total_leads",
+        SUM(CASE WHEN l.status NOT IN ('WON', 'LOST', 'CLOSED') THEN 1 ELSE 0 END)::int as "open_leads",
+        COALESCE(SUM(l.total_amount), 0)::float as "revenue"
+      FROM leads l
+      WHERE ${whereClause}
+      GROUP BY DATE(l.created_at)
+      ORDER BY "day" ASC
+    `;
+
+    // Query due today follow-ups scoped to matching leads for Due Today count & hourly cumulative sparkline
+    const dueQuery = `
+      SELECT 
+        DATE_TRUNC('hour', f.scheduled_at) as "hour_bucket",
+        COUNT(*)::int as "due_count"
+      FROM lead_follow_ups f
+      JOIN leads l ON l.id = f.lead_id
+      WHERE ${whereClause}
+        AND ${followUpOwnerFilter}
+        AND f.status = 'SCHEDULED'
+        AND DATE(f.scheduled_at) = CURRENT_DATE
+      GROUP BY DATE_TRUNC('hour', f.scheduled_at)
+      ORDER BY "hour_bucket" ASC
+    `;
+
+    // Query permission-scoped distinct assignees and sources across user's permitted leads (pre-filter scope)
+    const optionsQuery = `
+      SELECT DISTINCT u.id, u.name, u.email
+      FROM leads l
+      JOIN users u ON u.id = l.assigned_user_id
+      WHERE ${accessFilter.whereClause}
+      ORDER BY u.name ASC
+    `;
+
+    const sourceQuery = `
+      SELECT DISTINCT l.source
+      FROM leads l
+      WHERE ${accessFilter.whereClause} AND l.source IS NOT NULL AND l.source != ''
+      ORDER BY l.source ASC
+    `;
+
+    const [countRes, kpiRes, timelineRes, dueTimelineRes, assigneeRes, sourceRes] = await Promise.all([
       pool.query(countQuery, params),
-      pool.query(kpiQuery, params)
+      pool.query(kpiQuery, params),
+      pool.query(timelineQuery, params),
+      pool.query(dueQuery, params),
+      pool.query(optionsQuery, accessFilter.params),
+      pool.query(sourceQuery, accessFilter.params),
     ]);
 
     const total = countRes.rows[0]?.total || 0;
@@ -182,12 +232,71 @@ export async function GET(request: NextRequest) {
 
     const dataRes = await pool.query(dataQuery, queryParams);
 
+    // Build cumulative sparkline series from timeline aggregates
+    let runningTotal = 0;
+    let runningOpen = 0;
+    let runningRev = 0;
+    const totalLeadsSeries: { x: string; y: number }[] = [];
+    const openPipelineSeries: { x: string; y: number }[] = [];
+    const expectedRevenueSeries: { x: string; y: number }[] = [];
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    if (!timelineRes.rows || timelineRes.rows.length === 0) {
+      totalLeadsSeries.push({ x: todayStr, y: 0 });
+      openPipelineSeries.push({ x: todayStr, y: 0 });
+      expectedRevenueSeries.push({ x: todayStr, y: 0 });
+    } else {
+      for (const row of timelineRes.rows) {
+        const dStr = row.day instanceof Date ? row.day.toISOString().slice(0, 10) : String(row.day);
+        runningTotal += Number(row.total_leads) || 0;
+        runningOpen += Number(row.open_leads) || 0;
+        runningRev += Number(row.revenue) || 0;
+        totalLeadsSeries.push({ x: dStr, y: runningTotal });
+        openPipelineSeries.push({ x: dStr, y: runningOpen });
+        expectedRevenueSeries.push({ x: dStr, y: runningRev });
+      }
+    }
+
+    // Build cumulative Due Today sparkline from matching follow-ups
+    let runningDue = 0;
+    const dueTodaySeries: { x: string; y: number }[] = [];
+    const dueTodayCount = dueTimelineRes.rows.reduce(
+      (sum: number, r: any) => sum + (Number(r.due_count) || 0),
+      0
+    );
+
+    if (dueTimelineRes.rows.length === 0) {
+      dueTodaySeries.push({ x: "09:00", y: 0 });
+      dueTodaySeries.push({ x: "18:00", y: 0 });
+    } else {
+      for (const row of dueTimelineRes.rows) {
+        runningDue += Number(row.due_count) || 0;
+        const tStr = row.hour_bucket instanceof Date ? row.hour_bucket.toISOString() : String(row.hour_bucket);
+        dueTodaySeries.push({ x: tStr, y: runningDue });
+      }
+    }
+
     const kpis = {
       total,
       openPipeline: kpiRes.rows[0]?.open_pipeline || 0,
       wonLeads: kpiRes.rows[0]?.won_leads || 0,
-      dueToday: kpiRes.rows[0]?.due_today || 0,
+      dueToday: dueTodayCount,
       expectedRevenue: kpiRes.rows[0]?.expected_revenue || 0,
+      series: {
+        totalLeads: totalLeadsSeries,
+        openPipeline: openPipelineSeries,
+        dueToday: dueTodaySeries,
+        expectedRevenue: expectedRevenueSeries,
+      },
+    };
+
+    const filterOptions = {
+      assignees: (assigneeRes.rows || []).map((r: any) => ({
+        id: r.id,
+        name: r.name || r.email || "User",
+      })),
+      sources: (sourceRes.rows || []).map((r: any) => r.source),
     };
 
     const leads = dataRes.rows.map((row) => {
@@ -216,6 +325,7 @@ export async function GET(request: NextRequest) {
       userId: identity.id,
       leads,
       kpis,
+      filterOptions,
       pagination: {
         page: effectivePage,
         pageSize: limit,
