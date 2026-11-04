@@ -38,17 +38,17 @@ test("Refined Card Entrance - Physics, Stagger & CSS Variables", () => {
   assert.strictEqual(getCardEntranceDelay(4, true), 140);
   assert.strictEqual(getCardEntranceDelay(5, true), 140); // capped
 
-  // 2. Verify CSS Keyframe physics in dashboard.css
-  assert.ok(dashCss.includes("translateY(18px)"), "Must use ~18px vertical movement");
-  assert.ok(dashCss.includes("scale(0.98)"), "Must use ~0.98 initial scale");
-  assert.ok(dashCss.includes("rotateX(4deg)"), "Must use restrained 3-5deg tilt (4deg)");
-  assert.ok(dashCss.includes("perspective(1200px)"), "Must use realistic 3D perspective");
-  assert.ok(dashCss.includes("transform-origin: center bottom"), "Must lift into place with bottom origin");
-  assert.ok(dashCss.includes("0.48s"), "Duration must be in 450-550ms range (0.48s)");
+  // 2. Verify Sorvo Card Grow Physics in dashboard.css (scale 0.65 -> 1, lower-center origin, 350-450ms)
+  assert.ok(dashCss.includes("scale(0.65)"), "Must use scale ~0.65 starting point");
+  assert.ok(dashCss.includes("transform-origin: 50% 100%"), "Must use lower-center transform origin (50% 100%)");
+  assert.ok(dashCss.includes("0.40s"), "Duration must be in 350-450ms range (0.40s)");
+  assert.ok(dashCss.includes("dashCardContentReveal"), "Must coordinate content reveal a beat after card surface grows");
+  assert.ok(dashCss.includes("dashTabLeave"), "Must support outgoing tab shrink and fade");
+  assert.ok(dashCss.includes("dashTabEnter"), "Must support incoming tab entrance");
 
   // 3. Verify Mobile simplified depth
   assert.ok(dashCss.includes("dashCardEntranceMobile"), "Must define mobile entrance");
-  assert.ok(dashCss.includes("translateY(12px) scale(0.985)"), "Mobile must simplify depth without heavy 3D rotation");
+  assert.ok(dashCss.includes("scale(0.90)"), "Mobile must scale gently from 0.90");
 
   // 4. Verify Accounting CSS matches
   assert.ok(accCss.includes("translateY(18px) scale(0.98) rotateX(4deg)"), "Accounting must match refined 18px / 4deg tilt");

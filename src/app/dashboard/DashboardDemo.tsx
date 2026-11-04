@@ -411,6 +411,14 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
   const [tab, setTab] = useState<Tab>(
     initialTab && (initialTab as string) !== "analytics" && (initialTab as string) !== "qr-activity" ? initialTab : "dashboard"
   );
+  const [isTabLeaving, setIsTabLeaving] = useState(false);
+  const navTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const syncTabFromLocation = () => {
@@ -1045,31 +1053,56 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     setCards((prevCards) => prevCards.map((c) => (c.id === draft.id ? { ...c, [key]: value } : c)));
   };
   const selectTab = (next: Tab) => {
-    setTab(next);
-    setSidebar(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      if (next === "accounting-settings") {
-        url.searchParams.set("tab", "accounting-more");
-        url.searchParams.set("group", "configuration");
-      } else {
-        url.searchParams.set("tab", next);
-      }
-      if (next === "accounting-categories") {
-        url.searchParams.delete("settingsTab");
-      }
-      if (next === "accounting-products") {
-        url.searchParams.delete("subtab");
-      }
-      if (next === "settings" || next === "security") {
-        url.searchParams.delete("settingsTab");
-        url.searchParams.delete("subtab");
-        url.searchParams.delete("tool");
-        url.searchParams.delete("section");
-      }
-      window.history.pushState({ tab: next }, "", url.toString());
+    if (next === tab) {
+      setSidebar(false);
+      return;
     }
+    setSidebar(false);
+
+    const updateUrl = (targetTab: Tab) => {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (targetTab === "accounting-settings") {
+          url.searchParams.set("tab", "accounting-more");
+          url.searchParams.set("group", "configuration");
+        } else {
+          url.searchParams.set("tab", targetTab);
+        }
+        if (targetTab === "accounting-categories") {
+          url.searchParams.delete("settingsTab");
+        }
+        if (targetTab === "accounting-products") {
+          url.searchParams.delete("subtab");
+        }
+        if (targetTab === "settings" || targetTab === "security") {
+          url.searchParams.delete("settingsTab");
+          url.searchParams.delete("subtab");
+          url.searchParams.delete("tool");
+          url.searchParams.delete("section");
+        }
+        window.history.pushState({ tab: targetTab }, "", url.toString());
+      }
+    };
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      setTab(next);
+      window.scrollTo({ top: 0, behavior: "auto" });
+      updateUrl(next);
+      return;
+    }
+
+    setIsTabLeaving(true);
+    if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    navTimerRef.current = setTimeout(() => {
+      setTab(next);
+      setIsTabLeaving(false);
+      window.scrollTo({ top: 0, behavior: "auto" });
+      updateUrl(next);
+    }, 160);
   };
   const requestCardOpen = (card: Card) => {
     if (!card.slug) return;
@@ -2679,6 +2712,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             </div>
           </div>
         </header>
+        <div className={`dash-main-tab-wrap ${isTabLeaving ? "dash-tab-leaving" : "dash-tab-entering"}`} key={tab}>
         {tab === "dashboard" && (
           <section>
             <LeadManagementDashboard
@@ -2840,6 +2874,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
           </div>
         </section>}
+        </div>
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}
       <MyLuxModal

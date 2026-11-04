@@ -82,12 +82,12 @@ test("CSS Entrance Styles - dashboard.css definitions", () => {
   assert.ok(dashCss.includes(".dash-entrance-header"), "dashboard.css should define .dash-entrance-header");
   assert.ok(dashCss.includes("@keyframes dashHeaderEntrance"), "dashboard.css should define dashHeaderEntrance keyframe");
 
-  // Staggered card entrance with settling tilt
+  // Staggered card entrance with Sorvo card grow motion
   assert.ok(dashCss.includes(".dash-entrance-card"), "dashboard.css should define .dash-entrance-card");
   assert.ok(dashCss.includes("var(--entrance-delay, 0ms)"), "dashboard.css should use var(--entrance-delay)");
-  assert.ok(dashCss.includes("@keyframes dashCardEntrance"), "dashboard.css should define dashCardEntrance keyframe");
-  assert.ok(dashCss.includes("perspective(1200px)"), "Card entrance should include subtle 3D perspective");
-  assert.ok(dashCss.includes("rotateX(4deg)"), "Card entrance should include settling tilt");
+  assert.ok(dashCss.includes("@keyframes dashCardGrow"), "dashboard.css should define dashCardGrow keyframe");
+  assert.ok(dashCss.includes("scale(0.65)"), "Card entrance should start from scale(0.65)");
+  assert.ok(dashCss.includes("transform-origin: 50% 100%"), "Card entrance should anchor at lower center (50% 100%)");
 
   // Mobile reduced travel
   assert.ok(dashCss.includes("@media (max-width: 640px)"), "dashboard.css should have mobile responsive rule");
@@ -133,7 +133,8 @@ test("Component Integration - LeadManagementDashboard.tsx", () => {
 
   assert.ok(file.includes('from "@/lib/dashboardMotion"'), "Must import motion utilities");
   assert.ok(file.includes("AnimatedNumber"), "Must import AnimatedNumber");
-  assert.ok(file.includes("useDashboardEntrance(!loading && Boolean(data))"), "Must wire useDashboardEntrance to initial data loaded condition");
+  assert.ok(file.includes("useDashboardEntrance("), "Must wire useDashboardEntrance");
+  assert.ok(file.includes("cachedLeadDashboardPayload"), "Must maintain cachedLeadDashboardPayload for data loading separation");
   assert.ok(file.includes("dash-entrance-header"), "Must apply dash-entrance-header to filters section");
   assert.ok(file.includes("dash-entrance-card"), "Must apply dash-entrance-card to primary KPI cards");
   assert.ok(file.includes("--entrance-delay"), "Must set staggered --entrance-delay style");

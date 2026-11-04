@@ -11117,6 +11117,42 @@ body.light-mode .pts-card-label {
    COORDINATED DASHBOARD & ANALYTICS ENTRANCE MOTION (SORVO REFERENCE)
    ══════════════════════════════════════════════════════════════════ */
 
+/* Page / Tab Outgoing & Incoming Transitions (Sidebar & Header remain steady) */
+.dash-main-tab-wrap {
+  width: 100%;
+  min-width: 0;
+  will-change: opacity, transform;
+}
+
+.dash-main-tab-wrap.dash-tab-leaving {
+  animation: dashTabLeave 0.16s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes dashTabLeave {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.975) translateY(-4px);
+  }
+}
+
+.dash-main-tab-wrap.dash-tab-entering {
+  animation: dashTabEnter 0.20s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes dashTabEnter {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .dash-entrance-header {
   animation: dashHeaderEntrance 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
@@ -11133,40 +11169,97 @@ body.light-mode .pts-card-label {
   }
 }
 
+/* 2. CARD GROW MOTION: Slot stays reserved in grid; visible surface grows upward from lower-center */
 .dash-entrance-card {
-  animation: dashCardEntrance 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: dashCardGrow 0.40s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--entrance-delay, 0ms);
-  transform-origin: center bottom;
+  transform-origin: 50% 100%; /* Lower-center anchor */
   will-change: transform, opacity;
   backface-visibility: hidden;
 }
 
-@keyframes dashCardEntrance {
+@keyframes dashCardGrow {
   0% {
     opacity: 0;
-    transform: perspective(1200px) translateY(18px) scale(0.98) rotateX(4deg);
+    transform: scale(0.65) translateY(10px);
+  }
+  20% {
+    opacity: 1;
   }
   100% {
     opacity: 1;
-    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    transform: scale(1) translateY(0);
   }
+}
+
+/* 3. CARD CONTENT REVEAL: Reveals a beat after each surface starts growing (staggered +120ms) */
+.dash-entrance-card .dash-card-content {
+  animation: dashCardContentReveal 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--entrance-delay, 0ms) + 120ms);
+  will-change: opacity, transform;
+}
+
+@keyframes dashCardContentReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Content layout helpers ensuring full card filling */
+.crm-kpi-card .dash-card-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.crm-capacity-card .dash-card-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+}
+
+.crm-chart-card .dash-card-content,
+.crm-pipeline-card .dash-card-content,
+.crm-lob-card .dash-card-content,
+.crm-calendar-widget-card .dash-card-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
 }
 
 @media (max-width: 640px) {
   .dash-entrance-card {
     animation-name: dashCardEntranceMobile;
-    animation-duration: 0.38s;
-    transform-origin: center center;
+    animation-duration: 0.34s;
+    transform-origin: 50% 100%;
   }
   @keyframes dashCardEntranceMobile {
     0% {
       opacity: 0;
-      transform: translateY(12px) scale(0.985);
+      transform: scale(0.90) translateY(10px);
     }
     100% {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: scale(1) translateY(0);
     }
+  }
+
+  .dash-entrance-card .dash-card-content {
+    animation-delay: calc(var(--entrance-delay, 0ms) + 80ms);
   }
 }
 
@@ -11239,12 +11332,12 @@ body.light-mode .pts-card-label {
   }
 }
 
-/* Chart Line & Area Reveals */
+/* Chart Line & Area Reveals (starts as chart card settles) */
 .dash-chart-line-reveal {
   stroke-dasharray: 3000;
   stroke-dashoffset: 3000;
-  animation: dashChartLineDraw 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--chart-delay, 120ms);
+  animation: dashChartLineDraw 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--chart-delay, 380ms);
 }
 
 @keyframes dashChartLineDraw {
@@ -11255,8 +11348,8 @@ body.light-mode .pts-card-label {
 
 .dash-chart-area-reveal {
   opacity: 0;
-  animation: dashChartAreaFade 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--chart-delay, 220ms);
+  animation: dashChartAreaFade 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--chart-delay, 440ms);
 }
 
 @keyframes dashChartAreaFade {
@@ -11274,7 +11367,7 @@ body.light-mode .pts-card-label {
   transform-origin: center;
   transform: scale(0.3);
   animation: dashChartPointPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  animation-delay: calc(var(--chart-delay, 140ms) + var(--pt-index, 0) * 40ms);
+  animation-delay: calc(var(--chart-delay, 380ms) + var(--pt-index, 0) * 40ms);
 }
 
 @keyframes dashChartPointPop {
@@ -11284,11 +11377,11 @@ body.light-mode .pts-card-label {
   }
 }
 
-/* Pipeline Progress Bar Growth */
+/* Pipeline Progress Bar Growth (starts as pipeline card settles) */
 .dash-animated-pipeline-fill {
   transform-origin: left center;
-  animation: dashPipelineGrow 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: var(--bar-delay, 80ms);
+  animation: dashPipelineGrow 0.60s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--bar-delay, 380ms);
 }
 
 @keyframes dashPipelineGrow {
@@ -11309,8 +11402,11 @@ body.light-mode .pts-card-label {
 
 /* Respect Prefers Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+  .dash-main-tab-wrap.dash-tab-leaving,
+  .dash-main-tab-wrap.dash-tab-entering,
   .dash-entrance-header,
   .dash-entrance-card,
+  .dash-entrance-card .dash-card-content,
   .dash-chart-line-reveal,
   .dash-chart-area-reveal,
   .dash-chart-point-reveal,
