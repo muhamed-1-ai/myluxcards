@@ -1,143 +1,346 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { LeadStage } from "@/lib/crm";
-import { ArrowUpRight } from "lucide-react";
 import { AnimatedNumber } from "@/lib/dashboardMotion";
 
-interface LeadLivePipelineProps {
+export interface LeadLivePipelineProps {
   pipelineCounts: Record<LeadStage, number>;
   totalLeads?: number;
+  isLoading?: boolean;
+  canAccessAllLeads?: boolean;
   onSelectStage?: (stage: LeadStage) => void;
 }
 
-const PRESET_STAGES: { key: LeadStage; label: string; accentColor: string; fillGradient?: string }[] = [
-  { key: "NEW", label: "NEW", accentColor: "#0066FF", fillGradient: "linear-gradient(90deg, #0066FF 0%, #F5D77F 100%)" },
-  { key: "CONTACTED", label: "CONTACTED", accentColor: "#3B82F6", fillGradient: "linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%)" },
-  { key: "INTERESTED", label: "INTERESTED", accentColor: "#EC4899", fillGradient: "linear-gradient(90deg, #EC4899 0%, #F472B6 100%)" },
-  { key: "FOLLOW_UP", label: "FOLLOW-UP", accentColor: "#F59E0B", fillGradient: "linear-gradient(90deg, #F59E0B 0%, #FBBF24 100%)" },
-  { key: "WON", label: "WON", accentColor: "#10B981", fillGradient: "linear-gradient(90deg, #10B981 0%, #34D399 100%)" },
-  { key: "LOST", label: "LOST", accentColor: "#EF4444", fillGradient: "linear-gradient(90deg, #EF4444 0%, #F87171 100%)" },
+export interface PipelineStageConfig {
+  key: LeadStage;
+  label: string;
+  color: string;
+}
+
+export const PIPELINE_STAGES: PipelineStageConfig[] = [
+  { key: "NEW", label: "New", color: "#2488FF" },
+  { key: "CONTACTED", label: "Contacted", color: "#60A9ED" },
+  { key: "INTERESTED", label: "Interested", color: "#567DB1" },
+  { key: "FOLLOW_UP", label: "Follow-up", color: "#425BC9" },
+  { key: "WON", label: "Won", color: "#8EDBFF" },
+  { key: "LOST", label: "Lost", color: "#8197B8" },
 ];
+
+export function formatSharePercentage(count: number, total: number): string {
+  if (total <= 0 || count <= 0) return "0%";
+  const pct = (count / total) * 100;
+  return pct % 1 === 0 ? `${pct}%` : `${pct.toFixed(1)}%`;
+}
+
+function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+}
+
+function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(x, y, radius, startAngle);
+  const end = polarToCartesian(x, y, radius, endAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
+}
 
 export function LeadLivePipeline({
   pipelineCounts,
   totalLeads: passedTotal,
+  isLoading = false,
+  canAccessAllLeads = true,
   onSelectStage,
 }: LeadLivePipelineProps) {
-  const calculatedTotal = Object.values(pipelineCounts || {}).reduce((sum, val) => sum + (val || 0), 0);
-  const totalLeads = typeof passedTotal === "number" ? passedTotal : calculatedTotal;
+  const [hoveredStage, setHoveredStage] = useState<LeadStage | null>(null);
 
-  const stages = useMemo(() => {
-    const presetKeys = new Set(PRESET_STAGES.map((s) => s.key));
-    const list = [...PRESET_STAGES];
+    // Compute calculated total from counts so ring and numbers always agree
+    const calculatedTotal = useMemo(() => {
+      return PIPELINE_STAGES.reduce((sum, s) => sum + (pipelineCounts?.[s.key] || 0), 0);
+    }, [pipelineCounts]);
 
-    if (pipelineCounts) {
-      Object.keys(pipelineCounts).forEach((key) => {
-        if (!presetKeys.has(key as LeadStage)) {
-          list.push({
-            key: key as LeadStage,
-            label: key.replace(/_/g, " "),
-            accentColor: "#8B5CF6",
-            fillGradient: "linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%)",
-          });
+    const totalLeads = typeof passedTotal === "number" && passedTotal >= calculatedTotal ? passedTotal : calculatedTotal;
+
+    // Filter only active stages for the doughnut ring slices
+    const activeSlices = useMemo(() => {
+      return PIPELINE_STAGES.filter((s) => (pipelineCounts?.[s.key] || 0) > 0);
+    }, [pipelineCounts]);
+
+    // SVG ring parameters matching mockup
+    const size = 220;
+    const center = size / 2;
+    const radius = 80;
+    const strokeWidth = 18;
+
+    // Compute geometry for multi-slice ring with rounded caps and subtle gaps
+    const sliceArcs = useMemo(() => {
+      const n = activeSlices.length;
+      if (totalLeads <= 0 || n === 0) return [];
+
+      if (n === 1) {
+        return [{
+          stage: activeSlices[0],
+          isFullCircle: true,
+          pathData: "",
+        }];
+      }
+
+      const gapDeg = 5; // degrees of gap between adjacent rounded tips
+      const capDeg = (strokeWidth / 2 / radius) * (180 / Math.PI); // cap compensation
+      const totalGapSpan = n * gapDeg;
+      const availableDeg = 360 - totalGapSpan;
+
+      // Start angle so New begins just past 12 o'clock (~15 deg) matching mockup
+      let currentAngle = 15;
+      const arcs: { stage: PipelineStageConfig; isFullCircle: boolean; pathData: string }[] = [];
+
+      for (let i = 0; i < n; i++) {
+        const stage = activeSlices[i];
+        const count = pipelineCounts?.[stage.key] || 0;
+        const sliceDeg = (count / totalLeads) * availableDeg;
+        const rawStart = currentAngle + gapDeg / 2;
+        const rawEnd = rawStart + sliceDeg;
+
+        let arcStart = rawStart + capDeg;
+        let arcEnd = rawEnd - capDeg;
+
+        if (arcEnd <= arcStart) {
+          const mid = (rawStart + rawEnd) / 2;
+          arcStart = mid - 0.1;
+          arcEnd = mid + 0.1;
         }
-      });
-    }
-    return list;
-  }, [pipelineCounts]);
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
-      {/* Header matching reference */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.01em" }}>
-            Pipeline Stages
-          </h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            Lead stage distribution and funnels
-          </p>
-        </div>
-        <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(0, 102, 255, 0.12)", color: "#0066FF", border: "1px solid rgba(0, 102, 255, 0.25)", padding: "4px 12px", borderRadius: 50 }}>
-          <AnimatedNumber value={totalLeads} /> Total
-        </span>
-      </div>
+        const pathData = describeArc(center, center, radius, arcStart, arcEnd);
+        arcs.push({ stage, isFullCircle: false, pathData });
 
-      {/* Stage Rows Container (No Internal Scrollbar, Flow Natural) */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {stages.map((stg, idx) => {
-          const count = pipelineCounts?.[stg.key] || 0;
-          const percentage = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
-          const isSingular = count === 1;
+        currentAngle = rawEnd + gapDeg / 2;
+      }
 
-          return (
-            <div
-              key={stg.key}
-              onClick={() => onSelectStage && onSelectStage(stg.key)}
-              className="crm-pipeline-stage-row"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                padding: "10px 14px",
-                borderRadius: 12,
-                cursor: onSelectStage ? "pointer" : "default",
-                minHeight: 60,
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-              }}
-            >
-              {/* Row Header: Stage Name & Badge */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: stg.accentColor, flexShrink: 0 }} />
-                  <span className="crm-pipeline-stage-label" style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.04em" }}>
-                    {stg.label}
-                  </span>
-                </div>
+      return arcs;
+    }, [activeSlices, totalLeads, radius, strokeWidth, center, pipelineCounts]);
 
-                <div style={{ background: "rgba(0, 102, 255, 0.08)", border: "1px solid rgba(0, 102, 255, 0.2)", color: "#0066FF", padding: "2px 10px", borderRadius: 50, fontSize: 11, fontWeight: 800 }}>
-                  <AnimatedNumber value={count} /> {isSingular ? "Lead" : "Leads"}
-                </div>
+    return (
+          <div className="crm-pipeline-widget-root">
+            {/* 1. CARD HEADER */}
+            <div className="pipeline-header">
+              <div>
+                <h2 className="pipeline-title">Pipeline Stages</h2>
+                <p className="pipeline-subtitle">Lead distribution by stage</p>
               </div>
-
-              {/* Progress Bar Track */}
-              <div
-                className="crm-pipeline-progress-track"
-                style={{ position: "relative", width: "100%", height: 6, borderRadius: 999, overflow: "hidden", background: "rgba(255, 255, 255, 0.06)", margin: "1px 0" }}
-                role="progressbar"
-                aria-valuenow={percentage}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`${stg.label} Leads: ${count} of ${totalLeads}`}
-              >
-                <div
-                  className="dash-animated-pipeline-fill"
-                  style={{
-                    height: "100%",
-                    borderRadius: 999,
-                    width: `${percentage}%`,
-                    background: stg.fillGradient || "linear-gradient(90deg, #0066FF 0%, #F5D77F 100%)",
-                    transition: "width 0.5s ease-out",
-                    "--bar-delay": `${idx * 45}ms`,
-                  } as React.CSSProperties}
-                />
-              </div>
-
-              {/* Flex Meta: Percentage (Left) & View Link (Right) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "var(--text-muted)" }}>
-                <span>{percentage}% of total Leads</span>
-                {onSelectStage && (
-                  <span style={{ color: "#0066FF", display: "flex", alignItems: "center", gap: 2, fontSize: 11, fontWeight: 700 }}>
-                    View <ArrowUpRight style={{ width: 12, height: 12 }} />
-                  </span>
-                )}
+              <div className="pipeline-total-badge">
+                <span className="pipeline-total-badge-text">
+                  <AnimatedNumber value={totalLeads} /> total
+                </span>
               </div>
             </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+
+      {/* 2. CARD BODY: CHART (LEFT) & TABLE LEGEND (RIGHT) */}
+      <div className="pipeline-body">
+        {/* Left Column: Circular Doughnut Ring */}
+        <div className="pipeline-chart-col">
+          <div className="pipeline-ring-wrap">
+            <svg
+              width={size}
+              height={size}
+              viewBox={`0 0 ${size} ${size}`}
+              className="pipeline-doughnut-svg"
+              aria-label={`Pipeline distribution: ${totalLeads} total leads`}
+              role="img"
+            >
+              {/* Neutral background track / placeholder ring */}
+              <circle
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.05)"
+                strokeWidth={strokeWidth}
+              />
+
+              {/* Slices or empty state ring */}
+              {isLoading ? (
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="none"
+                  stroke="rgba(36, 136, 255, 0.2)"
+                  strokeWidth={strokeWidth}
+                  className="pipeline-skeleton-ring"
+                />
+              ) : totalLeads === 0 || sliceArcs.length === 0 ? (
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.08)"
+                  strokeWidth={strokeWidth}
+                  className="pipeline-empty-ring"
+                />
+              ) : (
+                <g className="pipeline-slices-group">
+                  {sliceArcs.map(({ stage, isFullCircle, pathData }) => {
+                    const isHovered = hoveredStage === stage.key;
+                    const strokeW = isHovered ? strokeWidth + 3 : strokeWidth;
+
+                    if (isFullCircle) {
+                      return (
+                        <circle
+                          key={stage.key}
+                          cx={center}
+                          cy={center}
+                          r={radius}
+                          fill="none"
+                          stroke={stage.color}
+                          strokeWidth={strokeW}
+                          className="pipeline-doughnut-slice dash-animated-pipeline-fill"
+                          style={{
+                            cursor: canAccessAllLeads ? "pointer" : "default",
+                            transition: "stroke-width 0.2s ease, filter 0.2s ease",
+                            filter: isHovered ? "brightness(1.15)" : undefined,
+                          }}
+                          onClick={() => canAccessAllLeads && onSelectStage?.(stage.key)}
+                          onMouseEnter={() => setHoveredStage(stage.key)}
+                          onMouseLeave={() => setHoveredStage(null)}
+                        >
+                          <title>{`${stage.label}: ${totalLeads} leads (100%)`}</title>
+                        </circle>
+                      );
+                    }
+
+                    return (
+                      <path
+                        key={stage.key}
+                        d={pathData}
+                        fill="none"
+                        stroke={stage.color}
+                        strokeWidth={strokeW}
+                        strokeLinecap="round"
+                        className="pipeline-doughnut-slice dash-animated-pipeline-fill"
+                        style={{
+                          cursor: canAccessAllLeads ? "pointer" : "default",
+                          transition: "stroke-width 0.2s ease, filter 0.2s ease",
+                          filter: isHovered ? `drop-shadow(0 0 6px ${stage.color}88) brightness(1.12)` : undefined,
+                        }}
+                        onClick={() => canAccessAllLeads && onSelectStage?.(stage.key)}
+                        onMouseEnter={() => setHoveredStage(stage.key)}
+                        onMouseLeave={() => setHoveredStage(null)}
+                      >
+                        <title>{`${stage.label}: ${pipelineCounts?.[stage.key] || 0} leads (${formatSharePercentage(pipelineCounts?.[stage.key] || 0, totalLeads)})`}</title>
+                      </path>
+                    );
+                  })}
+                </g>
+              )}
+
+              {/* Center Text */}
+              <text
+                x={center}
+                y={center - 2}
+                textAnchor="middle"
+                dominantBaseline="central"
+                className="pipeline-center-count"
+              >
+                {totalLeads}
+              </text>
+              <text
+                x={center}
+                y={center + 24}
+                textAnchor="middle"
+                dominantBaseline="central"
+                className="pipeline-center-label"
+              >
+                {totalLeads === 0 ? "No leads yet" : "Total leads"}
+              </text>
+            </svg>
+          </div>
+        </div>
+
+        {/* Divider on desktop */}
+        <div className="pipeline-col-divider" />
+
+        {/* Right Column: Stage Table Legend */}
+        <div className="pipeline-table-col">
+          {/* Table Header */}
+          <div className="pipeline-table-header" role="row">
+            <span className="pipeline-th pipeline-th-stage">STAGE</span>
+            <span className="pipeline-th pipeline-th-leads">LEADS</span>
+            <span className="pipeline-th pipeline-th-share">SHARE</span>
+          </div>
+
+          {/* Table Rows */}
+          <div className="pipeline-table-rows" role="list">
+            {PIPELINE_STAGES.map((stg) => {
+              const count = pipelineCounts?.[stg.key] || 0;
+              const hasLeads = count > 0;
+              const share = formatSharePercentage(count, totalLeads);
+              const isHovered = hoveredStage === stg.key;
+
+              return (
+                <div
+                  key={stg.key}
+                  className={`pipeline-table-row ${canAccessAllLeads ? "is-clickable" : ""} ${isHovered ? "is-active" : ""}`}
+                  role={canAccessAllLeads ? "button" : "listitem"}
+                  tabIndex={canAccessAllLeads ? 0 : undefined}
+                  aria-label={`${stg.label}: ${count} leads, ${share}`}
+                  onClick={() => canAccessAllLeads && onSelectStage?.(stg.key)}
+                  onMouseEnter={() => setHoveredStage(stg.key)}
+                  onMouseLeave={() => setHoveredStage(null)}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && canAccessAllLeads) {
+                      e.preventDefault();
+                      onSelectStage?.(stg.key);
+                    }
+                  }}
+                >
+                  {/* Stage Name & Dot */}
+                  <div className="pipeline-stage-info">
+                    <span
+                      className="pipeline-dot"
+                      style={{
+                        background: hasLeads ? stg.color : "rgba(255, 255, 255, 0.16)",
+                        boxShadow: hasLeads && isHovered ? `0 0 6px ${stg.color}` : "none",
+                      }}
+                    />
+                    <span
+                      className="pipeline-stage-label"
+                      style={{
+                        color: hasLeads ? "var(--text-primary, #F8FAFC)" : "var(--text-muted, #64748B)",
+                      }}
+                    >
+                      {stg.label}
+                    </span>
+                  </div>
+
+                  {/* Leads Count */}
+                  <span
+                    className="pipeline-lead-count"
+                    style={{
+                      color: hasLeads ? "var(--text-primary, #F8FAFC)" : "var(--text-muted, #64748B)",
+                    }}
+                  >
+                    <AnimatedNumber value={count} />
+                  </span>
+
+                  {/* Share % */}
+                  <span
+                    className="pipeline-lead-share"
+                    style={{
+                      color: hasLeads ? "#94A3B8" : "#64748B",
+                    }}
+                  >
+                    {share}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+          </div>
+        </div>
+        );
 }

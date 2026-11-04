@@ -1052,8 +1052,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     });
     setCards((prevCards) => prevCards.map((c) => (c.id === draft.id ? { ...c, [key]: value } : c)));
   };
-  const selectTab = (next: Tab) => {
-    if (next === tab) {
+  const selectTab = (next: Tab, extraParams?: Record<string, string>) => {
+    if (next === tab && !extraParams) {
       setSidebar(false);
       return;
     }
@@ -1080,7 +1080,13 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           url.searchParams.delete("tool");
           url.searchParams.delete("section");
         }
-        window.history.pushState({ tab: targetTab }, "", url.toString());
+        if (extraParams) {
+          Object.entries(extraParams).forEach(([k, v]) => {
+            if (v) url.searchParams.set(k, v);
+            else url.searchParams.delete(k);
+          });
+        }
+        window.history.pushState({ tab: targetTab, ...(extraParams || {}) }, "", url.toString());
       }
     };
 
@@ -1607,7 +1613,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 onUpdateNickname={(newName) => {
                   setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
                 }}
-                onNavigateTab={(t) => selectTab(t as Tab)}
+                onNavigateTab={(t: string) => selectTab(t as Tab)}
               />
             </div>
           ) : (
@@ -2724,7 +2730,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 role: userRole || identity?.role || "CUSTOMER",
                 featurePermissions: userPermissions,
               }}
-              onNavigateTab={(t) => selectTab(t as Tab)}
+              onNavigateTab={(t: string, params?: Record<string, string>) => selectTab(t as Tab, params)}
             />
           </section>
         )}

@@ -66,7 +66,7 @@ interface LeadManagementDashboardProps {
     role: string;
     featurePermissions?: Record<string, boolean>;
   };
-  onNavigateTab?: (tab: string) => void;
+  onNavigateTab?: (tab: string, extraParams?: Record<string, string>) => void;
 }
 
 let cachedLeadDashboardPayload: DashboardSummaryPayload | null = null;
@@ -559,7 +559,13 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         <LeadLivePipeline
           pipelineCounts={pipelineCounts}
           totalLeads={kpis.totalLeads}
-          onSelectStage={() => onNavigateTab && onNavigateTab("cards")}
+          isLoading={loading && !data}
+          canAccessAllLeads={canCustomize}
+          onSelectStage={(stage) => {
+            if (canCustomize && onNavigateTab) {
+              onNavigateTab("leads", { stage });
+            }
+          }}
         />
       </div>
     </div>
