@@ -1442,22 +1442,10 @@ body.dark-mode .add-lead-subhead,
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 8px 0 12px;
   padding: 0 10px 0 12px;
   border: none;
   border-right: 1px solid #E2E8F0;
-  background-color: #F1F5F9;
-  flex-shrink: 0;
-}
-
-.add-lead-country-selector-btn {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0 10px 0 12px;
-  border: none;
-  border-right: 1px solid #E2E8F0;
-  background-color: #F1F5F9;
+  background-color: transparent;
   flex-shrink: 0;
   cursor: pointer;
   gap: 4px;
@@ -1481,7 +1469,7 @@ body.dark-mode .add-lead-subhead,
 }
 
 .add-lead-country-selector-btn:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 .add-lead-dial-code {
@@ -1493,47 +1481,26 @@ body.dark-mode .add-lead-subhead,
   height: 100%;
   display: flex;
   align-items: center;
-  background-color: #F8FAFC;
+  background-color: transparent;
   flex-shrink: 0;
 }
 
-.add-lead-country-selector-btn:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-  }
+.add-lead-country-flag {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
 
-  .add-lead-country-flag {
-    font-size: 16px;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .add-lead-country-flag {
-    font-size: 16px;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .add-lead-country-dial {
-    font-size: 13px;
-    font-weight: 700;
-    color: #64748B;
-    padding: 0 4px;
-    height: 100%;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .add-lead-country-dial {
-    font-size: 13px;
-    font-weight: 700;
-    color: #64748B;
-    padding: 0 12px;
-    border-right: 1px solid #E2E8F0;
-    height: 100%;
-    color: #1E293B;
-  }
+.add-lead-country-dial {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E293B;
+  padding: 0 4px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+}
 
   .add-lead-country-popover {
     position: absolute;
@@ -1854,22 +1821,32 @@ body.dark-mode .add-lead-subhead,
     border-color: #343740 !important;
   }
 
-    [data-theme="dark"] .add-lead-country-selector,
+  [data-theme="dark"] .add-lead-mobile-group:focus-within,
+  body.dark-mode .add-lead-mobile-group:focus-within,
+  .dark .add-lead-mobile-group:focus-within {
+    background-color: #111216 !important;
+    border-color: #0967D2 !important;
+    box-shadow: 0 0 0 2px rgba(9, 103, 210, 0.25) !important;
+  }
+
+  [data-theme="dark"] .add-lead-country-selector,
   body.dark-mode .add-lead-country-selector,
   .dark .add-lead-country-selector {
-    background-color: #111216 !important;
+    background-color: transparent !important;
   }
 
   [data-theme="dark"] .add-lead-country-selector-btn,
   body.dark-mode .add-lead-country-selector-btn,
   .dark .add-lead-country-selector-btn {
+    background: transparent !important;
+    background-color: transparent !important;
     border-right-color: #343740 !important;
   }
 
   [data-theme="dark"] .add-lead-country-selector-btn:hover,
   body.dark-mode .add-lead-country-selector-btn:hover,
   .dark .add-lead-country-selector-btn:hover {
-    background-color: rgba(255, 255, 255, 0.04) !important;
+    background-color: rgba(255, 255, 255, 0.06) !important;
   }
 
   [data-theme="dark"] .add-lead-country-selector select,
@@ -1887,7 +1864,7 @@ body.dark-mode .add-lead-subhead,
   [data-theme="dark"] .add-lead-dial-code,
   body.dark-mode .add-lead-dial-code,
   .dark .add-lead-dial-code {
-    background-color: #111216 !important;
+    background-color: transparent !important;
     border-right-color: #343740 !important;
     color: #969CA8 !important;
   }
@@ -1895,13 +1872,20 @@ body.dark-mode .add-lead-subhead,
   [data-theme="dark"] .add-lead-phone-input,
   body.dark-mode .add-lead-phone-input,
   .dark .add-lead-phone-input {
+    background: transparent !important;
     color: #F5F6F8 !important;
+  }
+
+  [data-theme="dark"] .add-lead-phone-input::placeholder,
+  body.dark-mode .add-lead-phone-input::placeholder,
+  .dark .add-lead-phone-input::placeholder {
+    color: #64748B !important;
   }
 
   [data-theme="dark"] .add-lead-country-popover,
   body.dark-mode .add-lead-country-popover,
   .dark .add-lead-country-popover {
-    background-color: #111216 !important;
+    background-color: #1B1C21 !important;
     border-color: #343740 !important;
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75) !important;
   }
@@ -1910,13 +1894,13 @@ body.dark-mode .add-lead-subhead,
   body.dark-mode .add-lead-country-search-box,
   .dark .add-lead-country-search-box {
     background-color: #141519 !important;
-    border-bottom-color: #262930 !important;
+    border-bottom-color: #282B34 !important;
   }
 
   [data-theme="dark"] .add-lead-country-search-input,
   body.dark-mode .add-lead-country-search-input,
   .dark .add-lead-country-search-input {
-    background-color: #1A1C22 !important;
+    background-color: #111216 !important;
     border-color: #343740 !important;
     color: #F8FAFC !important;
   }
@@ -1928,16 +1912,22 @@ body.dark-mode .add-lead-subhead,
     box-shadow: 0 0 0 2px rgba(9, 103, 210, 0.25) !important;
   }
 
+  [data-theme="dark"] .add-lead-country-option,
+  body.dark-mode .add-lead-country-option,
+  .dark .add-lead-country-option {
+    color: #F8FAFC !important;
+  }
+
   [data-theme="dark"] .add-lead-country-option:hover,
   body.dark-mode .add-lead-country-option:hover,
   .dark .add-lead-country-option:hover {
-    background-color: #1A1C22 !important;
+    background-color: #23252C !important;
   }
 
   [data-theme="dark"] .add-lead-country-option.is-selected,
   body.dark-mode .add-lead-country-option.is-selected,
   .dark .add-lead-country-option.is-selected {
-    background-color: #242832 !important;
+    background-color: #2E323D !important;
   }
 
   [data-theme="dark"] .add-lead-country-option-name,
@@ -1955,7 +1945,7 @@ body.dark-mode .add-lead-subhead,
   [data-theme="dark"] .add-lead-country-no-results,
   body.dark-mode .add-lead-country-no-results,
   .dark .add-lead-country-no-results {
-    color: #64748B !important;
+    color: #94A3B8 !important;
   }
 
   [data-theme="dark"] .add-lead-empty-box,

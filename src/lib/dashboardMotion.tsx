@@ -234,20 +234,32 @@ export function AnimatedNumber({
  * - Does not retrigger during background data refreshes or filter updates.
  * - Resets only when explicitly unmounted and remounted on new view navigation.
  */
-export function useDashboardEntrance(isDataLoaded: boolean = true) {
+export function useDashboardEntrance(isDataLoaded: boolean = true, settleDelayMs: number = 1000) {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
+  const [isSettled, setIsSettled] = useState<boolean>(false);
   const reducedMotion = usePrefersReducedMotion();
   const triggeredRef = useRef<boolean>(false);
 
   useEffect(() => {
+    if (reducedMotion) {
+      setHasEntered(true);
+      setIsSettled(true);
+      return;
+    }
     if (isDataLoaded && !triggeredRef.current) {
       triggeredRef.current = true;
       setHasEntered(true);
+      const timer = setTimeout(() => {
+        setIsSettled(true);
+      }, settleDelayMs);
+      return () => clearTimeout(timer);
     }
-  }, [isDataLoaded]);
+  }, [isDataLoaded, reducedMotion, settleDelayMs]);
 
   return {
-    shouldAnimateEntrance: hasEntered && !reducedMotion,
+    shouldAnimateEntrance: hasEntered && !isSettled && !reducedMotion,
+    isSettled: isSettled || reducedMotion,
+    hasEntered,
     reducedMotion,
   };
 }

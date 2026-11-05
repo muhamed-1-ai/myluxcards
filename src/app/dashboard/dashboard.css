@@ -2953,66 +2953,160 @@ th {
   position: absolute;
   right: 0;
   top: 50px;
-  width: 250px;
-  padding: 17px;
-  background: #23252C;
-  border: 1px solid #343740;
-  border-radius: 12px;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
-  display: grid;
-  gap: 6px;
+  width: 260px;
+  padding: 12px;
+  background: var(--surface-elevated, #23252C);
+  border: 1px solid var(--border-color, #343740);
+  border-radius: 14px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   z-index: 80;
 }
 
-.account-popover strong {
-  color: #F5F6F8;
-  font-size: 14px;
+.account-popover-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 10px;
+  border-bottom: 1px solid var(--border-color, #343740);
+  margin-bottom: 4px;
 }
 
-.account-popover span {
-  color: #B5B8C2;
-  font-size: 11px;
+.account-popover strong,
+.account-popover-name {
+  color: var(--text-primary, #F5F6F8);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.account-popover span.account-popover-email,
+.account-popover-email,
+.account-popover > span {
+  color: var(--text-muted, #969CA8);
+  font-size: 11.5px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.account-popover button {
-  margin-top: 10px;
-  padding: 10px;
-  border: 1px solid #0967D2;
-  border-radius: 7px;
-  background: #0967D2;
-  color: #FFFFFF;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+.account-popover-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.account-popover button:hover {
-  background: #075BBE;
-}
-
-.account-popover .btn-change-nickname {
-  margin-top: 8px;
-  padding: 8px 12px;
-  border: 1px solid rgba(22, 139, 255, 0.3);
-  border-radius: 7px;
-  background: #14263A;
-  color: #168BFF;
-  font-weight: 600;
+.account-popover button,
+.account-popover .account-popover-item {
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary, #F5F6F8);
   font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all 0.2s ease;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: left;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.account-popover .account-popover-icon {
+  flex-shrink: 0;
+  color: var(--text-muted, #969CA8);
+  transition: color 0.15s ease;
+}
+
+.account-popover button:hover,
+.account-popover .account-popover-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #FFFFFF;
+}
+
+.account-popover button:hover .account-popover-icon,
+.account-popover .account-popover-item:hover .account-popover-icon {
+  color: #FFFFFF;
+}
+
+.account-popover button:focus-visible,
+.account-popover .account-popover-item:focus-visible {
+  outline: 2px solid var(--primary, #168BFF);
+  outline-offset: 1px;
+}
+
+/* Link item (Admin Portal) */
+.account-popover a.account-popover-item,
+.account-popover .account-popover-link {
+  color: var(--primary, #168BFF);
+  font-weight: 600;
+}
+
+.account-popover a.account-popover-item .account-popover-icon,
+.account-popover .account-popover-link .account-popover-icon {
+  color: var(--primary, #168BFF);
+}
+
+.account-popover a.account-popover-item:hover,
+.account-popover .account-popover-link:hover {
+  background: rgba(22, 139, 255, 0.1);
+  color: var(--primary, #168BFF);
+}
+
+/* Change nickname button (backwards-compat) */
+.account-popover .btn-change-nickname {
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary, #F5F6F8);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .account-popover .btn-change-nickname:hover {
-  background: #1b3350;
-  border-color: #168BFF;
-  color: #168BFF;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #FFFFFF;
+}
+
+/* Divider */
+.account-popover-divider {
+  height: 1px;
+  background: var(--border-color, #343740);
+  margin: 4px 0;
+}
+
+/* Destructive Log out */
+.account-popover button.account-popover-danger,
+.account-popover .account-popover-danger {
+  color: var(--danger, #EF4444) !important;
+}
+
+.account-popover button.account-popover-danger .account-popover-icon,
+.account-popover .account-popover-danger .account-popover-icon {
+  color: var(--danger, #EF4444) !important;
+}
+
+.account-popover button.account-popover-danger:hover,
+.account-popover .account-popover-danger:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #EF4444 !important;
 }
 
 .phone-preview {
@@ -6969,6 +7063,148 @@ body.light-mode .pipeline-table-row.is-active,
   color: #FFFFFF;
 }
 
+.crm-capacity-badge-btn:focus-visible {
+  outline: 2px solid var(--primary, #0066FF);
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .crm-capacity-badge-btn,
+body.dark-mode .crm-capacity-badge-btn,
+.dark .crm-capacity-badge-btn {
+  background: #14263A !important;
+  border: 1px solid rgba(22, 139, 255, 0.3) !important;
+  color: #168BFF !important;
+}
+
+[data-theme="dark"] .crm-capacity-badge-btn:hover,
+body.dark-mode .crm-capacity-badge-btn:hover,
+.dark .crm-capacity-badge-btn:hover {
+  background: #0967D2 !important;
+  border-color: #075BBE !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .crm-capacity-badge-btn,
+body.light-mode .crm-capacity-badge-btn,
+.light .crm-capacity-badge-btn {
+  background: #EFF6FF !important;
+  border: 1px solid rgba(0, 102, 255, 0.25) !important;
+  color: #0066FF !important;
+  box-shadow: 0 1px 3px rgba(0, 102, 255, 0.08) !important;
+}
+
+[data-theme="light"] .crm-capacity-badge-btn:hover,
+body.light-mode .crm-capacity-badge-btn:hover,
+.light .crm-capacity-badge-btn:hover {
+  background: #0066FF !important;
+  border-color: #0052CC !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25) !important;
+}
+
+/* Growth Velocity Chart Period Selector */
+.growth-period-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: #161822;
+  border: 1px solid #343740;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme="dark"] .growth-period-selector,
+body.dark-mode .growth-period-selector,
+.dark .growth-period-selector {
+  background: #141519 !important;
+  border-color: #343740 !important;
+}
+
+[data-theme="light"] .growth-period-selector,
+body.light-mode .growth-period-selector,
+.light .growth-period-selector {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+}
+
+.growth-period-btn {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: #94A3B8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.growth-period-btn:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #F8FAFC;
+}
+
+.growth-period-btn.is-active {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25);
+}
+
+.growth-period-btn:focus-visible {
+  outline: 2px solid var(--primary, #0066FF);
+  outline-offset: 1px;
+}
+
+[data-theme="dark"] .growth-period-btn,
+body.dark-mode .growth-period-btn,
+.dark .growth-period-btn {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .growth-period-btn:hover:not(.is-active),
+body.dark-mode .growth-period-btn:hover:not(.is-active),
+.dark .growth-period-btn:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .growth-period-btn.is-active,
+body.dark-mode .growth-period-btn.is-active,
+.dark .growth-period-btn.is-active {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.35) !important;
+}
+
+[data-theme="light"] .growth-period-btn,
+body.light-mode .growth-period-btn,
+.light .growth-period-btn {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .growth-period-btn:hover:not(.is-active),
+body.light-mode .growth-period-btn:hover:not(.is-active),
+.light .growth-period-btn:hover:not(.is-active) {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .growth-period-btn.is-active,
+body.light-mode .growth-period-btn.is-active,
+.light .growth-period-btn.is-active {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25) !important;
+}
+
 /* 5. MAIN CHARTS ROW (Growth Velocity & Pipeline Stages) */
 .crm-chart-row {
   display: grid;
@@ -7787,32 +8023,119 @@ body.dark-mode select option {
 
 [data-theme="dark"] .account-popover,
 body.dark-mode .account-popover {
-  background: #23252C !important;
+  background: #1B1C21 !important;
   border: 1px solid #343740 !important;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6) !important;
   color: #F5F6F8 !important;
 }
 
 [data-theme="dark"] .account-popover strong,
-body.dark-mode .account-popover strong {
+[data-theme="dark"] .account-popover-name,
+body.dark-mode .account-popover strong,
+body.dark-mode .account-popover-name {
   color: #F5F6F8 !important;
 }
 
 [data-theme="dark"] .account-popover span,
-body.dark-mode .account-popover span {
-  color: #B5B8C2 !important;
+[data-theme="dark"] .account-popover-email,
+body.dark-mode .account-popover span,
+body.dark-mode .account-popover-email {
+  color: #969CA8 !important;
+}
+
+[data-theme="dark"] .account-popover-info,
+body.dark-mode .account-popover-info,
+[data-theme="dark"] .account-popover-divider,
+body.dark-mode .account-popover-divider {
+  border-color: #282B34 !important;
+  background-color: #282B34 !important;
 }
 
 [data-theme="dark"] .account-popover button,
-body.dark-mode .account-popover button {
-  background: #0967D2 !important;
-  color: #FFFFFF !important;
-  border: 1px solid #0967D2 !important;
+[data-theme="dark"] .account-popover .account-popover-item,
+body.dark-mode .account-popover button,
+body.dark-mode .account-popover .account-popover-item {
+  background: transparent !important;
+  color: #F5F6F8 !important;
+  border: none !important;
+}
+
+[data-theme="dark"] .account-popover .account-popover-icon,
+body.dark-mode .account-popover .account-popover-icon {
+  color: #94A3B8 !important;
 }
 
 [data-theme="dark"] .account-popover button:hover,
-body.dark-mode .account-popover button:hover {
-  background: #075BBE !important;
+[data-theme="dark"] .account-popover .account-popover-item:hover,
+body.dark-mode .account-popover button:hover,
+body.dark-mode .account-popover .account-popover-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .account-popover button:hover .account-popover-icon,
+[data-theme="dark"] .account-popover .account-popover-item:hover .account-popover-icon,
+body.dark-mode .account-popover button:hover .account-popover-icon,
+body.dark-mode .account-popover .account-popover-item:hover .account-popover-icon {
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .account-popover a.account-popover-item,
+[data-theme="dark"] .account-popover .account-popover-link,
+body.dark-mode .account-popover a.account-popover-item,
+body.dark-mode .account-popover .account-popover-link {
+  color: #168BFF !important;
+}
+
+[data-theme="dark"] .account-popover a.account-popover-item .account-popover-icon,
+[data-theme="dark"] .account-popover .account-popover-link .account-popover-icon,
+body.dark-mode .account-popover a.account-popover-item .account-popover-icon,
+body.dark-mode .account-popover .account-popover-link .account-popover-icon {
+  color: #168BFF !important;
+}
+
+[data-theme="dark"] .account-popover a.account-popover-item:hover,
+[data-theme="dark"] .account-popover .account-popover-link:hover,
+body.dark-mode .account-popover a.account-popover-item:hover,
+body.dark-mode .account-popover .account-popover-link:hover {
+  background: rgba(22, 139, 255, 0.12) !important;
+  color: #168BFF !important;
+}
+
+[data-theme="dark"] .account-popover .btn-change-nickname,
+body.dark-mode .account-popover .btn-change-nickname {
+  background: transparent !important;
+  border: none !important;
+  color: #F5F6F8 !important;
+}
+
+[data-theme="dark"] .account-popover .btn-change-nickname:hover,
+body.dark-mode .account-popover .btn-change-nickname:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .account-popover button.account-popover-danger,
+[data-theme="dark"] .account-popover .account-popover-danger,
+body.dark-mode .account-popover button.account-popover-danger,
+body.dark-mode .account-popover .account-popover-danger {
+  color: #EF4444 !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .account-popover button.account-popover-danger .account-popover-icon,
+[data-theme="dark"] .account-popover .account-popover-danger .account-popover-icon,
+body.dark-mode .account-popover button.account-popover-danger .account-popover-icon,
+body.dark-mode .account-popover .account-popover-danger .account-popover-icon {
+  color: #EF4444 !important;
+}
+
+[data-theme="dark"] .account-popover button.account-popover-danger:hover,
+[data-theme="dark"] .account-popover .account-popover-danger:hover,
+body.dark-mode .account-popover button.account-popover-danger:hover,
+body.dark-mode .account-popover .account-popover-danger:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #F87171 !important;
 }
 
 [data-theme="light"] .crm-btn-refresh,
@@ -7867,23 +8190,117 @@ body.light-mode .avatar {
 body.light-mode .account-popover {
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
   color: #0F172A !important;
 }
 
 [data-theme="light"] .account-popover strong,
-body.light-mode .account-popover strong {
+[data-theme="light"] .account-popover-name,
+body.light-mode .account-popover strong,
+body.light-mode .account-popover-name {
   color: #0F172A !important;
 }
 
 [data-theme="light"] .account-popover span,
-body.light-mode .account-popover span {
+[data-theme="light"] .account-popover-email,
+body.light-mode .account-popover span,
+body.light-mode .account-popover-email {
   color: #64748B !important;
 }
 
+[data-theme="light"] .account-popover-info,
+body.light-mode .account-popover-info,
+[data-theme="light"] .account-popover-divider,
+body.light-mode .account-popover-divider {
+  border-color: #E2E8F0 !important;
+  background-color: #E2E8F0 !important;
+}
+
 [data-theme="light"] .account-popover button,
-body.light-mode .account-popover button {
+[data-theme="light"] .account-popover .account-popover-item,
+body.light-mode .account-popover button,
+body.light-mode .account-popover .account-popover-item {
+  background: transparent !important;
+  color: #334155 !important;
+  border: none !important;
+}
+
+[data-theme="light"] .account-popover .account-popover-icon,
+body.light-mode .account-popover .account-popover-icon {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .account-popover button:hover,
+[data-theme="light"] .account-popover .account-popover-item:hover,
+body.light-mode .account-popover button:hover,
+body.light-mode .account-popover .account-popover-item:hover {
+  background: #F1F5F9 !important;
   color: #0F172A !important;
+}
+
+[data-theme="light"] .account-popover button:hover .account-popover-icon,
+[data-theme="light"] .account-popover .account-popover-item:hover .account-popover-icon,
+body.light-mode .account-popover button:hover .account-popover-icon,
+body.light-mode .account-popover .account-popover-item:hover .account-popover-icon {
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .account-popover a.account-popover-item,
+[data-theme="light"] .account-popover .account-popover-link,
+body.light-mode .account-popover a.account-popover-item,
+body.light-mode .account-popover .account-popover-link {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .account-popover a.account-popover-item .account-popover-icon,
+[data-theme="light"] .account-popover .account-popover-link .account-popover-icon,
+body.light-mode .account-popover a.account-popover-item .account-popover-icon,
+body.light-mode .account-popover .account-popover-link .account-popover-icon {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .account-popover a.account-popover-item:hover,
+[data-theme="light"] .account-popover .account-popover-link:hover,
+body.light-mode .account-popover a.account-popover-item:hover,
+body.light-mode .account-popover .account-popover-link:hover {
+  background: rgba(0, 102, 255, 0.08) !important;
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .account-popover .btn-change-nickname,
+body.light-mode .account-popover .btn-change-nickname {
+  background: transparent !important;
+  border: none !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .account-popover .btn-change-nickname:hover,
+body.light-mode .account-popover .btn-change-nickname:hover {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .account-popover button.account-popover-danger,
+[data-theme="light"] .account-popover .account-popover-danger,
+body.light-mode .account-popover button.account-popover-danger,
+body.light-mode .account-popover .account-popover-danger {
+  color: #DC2626 !important;
+  background: transparent !important;
+}
+
+[data-theme="light"] .account-popover button.account-popover-danger .account-popover-icon,
+[data-theme="light"] .account-popover .account-popover-danger .account-popover-icon,
+body.light-mode .account-popover button.account-popover-danger .account-popover-icon,
+body.light-mode .account-popover .account-popover-danger .account-popover-icon {
+  color: #DC2626 !important;
+}
+
+[data-theme="light"] .account-popover button.account-popover-danger:hover,
+[data-theme="light"] .account-popover .account-popover-danger:hover,
+body.light-mode .account-popover button.account-popover-danger:hover,
+body.light-mode .account-popover .account-popover-danger:hover {
+  background: rgba(220, 38, 38, 0.08) !important;
+  color: #DC2626 !important;
 }
 
 [data-theme="light"] .dash-side,
@@ -10506,23 +10923,6 @@ body.light-mode .table-footer button.current {
   color: #FFFFFF !important;
 }
 
-[data-theme="light"] .account-popover,
-body.light-mode .account-popover {
-  background: #FFFFFF !important;
-  border: 1px solid #E2E8F0 !important;
-  color: #0F172A !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-}
-
-[data-theme="light"] .account-popover strong,
-body.light-mode .account-popover strong {
-  color: #0F172A !important;
-}
-
-[data-theme="light"] .account-popover span,
-body.light-mode .account-popover span {
-  color: #64748B !important;
-}
 
 [data-theme="light"] .save-finish-reminder,
 body.light-mode .save-finish-reminder {
@@ -11734,6 +12134,45 @@ body.light-mode .pts-card-label {
   }
 }
 
+/* Pipeline Stages Donut Progressive Clockwise Sweep */
+.pipeline-donut-sweep-mask {
+  stroke-dasharray: 503;
+  stroke-dashoffset: 503;
+  animation: pipelineDonutSweep 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 240ms;
+}
+
+@keyframes pipelineDonutSweep {
+  from {
+    stroke-dashoffset: 503;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pipeline-mask-settled {
+  stroke-dashoffset: 0 !important;
+  animation: none !important;
+}
+
+/* Pipeline Stage Table Legend Row Reveal */
+.pipeline-table-row.dash-legend-reveal {
+  animation: dashLegendRowFade 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--row-delay, 260ms);
+}
+
+@keyframes dashLegendRowFade {
+  from {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Animated Number Styling */
 .dash-animated-num {
   display: inline-block;
@@ -11752,7 +12191,9 @@ body.light-mode .pts-card-label {
   .dash-chart-line-reveal,
   .dash-chart-area-reveal,
   .dash-chart-point-reveal,
-  .dash-animated-pipeline-fill {
+  .dash-animated-pipeline-fill,
+  .pipeline-donut-sweep-mask,
+  .pipeline-table-row.dash-legend-reveal {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

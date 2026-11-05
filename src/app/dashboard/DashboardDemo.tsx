@@ -113,6 +113,8 @@ import {
   Layout,
   Landmark,
   Settings,
+  Edit3,
+  LogOut,
 } from "lucide-react";
 
 type Tab =
@@ -728,14 +730,21 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
         flushSync(() => {
           setTheme(nextTheme);
           document.documentElement.setAttribute("data-theme", nextTheme);
+          document.body.setAttribute("data-theme", nextTheme);
           if (nextTheme === "light") {
-            document.body.classList.add("light-mode");
-            document.body.classList.remove("dark-mode");
-            document.documentElement.classList.remove("dark");
+            document.documentElement.classList.add("light", "light-mode");
+            document.documentElement.classList.remove("dark", "dark-mode");
+            document.body.classList.add("light", "light-mode");
+            document.body.classList.remove("dark", "dark-mode");
+            document.documentElement.style.colorScheme = "light";
+            document.body.style.colorScheme = "light";
           } else {
-            document.body.classList.add("dark-mode");
-            document.body.classList.remove("light-mode");
-            document.documentElement.classList.add("dark");
+            document.documentElement.classList.add("dark", "dark-mode");
+            document.documentElement.classList.remove("light", "light-mode");
+            document.body.classList.add("dark", "dark-mode");
+            document.body.classList.remove("light", "light-mode");
+            document.documentElement.style.colorScheme = "dark";
+            document.body.style.colorScheme = "dark";
           }
         });
       });
@@ -2697,19 +2706,60 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                       {userInitials}
                     </button>
                     {accountMenu && (
-                      <div className="account-popover">
-                        <strong>{userDisplayName}</strong>
-                        <span>{currentUser?.email || ""}</span>
-                        {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
-                          <a href="/admin" style={{ display: "block", margin: "8px 0", color: "#0066FF", fontWeight: 600, textDecoration: "none" }}>⚙ Admin Portal</a>
-                        )}
-                        <button type="button" onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                          <Settings size={14} />
-                          <span>Settings</span>
-                        </button>
-                        <button type="button" className="btn-change-nickname" onClick={handleOpenNicknameModal}>✏ Change Nickname</button>
-                        <button type="button" onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}>🛡 Security &amp; Password</button>
-                        <button type="button" onClick={logout}>Log out</button>
+                      <div className="account-popover" role="menu" aria-label="Account menu">
+                        <div className="account-popover-info">
+                          <strong className="account-popover-name">{userDisplayName}</strong>
+                          <span className="account-popover-email">{currentUser?.email || ""}</span>
+                        </div>
+                        <div className="account-popover-menu">
+                          {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
+                            <a
+                              href="/admin"
+                              className="account-popover-item account-popover-link"
+                              role="menuitem"
+                            >
+                              <Settings size={14} className="account-popover-icon" />
+                              <span>Admin Portal</span>
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="account-popover-item"
+                            role="menuitem"
+                            onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}
+                          >
+                            <Settings size={14} className="account-popover-icon" />
+                            <span>Settings</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="account-popover-item btn-change-nickname"
+                            role="menuitem"
+                            onClick={handleOpenNicknameModal}
+                          >
+                            <Edit3 size={14} className="account-popover-icon" />
+                            <span>Change Nickname</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="account-popover-item"
+                            role="menuitem"
+                            onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}
+                          >
+                            <Shield size={14} className="account-popover-icon" />
+                            <span>Security &amp; Password</span>
+                          </button>
+                          <div className="account-popover-divider" />
+                          <button
+                            type="button"
+                            className="account-popover-item account-popover-danger"
+                            role="menuitem"
+                            onClick={logout}
+                          >
+                            <LogOut size={14} className="account-popover-icon" />
+                            <span>Log out</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </>

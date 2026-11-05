@@ -547,16 +547,14 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
   const renderGrowthChartCard = (orderStyle?: React.CSSProperties) => (
     <div
       key="growth_velocity_card"
-      className={`crm-chart-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "240ms" } as React.CSSProperties}
+      className="crm-chart-card"
+      style={orderStyle}
     >
-      <div className="dash-card-content">
-        <LeadGrowthChart
-          growthTimeline={data?.growthTimeline}
-          recentActivity={recentActivity}
-          totalLeads={kpis.totalLeads}
-        />
-      </div>
+      <LeadGrowthChart
+        growthTimeline={data?.growthTimeline}
+        recentActivity={recentActivity}
+        totalLeads={kpis.totalLeads}
+      />
     </div>
   );
 

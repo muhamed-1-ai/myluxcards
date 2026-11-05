@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect, useId } from "react";
 import { LeadStage } from "@/lib/crm";
-import { AnimatedNumber } from "@/lib/dashboardMotion";
+import { AnimatedNumber, useAnimatedNumber, usePrefersReducedMotion } from "@/lib/dashboardMotion";
 
 export interface LeadLivePipelineProps {
   pipelineCounts: Record<LeadStage, number>;
@@ -57,23 +57,52 @@ export function LeadLivePipeline({
 }: LeadLivePipelineProps) {
   const [hoveredStage, setHoveredStage] = useState<LeadStage | null>(null);
 
-    // Compute calculated total from counts so ring and numbers always agree
-    const calculatedTotal = useMemo(() => {
-      return PIPELINE_STAGES.reduce((sum, s) => sum + (pipelineCounts?.[s.key] || 0), 0);
-    }, [pipelineCounts]);
+  const rawId = useId();
+  const maskId = `pipeline-donut-mask-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const hasAnimatedRef = useRef(false);
+  const [isSettled, setIsSettled] = useState(false);
 
-    const totalLeads = typeof passedTotal === "number" && passedTotal >= calculatedTotal ? passedTotal : calculatedTotal;
+  // Trigger entrance sweep once when real authoritative data is loaded
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setIsSettled(true);
+      hasAnimatedRef.current = true;
+      return;
+    }
+    if (!isLoading && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true;
+      const timer = setTimeout(() => {
+        setIsSettled(true);
+      }, 1150);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, prefersReducedMotion]);
 
-    // Filter only active stages for the doughnut ring slices
-    const activeSlices = useMemo(() => {
-      return PIPELINE_STAGES.filter((s) => (pipelineCounts?.[s.key] || 0) > 0);
-    }, [pipelineCounts]);
+  // Compute calculated total from counts so ring and numbers always agree
+  const calculatedTotal = useMemo(() => {
+    return PIPELINE_STAGES.reduce((sum, s) => sum + (pipelineCounts?.[s.key] || 0), 0);
+  }, [pipelineCounts]);
 
-    // SVG ring parameters matching mockup
-    const size = 220;
-    const center = size / 2;
-    const radius = 80;
-    const strokeWidth = 18;
+  const totalLeads = typeof passedTotal === "number" && passedTotal >= calculatedTotal ? passedTotal : calculatedTotal;
+
+  // Center counter animation coordinated with donut sweep
+  const { displayValue: animatedCenterTotal } = useAnimatedNumber(totalLeads, {
+    duration: 850,
+    isLoaded: !isLoading,
+  });
+
+  // Filter only active stages for the doughnut ring slices
+  const activeSlices = useMemo(() => {
+    return PIPELINE_STAGES.filter((s) => (pipelineCounts?.[s.key] || 0) > 0);
+  }, [pipelineCounts]);
+
+  // SVG ring parameters matching mockup
+  const size = 220;
+  const center = size / 2;
+  const radius = 80;
+  const strokeWidth = 18;
+  const circumference = 2 * Math.PI * radius; // ~502.655
 
     // Compute geometry for multi-slice ring with rounded caps and subtle gaps
     const sliceArcs = useMemo(() => {
@@ -150,6 +179,25 @@ export function LeadLivePipeline({
               aria-label={`Pipeline distribution: ${totalLeads} total leads`}
               role="img"
             >
+              <defs>
+                {/* Clockwise Sweep Mask starting at 12 o'clock (-90deg) */}
+                <mask id={maskId} maskUnits="userSpaceOnUse">
+                  <circle
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={strokeWidth + 14}
+                    strokeDasharray={`${circumference} ${circumference}`}
+                    strokeDashoffset={isSettled ? 0 : circumference}
+                    strokeLinecap="butt"
+                    transform={`rotate(-90 ${center} ${center})`}
+                    className={isSettled ? "pipeline-mask-settled" : "pipeline-donut-sweep-mask"}
+                  />
+                </mask>
+              </defs>
+
               {/* Neutral background track / placeholder ring */}
               <circle
                 cx={center}
@@ -182,7 +230,10 @@ export function LeadLivePipeline({
                   className="pipeline-empty-ring"
                 />
               ) : (
-                <g className="pipeline-slices-group">
+                <g
+                  className="pipeline-slices-group"
+                  mask={isSettled ? undefined : `url(#${maskId})`}
+                >
                   {sliceArcs.map(({ stage, isFullCircle, pathData }) => {
                     const isHovered = hoveredStage === stage.key;
                     const strokeW = isHovered ? strokeWidth + 3 : strokeWidth;
@@ -245,7 +296,7 @@ export function LeadLivePipeline({
                 dominantBaseline="central"
                 className="pipeline-center-count"
               >
-                {totalLeads}
+                {isLoading ? "…" : animatedCenterTotal}
               </text>
               <text
                 x={center}
@@ -274,7 +325,7 @@ export function LeadLivePipeline({
 
           {/* Table Rows */}
           <div className="pipeline-table-rows" role="list">
-            {PIPELINE_STAGES.map((stg) => {
+            {PIPELINE_STAGES.map((stg, idx) => {
               const count = pipelineCounts?.[stg.key] || 0;
               const hasLeads = count > 0;
               const share = formatSharePercentage(count, totalLeads);
@@ -283,7 +334,10 @@ export function LeadLivePipeline({
               return (
                 <div
                   key={stg.key}
-                  className={`pipeline-table-row ${canAccessAllLeads ? "is-clickable" : ""} ${isHovered ? "is-active" : ""}`}
+                  className={`pipeline-table-row ${canAccessAllLeads ? "is-clickable" : ""} ${isHovered ? "is-active" : ""} ${!isSettled ? "dash-legend-reveal" : ""}`}
+                  style={{
+                    "--row-delay": `${260 + idx * 45}ms`,
+                  } as React.CSSProperties}
                   role={canAccessAllLeads ? "button" : "listitem"}
                   tabIndex={canAccessAllLeads ? 0 : undefined}
                   aria-label={`${stg.label}: ${count} leads, ${share}`}
@@ -323,7 +377,7 @@ export function LeadLivePipeline({
                       color: hasLeads ? "var(--text-primary, #F8FAFC)" : "var(--text-muted, #64748B)",
                     }}
                   >
-                    <AnimatedNumber value={count} />
+                    <AnimatedNumber value={count} isLoaded={!isLoading} />
                   </span>
 
                   {/* Share % */}
