@@ -458,26 +458,32 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     const el = chartWrapRef.current;
     if (!el) return;
 
-    const update = () => {
-      if (el.clientWidth > 0) {
-        setChartWidth(el.clientWidth);
+    const measure = () => {
+      const rectW = el.getBoundingClientRect().width;
+      const w = rectW > 0 ? rectW : el.clientWidth;
+      if (w > 0 && Number.isFinite(w)) {
+        setChartWidth(Math.round(w));
       }
     };
 
-    update();
+    measure();
 
     if (typeof ResizeObserver !== "undefined") {
       const ro = new ResizeObserver((entries) => {
         for (const entry of entries) {
-          const w = Math.round(entry.contentRect.width);
-          if (w > 0) setChartWidth(w);
+          const crW = entry.contentRect?.width ?? 0;
+          const rectW = el.getBoundingClientRect().width;
+          const w = crW > 0 ? crW : rectW > 0 ? rectW : el.clientWidth;
+          if (w > 0 && Number.isFinite(w)) {
+            setChartWidth(Math.round(w));
+          }
         }
       });
       ro.observe(el);
       return () => ro.disconnect();
     } else {
-      window.addEventListener("resize", update);
-      return () => window.removeEventListener("resize", update);
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
     }
   }, [chartViewMode, metrics]);
 
@@ -569,6 +575,15 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
     setRetryTrigger((prev) => prev + 1);
   };
 
+  // Derived state for data loading & availability
+  const hasData = metrics !== null;
+  const isStale = Boolean(error && hasData);
+  const isUnavailable = Boolean(error && !hasData);
+  const isLoadingInitial = Boolean(loading && !hasData);
+
+  // Hook must be called unconditionally above all early returns to guarantee consistent hook order across all renders
+  const { shouldAnimateEntrance } = useDashboardEntrance(!isLoadingInitial && hasData);
+
   if (!activeWorkspace) {
     return (
       <div className="acc-card acc-empty-compact" style={{ padding: "4rem 1.5rem" }}>
@@ -585,13 +600,6 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
       </div>
     );
   }
-
-  const hasData = metrics !== null;
-  const isStale = Boolean(error && hasData);
-  const isUnavailable = Boolean(error && !hasData);
-  const isLoadingInitial = Boolean(loading && !hasData);
-
-  const { shouldAnimateEntrance } = useDashboardEntrance(!isLoadingInitial && hasData);
 
   const periodLabelMap: Record<string, string> = {
     today: "Today",
@@ -1345,19 +1353,25 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
 
               {/* Dual-Line SVG Chart with Monotone Cubic Spline Curves & Gradient Area */}
               {(() => {
-                const svgWidth = chartWidth > 0 ? chartWidth : 680;
+                const svgWidth = chartWidth > 0 && Number.isFinite(chartWidth) ? chartWidth : 680;
                 const svgHeight = 250;
                 const padLeft = 58;
                 const padRight = 20;
                 const padTop = 18;
                 const padBottom = 28;
 
-                const plotWidth = Math.max(10, svgWidth - padLeft - padRight);
-                const plotHeight = Math.max(10, svgHeight - padTop - padBottom);
+                const rawPlotWidth = svgWidth - padLeft - padRight;
+                const rawPlotHeight = svgHeight - padTop - padBottom;
+                const plotWidth = Math.max(10, Number.isFinite(rawPlotWidth) ? rawPlotWidth : 10);
+                const plotHeight = Math.max(10, Number.isFinite(rawPlotHeight) ? rawPlotHeight : 10);
                 const baseY = padTop + plotHeight;
 
                 const numPoints = trendBars.length;
                 const scaleVal = maxSeriesVal > 0 ? maxSeriesVal : 1;
+
+                if (!Number.isFinite(plotWidth) || !Number.isFinite(plotHeight) || plotWidth <= 0 || plotHeight <= 0) {
+                  return null;
+                }
 
                 // Compute exact data coordinates
                 const points = trendBars.map((bar, idx) => {
@@ -1517,7 +1531,8 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                     {/* Interactive Touch & Hover Trigger Zones */}
                     {points.map((pt) => {
                       const isHovered = hoveredPointIndex === pt.idx;
-                      const slotW = numPoints > 1 ? plotWidth / (numPoints - 1) : plotWidth;
+                      const rawSlotW = numPoints > 1 ? plotWidth / (numPoints - 1) : plotWidth;
+                      const slotW = Math.max(0, Number.isFinite(rawSlotW) ? rawSlotW : 0);
                       const showMarker = isHovered || numPoints === 1;
 
                       // Decide whether to show X-axis tick label
@@ -1537,6 +1552,11 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                           y: Math.min(pt.inY, pt.outY),
                         });
                       };
+
+                      const safeX = Number.isFinite(pt.x) ? pt.x : padLeft;
+                      const rectX = Math.round((safeX - slotW / 2) * 10) / 10;
+                      const rectW = Math.max(0, Math.round(slotW * 10) / 10);
+                      const rectH = Math.max(0, Math.round(plotHeight * 10) / 10);
 
                       return (
                         <g
@@ -1562,10 +1582,10 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
                         >
                           {/* Invisible hover trigger area */}
                           <rect
-                            x={pt.x - slotW / 2}
+                            x={rectX}
                             y={padTop}
-                            width={slotW}
-                            height={plotHeight}
+                            width={rectW}
+                            height={rectH}
                             fill="transparent"
                           />
 

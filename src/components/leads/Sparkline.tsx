@@ -107,17 +107,18 @@ export function Sparkline({
     const start = performance.now();
 
     const frame = (now: number) => {
-      const elapsed = now - start;
-      const t = Math.min(1, elapsed / duration);
+      const elapsed = Math.max(0, now - start);
+      const t = Math.min(1, Math.max(0, elapsed / duration));
       // Decelerating ease-out curve
-      const p = 1 - Math.pow(1 - t, 3);
+      const p = Math.max(0, 1 - Math.pow(1 - t, 3));
+      const safeW = Math.max(0, p * Math.max(0, width));
       if (clipRectRef.current) {
-        clipRectRef.current.setAttribute("width", (p * width).toFixed(1));
+        clipRectRef.current.setAttribute("width", safeW.toFixed(1));
       }
       if (t < 1) {
         animId = requestAnimationFrame(frame);
       } else {
-        if (clipRectRef.current) clipRectRef.current.setAttribute("width", String(width));
+        if (clipRectRef.current) clipRectRef.current.setAttribute("width", String(Math.max(0, width)));
         setIsSettled(true);
       }
     };
@@ -154,7 +155,7 @@ export function Sparkline({
       >
         <defs>
           <clipPath id={clipId}>
-            <rect ref={clipRectRef} x={0} y={0} width={isSettled ? width : 0} height={height} />
+            <rect ref={clipRectRef} x={0} y={0} width={Math.max(0, isSettled ? width : 0)} height={Math.max(0, height)} />
           </clipPath>
         </defs>
         <g clipPath={`url(#${clipId})`}>

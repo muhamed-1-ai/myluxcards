@@ -345,11 +345,12 @@ export function LeadGrowthChart({
     startTimeRef.current = start;
 
     const animate = (now: number) => {
-      const elapsed = now - start;
+      const elapsed = Math.max(0, now - start);
       const t = Math.min(1, Math.max(0, elapsed / duration));
       // Decelerating cubic-bezier curve matching cubic-bezier(0.16, 1, 0.3, 1)
-      const progress = 1 - Math.pow(1 - t, 3.5);
-      const currentW = progress * plotWidthRef.current;
+      const progress = Math.max(0, 1 - Math.pow(1 - t, 3.5));
+      const safePlotWidth = Math.max(0, plotWidthRef.current);
+      const currentW = Math.max(0, progress * safePlotWidth);
 
       revealedWidthRef.current = currentW;
       if (clipRectRef.current) {
@@ -634,8 +635,8 @@ export function LeadGrowthChart({
           ref={clipRectRef}
           x={paddingLeft}
           y={0}
-          width={isSettled ? plotWidth : 0}
-          height={chartHeight}
+          width={Math.max(0, isSettled ? plotWidth : 0)}
+          height={Math.max(0, chartHeight)}
         />
       </clipPath>
       <linearGradient id="leadSmoothGradient" x1="0" y1="0" x2="0" y2="1">
