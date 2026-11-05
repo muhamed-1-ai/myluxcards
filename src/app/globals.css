@@ -10,62 +10,62 @@
   --accent-purple: #168BFF;
 
   /* Backgrounds */
-  --background: #050505;
-  --bg-body: #050505;
-  --bg-secondary: #141519;
+  --background: #030405;
+  --bg-body: #030405;
+  --bg-secondary: #08090B;
 
   /* Surfaces */
-  --surface: #1B1C21;
-  --surface-elevated: #23252C;
+  --surface: #0B0D0F;
+  --surface-elevated: #13161A;
   --surface-hover: rgba(22, 139, 255, 0.08);
-  --surface-active: #14263A;
-  --dark-surface: #1B1C21;
-  --bg-card: #1B1C21;
-  --bg-card-solid: #1B1C21;
-  --bg-glass: rgba(27, 28, 33, 0.95);
-  --bg-glass-solid: #1B1C21;
+  --surface-active: rgba(22, 139, 255, 0.14);
+  --dark-surface: #0B0D0F;
+  --bg-card: #0B0D0F;
+  --bg-card-solid: #0B0D0F;
+  --bg-glass: rgba(11, 13, 15, 0.95);
+  --bg-glass-solid: #0B0D0F;
   --surface-glow: transparent;
-  --surface-soft: #141519;
+  --surface-soft: #08090B;
 
   /* Foregrounds & Typography */
-  --foreground: #F5F6F8;
-  --foreground-secondary: #B5B8C2;
-  --foreground-muted: #969CA8;
-  --foreground-subtle: #969CA8;
+  --foreground: #F4F4F5;
+  --foreground-secondary: #A1A1AA;
+  --foreground-muted: #85858F;
+  --foreground-subtle: #85858F;
 
-  --text-primary: #F5F6F8;
-  --text-secondary: #B5B8C2;
-  --text-main: #F5F6F8;
-  --text-muted: #969CA8;
-  --text-soft: #B5B8C2;
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-main: #F4F4F5;
+  --text-muted: #85858F;
+  --text-soft: #A1A1AA;
 
   /* Borders */
-  --border-color: #343740;
-  --border-subtle: #343740;
+  --border-color: #25282C;
+  --border-subtle: #25282C;
   --border-strong: #343740;
-  --border-glass: #343740;
-  --border-glass-subtle: #343740;
-  --border-card: #343740;
+  --border-glass: #25282C;
+  --border-glass-subtle: #25282C;
+  --border-card: #25282C;
 
   /* Calendar Semantic Tokens */
-  --calendar-bg: #1B1C21;
-  --calendar-cell-bg: #141519;
-  --calendar-cell-adjacent-bg: #111216;
+  --calendar-bg: #0B0D0F;
+  --calendar-cell-bg: #08090B;
+  --calendar-cell-adjacent-bg: #030405;
   --calendar-cell-today-bg: rgba(22, 139, 255, 0.12);
-  --calendar-cell-selected-bg: #14263A;
+  --calendar-cell-selected-bg: rgba(22, 139, 255, 0.2);
   --calendar-today-border: #168BFF;
   --calendar-today-text: #168BFF;
-  --calendar-date-primary: #F5F6F8;
-  --calendar-date-muted: #969CA8;
-  --calendar-add-task-text: #B5B8C2;
+  --calendar-date-primary: #F4F4F5;
+  --calendar-date-muted: #85858F;
+  --calendar-add-task-text: #A1A1AA;
 
   /* Brand & Accents */
-  --primary: #0967D2;
+  --primary: #0066FF;
   --primary-foreground: #FFFFFF;
-  --primary-dark: #075BBE;
-  --primary-hover: #075BBE;
-  --primary-glow: rgba(9, 103, 210, 0.25);
-  --primary-grad: #0967D2;
+  --primary-dark: #0052CC;
+  --primary-hover: #1D4ED8;
+  --primary-glow: rgba(0, 102, 255, 0.25);
+  --primary-grad: #0066FF;
   --secondary: #168BFF;
   --secondary-glow: rgba(22, 139, 255, 0.2);
   --secondary-grad: #168BFF;
@@ -79,37 +79,37 @@
   --info: #168BFF;
 
   /* Form & Interactive Controls */
-  --nav-bg: #141519;
-  --nav-selected: #14263A;
-  --input-bg: #111216;
-  --input-text: #F5F6F8;
-  --input-border: #343740;
-  --input-placeholder: #969CA8;
-  --placeholder: #969CA8;
+  --nav-bg: #08090B;
+  --nav-selected: rgba(22, 139, 255, 0.12);
+  --input-bg: #13161A;
+  --input-text: #F4F4F5;
+  --input-border: #25282C;
+  --input-placeholder: #85858F;
+  --placeholder: #85858F;
 
   /* Dropdown & Context Menus */
-  --menu-bg: #23252C;
-  --menu-text: #F5F6F8;
-  --menu-hover-bg: #14263A;
+  --menu-bg: #0B0D0F;
+  --menu-text: #F4F4F5;
+  --menu-hover-bg: rgba(22, 139, 255, 0.12);
   --menu-hover-text: #168BFF;
-  --menu-active-bg: #14263A;
+  --menu-active-bg: rgba(22, 139, 255, 0.18);
   --menu-active-text: #168BFF;
-  --menu-border: #343740;
+  --menu-border: #25282C;
   --menu-danger: #EF4444;
 
   --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   --card-shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --scrollbar-thumb: #343740;
+  --scrollbar-thumb: #25282C;
 
-  --surface-muted: #141519;
-  --header-background: #141519;
-  --header-border: #343740;
-  --button-primary: #0967D2;
-  --button-primary-hover: #075BBE;
+  --surface-muted: #08090B;
+  --header-background: #08090B;
+  --header-border: #25282C;
+  --button-primary: #0066FF;
+  --button-primary-hover: #1D4ED8;
   --button-primary-text: #FFFFFF;
-  --button-secondary-bg: #23252C;
-  --button-secondary-text: #F5F6F8;
-  --button-secondary-border: #343740;
+  --button-secondary-bg: #13161A;
+  --button-secondary-text: #F4F4F5;
+  --button-secondary-border: #25282C;
   --text-disabled: #64748B;
   --focus-ring: rgba(22, 139, 255, 0.4);
 }
@@ -119,97 +119,99 @@ html.light,
 html.light-mode,
 body.light-mode,
 :root[data-theme="light"] {
-  --background: #F8FAFC;
-  --bg-body: #F8FAFC;
-  --bg-secondary: #F1F5F9;
+  --background: #F5F7FB;
+  --bg-body: #F5F7FB;
+  --bg-secondary: #FFFFFF;
 
   --surface: #FFFFFF;
   --surface-elevated: #FFFFFF;
-  --surface-hover: #F1F5F9;
-  --surface-active: #E2E8F0;
+  --surface-hover: #F0F4F9;
+  --surface-active: #DEE5EF;
   --dark-surface: #FFFFFF;
   --bg-card: #FFFFFF;
   --bg-card-solid: #FFFFFF;
   --bg-glass: #FFFFFF;
   --bg-glass-solid: #FFFFFF;
-  --surface-soft: #F8FAFC;
-  --surface-glow: rgba(0, 102, 255, 0.06);
+  --surface-soft: #F5F7FB;
+  --surface-glow: rgba(0, 102, 255, 0.05);
 
-  --foreground: #0F172A;
-  --foreground-secondary: #475569;
+  --foreground: #111827;
+  --foreground-secondary: #64748B;
   --foreground-muted: #64748B;
   --foreground-subtle: #94A3B8;
 
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-main: #0F172A;
+  --text-primary: #111827;
+  --text-secondary: #64748B;
+  --text-main: #111827;
   --text-muted: #64748B;
-  --text-soft: #475569;
+  --text-soft: #64748B;
   --text-disabled: #94A3B8;
 
-  --border-color: #E2E8F0;
-  --border-subtle: #F1F5F9;
+  --border-color: #DEE5EF;
+  --border-subtle: #F0F4F9;
   --border-strong: #CBD5E1;
-  --border-glass: #E2E8F0;
-  --border-glass-subtle: #F1F5F9;
-  --border-card: #E2E8F0;
+  --border-glass: #DEE5EF;
+  --border-glass-subtle: #F0F4F9;
+  --border-card: #DEE5EF;
 
   /* Calendar Semantic Tokens (Light Mode) */
   --calendar-bg: #FFFFFF;
-  --calendar-cell-bg: #F1F5F9;
-  --calendar-cell-adjacent-bg: #F8FAFC;
-  --calendar-cell-today-bg: rgba(0, 102, 255, 0.04);
-  --calendar-cell-selected-bg: rgba(0, 102, 255, 0.08);
+  --calendar-cell-bg: #F0F4F9;
+  --calendar-cell-adjacent-bg: #F5F7FB;
+  --calendar-cell-today-bg: rgba(0, 102, 255, 0.06);
+  --calendar-cell-selected-bg: #E8F1FF;
   --calendar-today-border: #0066FF;
   --calendar-today-text: #0066FF;
-  --calendar-date-primary: #0F172A;
+  --calendar-date-primary: #111827;
   --calendar-date-muted: #64748B;
-  --calendar-add-task-text: #475569;
+  --calendar-add-task-text: #64748B;
 
   --primary: #0066FF;
   --primary-foreground: #FFFFFF;
   --primary-dark: #0052CC;
   --primary-glow: rgba(0, 102, 255, 0.15);
-  --primary-grad: linear-gradient(135deg, #0066FF, #00E5FF);
-  --secondary: #00E5FF;
-  --secondary-glow: rgba(0, 229, 255, 0.15);
-  --secondary-grad: linear-gradient(135deg, #0066FF, #00E5FF);
-  --accent: #8B5CF6;
-  --accent-glow: rgba(139, 92, 246, 0.15);
+  --primary-grad: linear-gradient(135deg, #0066FF, #168BFF);
+  --secondary: #0066FF;
+  --secondary-glow: rgba(0, 102, 255, 0.15);
+  --secondary-grad: linear-gradient(135deg, #0066FF, #168BFF);
+  --accent: #0066FF;
+  --accent-glow: rgba(0, 102, 255, 0.15);
 
   --success: #059669;
   --warning: #D97706;
   --danger: #DC2626;
-  --info: #2563EB;
+  --info: #0066FF;
 
   --nav-bg: #FFFFFF;
-  --input-bg: #FFFFFF;
-  --input-text: #0F172A;
-  --input-border: #CBD5E1;
+  --nav-selected: #E8F1FF;
+  --input-bg: #F0F4F9;
+  --input-text: #111827;
+  --input-border: #DEE5EF;
   --input-placeholder: #64748B;
   --placeholder: #64748B;
 
   --menu-bg: #FFFFFF;
-  --menu-text: #0F172A;
-  --menu-hover-bg: rgba(0, 102, 255, 0.08);
+  --menu-text: #111827;
+  --menu-hover-bg: #F0F4F9;
   --menu-hover-text: #0066FF;
-  --menu-active-bg: rgba(0, 102, 255, 0.14);
+  --menu-active-bg: #E8F1FF;
   --menu-active-text: #0066FF;
-  --menu-border: #E2E8F0;
+  --menu-border: #DEE5EF;
   --menu-danger: #DC2626;
 
   --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   --card-shadow-hover: 0 10px 30px rgba(0, 102, 255, 0.12);
   --scrollbar-thumb: #CBD5E1;
 
-  --surface-muted: #F1F5F9;
+  --surface-muted: #F0F4F9;
   --header-background: #FFFFFF;
-  --header-border: #E2E8F0;
+  --header-border: #DEE5EF;
   --button-primary: #0066FF;
+  --button-primary-hover: #0052CC;
   --button-primary-text: #FFFFFF;
-  --button-secondary-bg: #F1F5F9;
-  --button-secondary-text: #0F172A;
-  --button-secondary-border: #CBD5E1;
+  --button-secondary-bg: #F0F4F9;
+  --button-secondary-text: #111827;
+  --button-secondary-border: #DEE5EF;
   --focus-ring: rgba(0, 102, 255, 0.4);
 }
 
@@ -223,63 +225,63 @@ body.dark-mode {
   --accent-purple: #168BFF;
 
   /* Backgrounds */
-  --background: #050505;
-  --bg-body: #050505;
-  --bg-secondary: #141519;
+  --background: #030405;
+  --bg-body: #030405;
+  --bg-secondary: #08090B;
 
   /* Surfaces */
-  --surface: #1B1C21;
-  --surface-elevated: #23252C;
+  --surface: #0B0D0F;
+  --surface-elevated: #13161A;
   --surface-hover: rgba(22, 139, 255, 0.08);
-  --surface-active: #14263A;
-  --dark-surface: #1B1C21;
-  --bg-card: #1B1C21;
-  --bg-card-solid: #1B1C21;
-  --bg-glass: rgba(27, 28, 33, 0.95);
-  --bg-glass-solid: #1B1C21;
-  --surface-soft: #141519;
+  --surface-active: rgba(22, 139, 255, 0.14);
+  --dark-surface: #0B0D0F;
+  --bg-card: #0B0D0F;
+  --bg-card-solid: #0B0D0F;
+  --bg-glass: rgba(11, 13, 15, 0.95);
+  --bg-glass-solid: #0B0D0F;
+  --surface-soft: #08090B;
   --surface-glow: transparent;
 
   /* Foregrounds & Typography */
-  --foreground: #F5F6F8;
-  --foreground-secondary: #B5B8C2;
-  --foreground-muted: #969CA8;
-  --foreground-subtle: #969CA8;
+  --foreground: #F4F4F5;
+  --foreground-secondary: #A1A1AA;
+  --foreground-muted: #85858F;
+  --foreground-subtle: #85858F;
 
-  --text-primary: #F5F6F8;
-  --text-secondary: #B5B8C2;
-  --text-main: #F5F6F8;
-  --text-muted: #969CA8;
-  --text-soft: #B5B8C2;
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-main: #F4F4F5;
+  --text-muted: #85858F;
+  --text-soft: #A1A1AA;
   --text-disabled: #64748B;
 
   /* Borders */
-  --border-color: #343740;
-  --border-subtle: #343740;
+  --border-color: #25282C;
+  --border-subtle: #25282C;
   --border-strong: #343740;
-  --border-glass: #343740;
-  --border-glass-subtle: #343740;
-  --border-card: #343740;
+  --border-glass: #25282C;
+  --border-glass-subtle: #25282C;
+  --border-card: #25282C;
 
   /* Calendar Semantic Tokens */
-  --calendar-bg: #1B1C21;
-  --calendar-cell-bg: #141519;
-  --calendar-cell-adjacent-bg: #111216;
+  --calendar-bg: #0B0D0F;
+  --calendar-cell-bg: #08090B;
+  --calendar-cell-adjacent-bg: #030405;
   --calendar-cell-today-bg: rgba(22, 139, 255, 0.12);
-  --calendar-cell-selected-bg: #14263A;
+  --calendar-cell-selected-bg: rgba(22, 139, 255, 0.2);
   --calendar-today-border: #168BFF;
   --calendar-today-text: #168BFF;
-  --calendar-date-primary: #F5F6F8;
-  --calendar-date-muted: #969CA8;
-  --calendar-add-task-text: #B5B8C2;
+  --calendar-date-primary: #F4F4F5;
+  --calendar-date-muted: #85858F;
+  --calendar-add-task-text: #A1A1AA;
 
   /* Brand & Accents */
-  --primary: #0967D2;
+  --primary: #0066FF;
   --primary-foreground: #FFFFFF;
-  --primary-dark: #075BBE;
-  --primary-hover: #075BBE;
-  --primary-glow: rgba(9, 103, 210, 0.25);
-  --primary-grad: #0967D2;
+  --primary-dark: #0052CC;
+  --primary-hover: #1D4ED8;
+  --primary-glow: rgba(0, 102, 255, 0.25);
+  --primary-grad: #0066FF;
   --secondary: #168BFF;
   --secondary-glow: rgba(22, 139, 255, 0.2);
   --secondary-grad: #168BFF;
@@ -293,37 +295,37 @@ body.dark-mode {
   --info: #168BFF;
 
   /* Form & Interactive Controls */
-  --nav-bg: #141519;
-  --nav-selected: #14263A;
-  --input-bg: #111216;
-  --input-text: #F5F6F8;
-  --input-border: #343740;
-  --input-placeholder: #969CA8;
-  --placeholder: #969CA8;
+  --nav-bg: #08090B;
+  --nav-selected: rgba(22, 139, 255, 0.12);
+  --input-bg: #13161A;
+  --input-text: #F4F4F5;
+  --input-border: #25282C;
+  --input-placeholder: #85858F;
+  --placeholder: #85858F;
 
   /* Dropdown & Context Menus */
-  --menu-bg: #23252C;
-  --menu-text: #F5F6F8;
-  --menu-hover-bg: #14263A;
+  --menu-bg: #0B0D0F;
+  --menu-text: #F4F4F5;
+  --menu-hover-bg: rgba(22, 139, 255, 0.12);
   --menu-hover-text: #168BFF;
-  --menu-active-bg: #14263A;
+  --menu-active-bg: rgba(22, 139, 255, 0.18);
   --menu-active-text: #168BFF;
-  --menu-border: #343740;
+  --menu-border: #25282C;
   --menu-danger: #EF4444;
 
   --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   --card-shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --scrollbar-thumb: #343740;
+  --scrollbar-thumb: #25282C;
 
-  --surface-muted: #141519;
-  --header-background: #141519;
-  --header-border: #343740;
-  --button-primary: #0967D2;
-  --button-primary-hover: #075BBE;
+  --surface-muted: #08090B;
+  --header-background: #08090B;
+  --header-border: #25282C;
+  --button-primary: #0066FF;
+  --button-primary-hover: #1D4ED8;
   --button-primary-text: #FFFFFF;
-  --button-secondary-bg: #23252C;
-  --button-secondary-text: #F5F6F8;
-  --button-secondary-border: #343740;
+  --button-secondary-bg: #13161A;
+  --button-secondary-text: #F4F4F5;
+  --button-secondary-border: #25282C;
   --focus-ring: rgba(22, 139, 255, 0.4);
 }
 

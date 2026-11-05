@@ -3,39 +3,39 @@
 /* Theme Surface Variables for Light/Dark Mode */
 :root {
   --export-shell-bg: #FFFFFF;
-  --export-shell-border: #E2E8F0;
-  --export-header-bg: #F8FAFC;
+  --export-shell-border: #DEE5EF;
+  --export-header-bg: #FFFFFF;
   --export-toolbar-bg: #FFFFFF;
-  --export-body-bg: #F8FAFC;
-  --export-footer-bg: #F8FAFC;
-  --export-card-bg: #FFFFFF;
-  --export-card-border: #E2E8F0;
-  --export-card-selected-bg: #EFF6FF;
-  --export-card-selected-border: #60A5FA;
-  --export-text-primary: #0F172A;
+  --export-body-bg: #FFFFFF;
+  --export-footer-bg: #FFFFFF;
+  --export-card-bg: #F0F4F9;
+  --export-card-border: #DEE5EF;
+  --export-card-selected-bg: #E8F1FF;
+  --export-card-selected-border: #0066FF;
+  --export-text-primary: #111827;
   --export-text-secondary: #64748B;
-  --export-input-bg: #F8FAFC;
-  --export-input-border: #E2E8F0;
+  --export-input-bg: #F0F4F9;
+  --export-input-border: #DEE5EF;
 }
 
 [data-theme="dark"] .zappit-export-shell,
 html.dark .zappit-export-shell,
 body.dark-mode .zappit-export-shell,
 :root[data-theme="dark"] .zappit-export-shell {
-  --export-shell-bg: #1B1C21;
-  --export-shell-border: #343740;
-  --export-header-bg: #141519;
-  --export-toolbar-bg: #1B1C21;
-  --export-body-bg: #1B1C21;
-  --export-footer-bg: #141519;
-  --export-card-bg: #141519;
-  --export-card-border: #343740;
-  --export-card-selected-bg: #14263A;
+  --export-shell-bg: #0B0D0F;
+  --export-shell-border: #25282C;
+  --export-header-bg: #08090B;
+  --export-toolbar-bg: #0B0D0F;
+  --export-body-bg: #0B0D0F;
+  --export-footer-bg: #08090B;
+  --export-card-bg: #13161A;
+  --export-card-border: #25282C;
+  --export-card-selected-bg: rgba(22, 139, 255, 0.12);
   --export-card-selected-border: #168BFF;
-  --export-text-primary: #F5F6F8;
-  --export-text-secondary: #B5B8C2;
-  --export-input-bg: #111216;
-  --export-input-border: #343740;
+  --export-text-primary: #F4F4F5;
+  --export-text-secondary: #A1A1AA;
+  --export-input-bg: #13161A;
+  --export-input-border: #25282C;
 }
 
 .zappit-export-overlay {

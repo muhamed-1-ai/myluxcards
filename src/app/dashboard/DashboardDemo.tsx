@@ -25,6 +25,7 @@ import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileCon
 import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
 import "@/components/accounting/accounting.css";
+import { DashboardBackgroundDecor } from "@/components/dashboard/DashboardBackgroundDecor";
 
 const AccountingApp = dynamic(
   () => import("@/components/accounting/AccountingApp"),
@@ -1573,7 +1574,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 
   if (!hasAnyFeatureAccess) {
     return (
-      <div className="dash-shell flex flex-col min-h-screen bg-[#070C18] text-slate-100 font-sans">
+      <div className="dash-shell flex flex-col min-h-screen font-sans">
+        <DashboardBackgroundDecor />
         {/* Top Header Bar */}
         <header className="dash-main-header">
           <div className="dash-header-left">
@@ -1688,6 +1690,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 
   return (
     <div className={`dash-shell ${desktopCollapsed ? "is-rail" : ""}`}>
+      <DashboardBackgroundDecor />
       {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
 
       {/* 1. RECREATED INSET VERTICAL SIDEBAR MATCHING REFERENCE */}
@@ -2769,167 +2772,167 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           </div>
         </header>
         <div className={`dash-main-tab-wrap ${isTabLeaving ? "dash-tab-leaving" : "dash-tab-entering"}`} key={tab}>
-        {tab === "dashboard" && (
-          <section>
-            <LeadManagementDashboard
-              userName={currentUser.name}
-              identity={{
-                id: currentUser.id || identity?.id || "",
-                name: currentUser.name || null,
-                email: currentUser.email || "",
-                role: userRole || identity?.role || "CUSTOMER",
-                featurePermissions: userPermissions,
-              }}
-              onNavigateTab={(t: string, params?: Record<string, string>) => selectTab(t as Tab, params)}
-            />
-          </section>
-        )}
-
-        {tab === "leads" && (
-          <section>
-            <LeadsWorkspace identity={{ id: currentUser.id || identity?.id || "", name: currentUser.name || null, email: currentUser.email || "", role: currentUser.role || "CUSTOMER" }} />
-          </section>
-        )}
-
-        {/* Master Configuration Page Views */}
-        {tab === "config-sources" && <section><LeadSourcesConfig /></section>}
-        {tab === "config-products" && <section><ProductsConfig /></section>}
-        {tab === "config-stages" && <section><LeadStagesConfig /></section>}
-        {tab === "config-calendar" && <section><CalendarConfig /></section>}
-        {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
-        {tab === "config-dynamic" && <section><LeadDynamicsConfig /></section>}
-
-        {/* Zappit Accounts Financial Management Page Views */}
-        {tab.startsWith("accounting-") && (
-          <section style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
-            {!isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "4rem 2rem",
-                  margin: "2rem auto",
-                  maxWidth: "560px",
-                  borderRadius: "12px",
-                  backgroundColor: "var(--acc-surface, #121A26)",
-                  border: "1px solid var(--acc-border, #293548)",
+          {tab === "dashboard" && (
+            <section>
+              <LeadManagementDashboard
+                userName={currentUser.name}
+                identity={{
+                  id: currentUser.id || identity?.id || "",
+                  name: currentUser.name || null,
+                  email: currentUser.email || "",
+                  role: userRole || identity?.role || "CUSTOMER",
+                  featurePermissions: userPermissions,
                 }}
-              >
-                <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>🔒</div>
-                <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--acc-text-main, #F1F5F9)", margin: 0 }}>
-                  Zappit Accounts · Access Restricted
-                </h2>
-                <p style={{ color: "var(--acc-text-muted, #A8B5C7)", marginTop: "0.75rem", fontSize: "0.875rem", lineHeight: 1.5 }}>
-                  You do not have entitlement to access the Accounting module. Contact a platform administrator to grant you access in the Admin Portal.
-                </p>
-                <button
-                  type="button"
-                  style={{
-                    marginTop: "1.5rem",
-                    padding: "0.625rem 1.25rem",
-                    borderRadius: "8px",
-                    backgroundColor: "var(--acc-blue, #3B82F6)",
-                    color: "#FFFFFF",
-                    fontWeight: 600,
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => selectTab("dashboard")}
-                >
-                  Return to Leads Dashboard
-                </button>
-              </div>
-            ) : (
-              <AccountingApp
-                currentTab={tab}
-                onSelectTab={(t) => selectTab(t as Tab)}
-                onReturnToDashboard={() => selectTab("dashboard")}
+                onNavigateTab={(t: string, params?: Record<string, string>) => selectTab(t as Tab, params)}
               />
-            )}
-          </section>
-        )}
+            </section>
+          )}
 
-        <DashboardLayoutSelectorModal
-          currentLayout={dashboardLayout}
-          onSelectLayout={handleSelectDashboardLayout}
-          isOpen={layoutModalOpen}
-          onClose={() => setLayoutModalOpen(false)}
-        />
+          {tab === "leads" && (
+            <section>
+              <LeadsWorkspace identity={{ id: currentUser.id || identity?.id || "", name: currentUser.name || null, email: currentUser.email || "", role: currentUser.role || "CUSTOMER" }} />
+            </section>
+          )}
 
-        {(tab === "settings" || tab === "security") && (
-          <section className="dashboard-content-section" style={{ minHeight: "80vh", padding: "1rem" }}>
-            <GlobalAccountSettingsView
-              currentUser={currentUser}
-              onUpdateNickname={(newName) => {
-                setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
-              }}
-              onNavigateTab={(t) => selectTab(t as Tab)}
-            />
-          </section>
-        )}
+          {/* Master Configuration Page Views */}
+          {tab === "config-sources" && <section><LeadSourcesConfig /></section>}
+          {tab === "config-products" && <section><ProductsConfig /></section>}
+          {tab === "config-stages" && <section><LeadStagesConfig /></section>}
+          {tab === "config-calendar" && <section><CalendarConfig /></section>}
+          {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
+          {tab === "config-dynamic" && <section><LeadDynamicsConfig /></section>}
 
-        {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
-          <div className="page-heading edit-heading dash-entrance-header"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
-          <div className="edit-layout dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
-            <div className="form-card">
-              {tab === "modes" && <ModesForm draft={draft} update={update} contactNumbers={contactNumbers} emergencyContacts={emergencyContacts} onContactsRefresh={reloadContactsData} />}
-              {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
-              {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
-              {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
-              {tab === "appearance" && (
-                <AppearanceForm
-                  draft={draft}
-                  update={update}
-                  handleFile={handleFile}
-                  uploadingKind={uploadingKind}
-                  appliedDesign={appliedDesign}
-                  previewDesign={effectivePreviewDesign}
-                  onSelectPreviewDesign={(fmt: "modern" | "simple") => {
-                    setPreviewProfileFormat(fmt);
-                    setDesignFeedback(null);
+          {/* Zappit Accounts Financial Management Page Views */}
+          {tab.startsWith("accounting-") && (
+            <section style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
+              {!isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "4rem 2rem",
+                    margin: "2rem auto",
+                    maxWidth: "560px",
+                    borderRadius: "12px",
+                    backgroundColor: "var(--acc-surface, #121A26)",
+                    border: "1px solid var(--acc-border, #293548)",
                   }}
-                  onApplyDesign={handleApplyProfileDesign}
-                  applyingDesign={applyingDesign}
-                  designFeedback={designFeedback}
+                >
+                  <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>🔒</div>
+                  <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--acc-text-main, #F1F5F9)", margin: 0 }}>
+                    Zappit Accounts · Access Restricted
+                  </h2>
+                  <p style={{ color: "var(--acc-text-muted, #A8B5C7)", marginTop: "0.75rem", fontSize: "0.875rem", lineHeight: 1.5 }}>
+                    You do not have entitlement to access the Accounting module. Contact a platform administrator to grant you access in the Admin Portal.
+                  </p>
+                  <button
+                    type="button"
+                    style={{
+                      marginTop: "1.5rem",
+                      padding: "0.625rem 1.25rem",
+                      borderRadius: "8px",
+                      backgroundColor: "var(--acc-blue, #3B82F6)",
+                      color: "#FFFFFF",
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => selectTab("dashboard")}
+                  >
+                    Return to Leads Dashboard
+                  </button>
+                </div>
+              ) : (
+                <AccountingApp
+                  currentTab={tab}
+                  onSelectTab={(t) => selectTab(t as Tab)}
+                  onReturnToDashboard={() => selectTab("dashboard")}
                 />
               )}
-              {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
-              <div className="form-actions">
-                <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
-                {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "modes" ? "contact" : tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
-                {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
-              </div>
-            </div>
-            <PreviewPanel
-              card={{ ...draft, profileFormat: effectivePreviewDesign }}
-              onOpen={requestCardOpen}
-              onUpdateThemePreference={async (pref) => {
-                update("profileThemePreference", pref);
-                if (draft.slug) {
-                  try {
-                    await fetchWithSessionRefresh(`/api/cards/public/${encodeURIComponent(draft.slug)}`, {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ profileThemePreference: pref }),
-                    });
-                  } catch (err) {
-                    console.warn("[DashboardDemo] Failed to sync profileThemePreference:", err);
-                  }
-                }
-              }}
-            />
-          </div>
-        </section>}
+            </section>
+          )}
 
-        {tab === "cards" && <section>
-          <div className="page-heading dash-entrance-header"><div><p>CARD LIBRARY</p><h1>My Cards</h1><span>Search, publish, and manage your digital cards.</span></div><button className="primary" onClick={() => selectTab("contact")}>Edit my card</button></div>
-          <div className="table-card dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
-            <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
-            <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
-              <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={() => requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: card.id, slug: card.slug, toggleActive: true }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { notify(payload.message || "Status could not be changed."); return; } const confirmed = { ...card, ...payload.card }; lastSavedRef.current = JSON.stringify(confirmed); setCards(current => current.map(item => item.id === card.id ? confirmed : item)); if (selectedId === card.id) setDraft(confirmed); setSaveStatus("saved"); notify(confirmed.active ? "Card published." : "Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
-            </table></div>
-            <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
-          </div>
-        </section>}
+          <DashboardLayoutSelectorModal
+            currentLayout={dashboardLayout}
+            onSelectLayout={handleSelectDashboardLayout}
+            isOpen={layoutModalOpen}
+            onClose={() => setLayoutModalOpen(false)}
+          />
+
+          {(tab === "settings" || tab === "security") && (
+            <section className="dashboard-content-section" style={{ minHeight: "80vh", padding: "1rem" }}>
+              <GlobalAccountSettingsView
+                currentUser={currentUser}
+                onUpdateNickname={(newName) => {
+                  setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
+                }}
+                onNavigateTab={(t) => selectTab(t as Tab)}
+              />
+            </section>
+          )}
+
+          {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
+            <div className="page-heading edit-heading dash-entrance-header"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
+            <div className="edit-layout dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
+              <div className="form-card">
+                {tab === "modes" && <ModesForm draft={draft} update={update} contactNumbers={contactNumbers} emergencyContacts={emergencyContacts} onContactsRefresh={reloadContactsData} />}
+                {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
+                {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
+                {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
+                {tab === "appearance" && (
+                  <AppearanceForm
+                    draft={draft}
+                    update={update}
+                    handleFile={handleFile}
+                    uploadingKind={uploadingKind}
+                    appliedDesign={appliedDesign}
+                    previewDesign={effectivePreviewDesign}
+                    onSelectPreviewDesign={(fmt: "modern" | "simple") => {
+                      setPreviewProfileFormat(fmt);
+                      setDesignFeedback(null);
+                    }}
+                    onApplyDesign={handleApplyProfileDesign}
+                    applyingDesign={applyingDesign}
+                    designFeedback={designFeedback}
+                  />
+                )}
+                {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
+                <div className="form-actions">
+                  <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
+                  {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "modes" ? "contact" : tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
+                  {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
+                </div>
+              </div>
+              <PreviewPanel
+                card={{ ...draft, profileFormat: effectivePreviewDesign }}
+                onOpen={requestCardOpen}
+                onUpdateThemePreference={async (pref) => {
+                  update("profileThemePreference", pref);
+                  if (draft.slug) {
+                    try {
+                      await fetchWithSessionRefresh(`/api/cards/public/${encodeURIComponent(draft.slug)}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ profileThemePreference: pref }),
+                      });
+                    } catch (err) {
+                      console.warn("[DashboardDemo] Failed to sync profileThemePreference:", err);
+                    }
+                  }
+                }}
+              />
+            </div>
+          </section>}
+
+          {tab === "cards" && <section>
+            <div className="page-heading dash-entrance-header"><div><p>CARD LIBRARY</p><h1>My Cards</h1><span>Search, publish, and manage your digital cards.</span></div><button className="primary" onClick={() => selectTab("contact")}>Edit my card</button></div>
+            <div className="table-card dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
+              <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
+              <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
+                <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={() => requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: card.id, slug: card.slug, toggleActive: true }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { notify(payload.message || "Status could not be changed."); return; } const confirmed = { ...card, ...payload.card }; lastSavedRef.current = JSON.stringify(confirmed); setCards(current => current.map(item => item.id === card.id ? confirmed : item)); if (selectedId === card.id) setDraft(confirmed); setSaveStatus("saved"); notify(confirmed.active ? "Card published." : "Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
+              </table></div>
+              <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
+            </div>
+          </section>}
         </div>
       </main>
       {toast && <div className="dash-toast">✓ {toast}</div>}

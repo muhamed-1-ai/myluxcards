@@ -4,16 +4,16 @@
    ========================================================================== */
 
 :root {
-  --acc-page: #F7F9FC;
+  --acc-page: transparent;
   --acc-surface: #FFFFFF;
-  --acc-raised: #F1F5F9;
-  --acc-text-main: #0F172A;
-  --acc-text-muted: #475569;
-  --acc-border: #E2E8F0;
-  --acc-border-light: #F1F5F9;
-  --acc-blue: #2563EB;
-  --acc-blue-hover: #1D4ED8;
-  --acc-blue-soft: #EFF6FF;
+  --acc-raised: #F0F4F9;
+  --acc-text-main: #111827;
+  --acc-text-muted: #64748B;
+  --acc-border: #DEE5EF;
+  --acc-border-light: #F0F4F9;
+  --acc-blue: #0066FF;
+  --acc-blue-hover: #0052CC;
+  --acc-blue-soft: #E8F1FF;
   --acc-blue-border: #BFDBFE;
   --acc-success: #16A34A;
   --acc-success-soft: #F0FDF4;
@@ -38,21 +38,21 @@
 [data-theme="dark"],
 .dark,
 [data-theme="dark"] .accounting-root {
-  --acc-page: #000000;
-  --acc-surface: #141414;
-  --acc-raised: #1C1C1C;
-  --acc-hover: #252525;
-  --acc-text-main: #F5F5F5;
-  --acc-text-muted: #A3A3A3;
-  --acc-border: #303030;
-  --acc-border-light: #252525;
-  --acc-border-hover: #404040;
-  --acc-blue: #174EA6;
-  --acc-blue-hover: #1D5FC4;
-  --acc-blue-accent: #2583FF;
-  --acc-blue-soft: rgba(23, 78, 166, 0.2);
-  --acc-blue-border: #303030;
-  --acc-input-bg: #1C1C1C;
+  --acc-page: transparent;
+  --acc-surface: #0B0D0F;
+  --acc-raised: #13161A;
+  --acc-hover: rgba(22, 139, 255, 0.08);
+  --acc-text-main: #F4F4F5;
+  --acc-text-muted: #A1A1AA;
+  --acc-border: #25282C;
+  --acc-border-light: #25282C;
+  --acc-border-hover: #343740;
+  --acc-blue: #0066FF;
+  --acc-blue-hover: #1D4ED8;
+  --acc-blue-accent: #168BFF;
+  --acc-blue-soft: rgba(22, 139, 255, 0.14);
+  --acc-blue-border: #25282C;
+  --acc-input-bg: #13161A;
   --acc-success: #10B981;
   --acc-success-soft: rgba(16, 185, 129, 0.15);
   --acc-warning: #F59E0B;
@@ -62,18 +62,18 @@
   --acc-lime: #84CC16;
   --acc-lime-text: #D9F99D;
   --acc-lime-soft: rgba(132, 204, 22, 0.15);
-  --acc-card-dark: #141414;
-  --acc-card-dark-border: #303030;
-  --acc-card-dark-text: #F5F5F5;
+  --acc-card-dark: #0B0D0F;
+  --acc-card-dark-border: #25282C;
+  --acc-card-dark-text: #F4F4F5;
   --acc-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --acc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
   --acc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
 }
 
-/* Dark mode dashboard shell background isolation */
-[data-theme="dark"] .dash-shell:has(.accounting-root),
-[data-theme="dark"] .dash-shell:has(.accounting-root) .dash-main {
-  background-color: #000000;
+/* Dashboard shell background isolation */
+[data-theme="dark"] .dash-shell:has(.accounting-root) .dash-main,
+[data-theme="light"] .dash-shell:has(.accounting-root) .dash-main {
+  background-color: transparent !important;
 }
 
 /* ==========================================================================
@@ -2144,6 +2144,7 @@
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -5362,6 +5363,7 @@ body.light-mode .acc-tool-card-desc {
     opacity: 0;
     transform: translateY(8px);
   }
+
   100% {
     opacity: 1;
     transform: none;
@@ -5391,6 +5393,7 @@ body.light-mode .acc-tool-card-desc {
   .acc-entrance-panel {
     animation-duration: 0.28s;
   }
+
   @keyframes accPanelEntrance {
     0% {
       opacity: 0;
@@ -5408,6 +5411,7 @@ body.light-mode .acc-tool-card-desc {
       opacity: 0;
       transform: translateY(6px) scale(0.99);
     }
+
     100% {
       opacity: 1;
       transform: none;

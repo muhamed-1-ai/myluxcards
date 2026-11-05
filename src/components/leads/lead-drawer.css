@@ -45,13 +45,13 @@ body.light-mode .lead-drawer-backdrop {
   --ld-panel-bg: #FFFFFF;
   --ld-header-bg: #FFFFFF;
   --ld-footer-bg: #FFFFFF;
-  --ld-card-bg: #F8FAFC;
-  --ld-card-border: #F1F5F9;
-  --ld-inset-bg: #F8FAFC;
-  --ld-inset-border: #E2E8F0;
+  --ld-card-bg: #F0F4F9;
+  --ld-card-border: #DEE5EF;
+  --ld-inset-bg: #FFFFFF;
+  --ld-inset-border: #DEE5EF;
 
-  --ld-text-title: #0F172A;
-  --ld-text-body: #334155;
+  --ld-text-title: #111827;
+  --ld-text-body: #64748B;
   --ld-text-muted: #64748B;
   --ld-text-subtle: #94A3B8;
 
@@ -59,11 +59,11 @@ body.light-mode .lead-drawer-backdrop {
   --ld-badge-border: #FCA5A5;
   --ld-badge-text: #EF4444;
 
-  --ld-tab-track-bg: #F8FAFC;
-  --ld-tab-track-border: #F1F5F9;
-  --ld-tab-active-bg: #FFFFFF;
-  --ld-tab-active-text: #0F172A;
-  --ld-tab-active-border: #E2E8F0;
+  --ld-tab-track-bg: #F0F4F9;
+  --ld-tab-track-border: #DEE5EF;
+  --ld-tab-active-bg: #E8F1FF;
+  --ld-tab-active-text: #0066FF;
+  --ld-tab-active-border: rgba(0, 102, 255, 0.25);
   --ld-tab-inactive-text: #64748B;
 
   --ld-icon-btn-hover: #F1F5F9;
@@ -92,31 +92,31 @@ body.light-mode .lead-drawer-backdrop {
 [data-theme="dark"] .lead-drawer-panel,
 html.dark .lead-drawer-panel,
 body.dark-mode .lead-drawer-panel {
-  --ld-panel-bg: #1B1C21;
-  --ld-header-bg: #141519;
-  --ld-footer-bg: #141519;
-  --ld-card-bg: #141519;
-  --ld-card-border: #343740;
-  --ld-inset-bg: #111216;
-  --ld-inset-border: #343740;
+  --ld-panel-bg: #0B0D0F;
+  --ld-header-bg: #08090B;
+  --ld-footer-bg: #08090B;
+  --ld-card-bg: #13161A;
+  --ld-card-border: #25282C;
+  --ld-inset-bg: #0B0D0F;
+  --ld-inset-border: #25282C;
 
-  --ld-text-title: #F5F6F8;
-  --ld-text-body: #B5B8C2;
-  --ld-text-muted: #969CA8;
-  --ld-text-subtle: #969CA8;
+  --ld-text-title: #F4F4F5;
+  --ld-text-body: #A1A1AA;
+  --ld-text-muted: #85858F;
+  --ld-text-subtle: #85858F;
 
   --ld-badge-bg: rgba(239, 68, 68, 0.15);
   --ld-badge-border: rgba(239, 68, 68, 0.3);
   --ld-badge-text: #F87171;
 
-  --ld-tab-track-bg: #141519;
-  --ld-tab-track-border: #343740;
-  --ld-tab-active-bg: #14263A;
+  --ld-tab-track-bg: #08090B;
+  --ld-tab-track-border: #25282C;
+  --ld-tab-active-bg: rgba(22, 139, 255, 0.12);
   --ld-tab-active-text: #168BFF;
   --ld-tab-active-border: rgba(22, 139, 255, 0.35);
-  --ld-tab-inactive-text: #969CA8;
+  --ld-tab-inactive-text: #85858F;
 
-  --ld-icon-btn-hover: #23252C;
+  --ld-icon-btn-hover: #13161A;
 
   --ld-wa-bg: rgba(16, 185, 129, 0.15);
   --ld-wa-border: rgba(16, 185, 129, 0.3);
@@ -130,8 +130,8 @@ body.dark-mode .lead-drawer-panel {
   --ld-revenue-icon-border: rgba(16, 185, 129, 0.3);
   --ld-revenue-icon-text: #34D399;
 
-  --ld-edit-btn-bg: #0967D2;
-  --ld-edit-btn-hover: #075BBE;
+  --ld-edit-btn-bg: #0066FF;
+  --ld-edit-btn-hover: #1D4ED8;
   --ld-edit-btn-text: #FFFFFF;
 }
 

@@ -3,18 +3,18 @@
 :root {
   --import-workspace-bg: transparent;
   --import-modal-overlay-bg: rgba(0, 0, 0, 0.65);
-  --import-modal-shell-bg: #F8FAFC;
+  --import-modal-shell-bg: #FFFFFF;
   --import-card-bg: #FFFFFF;
-  --import-card-border: #E2E8F0;
+  --import-card-border: #DEE5EF;
   --import-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   
-  --import-title: #0F172A;
+  --import-title: #111827;
   --import-subtitle: #64748B;
-  --import-section-title: #0F172A;
+  --import-section-title: #111827;
   
   --import-back-bg: #FFFFFF;
-  --import-back-border: #E2E8F0;
-  --import-back-hover-bg: #F1F5F9;
+  --import-back-border: #DEE5EF;
+  --import-back-hover-bg: #F0F4F9;
   
   --import-drop-bg: #FAFCFA;
   --import-drop-hover-bg: #F0FDF4;
@@ -54,25 +54,25 @@ body.dark-mode,
 :root[data-theme="dark"] {
   --import-workspace-bg: transparent;
   --import-modal-overlay-bg: rgba(0, 0, 0, 0.82);
-  --import-modal-shell-bg: #111216;
-  --import-card-bg: #16171D;
-  --import-card-border: #282B34;
+  --import-modal-shell-bg: #08090B;
+  --import-card-bg: #0B0D0F;
+  --import-card-border: #25282C;
   --import-card-shadow: none;
   
-  --import-title: #F5F6F8;
-  --import-subtitle: #969CA8;
-  --import-section-title: #F5F6F8;
+  --import-title: #F4F4F5;
+  --import-subtitle: #A1A1AA;
+  --import-section-title: #F4F4F5;
   
-  --import-back-bg: #16171D;
-  --import-back-border: #282B34;
-  --import-back-hover-bg: #22252E;
+  --import-back-bg: #13161A;
+  --import-back-border: #25282C;
+  --import-back-hover-bg: rgba(22, 139, 255, 0.12);
   
-  --import-drop-bg: #111216;
+  --import-drop-bg: #13161A;
   --import-drop-hover-bg: #131A17;
   --import-drop-active-bg: #14241D;
   --import-drop-border: rgba(52, 211, 153, 0.5);
   --import-drop-border-active: #10B981;
-  --import-drop-text-muted: #64748B;
+  --import-drop-text-muted: #85858F;
   
   --import-accent: #10B981;
   --import-accent-hover: #059669;

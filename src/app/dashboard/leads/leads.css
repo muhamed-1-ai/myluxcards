@@ -769,8 +769,8 @@
 
 [data-theme="light"] .leads-page-container,
 body.light-mode .leads-page-container {
-  background-color: #F8FAFC !important;
-  color: #0F172A !important;
+  background-color: transparent !important;
+  color: #111827 !important;
 }
 
 [data-theme="light"] .kpi-card,
@@ -782,8 +782,8 @@ body.light-mode .crm-filter-panel,
 [data-theme="light"] .crm-mobile-lead-card,
 body.light-mode .crm-mobile-lead-card {
   background-color: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-  color: #0F172A !important;
+  border-color: #DEE5EF !important;
+  color: #111827 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
@@ -898,8 +898,8 @@ body.light-mode .crm-mobile-btn-edit {
 
 [data-theme="dark"] .leads-page-container,
 body.dark-mode .leads-page-container {
-  background-color: #050505 !important;
-  color: #F5F6F8 !important;
+  background-color: transparent !important;
+  color: #F4F4F5 !important;
 }
 
 [data-theme="dark"] .crm-badge-control-room,
@@ -911,19 +911,19 @@ body.dark-mode .crm-badge-control-room {
 
 [data-theme="dark"] .crm-header-title,
 body.dark-mode .crm-header-title {
-  color: #F5F6F8 !important;
+  color: #F4F4F5 !important;
 }
 
 [data-theme="dark"] .crm-header-count-pill,
 body.dark-mode .crm-header-count-pill {
-  background-color: #141519 !important;
-  border-color: #343740 !important;
-  color: #B5B8C2 !important;
+  background-color: #13161A !important;
+  border-color: #25282C !important;
+  color: #A1A1AA !important;
 }
 
 [data-theme="dark"] .crm-checkbox-label,
 body.dark-mode .crm-checkbox-label {
-  color: #B5B8C2 !important;
+  color: #A1A1AA !important;
 }
 
 [data-theme="dark"] .kpi-card,
@@ -934,10 +934,8 @@ body.dark-mode .crm-table-card,
 body.dark-mode .crm-filter-toolbar,
 [data-theme="dark"] .crm-filter-panel,
 body.dark-mode .crm-filter-panel {
-  background-color: #1B1C21 !important;
-  border-color: #343740 !important;
-  background-color: #14161F !important;
-  border-color: #262936 !important;
+  background-color: #0B0D0F !important;
+  border-color: #25282C !important;
   box-shadow: none !important;
 }
 
@@ -948,14 +946,14 @@ body.dark-mode .kpi-label {
 
 [data-theme="dark"] .kpi-value,
 body.dark-mode .kpi-value {
-  color: #F5F6F8 !important;
+  color: #F4F4F5 !important;
 }
 
 [data-theme="dark"] .crm-btn-secondary,
 body.dark-mode .crm-btn-secondary {
-  background-color: #1B1C21 !important;
-  border-color: #343740 !important;
-  color: #F5F6F8 !important;
+  background-color: #13161A !important;
+  border-color: #25282C !important;
+  color: #F4F4F5 !important;
 }
 
 [data-theme="dark"] .crm-btn-secondary:hover,

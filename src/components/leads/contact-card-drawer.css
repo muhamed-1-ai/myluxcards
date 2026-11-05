@@ -2,37 +2,37 @@
 
 :root {
   --zappit-sheet-bg: #FFFFFF;
-  --zappit-sheet-border: #E2E8F0;
-  --zappit-sheet-text-primary: #0F172A;
-  --zappit-sheet-text-secondary: #475569;
+  --zappit-sheet-border: #DEE5EF;
+  --zappit-sheet-text-primary: #111827;
+  --zappit-sheet-text-secondary: #64748B;
   --zappit-sheet-text-muted: #64748B;
-  --zappit-sheet-card-bg: #F8FAFC;
-  --zappit-sheet-card-border: #E2E8F0;
-  --zappit-sheet-separator: #E2E8F0;
+  --zappit-sheet-card-bg: #F0F4F9;
+  --zappit-sheet-card-border: #DEE5EF;
+  --zappit-sheet-separator: #DEE5EF;
   --zappit-sheet-handle: #CBD5E1;
-  --zappit-sheet-btn-secondary-bg: #F1F5F9;
-  --zappit-sheet-btn-secondary-border: #E2E8F0;
-  --zappit-sheet-btn-secondary-text: #334155;
-  --zappit-sheet-btn-secondary-hover: #E2E8F0;
+  --zappit-sheet-btn-secondary-bg: #F0F4F9;
+  --zappit-sheet-btn-secondary-border: #DEE5EF;
+  --zappit-sheet-btn-secondary-text: #111827;
+  --zappit-sheet-btn-secondary-hover: #DEE5EF;
 }
 
 [data-theme="dark"],
 body.dark-mode,
 .dark,
 :root[data-theme="dark"] {
-  --zappit-sheet-bg: #1B1C21;
-  --zappit-sheet-border: #343740;
-  --zappit-sheet-text-primary: #F5F6F8;
-  --zappit-sheet-text-secondary: #B5B8C2;
-  --zappit-sheet-text-muted: #969CA8;
-  --zappit-sheet-card-bg: #141519;
-  --zappit-sheet-card-border: #343740;
-  --zappit-sheet-separator: #343740;
-  --zappit-sheet-handle: #343740;
-  --zappit-sheet-btn-secondary-bg: #23252C;
-  --zappit-sheet-btn-secondary-border: #343740;
-  --zappit-sheet-btn-secondary-text: #F5F6F8;
-  --zappit-sheet-btn-secondary-hover: #14263A;
+  --zappit-sheet-bg: #0B0D0F;
+  --zappit-sheet-border: #25282C;
+  --zappit-sheet-text-primary: #F4F4F5;
+  --zappit-sheet-text-secondary: #A1A1AA;
+  --zappit-sheet-text-muted: #85858F;
+  --zappit-sheet-card-bg: #13161A;
+  --zappit-sheet-card-border: #25282C;
+  --zappit-sheet-separator: #25282C;
+  --zappit-sheet-handle: #25282C;
+  --zappit-sheet-btn-secondary-bg: #13161A;
+  --zappit-sheet-btn-secondary-border: #25282C;
+  --zappit-sheet-btn-secondary-text: #F4F4F5;
+  --zappit-sheet-btn-secondary-hover: rgba(22, 139, 255, 0.12);
 }
 
 /* Backdrop */
