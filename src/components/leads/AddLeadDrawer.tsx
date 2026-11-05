@@ -7,9 +7,9 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
 import FormattedMoneyInput, { formatAmountWithCommas, stripCommas } from "@/components/ui/FormattedMoneyInput";
 import { FollowUpType, normalizeFollowUpType, extractFollowUpTypeAndCleanNote } from "@/lib/follow-up-types";
-import { 
-  X, 
-  AlertCircle, 
+import {
+  X,
+  AlertCircle,
   Save,
   ChevronDown,
   Calendar,
@@ -26,6 +26,17 @@ import {
   Check
 } from "lucide-react";
 
+import {
+  CountryItem,
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  findCountryByCode,
+  findCountryByPhone,
+  searchCountries,
+  cleanNationalNumber,
+  formatCountryOption
+} from "@/lib/countries";
+
 export interface AddLeadDrawerProps {
   isOpen: boolean;
   mode?: "create" | "edit";
@@ -35,18 +46,13 @@ export interface AddLeadDrawerProps {
   identity?: { id: string; name: string | null; email: string; role: string };
 }
 
-interface CountryCode {
-  code: string;
-  country: string;
-  label: string;
-}
-
-const COUNTRY_CODES: CountryCode[] = [
-  { code: "+91", country: "IN", label: "IN" },
-  { code: "+1", country: "US", label: "US" },
-  { code: "+44", country: "GB", label: "UK" },
-  { code: "+971", country: "AE", label: "UAE" },
-  { code: "+65", country: "SG", label: "SG" },
+const DEFAULT_LEAD_STAGES = [
+  { id: "stg-1", name: "New", key: "NEW" },
+  { id: "stg-2", name: "Contacted", key: "CONTACTED" },
+  { id: "stg-3", name: "Interested", key: "INTERESTED" },
+  { id: "stg-4", name: "Follow-up", key: "FOLLOW_UP" },
+  { id: "stg-7", name: "Won", key: "WON" },
+  { id: "stg-8", name: "Lost", key: "LOST" },
 ];
 
 interface SelectedProduct {
@@ -83,17 +89,17 @@ function getAccountConfigKey(baseKey: string): string {
         }
       }
     }
-  } catch {}
+  } catch { }
   return baseKey;
 }
 
-export default function AddLeadDrawer({ 
-  isOpen, 
-  mode = "create", 
-  leadData = null, 
-  onClose, 
-  onSuccess, 
-  identity 
+export default function AddLeadDrawer({
+  isOpen,
+  mode = "create",
+  leadData = null,
+  onClose,
+  onSuccess,
+  identity
 }: AddLeadDrawerProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -175,7 +181,63 @@ export default function AddLeadDrawer({
 
   // Form State
   const [countryCode, setCountryCode] = useState("+91");
+  const [selectedCountryCode, setSelectedCountryCode] = useState("IN");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState("");
+  const countryDropdownRef = React.useRef<HTMLDivElement>(null);
+  const countrySearchInputRef = React.useRef<HTMLInputElement>(null);
+
+  const selectedCountry = findCountryByCode(selectedCountryCode);
+  const filteredCountries = searchCountries(countrySearchQuery);
+
+  // Close country dropdown on outside click
+  useEffect(() => {
+    if (!isCountryDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setIsCountryDropdownOpen(false);
+        setCountrySearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isCountryDropdownOpen]);
+
+  // Focus search input when country popover opens
+  useEffect(() => {
+    if (isCountryDropdownOpen) {
+      setTimeout(() => countrySearchInputRef.current?.focus(), 50);
+    }
+  }, [isCountryDropdownOpen]);
+
+  // Handle pasting full international numbers (e.g. +966512345678, +14155552671)
+  const handlePhonePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData("text");
+    if (text) {
+      const match = findCountryByPhone(text);
+      if (match) {
+        e.preventDefault();
+        setSelectedCountryCode(match.country.code);
+        setPhoneNumber(match.nationalNumber);
+        return;
+      }
+    }
+  };
+
+  // Handle typing full international numbers
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val.startsWith("+") || val.startsWith("00")) {
+      const match = findCountryByPhone(val);
+      if (match) {
+        setSelectedCountryCode(match.country.code);
+        setPhoneNumber(match.nationalNumber);
+        return;
+      }
+    }
+    setPhoneNumber(val);
+  };
 
   const isValidUuid = (val?: string) => Boolean(val && typeof val === "string" && /^[0-9a-f-]{36}$/i.test(val));
 
@@ -198,8 +260,8 @@ export default function AddLeadDrawer({
 
   // Calculate Total & Balance Amount
   const calculatedProductTotal = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-  const totalAmount = selectedProducts.length > 0 
-    ? calculatedProductTotal 
+  const totalAmount = selectedProducts.length > 0
+    ? calculatedProductTotal
     : (formData.customTotalAmount ? (Number(stripCommas(formData.customTotalAmount)) || 0) : 0);
 
   // Distinguish received advances from pending advance requests
@@ -306,6 +368,7 @@ export default function AddLeadDrawer({
                 { id: "stg-7", name: "Won", key: "WON" },
                 { id: "stg-8", name: "Lost", key: "LOST" },
               ]);
+              setStages(DEFAULT_LEAD_STAGES);
             }
           } else {
             setStages([
@@ -316,6 +379,7 @@ export default function AddLeadDrawer({
               { id: "stg-7", name: "Won", key: "WON" },
               { id: "stg-8", name: "Lost", key: "LOST" },
             ]);
+            setStages(DEFAULT_LEAD_STAGES);
           }
         } catch {
           setStages([
@@ -326,6 +390,7 @@ export default function AddLeadDrawer({
             { id: "stg-7", name: "Won", key: "WON" },
             { id: "stg-8", name: "Lost", key: "LOST" },
           ]);
+          setStages(DEFAULT_LEAD_STAGES);
         }
 
         // 4. Managed Users
@@ -375,211 +440,210 @@ export default function AddLeadDrawer({
     setIsRequestingAdvance(false);
 
     if (mode === "edit" && leadData) {
-      let rawPhone = leadData.contactNumber || leadData.phone || "";
-      let matchedCode = "+91";
-      let mainPhone = rawPhone;
-
-      for (const c of COUNTRY_CODES) {
-        if (rawPhone.startsWith(c.code)) {
-          matchedCode = c.code;
-          mainPhone = rawPhone.slice(c.code.length).trim();
-          break;
-        }
-      }
-
-      setCountryCode(matchedCode);
-      setPhoneNumber(mainPhone);
-
-      let fDate = "";
-      let fTime = "10:00";
-      const rawLeadFDate = leadData.followUpDate || leadData.nextFollowUpAt || leadData.nextFollowUp?.scheduledAt;
-      if (rawLeadFDate) {
-        const d = new Date(rawLeadFDate);
-        if (!isNaN(d.getTime())) {
-          fDate = d.toISOString().split("T")[0];
-          fTime = d.toTimeString().slice(0, 5);
-        }
-      }
-
-      const initialFuType = normalizeFollowUpType(
-        leadData.followUpType || leadData.nextFollowUpType || leadData.nextFollowUp?.type
-      );
-      const initialExtractedFu = extractFollowUpTypeAndCleanNote(
-        leadData.followUpNote || leadData.nextFollowUpNote || leadData.nextFollowUp?.note,
-        initialFuType
-      );
-
-      setFormData({
-        name: leadData.name || "",
-        email: leadData.email || "",
-        companyName: leadData.companyName || leadData.company || "",
-        address: leadData.address || "",
-        source: leadData.source || "MANUAL",
-        assignedUserId: (leadData.assignedUserId && isValidUuid(leadData.assignedUserId)) ? leadData.assignedUserId : (identity?.id && isValidUuid(identity.id) ? identity.id : ""),
-        lifeCycle: leadData.lifeCycle || "",
-        status: leadData.status || leadData.stage || "NEW",
-        remark: leadData.remark || leadData.notes || leadData.lastRemark || "",
-        followUpDate: fDate,
-        followUpTime: fTime,
-        followUpType: initialExtractedFu.type,
-        followUpNote: initialExtractedFu.cleanNote,
-        customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : (leadData.expectedRevenue ? String(leadData.expectedRevenue) : ""),
-      });
-
-      const initPaymentInfo = leadData.paymentInformation || leadData.payment_information;
-      if (initPaymentInfo?.advanceRecords && Array.isArray(initPaymentInfo.advanceRecords) && initPaymentInfo.advanceRecords.length > 0) {
-        setAdvanceRecords(initPaymentInfo.advanceRecords);
-      } else if (leadData.advanceAmount && Number(leadData.advanceAmount) > 0) {
-        setAdvanceRecords([
-          {
-            id: "adv-init",
-            amount: Number(leadData.advanceAmount),
-            note: "Recorded advance",
-            createdAt: new Date().toLocaleDateString("en-IN"),
-            status: "RECEIVED",
-          }
-        ]);
+      const rawPhone = leadData.contactNumber || leadData.phone || "";
+      const match = findCountryByPhone(rawPhone);
+      if (match) {
+        setSelectedCountryCode(match.country.code);
+        setCountryCode(match.country.dialCode);
+        setPhoneNumber(match.nationalNumber);
       } else {
-        setAdvanceRecords([]);
+        setSelectedCountryCode("IN");
+        setCountryCode("+91");
+        setPhoneNumber(cleanNationalNumber(rawPhone.replace(/^\+?91/, "").trim()));
       }
 
-      if (leadData?.id) {
-        fetch(`/api/leads/${leadData.id}`)
-          .then((r) => r.json())
-          .then((d) => {
-            if (d.lead) {
-              const fullLead = d.lead;
-              const map = fullLead.customFieldValues || {};
+        let fDate = "";
+        let fTime = "10:00";
+        const rawLeadFDate = leadData.followUpDate || leadData.nextFollowUpAt || leadData.nextFollowUp?.scheduledAt;
+        if (rawLeadFDate) {
+          const d = new Date(rawLeadFDate);
+          if (!isNaN(d.getTime())) {
+            fDate = d.toISOString().split("T")[0];
+            fTime = d.toTimeString().slice(0, 5);
+          }
+        }
 
-              const resolvedAddress = fullLead.address !== undefined && fullLead.address !== null
-                ? fullLead.address
-                : (map["address"] || map["Address"] || "");
+        const initialFuType = normalizeFollowUpType(
+          leadData.followUpType || leadData.nextFollowUpType || leadData.nextFollowUp?.type
+        );
+        const initialExtractedFu = extractFollowUpTypeAndCleanNote(
+          leadData.followUpNote || leadData.nextFollowUpNote || leadData.nextFollowUp?.note,
+          initialFuType
+        );
 
-              const resolvedTotal = fullLead.totalAmount || fullLead.expectedRevenue || Number(map["totalAmount"] || map["Total Amount"]) || 0;
-              const resolvedAdvance = fullLead.advanceAmount || Number(map["advanceAmount"] || map["Advance Amount"]) || 0;
-              const resolvedRemark = fullLead.lastRemark || fullLead.remark || fullLead.notes || map["remark"] || map["Remark"] || "";
+        setFormData({
+          name: leadData.name || "",
+          email: leadData.email || "",
+          companyName: leadData.companyName || leadData.company || "",
+          address: leadData.address || "",
+          source: leadData.source || "MANUAL",
+          assignedUserId: (leadData.assignedUserId && isValidUuid(leadData.assignedUserId)) ? leadData.assignedUserId : (identity?.id && isValidUuid(identity.id) ? identity.id : ""),
+          lifeCycle: leadData.lifeCycle || "",
+          status: leadData.status || leadData.stage || "NEW",
+          remark: leadData.remark || leadData.notes || leadData.lastRemark || "",
+          followUpDate: fDate,
+          followUpTime: fTime,
+          followUpType: initialExtractedFu.type,
+          followUpNote: initialExtractedFu.cleanNote,
+          customTotalAmount: leadData.totalAmount ? String(leadData.totalAmount) : (leadData.expectedRevenue ? String(leadData.expectedRevenue) : ""),
+        });
 
-              let fetchRawPhone = fullLead.contactNumber || fullLead.phone || rawPhone;
-              let fetchMatchedCode = "+91";
-              let fetchMainPhone = fetchRawPhone;
-              for (const c of COUNTRY_CODES) {
-                if (fetchRawPhone.startsWith(c.code)) {
-                  fetchMatchedCode = c.code;
-                  fetchMainPhone = fetchRawPhone.slice(c.code.length).trim();
-                  break;
-                }
-              }
-              setCountryCode(fetchMatchedCode);
-              setPhoneNumber(fetchMainPhone);
-
-              let fetchedFDate = "";
-              let fetchedFTime = "10:00";
-              const rawApiFDate = fullLead.nextFollowUp?.scheduledAt || fullLead.nextFollowUpAt || fullLead.followUpDate;
-              if (rawApiFDate) {
-                const fd = new Date(rawApiFDate);
-                if (!isNaN(fd.getTime())) {
-                  fetchedFDate = fd.toISOString().split("T")[0];
-                  fetchedFTime = fd.toTimeString().slice(0, 5);
-                }
-              }
-
-              const resolvedApiFuType = normalizeFollowUpType(
-                fullLead.followUpType || fullLead.nextFollowUpType || fullLead.nextFollowUp?.type
-              );
-              const resolvedApiFuCleanNote = extractFollowUpTypeAndCleanNote(
-                fullLead.nextFollowUp?.note !== undefined ? fullLead.nextFollowUp?.note : (fullLead.followUpNote !== undefined ? fullLead.followUpNote : fullLead.nextFollowUpNote),
-                resolvedApiFuType
-              ).cleanNote;
-
-              setFormData((prev) => ({
-                ...prev,
-                name: fullLead.name || prev.name,
-                email: fullLead.email !== undefined && fullLead.email !== null ? fullLead.email : prev.email,
-                companyName: fullLead.companyName !== undefined && fullLead.companyName !== null ? fullLead.companyName : prev.companyName,
-                address: resolvedAddress,
-                source: fullLead.source || prev.source,
-                assignedUserId: (fullLead.assignedUserId && isValidUuid(fullLead.assignedUserId)) ? fullLead.assignedUserId : prev.assignedUserId,
-                status: fullLead.status || fullLead.stage || prev.status,
-                remark: resolvedRemark,
-                customTotalAmount: resolvedTotal ? String(resolvedTotal) : prev.customTotalAmount,
-                followUpDate: fetchedFDate || prev.followUpDate,
-                followUpTime: fetchedFTime || prev.followUpTime,
-                followUpType: resolvedApiFuType,
-                followUpNote: resolvedApiFuCleanNote !== undefined ? resolvedApiFuCleanNote : prev.followUpNote,
-              }));
-
-              const apiPaymentInfo = fullLead.paymentInformation;
-              if (apiPaymentInfo?.advanceRecords && Array.isArray(apiPaymentInfo.advanceRecords) && apiPaymentInfo.advanceRecords.length > 0) {
-                setAdvanceRecords(apiPaymentInfo.advanceRecords);
-              } else if (resolvedAdvance > 0) {
-                setAdvanceRecords([
-                  {
-                    id: "adv-init",
-                    amount: Number(resolvedAdvance),
-                    note: "Recorded advance",
-                    createdAt: new Date().toLocaleDateString("en-IN"),
-                    status: "RECEIVED",
-                  }
-                ]);
-              } else {
-                setAdvanceRecords([]);
-              }
-
-              if (fullLead.products && Array.isArray(fullLead.products) && fullLead.products.length > 0) {
-                setSelectedProducts(fullLead.products);
-              }
-
-              if (map) {
-                const cleanMap = { ...map };
-                delete cleanMap["address"];
-                delete cleanMap["Address"];
-                delete cleanMap["totalAmount"];
-                delete cleanMap["Total Amount"];
-                delete cleanMap["advanceAmount"];
-                delete cleanMap["Advance Amount"];
-                delete cleanMap["remark"];
-                delete cleanMap["Remark"];
-                delete cleanMap["remarks"];
-                delete cleanMap["Remarks"];
-                delete cleanMap["paymentInformation"];
-                delete cleanMap["Payment Information"];
-
-                setCustomFieldValues((prev) => ({
-                  ...prev,
-                  ...cleanMap,
-                }));
-              }
+        const initPaymentInfo = leadData.paymentInformation || leadData.payment_information;
+        if (initPaymentInfo?.advanceRecords && Array.isArray(initPaymentInfo.advanceRecords) && initPaymentInfo.advanceRecords.length > 0) {
+          setAdvanceRecords(initPaymentInfo.advanceRecords);
+        } else if (leadData.advanceAmount && Number(leadData.advanceAmount) > 0) {
+          setAdvanceRecords([
+            {
+              id: "adv-init",
+              amount: Number(leadData.advanceAmount),
+              note: "Recorded advance",
+              createdAt: new Date().toLocaleDateString("en-IN"),
+              status: "RECEIVED",
             }
-          })
-          .catch((err) => {
-            console.error("Error loading full lead details in drawer:", err);
-          });
+          ]);
+        } else {
+          setAdvanceRecords([]);
+        }
+
+        if (leadData?.id) {
+          fetch(`/api/leads/${leadData.id}`)
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.lead) {
+                const fullLead = d.lead;
+                const map = fullLead.customFieldValues || {};
+
+                const resolvedAddress = fullLead.address !== undefined && fullLead.address !== null
+                  ? fullLead.address
+                  : (map["address"] || map["Address"] || "");
+
+                const resolvedTotal = fullLead.totalAmount || fullLead.expectedRevenue || Number(map["totalAmount"] || map["Total Amount"]) || 0;
+                const resolvedAdvance = fullLead.advanceAmount || Number(map["advanceAmount"] || map["Advance Amount"]) || 0;
+                const resolvedRemark = fullLead.lastRemark || fullLead.remark || fullLead.notes || map["remark"] || map["Remark"] || "";
+
+                  const fetchRawPhone = fullLead.contactNumber || fullLead.phone || rawPhone;
+                  const fetchMatch = findCountryByPhone(fetchRawPhone);
+                  if (fetchMatch) {
+                    setSelectedCountryCode(fetchMatch.country.code);
+                    setCountryCode(fetchMatch.country.dialCode);
+                    setPhoneNumber(fetchMatch.nationalNumber);
+                  } else {
+                    setSelectedCountryCode("IN");
+                    setCountryCode("+91");
+                    setPhoneNumber(cleanNationalNumber(fetchRawPhone.replace(/^\+?91/, "").trim()));
+                  }
+
+                  let fetchedFDate = "";
+                  let fetchedFTime = "10:00";
+                  const rawApiFDate = fullLead.nextFollowUp?.scheduledAt || fullLead.nextFollowUpAt || fullLead.followUpDate;
+                  if (rawApiFDate) {
+                    const fd = new Date(rawApiFDate);
+                    if (!isNaN(fd.getTime())) {
+                      fetchedFDate = fd.toISOString().split("T")[0];
+                      fetchedFTime = fd.toTimeString().slice(0, 5);
+                    }
+                  }
+
+                  const resolvedApiFuType = normalizeFollowUpType(
+                    fullLead.followUpType || fullLead.nextFollowUpType || fullLead.nextFollowUp?.type
+                  );
+                  const resolvedApiFuCleanNote = extractFollowUpTypeAndCleanNote(
+                    fullLead.nextFollowUp?.note !== undefined ? fullLead.nextFollowUp?.note : (fullLead.followUpNote !== undefined ? fullLead.followUpNote : fullLead.nextFollowUpNote),
+                    resolvedApiFuType
+                  ).cleanNote;
+
+                  setFormData((prev) => ({
+                    ...prev,
+                    name: fullLead.name || prev.name,
+                    email: fullLead.email !== undefined && fullLead.email !== null ? fullLead.email : prev.email,
+                    companyName: fullLead.companyName !== undefined && fullLead.companyName !== null ? fullLead.companyName : prev.companyName,
+                    address: resolvedAddress,
+                    source: fullLead.source || prev.source,
+                    assignedUserId: (fullLead.assignedUserId && isValidUuid(fullLead.assignedUserId)) ? fullLead.assignedUserId : prev.assignedUserId,
+                    status: fullLead.status || fullLead.stage || prev.status,
+                    remark: resolvedRemark,
+                    customTotalAmount: resolvedTotal ? String(resolvedTotal) : prev.customTotalAmount,
+                    followUpDate: fetchedFDate || prev.followUpDate,
+                    followUpTime: fetchedFTime || prev.followUpTime,
+                    followUpType: resolvedApiFuType,
+                    followUpNote: resolvedApiFuCleanNote !== undefined ? resolvedApiFuCleanNote : prev.followUpNote,
+                  }));
+
+                  const apiPaymentInfo = fullLead.paymentInformation;
+                  if (apiPaymentInfo?.advanceRecords && Array.isArray(apiPaymentInfo.advanceRecords) && apiPaymentInfo.advanceRecords.length > 0) {
+                    setAdvanceRecords(apiPaymentInfo.advanceRecords);
+                  } else if (resolvedAdvance > 0) {
+                    setAdvanceRecords([
+                      {
+                        id: "adv-init",
+                        amount: Number(resolvedAdvance),
+                        note: "Recorded advance",
+                        createdAt: new Date().toLocaleDateString("en-IN"),
+                        status: "RECEIVED",
+                      }
+                    ]);
+                  } else {
+                    setAdvanceRecords([]);
+                  }
+
+                  if (fullLead.products && Array.isArray(fullLead.products) && fullLead.products.length > 0) {
+                    setSelectedProducts(fullLead.products);
+                  }
+
+                  if (map) {
+                    const cleanMap = { ...map };
+                    delete cleanMap["address"];
+                    delete cleanMap["Address"];
+                    delete cleanMap["totalAmount"];
+                    delete cleanMap["Total Amount"];
+                    delete cleanMap["advanceAmount"];
+                    delete cleanMap["Advance Amount"];
+                    delete cleanMap["remark"];
+                    delete cleanMap["Remark"];
+                    delete cleanMap["remarks"];
+                    delete cleanMap["Remarks"];
+                    delete cleanMap["paymentInformation"];
+                    delete cleanMap["Payment Information"];
+
+                    setCustomFieldValues((prev) => ({
+                      ...prev,
+                      ...cleanMap,
+                    }));
+                  }
+                }
+              })
+            .catch((err) => {
+              console.error("Error loading full lead details in drawer:", err);
+            });
+        }
+      } else {
+        // Reset form for Create Mode
+        setCountryCode("+91");
+        setSelectedCountryCode("IN");
+        setPhoneNumber("");
+        setIsCountryDropdownOpen(false);
+        setCountrySearchQuery("");
+        setSelectedProducts([]);
+        setAdvanceRecords([]);
+        setFormData({
+          name: "",
+          email: "",
+          companyName: "",
+          address: "",
+          source: sources.length > 0 ? sources[0].code : "MANUAL",
+          assignedUserId: (identity?.id && isValidUuid(identity.id)) ? identity.id : "",
+          lifeCycle: "",
+          status: stages.length > 0 ? stages[0].key : "NEW",
+          remark: "",
+          followUpDate: "",
+          followUpTime: "10:00",
+          followUpType: "CALL",
+          followUpNote: "",
+          customTotalAmount: "",
+        });
+        setCustomFieldValues({});
       }
-    } else {
-      // Reset form for Create Mode
-      setCountryCode("+91");
-      setPhoneNumber("");
-      setSelectedProducts([]);
-      setAdvanceRecords([]);
-      setFormData({
-        name: "",
-        email: "",
-        companyName: "",
-        address: "",
-        source: sources.length > 0 ? sources[0].code : "MANUAL",
-        assignedUserId: (identity?.id && isValidUuid(identity.id)) ? identity.id : "",
-        lifeCycle: "",
-        status: stages.length > 0 ? stages[0].key : "NEW",
-        remark: "",
-        followUpDate: "",
-        followUpTime: "10:00",
-        followUpType: "CALL",
-        followUpNote: "",
-        customTotalAmount: "",
-      });
-      setCustomFieldValues({});
-    }
-  }, [isOpen, mode, leadData, identity?.id, sources, stages]);
+    }, [isOpen, mode, leadData, identity?.id, sources, stages]);
 
   // Product Selection Handlers
   const handleAddProduct = () => {
@@ -695,7 +759,9 @@ export default function AddLeadDrawer({
       return;
     }
 
-    const fullContactNumber = `${countryCode} ${phoneNumber.trim()}`;
+    const activeCountry = findCountryByCode(selectedCountryCode);
+    const cleanedDigits = cleanNationalNumber(phoneNumber, activeCountry.dialCode);
+    const fullContactNumber = `${activeCountry.dialCode} ${cleanedDigits}`.trim();
 
     // Format follow-up date-time if provided
     let combinedFollowUpIso: string | undefined = undefined;
@@ -801,7 +867,7 @@ export default function AddLeadDrawer({
 
       try {
         router.refresh();
-      } catch {}
+      } catch { }
       onSuccess(savedLead);
     } catch (err: any) {
       setFormError(err.message || "Operation failed. Please try again.");
@@ -839,9 +905,9 @@ export default function AddLeadDrawer({
             </p>
           </div>
 
-          <button 
+          <button
             type="button"
-            onClick={onClose} 
+            onClick={onClose}
             aria-label="Close dialog"
             className="add-lead-close-btn"
           >
@@ -851,7 +917,7 @@ export default function AddLeadDrawer({
 
         {/* 2. SCROLLABLE FORM BODY */}
         <form ref={formRef} onSubmit={handleSubmit} className="add-lead-body">
-          
+
           {error && (
             <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-start space-x-3 text-xs sm:text-sm font-medium shadow-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
@@ -874,8 +940,8 @@ export default function AddLeadDrawer({
                 <label className="add-lead-label">
                   Lead Name <span className="text-rose-500">*</span>
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -891,834 +957,876 @@ export default function AddLeadDrawer({
                   <label className="add-lead-label">
                     Mobile <span className="text-rose-500">*</span>
                   </label>
-                  <div className="add-lead-mobile-group">
-                    {/* Country Selector */}
-                    <div className="add-lead-country-selector">
-                      <select 
-                        value={countryCode}
-                        onChange={e => setCountryCode(e.target.value)}
+                  <div className="relative" ref={countryDropdownRef}>
+                        <div className="add-lead-mobile-group">
+                          {/* Country and calling-code selector button */}
+                          <button
+                            type="button"
+                            onClick={() => setIsCountryDropdownOpen((prev) => !prev)}
+                            className="add-lead-country-selector-btn"
+                            aria-label="Select country and calling code"
+                            aria-expanded={isCountryDropdownOpen}
+                          >
+                            <span className="add-lead-country-flag">{selectedCountry.flag}</span>
+                            <span className="add-lead-country-dial">{selectedCountry.dialCode}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 ml-1 transition-transform ${isCountryDropdownOpen ? "rotate-180" : ""}`} />
+                          </button>
+
+                          {/* Phone Number Input */}
+                          <input
+                            type="tel"
+                            required
+                            value={phoneNumber}
+                            onChange={handlePhoneChange}
+                            onPaste={handlePhonePaste}
+                            placeholder="Mobile Number"
+                            className="add-lead-phone-input"
+                          />
+                        </div>
+
+                        {/* Searchable Country Popover */}
+                        {isCountryDropdownOpen && (
+                          <div className="add-lead-country-popover" role="dialog" aria-label="Country selector">
+                            <div className="add-lead-country-search-box">
+                              <input
+                                ref={countrySearchInputRef}
+                                type="text"
+                                value={countrySearchQuery}
+                                onChange={(e) => setCountrySearchQuery(e.target.value)}
+                                placeholder="Search country, code, or ISO..."
+                                className="add-lead-country-search-input"
+                                autoFocus
+                              />
+                            </div>
+                            <div className="add-lead-country-list" role="listbox">
+                              {filteredCountries.length === 0 ? (
+                                <div className="add-lead-country-no-results">
+                                  No matching countries found
+                                </div>
+                              ) : (
+                                filteredCountries.map((c) => {
+                                  const isSelected = c.code === selectedCountryCode;
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={c.code}
+                                      role="option"
+                                      aria-selected={isSelected}
+                                      onClick={() => {
+                                        setSelectedCountryCode(c.code);
+                                        setCountryCode(c.dialCode);
+                                        setIsCountryDropdownOpen(false);
+                                        setCountrySearchQuery("");
+                                      }}
+                                      className={`add-lead-country-option ${isSelected ? "is-selected" : ""}`}
+                                    >
+                                      <span className="add-lead-country-option-flag">{c.flag}</span>
+                                      <span className="add-lead-country-option-name">{c.name}</span>
+                                      <span className="add-lead-country-option-dial">{c.dialCode}</span>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="add-lead-label">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="lead@company.com"
+                        className="add-lead-input"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. Company Name (Left half-width, right side blank) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="add-lead-label">
+                        Company Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.companyName}
+                        onChange={e => setFormData({ ...formData, companyName: e.target.value })}
+                        placeholder="Acme Pvt Ltd"
+                        className="add-lead-input"
+                      />
+                    </div>
+                    <div className="hidden sm:block" />
+                  </div>
+
+                  {/* 4. Address (Full-width textarea) */}
+                  <div>
+                    <label className="add-lead-label">
+                      Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formData.address}
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Street, city, state, PIN"
+                      className="add-lead-textarea min-h-[72px]"
+                    />
+                  </div>
+
+                  {/* 5. Assigned To and Source (Two equal columns) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="add-lead-label">
+                        Assigned To
+                      </label>
+                      <div className="relative flex items-center">
+                        <select
+                          value={formData.assignedUserId}
+                          onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
+                          className="add-lead-select pr-9"
+                        >
+                          {identity?.id && (
+                            <option value={identity.id}>
+                              {identity.name || identity.email}
+                            </option>
+                          )}
+                          {managedUsers.map(u => (
+                            <option key={u.id} value={u.id}>
+                              {u.name || u.email}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="add-lead-label">
+                        Source
+                      </label>
+                      <div className="relative flex items-center">
+                        <select
+                          value={formData.source}
+                          onChange={e => setFormData({ ...formData, source: e.target.value })}
+                          className="add-lead-select pr-9"
+                        >
+                          <option value="">Select source</option>
+                          {sources.map(s => (
+                            <option key={s.id} value={s.code}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. Lead Life Cycle (Left half-width, right side blank) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="add-lead-label">
+                        Lead Life Cycle
+                      </label>
+                      <div className="relative flex items-center">
+                        <select
+                          value={formData.lifeCycle}
+                          onChange={e => setFormData({ ...formData, lifeCycle: e.target.value })}
+                          className="add-lead-select pr-9"
+                        >
+                          <option value="">Select lifecycle</option>
+                          <option value="LEAD">Lead</option>
+                          <option value="MQL">Marketing Qualified Lead (MQL)</option>
+                          <option value="SQL">Sales Qualified Lead (SQL)</option>
+                          <option value="OPPORTUNITY">Opportunity</option>
+                          <option value="CUSTOMER">Customer</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                      </div>
+                    </div>
+                    <div className="hidden sm:block" />
+                  </div>
+
+                  {/* 7. Stage (Full width) */}
+                  <div>
+                    <label className="add-lead-label">
+                      Stage
+                    </label>
+                    <div className="relative flex items-center">
+                      <select
+                        value={formData.status}
+                        onChange={e => setFormData({ ...formData, status: e.target.value })}
+                        className="add-lead-select pr-9"
                       >
-                        {COUNTRY_CODES.map(c => (
-                          <option key={c.code} value={c.code}>
-                            {c.label}
+                        {stages.map(stg => (
+                          <option key={stg.id} value={stg.key}>
+                            {stg.name}
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none absolute right-2" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
                     </div>
-
-                    {/* Single Prefix */}
-                    <div className="add-lead-dial-code">
-                      {countryCode}
-                    </div>
-
-                    {/* Phone Number Input */}
-                    <input 
-                      type="tel" 
-                      required
-                      value={phoneNumber}
-                      onChange={e => setPhoneNumber(e.target.value)}
-                      placeholder="Mobile Number"
-                      className="add-lead-phone-input"
-                    />
                   </div>
                 </div>
+              </div>
 
-                {/* Email */}
+              {/* SECTION 2: REMARKS HISTORY */}
+              <div className="add-lead-card">
                 <div>
-                  <label className="add-lead-label">
-                    Email
-                  </label>
-                  <input 
-                    type="email" 
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="lead@company.com"
-                    className="add-lead-input"
-                  />
-                </div>
-              </div>
-
-              {/* 3. Company Name (Left half-width, right side blank) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="add-lead-label">
-                    Company Name
-                  </label>
-                  <input 
-                    type="text" 
-                    value={formData.companyName}
-                    onChange={e => setFormData({ ...formData, companyName: e.target.value })}
-                    placeholder="Acme Pvt Ltd"
-                    className="add-lead-input"
-                  />
-                </div>
-                <div className="hidden sm:block" />
-              </div>
-
-              {/* 4. Address (Full-width textarea) */}
-              <div>
-                <label className="add-lead-label">
-                  Address
-                </label>
-                <textarea 
-                  rows={2}
-                  value={formData.address}
-                  onChange={e => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Street, city, state, PIN"
-                  className="add-lead-textarea min-h-[72px]"
-                />
-              </div>
-
-              {/* 5. Assigned To and Source (Two equal columns) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="add-lead-label">
-                    Assigned To
-                  </label>
-                  <div className="relative flex items-center">
-                    <select 
-                      value={formData.assignedUserId}
-                      onChange={e => setFormData({ ...formData, assignedUserId: e.target.value })}
-                      className="add-lead-select pr-9"
-                    >
-                      {identity?.id && (
-                        <option value={identity.id}>
-                          {identity.name || identity.email}
-                        </option>
-                      )}
-                      {managedUsers.map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.name || u.email}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="add-lead-label">
-                    Source
-                  </label>
-                  <div className="relative flex items-center">
-                    <select 
-                      value={formData.source}
-                      onChange={e => setFormData({ ...formData, source: e.target.value })}
-                      className="add-lead-select pr-9"
-                    >
-                      <option value="">Select source</option>
-                      {sources.map(s => (
-                        <option key={s.id} value={s.code}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. Lead Life Cycle (Left half-width, right side blank) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="add-lead-label">
-                    Lead Life Cycle
-                  </label>
-                  <div className="relative flex items-center">
-                    <select 
-                      value={formData.lifeCycle}
-                      onChange={e => setFormData({ ...formData, lifeCycle: e.target.value })}
-                      className="add-lead-select pr-9"
-                    >
-                      <option value="">Select lifecycle</option>
-                      <option value="LEAD">Lead</option>
-                      <option value="MQL">Marketing Qualified Lead (MQL)</option>
-                      <option value="SQL">Sales Qualified Lead (SQL)</option>
-                      <option value="OPPORTUNITY">Opportunity</option>
-                      <option value="CUSTOMER">Customer</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
-                  </div>
-                </div>
-                <div className="hidden sm:block" />
-              </div>
-
-              {/* 7. Stage (Full width) */}
-              <div>
-                <label className="add-lead-label">
-                  Stage
-                </label>
-                <div className="relative flex items-center">
-                  <select 
-                    value={formData.status}
-                    onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    className="add-lead-select pr-9"
-                  >
-                    {stages.map(stg => (
-                      <option key={stg.id} value={stg.key}>
-                        {stg.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 2: REMARKS HISTORY */}
-          <div className="add-lead-card">
-            <div>
-              <h3 className="add-lead-card-title">Remarks History</h3>
-              <p className="add-lead-card-desc">
-                Initial notes about this lead.
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="add-lead-label !mb-0">
-                  Remarks
-                </label>
-                <span className="font-mono text-xs font-semibold text-slate-400 dark:text-slate-500">
-                  {formData.remark.length}/1000
-                </span>
-              </div>
-              <textarea 
-                rows={4}
-                maxLength={1000}
-                value={formData.remark}
-                onChange={e => setFormData({ ...formData, remark: e.target.value })}
-                placeholder="Enter any additional information or important notes about this lead..."
-                className="add-lead-textarea min-h-[100px]"
-              />
-            </div>
-          </div>
-
-          {/* SECTION 3: FOLLOW-UP */}
-          <div className="add-lead-card followup-card">
-            {/* Header */}
-            <div className="followup-card-header">
-              <div className="followup-header-icon">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="followup-header-title">Follow-up</h3>
-                <p className="followup-header-desc">
-                  Keep the next touchpoint visible directly in the leads table.
-                </p>
-              </div>
-            </div>
-
-            {/* Grid Layout */}
-            <div className="followup-grid">
-              {/* Left Column: Next Follow-up Group */}
-              <div className="flex flex-col gap-4">
-                <div className="followup-group-kicker">NEXT FOLLOW-UP</div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="lead-follow-up-date" className="add-lead-label followup-sublabel">
-                    DATE
-                  </label>
-                  <div className="w-full">
-                    <DatePicker
-                      value={formData.followUpDate}
-                      onChange={(dateStr) => setFormData((prev) => ({ ...prev, followUpDate: dateStr }))}
-                      placeholder="Select Date"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="lead-follow-up-time" className="add-lead-label followup-sublabel">
-                    TIME
-                  </label>
-                  <div className="w-full">
-                    <TimePicker
-                      value={formData.followUpTime}
-                      onChange={(timeStr) => setFormData((prev) => ({ ...prev, followUpTime: timeStr }))}
-                      placeholder="Select Time"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5 mt-1">
-                  <label htmlFor="lead-follow-up-type" className="add-lead-label followup-sublabel">
-                    FOLLOW-UP TYPE
-                  </label>
-                  <div className="relative flex items-center w-full">
-                    <select 
-                      id="lead-follow-up-type"
-                      value={normalizeFollowUpType(formData.followUpType)}
-                      onChange={e => {
-                        const val = normalizeFollowUpType(e.target.value);
-                        setFormData(prev => ({ ...prev, followUpType: val }));
-                      }}
-                      className="add-lead-select followup-input-control pr-10"
-                    >
-                      <option value="CALL">Call</option>
-                      <option value="MEETING">Meeting</option>
-                      <option value="EMAIL">Email</option>
-                      <option value="WHATSAPP">WhatsApp</option>
-                      <option value="DEMO">Demo</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Follow-up Note */}
-              <div className="flex flex-col h-full">
-                <div className="followup-group-kicker">FOLLOW-UP NOTE</div>
-                <div className="flex-1 flex flex-col mt-1.5">
-                  <textarea 
-                    id="lead-follow-up-note"
-                    value={formData.followUpNote}
-                    onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
-                    placeholder="Describe the next customer action, context, or talking point"
-                    className="add-lead-textarea followup-note-textarea flex-1 w-full"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 4: PRODUCT SELECTION */}
-          <div className="add-lead-card">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="add-lead-card-header min-w-0 flex-1">
-                <div className="add-lead-icon-wrap add-lead-icon-purple">
-                  <PlusCircle className="w-4 h-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="add-lead-card-title">Product Selection</h3>
+                  <h3 className="add-lead-card-title">Remarks History</h3>
                   <p className="add-lead-card-desc">
-                    Selected products calculate the total amount automatically.
+                    Initial notes about this lead.
                   </p>
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setIsAddingProduct(!isAddingProduct)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm flex-shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Product</span>
-              </button>
-            </div>
-
-            {/* Product Selector Bar */}
-            {isAddingProduct && (
-              <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 flex flex-col sm:flex-row items-center gap-3">
-                <div className="relative flex-1 w-full">
-                  <select
-                    value={chosenProductId}
-                    onChange={e => setChosenProductId(e.target.value)}
-                    className="add-lead-select !h-10 !text-xs pr-9"
-                  >
-                    <option value="">Choose a product from catalogue...</option>
-                    {availableProducts.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} (₹{p.price.toLocaleString("en-IN")})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-                </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingProduct(false)}
-                    className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!chosenProductId}
-                    onClick={handleAddProduct}
-                    className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-sm transition-all"
-                  >
-                    Add
-                  </button>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="add-lead-label !mb-0">
+                      Remarks
+                    </label>
+                    <span className="font-mono text-xs font-semibold text-slate-400 dark:text-slate-500">
+                      {formData.remark.length}/1000
+                    </span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    maxLength={1000}
+                    value={formData.remark}
+                    onChange={e => setFormData({ ...formData, remark: e.target.value })}
+                    placeholder="Enter any additional information or important notes about this lead..."
+                    className="add-lead-textarea min-h-[100px]"
+                  />
                 </div>
               </div>
-            )}
 
-            {/* Selected Products or Empty State */}
-            {selectedProducts.length === 0 ? (
-              <div className="add-lead-empty-box">
-                No products selected for this lead.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {selectedProducts.map(p => (
-                  <div 
-                    key={p.id}
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
-                  >
-                    <div>
-                      <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{p.name}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">₹{p.price.toLocaleString("en-IN")} each</div>
+              {/* SECTION 3: FOLLOW-UP */}
+              <div className="add-lead-card followup-card">
+                {/* Header */}
+                <div className="followup-card-header">
+                  <div className="followup-header-icon">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="followup-header-title">Follow-up</h3>
+                    <p className="followup-header-desc">
+                      Keep the next touchpoint visible directly in the leads table.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Grid Layout */}
+                <div className="followup-grid">
+                  {/* Left Column: Next Follow-up Group */}
+                  <div className="flex flex-col gap-4">
+                    <div className="followup-group-kicker">NEXT FOLLOW-UP</div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="lead-follow-up-date" className="add-lead-label followup-sublabel">
+                        DATE
+                      </label>
+                      <div className="w-full">
+                        <DatePicker
+                          value={formData.followUpDate}
+                          onChange={(dateStr) => setFormData((prev) => ({ ...prev, followUpDate: dateStr }))}
+                          placeholder="Select Date"
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {/* Quantity Stepper */}
-                      <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateProductQty(p.id, -1)}
-                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="px-2.5 text-xs font-bold text-slate-800 dark:text-slate-200">{p.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateProductQty(p.id, 1)}
-                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="lead-follow-up-time" className="add-lead-label followup-sublabel">
+                        TIME
+                      </label>
+                      <div className="w-full">
+                        <TimePicker
+                          value={formData.followUpTime}
+                          onChange={(timeStr) => setFormData((prev) => ({ ...prev, followUpTime: timeStr }))}
+                          placeholder="Select Time"
+                        />
                       </div>
+                    </div>
 
-                      <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white min-w-[70px] text-right">
-                        ₹{(p.price * p.quantity).toLocaleString("en-IN")}
-                      </span>
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <label htmlFor="lead-follow-up-type" className="add-lead-label followup-sublabel">
+                        FOLLOW-UP TYPE
+                      </label>
+                      <div className="relative flex items-center w-full">
+                        <select
+                          id="lead-follow-up-type"
+                          value={normalizeFollowUpType(formData.followUpType)}
+                          onChange={e => {
+                            const val = normalizeFollowUpType(e.target.value);
+                            setFormData(prev => ({ ...prev, followUpType: val }));
+                          }}
+                          className="add-lead-select followup-input-control pr-10"
+                        >
+                          <option value="CALL">Call</option>
+                          <option value="MEETING">Meeting</option>
+                          <option value="EMAIL">Email</option>
+                          <option value="WHATSAPP">WhatsApp</option>
+                          <option value="DEMO">Demo</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Right Column: Follow-up Note */}
+                  <div className="flex flex-col h-full">
+                    <div className="followup-group-kicker">FOLLOW-UP NOTE</div>
+                    <div className="flex-1 flex flex-col mt-1.5">
+                      <textarea
+                        id="lead-follow-up-note"
+                        value={formData.followUpNote}
+                        onChange={e => setFormData({ ...formData, followUpNote: e.target.value })}
+                        placeholder="Describe the next customer action, context, or talking point"
+                        className="add-lead-textarea followup-note-textarea flex-1 w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: PRODUCT SELECTION */}
+              <div className="add-lead-card">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="add-lead-card-header min-w-0 flex-1">
+                    <div className="add-lead-icon-wrap add-lead-icon-purple">
+                      <PlusCircle className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="add-lead-card-title">Product Selection</h3>
+                      <p className="add-lead-card-desc">
+                        Selected products calculate the total amount automatically.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingProduct(!isAddingProduct)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm flex-shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Product</span>
+                  </button>
+                </div>
+
+                {/* Product Selector Bar */}
+                {isAddingProduct && (
+                  <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative flex-1 w-full">
+                      <select
+                        value={chosenProductId}
+                        onChange={e => setChosenProductId(e.target.value)}
+                        className="add-lead-select !h-10 !text-xs pr-9"
+                      >
+                        <option value="">Choose a product from catalogue...</option>
+                        {availableProducts.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} (₹{p.price.toLocaleString("en-IN")})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                       <button
                         type="button"
-                        onClick={() => handleRemoveProduct(p.id)}
-                        className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                        onClick={() => setIsAddingProduct(false)}
+                        className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!chosenProductId}
+                        onClick={handleAddProduct}
+                        className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-sm transition-all"
+                      >
+                        Add
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                )}
 
-          {/* SECTION 5: PAYMENT INFORMATION */}
-          <div className="add-lead-card">
-            <div className="add-lead-card-header">
-              <div className="add-lead-icon-wrap add-lead-icon-green">
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="add-lead-card-title">Payment Information</h3>
-                <p className="add-lead-card-desc">
-                  Agreed revenue terms, advance payments, and outstanding balances.
-                </p>
-              </div>
-            </div>
+                {/* Selected Products or Empty State */}
+                {selectedProducts.length === 0 ? (
+                  <div className="add-lead-empty-box">
+                    No products selected for this lead.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {selectedProducts.map(p => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
+                      >
+                        <div>
+                          <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{p.name}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">₹{p.price.toLocaleString("en-IN")} each</div>
+                        </div>
 
-            {/* Total Amount & Balance Amount Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="add-lead-label">
-                  Total Amount
-                </label>
-                <FormattedMoneyInput 
-                  value={selectedProducts.length > 0 ? calculatedProductTotal : (formData.customTotalAmount ?? "")}
-                  onChange={e => setFormData({ ...formData, customTotalAmount: e.target.value })}
-                  disabled={selectedProducts.length > 0}
-                  placeholder="0.00"
-                  className="add-lead-input font-bold"
-                />
-              </div>
+                        <div className="flex items-center gap-3">
+                          {/* Quantity Stepper */}
+                          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateProductQty(p.id, -1)}
+                              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="px-2.5 text-xs font-bold text-slate-800 dark:text-slate-200">{p.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateProductQty(p.id, 1)}
+                              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
 
-              <div>
-                <label className="add-lead-label">
-                  Balance Amount (Read-only)
-                </label>
-                <input 
-                  type="text" 
-                  readOnly
-                  value={
-                    balanceAmount < 0 
-                      ? `-₹${formatAmountWithCommas(Math.abs(balanceAmount).toFixed(2))}`
-                      : (balanceAmount !== undefined ? formatAmountWithCommas(balanceAmount.toFixed(2)) : "0.00")
-                  }
-                  className="add-lead-input font-bold opacity-80 cursor-not-allowed"
-                />
-                {totalAdvanceRequested > 0 && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
-                    ₹{totalAdvanceRequested.toLocaleString("en-IN")} requested advance pending collection
-                  </p>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white min-w-[70px] text-right">
+                            ₹{(p.price * p.quantity).toLocaleString("en-IN")}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveProduct(p.id)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
 
-            {/* Divider */}
-            <div className="border-t border-slate-200 dark:border-slate-800/80 pt-1" />
+              {/* SECTION 5: PAYMENT INFORMATION */}
+              <div className="add-lead-card">
+                <div className="add-lead-card-header">
+                  <div className="add-lead-icon-wrap add-lead-icon-green">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="add-lead-card-title">Payment Information</h3>
+                    <p className="add-lead-card-desc">
+                      Agreed revenue terms, advance payments, and outstanding balances.
+                    </p>
+                  </div>
+                </div>
 
-            {/* Advance Payments Subheading & Action */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <div className="add-lead-subhead">
-                <History className="w-3.5 h-3.5 text-slate-400" />
-                <span>Advance Payments</span>
+                {/* Total Amount & Balance Amount Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="add-lead-label">
+                      Total Amount
+                    </label>
+                    <FormattedMoneyInput
+                      value={selectedProducts.length > 0 ? calculatedProductTotal : (formData.customTotalAmount ?? "")}
+                      onChange={e => setFormData({ ...formData, customTotalAmount: e.target.value })}
+                      disabled={selectedProducts.length > 0}
+                      placeholder="0.00"
+                      className="add-lead-input font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="add-lead-label">
+                      Balance Amount (Read-only)
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        balanceAmount < 0
+                          ? `-₹${formatAmountWithCommas(Math.abs(balanceAmount).toFixed(2))}`
+                          : (balanceAmount !== undefined ? formatAmountWithCommas(balanceAmount.toFixed(2)) : "0.00")
+                      }
+                      className="add-lead-input font-bold opacity-80 cursor-not-allowed"
+                    />
+                    {totalAdvanceRequested > 0 && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                        ₹{totalAdvanceRequested.toLocaleString("en-IN")} requested advance pending collection
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-slate-200 dark:border-slate-800/80 pt-1" />
+
+                {/* Advance Payments Subheading & Action */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="add-lead-subhead">
+                    <History className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Advance Payments</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestingAdvance(!isRequestingAdvance)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm flex-shrink-0"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Request Advance</span>
+                  </button>
+                </div>
+
+                {/* Inline Request Advance Form */}
+                {isRequestingAdvance && (
+                  <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <FormattedMoneyInput
+                        placeholder="Advance Amount (₹)"
+                        value={newAdvanceAmount}
+                        onChange={e => setNewAdvanceAmount(e.target.value)}
+                        className="add-lead-input sm:w-44 !h-10 !text-xs font-bold"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Advance note (e.g. Booking token)"
+                        value={newAdvanceNote}
+                        onChange={e => setNewAdvanceNote(e.target.value)}
+                        className="add-lead-input flex-1 !h-10 !text-xs"
+                      />
+                      <select
+                        value={newAdvanceStatus}
+                        onChange={e => setNewAdvanceStatus(e.target.value as "RECEIVED" | "REQUESTED")}
+                        className="add-lead-select sm:w-48 !h-10 !text-xs font-semibold"
+                      >
+                        <option value="RECEIVED">Payment Received</option>
+                        <option value="REQUESTED">Requested (Pending)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 w-full justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRequestingAdvance(false);
+                          setNewAdvanceAmount("");
+                          setNewAdvanceNote("");
+                        }}
+                        className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveAdvanceRequest}
+                        className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
+                      >
+                        {newAdvanceStatus === "REQUESTED" ? "Record Request" : "Record Payment"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Advance Records List or Empty State */}
+                {advanceRecords.length === 0 ? (
+                  <div className="add-lead-empty-box">
+                    No advance payments recorded for this lead.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {advanceRecords.map(r => {
+                      const isPending = r.status === "REQUESTED";
+                      return (
+                        <div
+                          key={r.id}
+                          className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                ₹{r.amount.toLocaleString("en-IN")}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isPending
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                }`}>
+                                {isPending ? "Pending Request" : "Received"}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {r.note} • {r.createdAt}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isPending && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAdvanceReceived(r.id)}
+                                className="px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30 rounded-lg transition-colors"
+                                title="Mark as received money"
+                              >
+                                Mark Received
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAdvanceRecord(r.id)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                              title="Remove record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+
+              {/* SECTION 6: ADVANCED FIELDS */}
+              <div className="add-lead-card">
+                <div>
+                  <h3 className="add-lead-card-title">Advanced Fields</h3>
+                  <p className="add-lead-card-desc">
+                    These inputs are generated from the active Lead Dynamics configuration for this workspace.
+                  </p>
+                </div>
+
+                {dynamicFieldsLoading ? (
+                  <div className="p-4 text-center text-xs text-slate-400">Loading custom fields...</div>
+                ) : dynamicFields.length === 0 ? (
+                  <div className="add-lead-empty-box">No custom fields configured for this workspace.</div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {dynamicFields.map(f => {
+                      const rawType = (f.inputType || (f as any).type || "TEXT").toString().toUpperCase().trim();
+                      const val = customFieldValues[f.id] !== undefined ? customFieldValues[f.id] : (customFieldValues[f.name] !== undefined ? customFieldValues[f.name] : "");
+                      const isFullWidth = rawType === "TEXTAREA" || rawType === "FILE" || rawType === "RADIO" || rawType === "CHECKBOX" || rawType === "DATETIME";
+
+                      return (
+                        <div key={f.id} className={isFullWidth ? "col-span-1 sm:col-span-2" : "col-span-1"}>
+                          <label className="add-lead-label">
+                            {f.name}
+                            {f.isRequired && <span className="text-rose-500 ml-1">*</span>}
+                          </label>
+
+                          {(rawType === "TEXT" || rawType === "EMAIL" || rawType === "PHONE" || rawType === "URL") && (
+                            <input
+                              type={rawType === "EMAIL" ? "email" : rawType === "PHONE" ? "tel" : rawType === "URL" ? "url" : "text"}
+                              value={typeof val === "string" ? val : (val ? String(val) : "")}
+                              onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                              placeholder={`Enter ${f.name}`}
+                              className="add-lead-input"
+                            />
+                          )}
+
+                          {rawType === "TEXTAREA" && (
+                            <textarea
+                              rows={3}
+                              value={typeof val === "string" ? val : (val ? String(val) : "")}
+                              onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                              placeholder={`Enter ${f.name}`}
+                              className="add-lead-textarea"
+                            />
+                          )}
+
+                          {rawType === "NUMBER" && (
+                            <input
+                              type="number"
+                              value={val !== undefined && val !== null ? val : ""}
+                              onChange={e => {
+                                const v = e.target.value;
+                                setCustomFieldValues({ ...customFieldValues, [f.id]: v === "" ? "" : Number(v) });
+                              }}
+                              placeholder={`Enter ${f.name}`}
+                              className="add-lead-input font-bold"
+                            />
+                          )}
+
+                          {rawType === "SELECT" && (
+                            <div className="relative flex items-center">
+                              <select
+                                value={typeof val === "string" ? val : ""}
+                                onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                                className="add-lead-select pr-9"
+                              >
+                                <option value="">Select option...</option>
+                                {(f.options || []).map(opt => (
+                                  <option key={opt.id || opt.value} value={opt.value}>
+                                    {opt.label || opt.value}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                            </div>
+                          )}
+
+                          {rawType === "RADIO" && (
+                            <div className="flex flex-wrap gap-3 pt-1">
+                              {(f.options || []).map(opt => (
+                                <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                  <input
+                                    type="radio"
+                                    name={`radio_${f.id}`}
+                                    value={opt.value}
+                                    checked={val === opt.value}
+                                    onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                                    className="w-4 h-4 accent-emerald-500"
+                                  />
+                                  <span>{opt.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+
+                          {rawType === "CHECKBOX" && (
+                            <div className="flex flex-wrap gap-3 pt-1">
+                              {(f.options || []).map(opt => {
+                                const arr = Array.isArray(val) ? val : [];
+                                const isChecked = arr.includes(opt.value);
+                                return (
+                                  <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={e => {
+                                        const nextArr = e.target.checked
+                                          ? [...arr, opt.value]
+                                          : arr.filter(v => v !== opt.value);
+                                        setCustomFieldValues({ ...customFieldValues, [f.id]: nextArr });
+                                      }}
+                                      className="w-4 h-4 rounded accent-emerald-500"
+                                    />
+                                    <span>{opt.label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {rawType === "DATE" && (
+                            <DatePicker
+                              value={typeof val === "string" ? val : ""}
+                              onChange={(dateStr) => setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr })}
+                              placeholder="Select Date"
+                            />
+                          )}
+
+                          {rawType === "DATETIME" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <DatePicker
+                                value={typeof val === "string" && val.includes("T") ? val.split("T")[0] : (typeof val === "string" ? val : "")}
+                                onChange={(dateStr) => {
+                                  const existingTime = typeof val === "string" && val.includes("T") ? val.split("T")[1] : "10:00";
+                                  setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr ? `${dateStr}T${existingTime}` : "" });
+                                }}
+                                placeholder="Select Date"
+                              />
+                              <TimePicker
+                                value={typeof val === "string" && val.includes("T") ? val.split("T")[1].slice(0, 5) : "10:00"}
+                                onChange={(timeStr) => {
+                                  const existingDate = typeof val === "string" && val.includes("T") ? val.split("T")[0] : new Date().toISOString().split("T")[0];
+                                  setCustomFieldValues({ ...customFieldValues, [f.id]: `${existingDate}T${timeStr}` });
+                                }}
+                                placeholder="Select Time"
+                              />
+                            </div>
+                          )}
+
+                          {rawType === "FILE" && (
+                            <div>
+                              {val && typeof val === "object" && val.url ? (
+                                <div className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-800/60 bg-emerald-950/20 text-xs text-emerald-300">
+                                  <span className="truncate font-semibold max-w-[200px] sm:max-w-[300px]">
+                                    📁 {val.name || "Attachment"}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <a href={val.url} target="_blank" rel="noreferrer" className="text-emerald-400 underline hover:text-emerald-300 font-bold">
+                                      View
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => setCustomFieldValues({ ...customFieldValues, [f.id]: null })}
+                                      className="p-1 text-rose-400 hover:text-rose-300"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer text-xs text-slate-700 dark:text-slate-300 transition-colors">
+                                  <UploadCloud className="w-4 h-4 text-emerald-500" />
+                                  <span>{uploadingFieldId === f.id ? "Uploading file..." : "Click to select & upload file (PDF, PNG, JPG max 5MB)"}</span>
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    disabled={uploadingFieldId === f.id}
+                                    onChange={e => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleCustomFileUpload(f.id, file);
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          )}
+
+                          {/* FALLBACK FOR UNHANDLED OR CUSTOM TYPES */}
+                          {!["TEXT", "TEXTAREA", "NUMBER", "SELECT", "RADIO", "CHECKBOX", "DATE", "DATETIME", "FILE", "EMAIL", "PHONE", "URL"].includes(rawType) && (
+                            <input
+                              type="text"
+                              value={typeof val === "string" ? val : (val ? String(val) : "")}
+                              onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
+                              placeholder={`Enter ${f.name}`}
+                              className="add-lead-input"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </form>
+
+            {/* 3. FIXED STICKY ACTION FOOTER */}
+            <div className="add-lead-footer">
+              <button
+                type="button"
+                onClick={onClose}
+                className="add-lead-cancel-btn"
+              >
+                Cancel
+              </button>
 
               <button
                 type="button"
-                onClick={() => setIsRequestingAdvance(!isRequestingAdvance)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm flex-shrink-0"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="add-lead-submit-btn"
               >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Request Advance</span>
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{isEdit ? "Saving..." : "Creating..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>{isEdit ? "Save Changes" : "Create Lead"}</span>
+                  </>
+                )}
               </button>
             </div>
 
-            {/* Inline Request Advance Form */}
-            {isRequestingAdvance && (
-              <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <FormattedMoneyInput
-                    placeholder="Advance Amount (₹)"
-                    value={newAdvanceAmount}
-                    onChange={e => setNewAdvanceAmount(e.target.value)}
-                    className="add-lead-input sm:w-44 !h-10 !text-xs font-bold"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Advance note (e.g. Booking token)"
-                    value={newAdvanceNote}
-                    onChange={e => setNewAdvanceNote(e.target.value)}
-                    className="add-lead-input flex-1 !h-10 !text-xs"
-                  />
-                  <select
-                    value={newAdvanceStatus}
-                    onChange={e => setNewAdvanceStatus(e.target.value as "RECEIVED" | "REQUESTED")}
-                    className="add-lead-select sm:w-48 !h-10 !text-xs font-semibold"
-                  >
-                    <option value="RECEIVED">Payment Received</option>
-                    <option value="REQUESTED">Requested (Pending)</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 w-full justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsRequestingAdvance(false);
-                      setNewAdvanceAmount("");
-                      setNewAdvanceNote("");
-                    }}
-                    className="h-9 px-3 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveAdvanceRequest}
-                    className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
-                  >
-                    {newAdvanceStatus === "REQUESTED" ? "Record Request" : "Record Payment"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Advance Records List or Empty State */}
-            {advanceRecords.length === 0 ? (
-              <div className="add-lead-empty-box">
-                No advance payments recorded for this lead.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {advanceRecords.map(r => {
-                  const isPending = r.status === "REQUESTED";
-                  return (
-                    <div 
-                      key={r.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white">
-                            ₹{r.amount.toLocaleString("en-IN")}
-                          </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isPending
-                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                          }`}>
-                            {isPending ? "Pending Request" : "Received"}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {r.note} • {r.createdAt}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <button
-                            type="button"
-                            onClick={() => handleMarkAdvanceReceived(r.id)}
-                            className="px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30 rounded-lg transition-colors"
-                            title="Mark as received money"
-                          >
-                            Mark Received
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAdvanceRecord(r.id)}
-                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-                          title="Remove record"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
-
-          {/* SECTION 6: ADVANCED FIELDS */}
-          <div className="add-lead-card">
-            <div>
-              <h3 className="add-lead-card-title">Advanced Fields</h3>
-              <p className="add-lead-card-desc">
-                These inputs are generated from the active Lead Dynamics configuration for this workspace.
-              </p>
-            </div>
-
-            {dynamicFieldsLoading ? (
-              <div className="p-4 text-center text-xs text-slate-400">Loading custom fields...</div>
-            ) : dynamicFields.length === 0 ? (
-              <div className="add-lead-empty-box">No custom fields configured for this workspace.</div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {dynamicFields.map(f => {
-                  const rawType = (f.inputType || (f as any).type || "TEXT").toString().toUpperCase().trim();
-                  const val = customFieldValues[f.id] !== undefined ? customFieldValues[f.id] : (customFieldValues[f.name] !== undefined ? customFieldValues[f.name] : "");
-                  const isFullWidth = rawType === "TEXTAREA" || rawType === "FILE" || rawType === "RADIO" || rawType === "CHECKBOX" || rawType === "DATETIME";
-
-                  return (
-                    <div key={f.id} className={isFullWidth ? "col-span-1 sm:col-span-2" : "col-span-1"}>
-                      <label className="add-lead-label">
-                        {f.name}
-                        {f.isRequired && <span className="text-rose-500 ml-1">*</span>}
-                      </label>
-
-                      {(rawType === "TEXT" || rawType === "EMAIL" || rawType === "PHONE" || rawType === "URL") && (
-                        <input
-                          type={rawType === "EMAIL" ? "email" : rawType === "PHONE" ? "tel" : rawType === "URL" ? "url" : "text"}
-                          value={typeof val === "string" ? val : (val ? String(val) : "")}
-                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                          placeholder={`Enter ${f.name}`}
-                          className="add-lead-input"
-                        />
-                      )}
-
-                      {rawType === "TEXTAREA" && (
-                        <textarea
-                          rows={3}
-                          value={typeof val === "string" ? val : (val ? String(val) : "")}
-                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                          placeholder={`Enter ${f.name}`}
-                          className="add-lead-textarea"
-                        />
-                      )}
-
-                      {rawType === "NUMBER" && (
-                        <input
-                          type="number"
-                          value={val !== undefined && val !== null ? val : ""}
-                          onChange={e => {
-                            const v = e.target.value;
-                            setCustomFieldValues({ ...customFieldValues, [f.id]: v === "" ? "" : Number(v) });
-                          }}
-                          placeholder={`Enter ${f.name}`}
-                          className="add-lead-input font-bold"
-                        />
-                      )}
-
-                      {rawType === "SELECT" && (
-                        <div className="relative flex items-center">
-                          <select
-                            value={typeof val === "string" ? val : ""}
-                            onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                            className="add-lead-select pr-9"
-                          >
-                            <option value="">Select option...</option>
-                            {(f.options || []).map(opt => (
-                              <option key={opt.id || opt.value} value={opt.value}>
-                                {opt.label || opt.value}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
-                        </div>
-                      )}
-
-                      {rawType === "RADIO" && (
-                        <div className="flex flex-wrap gap-3 pt-1">
-                          {(f.options || []).map(opt => (
-                            <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              <input
-                                type="radio"
-                                name={`radio_${f.id}`}
-                                value={opt.value}
-                                checked={val === opt.value}
-                                onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                                className="w-4 h-4 accent-emerald-500"
-                              />
-                              <span>{opt.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-
-                      {rawType === "CHECKBOX" && (
-                        <div className="flex flex-wrap gap-3 pt-1">
-                          {(f.options || []).map(opt => {
-                            const arr = Array.isArray(val) ? val : [];
-                            const isChecked = arr.includes(opt.value);
-                            return (
-                              <label key={opt.id || opt.value} className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={e => {
-                                    const nextArr = e.target.checked
-                                      ? [...arr, opt.value]
-                                      : arr.filter(v => v !== opt.value);
-                                    setCustomFieldValues({ ...customFieldValues, [f.id]: nextArr });
-                                  }}
-                                  className="w-4 h-4 rounded accent-emerald-500"
-                                />
-                                <span>{opt.label}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {rawType === "DATE" && (
-                        <DatePicker
-                          value={typeof val === "string" ? val : ""}
-                          onChange={(dateStr) => setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr })}
-                          placeholder="Select Date"
-                        />
-                      )}
-
-                      {rawType === "DATETIME" && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <DatePicker
-                            value={typeof val === "string" && val.includes("T") ? val.split("T")[0] : (typeof val === "string" ? val : "")}
-                            onChange={(dateStr) => {
-                              const existingTime = typeof val === "string" && val.includes("T") ? val.split("T")[1] : "10:00";
-                              setCustomFieldValues({ ...customFieldValues, [f.id]: dateStr ? `${dateStr}T${existingTime}` : "" });
-                            }}
-                            placeholder="Select Date"
-                          />
-                          <TimePicker
-                            value={typeof val === "string" && val.includes("T") ? val.split("T")[1].slice(0, 5) : "10:00"}
-                            onChange={(timeStr) => {
-                              const existingDate = typeof val === "string" && val.includes("T") ? val.split("T")[0] : new Date().toISOString().split("T")[0];
-                              setCustomFieldValues({ ...customFieldValues, [f.id]: `${existingDate}T${timeStr}` });
-                            }}
-                            placeholder="Select Time"
-                          />
-                        </div>
-                      )}
-
-                      {rawType === "FILE" && (
-                        <div>
-                          {val && typeof val === "object" && val.url ? (
-                            <div className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-800/60 bg-emerald-950/20 text-xs text-emerald-300">
-                              <span className="truncate font-semibold max-w-[200px] sm:max-w-[300px]">
-                                📁 {val.name || "Attachment"}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <a href={val.url} target="_blank" rel="noreferrer" className="text-emerald-400 underline hover:text-emerald-300 font-bold">
-                                  View
-                                </a>
-                                <button
-                                  type="button"
-                                  onClick={() => setCustomFieldValues({ ...customFieldValues, [f.id]: null })}
-                                  className="p-1 text-rose-400 hover:text-rose-300"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer text-xs text-slate-700 dark:text-slate-300 transition-colors">
-                              <UploadCloud className="w-4 h-4 text-emerald-500" />
-                              <span>{uploadingFieldId === f.id ? "Uploading file..." : "Click to select & upload file (PDF, PNG, JPG max 5MB)"}</span>
-                              <input
-                                type="file"
-                                className="hidden"
-                                disabled={uploadingFieldId === f.id}
-                                onChange={e => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleCustomFileUpload(f.id, file);
-                                }}
-                              />
-                            </label>
-                          )}
-                        </div>
-                      )}
-
-                      {/* FALLBACK FOR UNHANDLED OR CUSTOM TYPES */}
-                      {!["TEXT", "TEXTAREA", "NUMBER", "SELECT", "RADIO", "CHECKBOX", "DATE", "DATETIME", "FILE", "EMAIL", "PHONE", "URL"].includes(rawType) && (
-                        <input
-                          type="text"
-                          value={typeof val === "string" ? val : (val ? String(val) : "")}
-                          onChange={e => setCustomFieldValues({ ...customFieldValues, [f.id]: e.target.value })}
-                          placeholder={`Enter ${f.name}`}
-                          className="add-lead-input"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-        </form>
-
-        {/* 3. FIXED STICKY ACTION FOOTER */}
-        <div className="add-lead-footer">
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="add-lead-cancel-btn"
-          >
-            Cancel
-          </button>
-          
-          <button 
-            type="button" 
-            onClick={handleSubmit}
-            disabled={loading}
-            className="add-lead-submit-btn"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>{isEdit ? "Saving..." : "Creating..."}</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>{isEdit ? "Save Changes" : "Create Lead"}</span>
-              </>
-            )}
-          </button>
-        </div>
-
-      </div>
-    </div>,
-    document.body
-  );
+      </div>,
+      document.body
+      );
 }

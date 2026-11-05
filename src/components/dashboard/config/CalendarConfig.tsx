@@ -614,6 +614,7 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
     <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%", maxWidth: 1400, margin: "0 auto", paddingBottom: 40 }}>
       {/* 1. PAGE CONTROL HEADER */}
       <div
+        className="dash-entrance-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -818,7 +819,9 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
       >
         {/* Metric 1: STAGE FOLLOW-UPS */}
         <div
+          className="dash-entrance-card"
           style={{
+            "--entrance-delay": "0ms",
             background: "var(--surface)",
             border: "1px solid var(--border-color)",
             borderRadius: 14,
@@ -827,7 +830,7 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
             alignItems: "center",
             justifyContent: "space-between",
             height: 90,
-          }}
+          } as React.CSSProperties}
         >
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -870,7 +873,9 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
 
         {/* Metric 3: OVERDUE HISTORY */}
         <div
+          className="dash-entrance-card"
           style={{
+            "--entrance-delay": "120ms",
             background: "var(--surface)",
             border: "1px solid var(--border-color)",
             borderRadius: 14,
@@ -879,7 +884,7 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
             alignItems: "center",
             justifyContent: "space-between",
             height: 90,
-          }}
+          } as React.CSSProperties}
         >
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -896,7 +901,9 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
 
         {/* Metric 4: DELAY ANALYTICS */}
         <div
+          className="dash-entrance-card"
           style={{
+            "--entrance-delay": "180ms",
             background: "var(--surface)",
             border: "1px solid var(--border-color)",
             borderRadius: 14,
@@ -905,7 +912,7 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
             alignItems: "center",
             justifyContent: "space-between",
             height: 90,
-          }}
+          } as React.CSSProperties}
         >
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -923,7 +930,9 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
 
       {/* 3. CALENDAR CONTENT CONTAINER */}
       <div
+        className="dash-entrance-panel"
         style={{
+          "--entrance-delay": "240ms",
           background: "var(--surface)",
           border: "1px solid var(--border-color)",
           borderRadius: 18,
@@ -931,7 +940,7 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
           boxShadow: "var(--card-shadow, 0 8px 28px rgba(0, 0, 0, 0.08))",
           position: "relative",
           minHeight: 500,
-        }}
+        } as React.CSSProperties}
       >
         {/* Loading Overlay */}
         {isLoading && (

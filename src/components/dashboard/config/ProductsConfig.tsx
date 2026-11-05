@@ -375,6 +375,7 @@ export function ProductsConfig() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%", maxWidth: 1400, margin: "0 auto", paddingBottom: 40 }}>
       {/* 1. PAGE HEADER */}
       <div
+        className="dash-entrance-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -435,13 +436,15 @@ export function ProductsConfig() {
 
       {/* 2. MAIN PRODUCTS MANAGEMENT CARD */}
       <div
+        className="dash-entrance-panel"
         style={{
+          "--entrance-delay": "60ms",
           background: "var(--surface)",
           border: "1px solid var(--border-color)",
           borderRadius: 18,
           padding: 24,
           boxShadow: "0 8px 28px rgba(0, 0, 0, 0.35)",
-        }}
+        } as React.CSSProperties}
       >
         {/* SEARCH & FILTER TOOLBAR */}
         <div

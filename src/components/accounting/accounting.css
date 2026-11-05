@@ -4975,7 +4975,7 @@ body.light-mode .acc-tool-card-desc {
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -4987,6 +4987,26 @@ body.light-mode .acc-tool-card-desc {
   backface-visibility: hidden;
 }
 
+/* PANEL GENTLE LIFT MOTION: Long tables and forms */
+.acc-entrance-panel {
+  animation: accPanelEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--entrance-delay, 0ms);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+@keyframes accPanelEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+
 @keyframes accCardEntrance {
   0% {
     opacity: 0;
@@ -4994,7 +5014,7 @@ body.light-mode .acc-tool-card-desc {
   }
   100% {
     opacity: 1;
-    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    transform: none;
   }
 }
 
@@ -5004,16 +5024,31 @@ body.light-mode .acc-tool-card-desc {
     animation-duration: 0.38s;
     transform-origin: center center;
   }
-  @keyframes accCardEntranceMobile {
+
+  .acc-entrance-panel {
+    animation-duration: 0.32s;
+  }
+  @keyframes accPanelEntrance {
     0% {
       opacity: 0;
-      transform: translateY(12px) scale(0.985);
+      transform: translateY(8px);
     }
     100% {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: none;
     }
   }
+
+  @keyframes accCardEntranceMobile {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
 }
 
 /* Cash Flow Line Chart Reveals */
@@ -5079,6 +5114,7 @@ body.light-mode .acc-tool-card-desc {
 @media (prefers-reduced-motion: reduce) {
   .acc-entrance-header,
   .acc-entrance-card,
+  .acc-entrance-panel,
   .acc-chart-line-reveal-in,
   .acc-chart-line-reveal-out,
   .acc-chart-area-reveal,

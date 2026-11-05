@@ -274,6 +274,7 @@ export function LobReasonsConfig() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%", maxWidth: 1400, margin: "0 auto", paddingBottom: 40 }}>
       {/* 1. PAGE HEADER */}
       <div
+        className="dash-entrance-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -302,7 +303,9 @@ export function LobReasonsConfig() {
 
       {/* 2. TOP ACTION BAR (Search, Status Filter, Create Reason) */}
       <div
+        className="dash-entrance-panel"
         style={{
+          "--entrance-delay": "60ms",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -312,7 +315,7 @@ export function LobReasonsConfig() {
           border: "1px solid var(--border-color)",
           padding: "16px 24px",
           borderRadius: 16,
-        }}
+        } as React.CSSProperties}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", flex: 1 }}>
           {/* Search Input */}

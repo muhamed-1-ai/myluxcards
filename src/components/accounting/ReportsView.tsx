@@ -68,7 +68,7 @@ export default function ReportsView() {
 
   return (
     <div>
-      <div className="acc-header">
+      <div className="acc-header acc-entrance-header">
         <div className="acc-title-group">
           <h2 className="acc-title">Financial Reports</h2>
           <p className="acc-subtitle">Double-entry reconciled statements, cash flow, receivables aging, and expense analytics.</p>
@@ -128,7 +128,9 @@ export default function ReportsView() {
         </button>
       </div>
 
-      {/* Basis Selector for Profit & Loss */}
+      {/* Active Report View Panel */}
+      <div key={reportType} className="acc-entrance-panel">
+        {/* Basis Selector for Profit & Loss */}
       {reportType === "PROFIT_LOSS" && (
         <div className="acc-card" style={{ marginBottom: "1.25rem", padding: "1rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
@@ -373,6 +375,7 @@ export default function ReportsView() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

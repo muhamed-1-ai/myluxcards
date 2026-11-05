@@ -190,7 +190,7 @@ export default function ProductsView() {
   return (
     <div>
       {/* Header */}
-      <div className="acc-header">
+      <div className="acc-header acc-entrance-header">
         <div className="acc-title-group">
           <h2 className="acc-title">Products & Services</h2>
           <p className="acc-subtitle">Manage the items and services you sell.</p>
@@ -248,7 +248,7 @@ export default function ProductsView() {
       )}
 
       {/* Search Bar */}
-      <div className="acc-card" style={{ marginBottom: "1.25rem", padding: "1rem" }}>
+      <div className="acc-card acc-entrance-panel" style={{ marginBottom: "1.25rem", padding: "1rem", "--entrance-delay": "0ms" } as React.CSSProperties}>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ flex: 1, minWidth: "240px", position: "relative" }}>
             <input
@@ -288,7 +288,7 @@ export default function ProductsView() {
       </div>
 
       {/* Products Table Card */}
-      <div className="acc-card">
+      <div className="acc-card acc-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
             Loading products catalog...

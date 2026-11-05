@@ -696,7 +696,7 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
   return (
     <div>
       {/* Header with Title and Actions */}
-      <div className="acc-header">
+      <div className="acc-header acc-entrance-header">
         <div className="acc-title-group">
           <h2 className="acc-title">Transactions</h2>
           <p className="acc-subtitle">Full transaction ledger, financial accounts, and fund transfers.</p>
@@ -827,7 +827,9 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
         </div>
       )}
 
-      {/* VIEW 1: All Transactions Ledger (Excludes voided expenses) */}
+      {/* Subtab Content with Panel Entrance */}
+      <div key={subtab} className="acc-entrance-panel">
+        {/* VIEW 1: All Transactions Ledger (Excludes voided expenses) */}
       {subtab === "TRANSACTIONS" && (
         <div>
           {/* Filters Bar */}
@@ -1819,6 +1821,8 @@ export default function TransactionsView({ initialSubtab = "TRANSACTIONS" }: Tra
           </div>
         </div>
       )}
+
+            </div>
 
       {/* Opening Balance Modal */}
       {openingModalOpen && (

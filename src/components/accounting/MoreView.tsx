@@ -252,8 +252,8 @@ export default function MoreView({ initialTool = null, initialGroup }: MoreViewP
     <div className="acc-more-root">
       {/* 1. DIRECTORY VIEW (When no tool is opened) */}
       {!activeTool && (
-        <div className="acc-more-directory">
-          <div className="acc-header" style={{ marginBottom: "1.5rem" }}>
+        <div key="directory" className="acc-more-directory acc-entrance-panel">
+          <div className="acc-header acc-entrance-header" style={{ marginBottom: "1.5rem" }}>
             <div className="acc-title-group">
               <h2 className="acc-title">Accounting Tools &amp; Configuration</h2>
               <p className="acc-subtitle">
@@ -287,7 +287,7 @@ export default function MoreView({ initialTool = null, initialGroup }: MoreViewP
               {TOOLS_CATALOG.filter((t) => t.group === "FINANCIAL").map((tool) => (
                 <div
                   key={tool.id}
-                  className="acc-tool-card"
+                  className="acc-tool-card acc-entrance-card"
                   onClick={() => handleSelectTool(tool.id)}
                   role="button"
                   tabIndex={0}
@@ -342,7 +342,7 @@ export default function MoreView({ initialTool = null, initialGroup }: MoreViewP
               {TOOLS_CATALOG.filter((t) => t.group === "CONFIGURATION").map((tool) => (
                 <div
                   key={tool.id}
-                  className="acc-tool-card"
+                  className="acc-tool-card acc-entrance-card"
                   onClick={() => handleSelectTool(tool.id)}
                   role="button"
                   tabIndex={0}
@@ -397,7 +397,7 @@ export default function MoreView({ initialTool = null, initialGroup }: MoreViewP
               {TOOLS_CATALOG.filter((t) => t.group === "DATA").map((tool) => (
                 <div
                   key={tool.id}
-                  className="acc-tool-card"
+                  className="acc-tool-card acc-entrance-card"
                   onClick={() => handleSelectTool(tool.id)}
                   role="button"
                   tabIndex={0}
@@ -431,7 +431,7 @@ export default function MoreView({ initialTool = null, initialGroup }: MoreViewP
 
       {/* 2. FOCUSED TOOL VIEW (When a tool is opened) */}
       {activeTool && (
-        <div className="acc-more-focused-view">
+        <div key={activeTool || "focused"} className="acc-more-focused-view acc-entrance-panel">
           {/* Top navigation header for focused tool */}
           <div
             className="acc-card"

@@ -45,12 +45,14 @@ import LeadContactCardDrawer from "./LeadContactCardDrawer";
 import "../../app/dashboard/leads/leads.css";
 import { exportLeadContact, showToastNotification } from "@/lib/contactExport";
 import { normalizePhoneNumber } from "@/lib/phone";
+import { useDashboardEntrance, getCardEntranceDelay } from "@/lib/dashboardMotion";
 
 interface LeadsWorkspaceProps {
   identity: { id: string; name: string | null; email: string; role: string };
 }
 
 function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
+  const { shouldAnimateEntrance } = useDashboardEntrance(true);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -118,7 +120,9 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   // Drawers & Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(
+    searchParams.get("import") === "1" || searchParams.get("action") === "import"
+  );
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [selectedExportFormat, setSelectedExportFormat] = useState<"xlsx" | "csv">("xlsx");
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -130,6 +134,14 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
   const [contactSheetLead, setContactSheetLead] = useState<any | null>(null);
   const [starredLeads, setStarredLeads] = useState<Record<string, boolean>>({});
   const [actionMenuTarget, setActionMenuTarget] = useState<{ lead: any; top: number; left: number } | null>(null);
+
+  // Notice when created lead is hidden by active filters
+  const [filterNotice, setFilterNotice] = useState<{
+    show: boolean;
+    leadId: string;
+    leadName: string;
+  } | null>(null);
+  const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(null);
 
   // Outside click & Escape listener for Export Dropdown Menu
   useEffect(() => {
@@ -433,8 +445,78 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     setStartDate("");
     setEndDate("");
     setPage(1);
-    router.push(pathname, { scroll: false });
+    updateUrl({
+      q: null,
+      stage: null,
+      userId: null,
+      source: null,
+      office: null,
+      status: null,
+      scope: null,
+      startDate: null,
+      endDate: null,
+      page: 1,
+    });
   };
+
+  const doesLeadMatchCurrentFilters = useCallback(
+    (lead: any): boolean => {
+      if (!lead) return true;
+
+      // 1. Stage filter
+      if (stageFilter && stageFilter !== "") {
+        const leadStage = (lead.stage || lead.status || "").toUpperCase();
+        if (leadStage !== stageFilter.toUpperCase()) return false;
+      }
+
+      // 2. Assignee / user filter
+      if (userFilter && userFilter !== "all" && userFilter !== "") {
+        const targetUser = userFilter === "me" ? identity.id : userFilter;
+        if (lead.assignedUserId !== targetUser && lead.assigned_user_id !== targetUser) return false;
+      }
+
+      // 3. Search query
+      if (searchQuery && searchQuery.trim() !== "") {
+        const q = searchQuery.toLowerCase().trim();
+        const name = (lead.name || "").toLowerCase();
+        const email = (lead.email || "").toLowerCase();
+        const phone = (lead.contactNumber || lead.phone || "").toLowerCase();
+        const company = (lead.companyName || lead.company || "").toLowerCase();
+        if (!name.includes(q) && !email.includes(q) && !phone.includes(q) && !company.includes(q)) {
+          return false;
+        }
+      }
+
+      // 4. Source filter
+      if (sourceFilter && sourceFilter !== "") {
+        const src = (lead.source || "").toLowerCase();
+        if (!src.includes(sourceFilter.toLowerCase())) return false;
+      }
+
+      // 5. Status filter (active vs closed)
+      if (statusFilter && statusFilter !== "") {
+        const leadStage = (lead.stage || lead.status || "").toUpperCase();
+        const isClosed = ["WON", "LOST", "CLOSED"].includes(leadStage);
+        if (statusFilter === "active" && isClosed) return false;
+        if (statusFilter === "closed" && !isClosed) return false;
+      }
+
+      // 6. Date filters
+      if (startDate && startDate !== "") {
+        const leadDate = new Date(lead.createdAt || lead.created_at || Date.now());
+        const start = new Date(`${startDate}T00:00:00.000Z`);
+        if (leadDate < start) return false;
+      }
+      if (endDate && endDate !== "") {
+        const leadDate = new Date(lead.createdAt || lead.created_at || Date.now());
+        const end = new Date(`${endDate}T23:59:59.999Z`);
+        if (leadDate > end) return false;
+      }
+
+      return true;
+    },
+    [stageFilter, userFilter, searchQuery, sourceFilter, statusFilter, startDate, endDate, identity.id]
+  );
 
   const toggleStar = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -501,11 +583,28 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
     return "badge-stage-blue";
   };
 
+  // If Import Workspace is active, render it inline in the dashboard content area
+  if (isImportOpen) {
+    return (
+      <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none">
+        <ImportLeadsModal
+          isOpen={isImportOpen}
+          onClose={() => setIsImportOpen(false)}
+          onSuccessRefresh={() => {
+            setIsImportOpen(false);
+            fetchLeads();
+          }}
+          inline={true}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="leads-page-container flex flex-col min-h-screen w-full max-w-none gap-6">
 
       {/* 1. Header: Badge, Title, Count & Control Actions */}
-      <div className="flex flex-col">
+      <div className={`flex flex-col ${shouldAnimateEntrance ? "dash-entrance-header" : ""}`}>
         {/* Row 1: PIPELINE CONTROL ROOM Badge */}
         <div className="mb-3.5">
           <span className="crm-badge-control-room">
@@ -607,7 +706,10 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
       {/* 2. 4 Stat Cards Row Matching Picture 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Leads */}
-        <div className="kpi-card">
+        <div
+          className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(0, 60, 240)}ms` } as React.CSSProperties}
+        >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-emerald-500/10 text-emerald-400">
               <Users className="w-5 h-5" />
@@ -626,7 +728,10 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         </div>
 
         {/* Card 2: Open Pipeline */}
-        <div className="kpi-card">
+        <div
+          className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(1, 60, 240)}ms` } as React.CSSProperties}
+        >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-blue-500/10 text-blue-400">
               <Layers className="w-5 h-5" />
@@ -645,7 +750,10 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         </div>
 
         {/* Card 3: Due Today */}
-        <div className="kpi-card">
+        <div
+          className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(2, 60, 240)}ms` } as React.CSSProperties}
+        >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-amber-500/10 text-amber-400">
               <Calendar className="w-5 h-5" />
@@ -664,7 +772,10 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         </div>
 
         {/* Card 4: Expected Revenue */}
-        <div className="kpi-card">
+        <div
+          className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(3, 60, 240)}ms` } as React.CSSProperties}
+        >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-purple-500/10 text-purple-400">
               <IndianRupee className="w-5 h-5" />
@@ -709,7 +820,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
             <option value="NEW">New</option>
             <option value="CONTACTED">Contacted</option>
             <option value="INTERESTED">Interested</option>
-            <option value="PROPOSAL">Proposal</option>
+            <option value="FOLLOW_UP">Follow-up</option>
             <option value="WON">Won</option>
             <option value="LOST">Lost</option>
           </select>
@@ -813,7 +924,46 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
       )}
 
       {/* 4. Desktop Table (>= 768px) AND Dedicated Standalone Mobile Lead Cards (< 768px) */}
-      <div className="w-full">
+      <div className={`w-full ${shouldAnimateEntrance ? "dash-entrance-panel" : ""}`} style={{ "--entrance-delay": "240ms" } as React.CSSProperties}>
+        {/* Notice when created lead is hidden by active filters */}
+        {filterNotice && filterNotice.show && (
+          <div className="crm-filter-notice" role="alert">
+            <div className="crm-filter-notice-content">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>Lead created. Hidden by current filters</span>
+            </div>
+            <div className="crm-filter-notice-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedLeadId(filterNotice.leadId);
+                  updateUrl({ leadId: filterNotice.leadId });
+                }}
+                className="crm-filter-notice-btn crm-filter-notice-view"
+              >
+                View lead
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleResetFilters();
+                  setFilterNotice(null);
+                }}
+                className="crm-filter-notice-btn crm-filter-notice-clear"
+              >
+                Clear filters
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterNotice(null)}
+                className="crm-filter-notice-close"
+                aria-label="Dismiss notice"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
         {/* DESKTOP / TABLET VIEW (>= 768px): Preserved Standard Data Table Card */}
         <div className="hidden md:block crm-table-card relative overflow-hidden">
           <div className="overflow-x-auto">
@@ -886,7 +1036,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                       <tr
                         key={lead.id}
                         onClick={() => handleOpenLead(lead.id)}
-                        className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""}`}
+                        className={`cursor-pointer group transition-colors ${isSelected ? "bg-emerald-500/5" : ""} ${highlightedLeadId === lead.id ? "bg-emerald-500/10 ring-1 ring-emerald-500/50" : ""}`}
                       >
                         {/* SELECT CHECKBOX */}
                         {selectMode && (
@@ -1053,7 +1203,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
                   <div
                     key={lead.id}
                     onClick={() => handleOpenLead(lead.id)}
-                    className={`crm-mobile-lead-card ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""}`}
+                    className={`crm-mobile-lead-card ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/5" : ""} ${highlightedLeadId === lead.id ? "ring-2 ring-emerald-400 bg-emerald-500/10" : ""}`}
                   >
                     {/* Header: Avatar, Name, Phone, Email, Company, Star, Actions Menu */}
                     <div className="flex items-start justify-between gap-3">
@@ -1339,11 +1489,22 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         onClose={() => setIsAddOpen(false)}
         onSuccess={(newLead?: any) => {
           setIsAddOpen(false);
-          if (newLead?.id) {
-            setLeads((prev) => [newLead, ...prev]);
-            setTotal((prev) => prev + 1);
-          }
           fetchLeads();
+
+          if (newLead?.id) {
+            const matches = doesLeadMatchCurrentFilters(newLead);
+            if (matches) {
+              setHighlightedLeadId(newLead.id);
+              setFilterNotice(null);
+              setTimeout(() => setHighlightedLeadId(null), 5000);
+            } else {
+              setFilterNotice({
+                show: true,
+                leadId: newLead.id,
+                leadName: newLead.name || "Lead",
+              });
+            }
+          }
         }}
         identity={identity}
       />

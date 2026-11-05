@@ -313,7 +313,7 @@ export default function CategoriesView() {
   return (
     <div>
       {/* Page Header */}
-      <div className="acc-header">
+      <div className="acc-header acc-entrance-header">
         <div className="acc-title-group">
           <h2 className="acc-title">Categories</h2>
           <p className="acc-subtitle">Organize your income and expenses.</p>
@@ -367,7 +367,7 @@ export default function CategoriesView() {
       )}
 
       {/* Search & Filter Bar */}
-      <div className="acc-card" style={{ marginBottom: "1.25rem", padding: "1rem" }}>
+      <div className="acc-card acc-entrance-panel" style={{ marginBottom: "1.25rem", padding: "1rem", "--entrance-delay": "0ms" } as React.CSSProperties}>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
           {/* Search Box */}
           <div style={{ flex: "1 1 240px", position: "relative" }}>
@@ -476,7 +476,7 @@ export default function CategoriesView() {
       </div>
 
       {/* Categories Hierarchy List */}
-      <div className="acc-card">
+      <div className="acc-card acc-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "3.5rem 1.5rem", color: "var(--acc-text-muted)" }}>
             <div

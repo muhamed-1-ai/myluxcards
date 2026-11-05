@@ -364,7 +364,7 @@ export function LeadDynamicsConfig() {
   return (
     <div className="ld-config-container">
       {/* 1. Header Area */}
-      <div className="ld-header">
+      <div className="ld-header dash-entrance-header">
         <div className="ld-header-text">
           <span className="ld-master-badge">MASTER</span>
           <h1 className="ld-title">Lead Dynamics Fields</h1>
@@ -405,7 +405,7 @@ export function LeadDynamicsConfig() {
         <>
           {/* 3. Statistics Cards */}
           <div className="ld-stats-grid">
-            <div className="ld-stat-card">
+            <div className="ld-stat-card dash-entrance-card" style={{ "--entrance-delay": "0ms" } as React.CSSProperties}>
               <div className="ld-stat-info">
                 <span className="ld-stat-label">TOTAL FIELDS</span>
                 <span className="ld-stat-value">{stats.total}</span>
@@ -437,7 +437,7 @@ export function LeadDynamicsConfig() {
           </div>
 
           {/* 4. Filter Bar & Table Panel */}
-          <div className="ld-table-panel">
+          <div className="ld-table-panel dash-entrance-panel" style={{ "--entrance-delay": "180ms" } as React.CSSProperties}>
             <div className="ld-table-toolbar">
               <div className="ld-search-box">
                 <Search className="ld-search-icon" />

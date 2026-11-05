@@ -214,7 +214,7 @@ export default function SalesInvoicesView() {
   return (
     <div className="acc-sales-view">
       {/* Header */}
-      <div className="acc-sales-header">
+      <div className="acc-sales-header acc-entrance-header">
         <div className="acc-sales-title-group">
           <h2 className="acc-title">Sales &amp; Invoices</h2>
           <p className="acc-subtitle">Customer invoices, walk-in sales, and receipts.</p>
@@ -310,7 +310,7 @@ export default function SalesInvoicesView() {
         </div>
       </div>
 
-      <div className="acc-card">
+      <div key={activeTab} className="acc-card acc-entrance-panel">
         {loading ? (
           <div style={{ textAlign: "center", padding: "3rem", color: "var(--acc-text-muted)" }}>
             Loading records...

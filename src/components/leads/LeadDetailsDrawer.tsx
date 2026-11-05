@@ -30,6 +30,7 @@ import "./lead-drawer.css";
 import { FollowUpType, normalizeFollowUpType } from "@/lib/follow-up-types";
 import { exportLeadContact } from "@/lib/contactExport";
 import { normalizePhoneNumber } from "@/lib/phone";
+import { findCountryByPhone } from "@/lib/countries";
 
 interface NextFollowUpData {
   id: string;
@@ -159,7 +160,7 @@ export default function LeadDetailsDrawer({
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: notificationId }),
-          }).catch(() => {});
+          }).catch(() => { });
         }
       } else {
         throw new Error("Lead record not returned.");
@@ -573,10 +574,12 @@ export default function LeadDetailsDrawer({
                     {/* Phone & Inline Actions */}
                     {(() => {
                       const norm = normalizePhoneNumber(lead.contactNumber);
+                      const countryMatch = findCountryByPhone(lead.contactNumber);
+                      const resolvedIso = countryMatch ? countryMatch.country.code : "IN";
                       return (
                         <div className="lead-drawer-phone-row">
                           <Phone className="lead-drawer-contact-icon" />
-                          <span className="lead-drawer-phone-prefix">IN</span>
+                          <span className="lead-drawer-phone-prefix">{resolvedIso}</span>
                           <span className="lead-drawer-phone-number">
                             {norm.isValid ? (norm.displayFormatted || norm.normalized) : (lead.contactNumber || "No contact number")}
                           </span>
@@ -769,7 +772,7 @@ export default function LeadDetailsDrawer({
                     {(() => {
                       const detailed = (lead as any).customFieldsDetailed;
                       const rawMap = lead.customFields || (lead as any).customFieldValues || {};
-                      
+
                       if (Array.isArray(detailed) && detailed.length > 0) {
                         return (
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

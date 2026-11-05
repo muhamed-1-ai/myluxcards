@@ -11420,6 +11420,26 @@ body.light-mode .pts-card-label {
   will-change: opacity, transform;
 }
 
+/* 4. PANEL GENTLE LIFT MOTION: Long tables, forms, and tool views lift gently without distortion */
+.dash-entrance-panel {
+  animation: dashPanelEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--entrance-delay, 0ms);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+@keyframes dashPanelEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+
 .dash-main-tab-wrap.dash-tab-leaving {
   animation: dashTabLeave 0.16s cubic-bezier(0.4, 0, 1, 1) forwards;
   pointer-events: none;
@@ -11461,7 +11481,7 @@ body.light-mode .pts-card-label {
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -11484,7 +11504,7 @@ body.light-mode .pts-card-label {
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -11498,7 +11518,7 @@ body.light-mode .pts-card-label {
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -11516,7 +11536,7 @@ body.light-mode .pts-card-label {
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -11558,19 +11578,34 @@ body.light-mode .pts-card-label {
     transform-origin: 50% 100%;
   }
   @keyframes dashCardEntranceMobile {
-    0% {
-      opacity: 0;
-      transform: scale(0.90) translateY(10px);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
+  0% {
+    opacity: 0;
+    transform: scale(0.90) translateY(10px);
   }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
 
   .dash-entrance-card .dash-card-content {
     animation-delay: calc(var(--entrance-delay, 0ms) + 80ms);
   }
+
+  .dash-entrance-panel {
+    animation-duration: 0.32s;
+  }
+  @keyframes dashPanelEntrance {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
 }
 
 /* Reserved Skeleton Cards for Zero-Collapse Loading */
@@ -11713,6 +11748,7 @@ body.light-mode .pts-card-label {
   .dash-entrance-header,
   .dash-entrance-card,
   .dash-entrance-card .dash-card-content,
+  .dash-entrance-panel,
   .dash-chart-line-reveal,
   .dash-chart-area-reveal,
   .dash-chart-point-reveal,

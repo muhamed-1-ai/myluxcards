@@ -301,7 +301,7 @@ export default function GlobalAccountSettingsView({
   return (
     <div className="global-settings-container" style={{ maxWidth: "860px", margin: "0 auto", paddingBottom: "3rem" }}>
       {/* Header */}
-      <div style={{ marginBottom: "2rem" }}>
+      <div className="acc-entrance-header" style={{ marginBottom: "2rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.35rem" }}>
           <div
             style={{
@@ -326,7 +326,7 @@ export default function GlobalAccountSettingsView({
         </p>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+      <div className="acc-entrance-panel" style={{ display: "flex", flexDirection: "column", gap: "1.75rem", "--entrance-delay": "60ms" } as React.CSSProperties}>
         {/* CARD 1: Profile & Identity */}
         <section
           className="acc-card"

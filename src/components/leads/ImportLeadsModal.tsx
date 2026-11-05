@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import {
-  X,
-  Upload,
+  ArrowLeft,
+  UploadCloud,
+  Database,
   Download,
   FileSpreadsheet,
   FileText,
@@ -12,28 +13,69 @@ import {
   AlertTriangle,
   AlertCircle,
   Loader2,
-  FileUp,
-  Info,
-  ArrowRight,
   RotateCcw,
+  X,
+  Trash2,
+  ArrowRight,
+  Clock,
+  Check,
 } from "lucide-react";
 import "./import-modal.css";
 
-interface ImportLeadsModalProps {
+export interface ImportLeadsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccessRefresh?: () => void;
+  inline?: boolean;
 }
 
-type ImportStep = "SELECT_TEMPLATE_AND_UPLOAD" | "VALIDATING" | "PREVIEW" | "IMPORTING" | "SUCCESS";
+export interface RecentImportRecord {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  importedCount: number;
+  failedCount: number;
+  skippedCount: number;
+  timestamp: string;
+  status: "COMPLETED" | "PARTIAL" | "FAILED";
+}
+
+type ImportStep = "UPLOAD" | "PREVIEW" | "IMPORTING" | "SUCCESS";
+
+const RECENT_IMPORTS_STORAGE_KEY = "zappit_lead_imports_history";
+
+function formatBytes(bytes: number, decimals = 1): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+function formatTimestamp(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return isoString;
+  }
+}
 
 export default function ImportLeadsModal({
   isOpen,
   onClose,
   onSuccessRefresh,
+  inline = true,
 }: ImportLeadsModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<ImportStep>("SELECT_TEMPLATE_AND_UPLOAD");
+  const [step, setStep] = useState<ImportStep>("UPLOAD");
 
   // File Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -54,32 +96,49 @@ export default function ImportLeadsModal({
   // Active Tab in Preview Mode: "ALL" | "ERRORS" | "WARNINGS"
   const [previewTab, setPreviewTab] = useState<"ALL" | "ERRORS" | "WARNINGS">("ALL");
 
+  // Recent Imports History
+  const [recentImports, setRecentImports] = useState<RecentImportRecord[]>([]);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+
   useEffect(() => {
     setMounted(true);
+    try {
+      const stored = localStorage.getItem(RECENT_IMPORTS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentImports(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn("[Recent Imports] Could not read local history", e);
+    }
   }, []);
 
   // Reset state when opened
   useEffect(() => {
     if (isOpen) {
-      setStep("SELECT_TEMPLATE_AND_UPLOAD");
+      setStep("UPLOAD");
       setSelectedFile(null);
       setValidationData(null);
       setValidationError(null);
       setCommitResult(null);
       setCommitError(null);
       setImportProgress(0);
+      setPreviewTab("ALL");
+      setIsHistoryDrawerOpen(false);
     }
   }, [isOpen]);
 
-  // Lock body scroll when modal is active
+  // Lock body scroll only when modal dialog mode (inline === false) is active
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || inline) return;
     const originalStyle = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = originalStyle;
     };
-  }, [isOpen]);
+  }, [isOpen, inline]);
 
   if (!isOpen || !mounted) return null;
 
@@ -125,13 +184,22 @@ export default function ImportLeadsModal({
     const lowerName = file.name.toLowerCase();
     if (!lowerName.endsWith(".csv") && !lowerName.endsWith(".xlsx")) {
       setValidationError("Unsupported file type. Please upload a .csv or .xlsx file.");
+      setSelectedFile(null);
+      setValidationData(null);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setValidationError("File exceeds maximum allowed size of 10 MB.");
+      setSelectedFile(null);
+      setValidationData(null);
       return;
     }
 
     setSelectedFile(file);
     setValidationError(null);
     setValidating(true);
-    setStep("VALIDATING");
+    setCommitError(null);
 
     try {
       const formData = new FormData();
@@ -149,14 +217,29 @@ export default function ImportLeadsModal({
       }
 
       setValidationData(resJson);
-      setStep("PREVIEW");
     } catch (err: any) {
       console.error("[Validation Failed]", err);
       setValidationError(err.message || "Failed to validate spreadsheet.");
-      setStep("SELECT_TEMPLATE_AND_UPLOAD");
+      setValidationData(null);
     } finally {
       setValidating(false);
     }
+  };
+
+  const handleClearFile = () => {
+    setSelectedFile(null);
+    setValidationData(null);
+    setValidationError(null);
+    setCommitError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Advance to Preview Step
+  const handleStartImportProcess = () => {
+    if (!validationData || validationData.validCount === 0) return;
+    setStep("PREVIEW");
   };
 
   // Trigger Commit Import of Valid Rows
@@ -193,6 +276,26 @@ export default function ImportLeadsModal({
       setCommitResult(resJson);
       setStep("SUCCESS");
 
+      // Record to Recent Imports history
+      const newRecord: RecentImportRecord = {
+        id: `imp_${Date.now()}`,
+        fileName: selectedFile?.name || "leads_import",
+        fileSize: selectedFile?.size || 0,
+        importedCount: resJson.importedCount || validationData.validCount || 0,
+        failedCount: validationData?.errorCount || 0,
+        skippedCount: validationData?.emptyCount || 0,
+        timestamp: new Date().toISOString(),
+        status: validationData?.errorCount > 0 ? "PARTIAL" : "COMPLETED",
+      };
+
+      const updatedHistory = [newRecord, ...recentImports].slice(0, 25);
+      setRecentImports(updatedHistory);
+      try {
+        localStorage.setItem(RECENT_IMPORTS_STORAGE_KEY, JSON.stringify(updatedHistory));
+      } catch (err) {
+        console.warn("[Recent Imports] Storage write failed", err);
+      }
+
       if (onSuccessRefresh) {
         onSuccessRefresh();
       }
@@ -216,7 +319,7 @@ export default function ImportLeadsModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           errors: validationData.errors,
-          fileName: validationData.fileName || "leads_import",
+          fileName: validationData.fileName || selectedFile?.name || "leads_import",
         }),
       });
 
@@ -226,7 +329,7 @@ export default function ImportLeadsModal({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `error_report_${validationData.fileName || "import"}.csv`);
+      link.setAttribute("download", `error_report_${validationData.fileName || "leads"}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -236,503 +339,718 @@ export default function ImportLeadsModal({
     }
   };
 
-  const modalContent = (
+  const handleClearHistory = () => {
+    setRecentImports([]);
+    try {
+      localStorage.removeItem(RECENT_IMPORTS_STORAGE_KEY);
+    } catch {}
+  };
+
+  // Keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && !importing && !validating) {
+      if (step === "PREVIEW") {
+        setStep("UPLOAD");
+      } else {
+        onClose();
+      }
+    }
+  };
+
+  /* ------------------------------------------------------------- */
+  /* Main Workspace Content (Rendered both inline or inside modal) */
+  /* ------------------------------------------------------------- */
+  const workspaceContent = (
+    <div
+      className="zappit-import-workspace dash-entrance-panel"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      role="region"
+      aria-label="Bulk Lead Import Workspace"
+    >
+      {/* 1. TOP HEADER */}
+      <div className="zappit-import-header">
+        <button
+          type="button"
+          onClick={() => {
+            if (step === "PREVIEW") {
+              setStep("UPLOAD");
+            } else {
+              onClose();
+            }
+          }}
+          disabled={importing || validating}
+          className="zappit-import-back-btn"
+          aria-label={step === "PREVIEW" ? "Back to file upload" : "Back to All Leads"}
+          title={step === "PREVIEW" ? "Back to file upload" : "Back to All Leads"}
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        <div className="zappit-import-title-group">
+          <h1 className="zappit-import-title">
+            {step === "PREVIEW" ? "Review & Validate Leads" : "Bulk Lead Import"}
+          </h1>
+          <p className="zappit-import-subtitle">
+            {step === "PREVIEW"
+              ? selectedFile
+                ? `${selectedFile.name} (${formatBytes(selectedFile.size)}) — Ready for import confirmation`
+                : "Review parsed leads and row validations before committing."
+              : "Upload CSV or Excel files to import multiple leads at once."}
+          </p>
+        </div>
+      </div>
+
+      {/* 2. BODY CONTENT BY STEP */}
+
+      {/* STEP: UPLOAD (The balanced 2-column layout matching reference) */}
+      {step === "UPLOAD" && (
+        <div className="zappit-import-grid">
+          
+          {/* LEFT CARD: UPLOAD DATA */}
+          <div className="zappit-import-card">
+            <div className="zappit-import-card-inner">
+              
+              {/* Card Label */}
+              <div className="zappit-import-card-label">
+                <UploadCloud />
+                <span>UPLOAD DATA</span>
+              </div>
+
+              {/* Dropzone */}
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => {
+                  if (!selectedFile) {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                className={`zappit-dropzone ${dragActive ? "drag-active" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-label="File upload dropzone"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/csv"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                  tabIndex={-1}
+                />
+
+                {!selectedFile ? (
+                  <>
+                    <UploadCloud className="zappit-drop-icon" strokeWidth={1.5} />
+                    <div className="zappit-drop-prompt">
+                      <span className="zappit-drop-prompt-accent">Click to select</span> or drag and drop here
+                    </div>
+                    <div className="zappit-drop-hint">
+                      Accepts CSV or Excel (.xlsx) files (max 10 MB)
+                    </div>
+                  </>
+                ) : (
+                  <div className="zappit-selected-file-box">
+                    <div className="zappit-selected-file-icon">
+                      {selectedFile.name.endsWith(".xlsx") ? (
+                        <FileSpreadsheet className="w-6 h-6" />
+                      ) : (
+                        <FileText className="w-6 h-6" />
+                      )}
+                    </div>
+                    <div className="zappit-selected-file-name" title={selectedFile.name}>
+                      {selectedFile.name}
+                    </div>
+                    <div className="zappit-selected-file-meta">
+                      {formatBytes(selectedFile.size)}
+                    </div>
+
+                    {validating && (
+                      <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Validating spreadsheet rows...</span>
+                      </div>
+                    )}
+
+                    {validationData && !validating && (
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{validationData.validCount} valid leads ready</span>
+                      </div>
+                    )}
+
+                    {validationError && !validating && (
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 max-w-sm">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{validationError}</span>
+                      </div>
+                    )}
+
+                    <div className="zappit-selected-file-actions">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        Replace
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClearFile();
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Template Buttons Side-by-Side */}
+              <div className="zappit-template-grid">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadTemplate("csv")}
+                  className="zappit-template-tile tile-csv"
+                  aria-label="Download CSV Template"
+                >
+                  <Download className="zappit-template-icon-csv" />
+                  <div>
+                    <div className="zappit-template-sub-csv">Download</div>
+                    <div className="zappit-template-main-csv">CSV Template</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadTemplate("xlsx")}
+                  className="zappit-template-tile tile-excel"
+                  aria-label="Download Excel Template"
+                >
+                  <Download className="zappit-template-icon-excel" />
+                  <div>
+                    <div className="zappit-template-sub-excel">Download</div>
+                    <div className="zappit-template-main-excel">Excel Template</div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Compact Information Block */}
+              <div className="zappit-import-info-block">
+                All lead fields are optional during bulk import. You can import with any subset of fields (e.g. Lead Name, Mobile, Email, or Dynamic Fields). Completely empty rows are automatically skipped.
+              </div>
+
+              {/* Action Footer (Lower right) */}
+              <div className="zappit-import-card-footer">
+                <button
+                  type="button"
+                  onClick={handleStartImportProcess}
+                  disabled={!selectedFile || validating || !validationData || validationData.validCount === 0}
+                  className="zappit-import-primary-btn"
+                >
+                  <UploadCloud className="w-4 h-4 mr-1.5" />
+                  <span>
+                    {validating
+                      ? "Validating File..."
+                      : validationData && validationData.validCount > 0
+                      ? `Start Import (${validationData.validCount} Leads)`
+                      : "Start Import Process"}
+                  </span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          {/* RIGHT CARD: RECENT IMPORTS */}
+          <div className="zappit-import-card">
+            
+            {/* Header */}
+            <div className="zappit-recent-card-header">
+              <Database />
+              <span>RECENT IMPORTS</span>
+            </div>
+
+            {/* Content Area */}
+            <div className="zappit-recent-card-body">
+              {recentImports.length === 0 ? (
+                <>
+                  <Database className="zappit-recent-empty-icon" strokeWidth={1.25} />
+                  <div className="zappit-recent-empty-text">No past imports found.</div>
+                </>
+              ) : (
+                <div className="zappit-recent-imports-list">
+                  {recentImports.slice(0, 4).map((record) => (
+                    <div key={record.id} className="zappit-recent-import-item">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          {record.fileName.endsWith(".xlsx") ? (
+                            <FileSpreadsheet className="w-4 h-4" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-bold text-[var(--import-title)] truncate">
+                            {record.fileName}
+                          </div>
+                          <div className="text-xs text-[var(--import-subtitle)] flex items-center gap-2 mt-0.5">
+                            <span>{formatTimestamp(record.timestamp)}</span>
+                            <span>•</span>
+                            <span>{record.importedCount} leads</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-bold rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                        {record.status === "COMPLETED" ? "Success" : record.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Action */}
+            <div className="zappit-recent-card-footer">
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(true)}
+                className="zappit-history-action-btn"
+              >
+                VIEW FULL HISTORY
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* STEP: PREVIEW (Review validated leads before commit) */}
+      {step === "PREVIEW" && validationData && (
+        <div className="space-y-6">
+          
+          {/* Commit Error Banner */}
+          {commitError && (
+            <div className="p-4 text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span>{commitError}</span>
+            </div>
+          )}
+
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
+              <div className="text-[11px] font-bold uppercase tracking-wider">VALID ROWS</div>
+              <div className="text-2xl font-extrabold mt-1">{validationData.validCount}</div>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400">
+              <div className="text-[11px] font-bold uppercase tracking-wider">WARNINGS</div>
+              <div className="text-2xl font-extrabold mt-1">{validationData.warningCount}</div>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400">
+              <div className="text-[11px] font-bold uppercase tracking-wider">ERRORS</div>
+              <div className="text-2xl font-extrabold mt-1">{validationData.errorCount}</div>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-[var(--import-card-border)] bg-[var(--import-card-bg)] text-[var(--import-subtitle)]">
+              <div className="text-[11px] font-bold uppercase tracking-wider">SKIPPED EMPTY</div>
+              <div className="text-2xl font-extrabold mt-1 text-[var(--import-title)]">{validationData.emptyCount}</div>
+            </div>
+          </div>
+
+          {/* Sub-tabs for Data Preview vs Row Errors */}
+          <div className="flex items-center justify-between border-b border-[var(--import-card-border)] pb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPreviewTab("ALL")}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                  previewTab === "ALL"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-[var(--import-subtitle)] hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                Data Preview ({validationData.previewRows.length})
+              </button>
+
+              {validationData.errors.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab("ERRORS")}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
+                    previewTab === "ERRORS"
+                      ? "bg-rose-600 text-white shadow-sm"
+                      : "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                  }`}
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Row Errors ({validationData.errors.length})</span>
+                </button>
+              )}
+
+              {validationData.warnings.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab("WARNINGS")}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
+                    previewTab === "WARNINGS"
+                      ? "bg-amber-600 text-white shadow-sm"
+                      : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Warnings ({validationData.warnings.length})</span>
+                </button>
+              )}
+            </div>
+
+            {validationData.errors.length > 0 && (
+              <button
+                type="button"
+                onClick={handleDownloadErrorReport}
+                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Error Report (.csv)</span>
+              </button>
+            )}
+          </div>
+
+          {/* Tab 1: Data Preview Table */}
+          {previewTab === "ALL" && (
+            <div className="zappit-preview-table-container max-h-[360px] overflow-y-auto">
+              <table className="zappit-preview-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>ROW</th>
+                    <th>STATUS</th>
+                    <th>LEAD NAME</th>
+                    <th>MOBILE</th>
+                    <th>EMAIL</th>
+                    <th>STAGE</th>
+                    <th>ASSIGNED TO</th>
+                    <th>FOLLOW-UP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {validationData.previewRows.map((r: any) => (
+                    <tr key={r.rowNumber} className={!r.isValid ? "bg-rose-500/5" : ""}>
+                      <td className="font-bold text-slate-400">{r.rowNumber}</td>
+                      <td>
+                        {r.isValid ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 rounded-md">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>VALID</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/60 rounded-md">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>REJECTED</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="font-medium">{r.leadName}</td>
+                      <td className="font-mono text-xs">{r.contactNumber}</td>
+                      <td className="text-xs text-slate-500">{r.email}</td>
+                      <td className="font-semibold text-xs text-emerald-600 dark:text-emerald-400">{r.stage}</td>
+                      <td className="text-xs">{r.assignedTo}</td>
+                      <td className="text-xs text-slate-500">{r.nextFollowUpAt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Tab 2: Row Errors List */}
+          {previewTab === "ERRORS" && (
+            <div className="space-y-2 max-h-[360px] overflow-y-auto p-1">
+              {validationData.errors.map((e: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 flex items-start gap-3 text-xs text-rose-900 dark:text-rose-200"
+                >
+                  <span className="font-bold px-2 py-0.5 rounded bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-100 shrink-0">
+                    Row {e.row}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <strong className="font-bold text-rose-700 dark:text-rose-300 mr-2">{e.field}:</strong>
+                    <span>{e.message}</span>
+                    {e.value != null && (
+                      <div className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5 font-mono truncate">
+                        Value: "{String(e.value)}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tab 3: Warnings List */}
+          {previewTab === "WARNINGS" && (
+            <div className="space-y-2 max-h-[360px] overflow-y-auto p-1">
+              {validationData.warnings.map((w: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200"
+                >
+                  <span className="font-bold px-2 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-100 shrink-0">
+                    Row {w.row}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <strong className="font-bold text-amber-700 dark:text-amber-300 mr-2">{w.field}:</strong>
+                    <span>{w.message}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Footer Action Bar */}
+          <div className="flex items-center justify-between gap-3 pt-4 border-t border-[var(--import-card-border)] flex-wrap">
+            <button
+              type="button"
+              onClick={() => setStep("UPLOAD")}
+              disabled={importing}
+              className="h-[44px] px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors flex items-center gap-2"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Choose Another File</span>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={importing}
+                className="h-[44px] px-5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCommitImport}
+                disabled={validationData.validCount === 0 || importing}
+                className="h-[44px] px-6 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span>Import {validationData.validCount} Valid Leads</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* STEP: IMPORTING PROGRESS BAR */}
+      {step === "IMPORTING" && (
+        <div className="zappit-import-card p-12 sm:p-16 text-center space-y-6 flex flex-col items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center animate-spin">
+            <Loader2 className="w-7 h-7" />
+          </div>
+
+          <div className="w-full max-w-md space-y-3">
+            <div className="flex justify-between text-xs font-bold text-[var(--import-title)]">
+              <span>Importing leads into All Leads...</span>
+              <span>{importProgress}%</span>
+            </div>
+            <div className="zappit-progress-track">
+              <div
+                className="zappit-progress-bar"
+                style={{ width: `${importProgress}%` }}
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-[var(--import-subtitle)] max-w-sm">
+            Creating lead records, dynamic field values, and scheduled follow-ups. Please wait...
+          </p>
+        </div>
+      )}
+
+      {/* STEP: SUCCESS REPORT */}
+      {step === "SUCCESS" && commitResult && (
+        <div className="zappit-import-card p-10 sm:p-14 text-center space-y-6 flex flex-col items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-lg ring-8 ring-emerald-500/10">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold text-[var(--import-title)]">
+              Import Completed Successfully!
+            </h2>
+            <p className="text-sm text-[var(--import-subtitle)] mt-1.5 max-w-md mx-auto">
+              {commitResult.message || `Successfully imported ${commitResult.importedCount} leads.`}
+            </p>
+          </div>
+
+          {/* Metrics Pills */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 w-full max-w-lg">
+            <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/30">
+              <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">LEADS CREATED</div>
+              <div className="text-2xl font-extrabold text-[var(--import-title)] mt-1">
+                {commitResult.importedCount || 0}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/30">
+              <div className="text-xs font-bold text-blue-600 dark:text-blue-400">DYNAMIC VALUES</div>
+              <div className="text-2xl font-extrabold text-[var(--import-title)] mt-1">
+                {commitResult.dynamicValuesCount || 0}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border border-purple-500/20 bg-purple-50/50 dark:bg-purple-950/30">
+              <div className="text-xs font-bold text-purple-600 dark:text-purple-400">FOLLOW-UPS</div>
+              <div className="text-2xl font-extrabold text-[var(--import-title)] mt-1">
+                {commitResult.followUpsCount || 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (onSuccessRefresh) onSuccessRefresh();
+                onClose();
+              }}
+              className="h-[44px] px-8 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-md shadow-emerald-500/20 transition-all inline-flex items-center gap-2"
+            >
+              <span>View All Leads</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. HISTORY DRAWER / MODAL */}
+      {isHistoryDrawerOpen && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setIsHistoryDrawerOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-[var(--import-card-bg)] border border-[var(--import-card-border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-[var(--import-card-border)] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Database className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-base font-bold text-[var(--import-title)]">Import History</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 flex-1 overflow-y-auto space-y-3">
+              {recentImports.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+                  No import history recorded yet.
+                </div>
+              ) : (
+                recentImports.map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="p-3.5 rounded-xl border border-[var(--import-card-border)] bg-[var(--import-drop-bg)] flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-[var(--import-title)] truncate">
+                        {rec.fileName}
+                      </div>
+                      <div className="text-[11px] text-[var(--import-subtitle)] mt-0.5 flex items-center gap-2">
+                        <span>{formatTimestamp(rec.timestamp)}</span>
+                        <span>•</span>
+                        <span>{formatBytes(rec.fileSize)}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {rec.importedCount} imported
+                      </div>
+                      {rec.failedCount > 0 && (
+                        <div className="text-[11px] text-rose-500">
+                          {rec.failedCount} errors
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-[var(--import-card-border)] bg-[var(--import-table-header-bg)] flex items-center justify-between text-xs">
+              <span className="text-[var(--import-subtitle)]">
+                Local browser import activity
+              </span>
+              {recentImports.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  className="text-rose-600 dark:text-rose-400 hover:underline font-semibold"
+                >
+                  Clear History
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ------------------------------------------------------------- */
+  /* If inline === true, render directly into the dashboard content */
+  /* Otherwise, render inside a bounded, centered modal dialog     */
+  /* ------------------------------------------------------------- */
+  if (inline) {
+    return workspaceContent;
+  }
+
+  const modalOverlay = (
     <div
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-leads-title"
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && !importing && !validating) onClose();
-      }}
+      onKeyDown={handleKeyDown}
       className="zappit-import-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !importing && !validating) {
+          onClose();
+        }
+      }}
     >
-      <div className="zappit-import-shell">
-        
-        {/* Header */}
-        <div className="zappit-import-header flex items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 id="import-leads-title" className="text-[20px] font-bold leading-[28px] tracking-tight">
-                Import Leads
-              </h2>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                <FileUp className="w-3.5 h-3.5" />
-                <span>Bulk Import Engine</span>
-              </span>
-            </div>
-            <p className="text-[14px] leading-[20px] text-[var(--import-text-secondary)] mt-1">
-              Import multiple leads at once using official Zappit templates (.xlsx or .csv).
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={importing || validating}
-            className="p-2 rounded-xl text-[var(--import-text-secondary)] hover:text-[var(--import-text-primary)] hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 shrink-0"
-            aria-label="Close import dialog"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Body Content by Step */}
-        <div className="zappit-import-body space-y-6">
-
-          {/* STEP 1 & 2: Template Download & File Upload */}
-          {step === "SELECT_TEMPLATE_AND_UPLOAD" && (
-            <div className="space-y-6">
-              
-              {/* Info Notice Banner */}
-              <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-blue-900 dark:text-blue-200 space-y-1">
-                  <strong className="font-bold text-sm block">ALL LEAD FIELDS ARE OPTIONAL DURING BULK IMPORT</strong>
-                  <p>
-                    You can import a lead with any subset of available information (e.g. <strong>Lead Name only</strong>, <strong>Mobile Number only</strong>, <strong>Email only</strong>, <strong>Company Name only</strong>, or <strong>Dynamic Fields</strong>). Completely empty rows are automatically skipped.
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 1: Download Templates */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--import-text-secondary)]">
-                    STEP 1: DOWNLOAD OFFICIAL TEMPLATE
-                  </h3>
-                  <span className="text-[11px] text-slate-500">Includes active Master Config Dynamic Fields</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadTemplate("xlsx")}
-                    className="p-3.5 rounded-xl border border-[var(--import-card-border)] bg-[var(--import-card-bg)] hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-all flex items-center justify-between group text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                        <FileSpreadsheet className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[var(--import-text-primary)] group-hover:text-emerald-600">
-                          Excel Template (.xlsx)
-                        </div>
-                        <div className="text-xs text-[var(--import-text-secondary)]">Includes Instructions sheet</div>
-                      </div>
-                    </div>
-                    <Download className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadTemplate("csv")}
-                    className="p-3.5 rounded-xl border border-[var(--import-card-border)] bg-[var(--import-card-bg)] hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-all flex items-center justify-between group text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[var(--import-text-primary)] group-hover:text-blue-600">
-                          CSV Template (.csv)
-                        </div>
-                        <div className="text-xs text-[var(--import-text-secondary)]">UTF-8 BOM formatted</div>
-                      </div>
-                    </div>
-                    <Download className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Step 2: Upload File */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--import-text-secondary)]">
-                  STEP 2: UPLOAD COMPLETED FILE
-                </h3>
-
-                {validationError && (
-                  <div className="p-3 text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                    <span>{validationError}</span>
-                  </div>
-                )}
-
-                <div
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`zappit-dropzone ${dragActive ? "border-blue-500 bg-blue-50/20" : ""}`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/csv"
-                    onChange={handleFileInputChange}
-                    className="hidden"
-                  />
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <div className="text-sm font-bold text-[var(--import-text-primary)] mb-1">
-                    Click to upload or drag & drop spreadsheet
-                  </div>
-                  <div className="text-xs text-[var(--import-text-secondary)] max-w-sm">
-                    Supports <strong>.xlsx</strong> and <strong>.csv</strong> files up to 10MB (max 5,000 leads per import).
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* STEP: VALIDATING LOADER */}
-          {step === "VALIDATING" && (
-            <div className="py-16 text-center space-y-4 flex flex-col items-center justify-center">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center animate-spin">
-                <Loader2 className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-base font-bold text-[var(--import-text-primary)]">
-                  Validating Spreadsheet...
-                </div>
-                <div className="text-xs text-[var(--import-text-secondary)] mt-1">
-                  Checking schema, data formats, assigned users, and Master Config dynamic fields.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: PREVIEW & VALIDATION SUMMARY */}
-          {step === "PREVIEW" && validationData && (
-            <div className="space-y-6">
-              
-              {/* Commit Error Banner */}
-              {commitError && (
-                <div className="p-3.5 text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                  <span>{commitError}</span>
-                </div>
-              )}
-
-              {/* KPI Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                  <div className="text-[11px] font-bold uppercase tracking-wider">VALID ROWS</div>
-                  <div className="text-2xl font-extrabold mt-1">{validationData.validCount}</div>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                  <div className="text-[11px] font-bold uppercase tracking-wider">WARNINGS</div>
-                  <div className="text-2xl font-extrabold mt-1">{validationData.warningCount}</div>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400">
-                  <div className="text-[11px] font-bold uppercase tracking-wider">ERRORS</div>
-                  <div className="text-2xl font-extrabold mt-1">{validationData.errorCount}</div>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400">
-                  <div className="text-[11px] font-bold uppercase tracking-wider">SKIPPED EMPTY</div>
-                  <div className="text-2xl font-extrabold mt-1">{validationData.emptyCount}</div>
-                </div>
-              </div>
-
-              {/* Sub-tabs for Data Preview vs Row Errors */}
-              <div className="flex items-center justify-between border-b border-[var(--import-card-border)] pb-2 flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTab("ALL")}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-                      previewTab === "ALL"
-                        ? "bg-blue-600 text-white"
-                        : "text-[var(--import-text-secondary)] hover:bg-slate-200/50 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    Data Preview ({validationData.previewRows.length})
-                  </button>
-
-                  {validationData.errors.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewTab("ERRORS")}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-                        previewTab === "ERRORS"
-                          ? "bg-rose-600 text-white"
-                          : "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                      }`}
-                    >
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>Row Errors ({validationData.errors.length})</span>
-                    </button>
-                  )}
-
-                  {validationData.warnings.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewTab("WARNINGS")}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-                        previewTab === "WARNINGS"
-                          ? "bg-amber-600 text-white"
-                          : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                      }`}
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>Warnings ({validationData.warnings.length})</span>
-                    </button>
-                  )}
-                </div>
-
-                {validationData.errors.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleDownloadErrorReport}
-                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download Error Report (.csv)</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Tab 1: Data Preview Table */}
-              {previewTab === "ALL" && (
-                <div className="zappit-preview-table-container max-h-[300px] overflow-y-auto">
-                  <table className="zappit-preview-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: 60 }}>ROW</th>
-                        <th>STATUS</th>
-                        <th>LEAD NAME</th>
-                        <th>MOBILE</th>
-                        <th>EMAIL</th>
-                        <th>STAGE</th>
-                        <th>ASSIGNED TO</th>
-                        <th>FOLLOW-UP</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {validationData.previewRows.map((r: any) => (
-                        <tr key={r.rowNumber} className={!r.isValid ? "bg-rose-500/5" : ""}>
-                          <td className="font-bold text-slate-400">{r.rowNumber}</td>
-                          <td>
-                            {r.isValid ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 rounded-md">
-                                <CheckCircle2 className="w-3 h-3" />
-                                <span>VALID</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/60 rounded-md">
-                                <AlertCircle className="w-3 h-3" />
-                                <span>REJECTED</span>
-                              </span>
-                            )}
-                          </td>
-                          <td className="font-medium">{r.leadName}</td>
-                          <td className="font-mono text-xs">{r.contactNumber}</td>
-                          <td className="text-xs text-slate-500">{r.email}</td>
-                          <td className="font-semibold text-xs text-blue-600 dark:text-blue-400">{r.stage}</td>
-                          <td className="text-xs">{r.assignedTo}</td>
-                          <td className="text-xs text-slate-500">{r.nextFollowUpAt}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Tab 2: Row Errors List */}
-              {previewTab === "ERRORS" && (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto p-1">
-                  {validationData.errors.map((e: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 flex items-start gap-3 text-xs text-rose-900 dark:text-rose-200"
-                    >
-                      <span className="font-bold px-2 py-0.5 rounded bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-100 shrink-0">
-                        Row {e.row}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <strong className="font-bold text-rose-700 dark:text-rose-300 mr-2">{e.field}:</strong>
-                        <span>{e.message}</span>
-                        {e.value != null && (
-                          <div className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5 font-mono truncate">
-                            Value: "{String(e.value)}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Tab 3: Warnings List */}
-              {previewTab === "WARNINGS" && (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto p-1">
-                  {validationData.warnings.map((w: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200"
-                    >
-                      <span className="font-bold px-2 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-100 shrink-0">
-                        Row {w.row}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <strong className="font-bold text-amber-700 dark:text-amber-300 mr-2">{w.field}:</strong>
-                        <span>{w.message}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* STEP 4: IMPORTING PROGRESS BAR */}
-          {step === "IMPORTING" && (
-            <div className="py-16 text-center space-y-6 flex flex-col items-center justify-center">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center animate-spin">
-                <Loader2 className="w-6 h-6" />
-              </div>
-
-              <div className="w-full max-w-md space-y-2">
-                <div className="flex justify-between text-xs font-bold text-[var(--import-text-primary)]">
-                  <span>Importing leads into All Leads...</span>
-                  <span>{importProgress}%</span>
-                </div>
-                <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 transition-all duration-300 rounded-full"
-                    style={{ width: `${importProgress}%` }}
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs text-[var(--import-text-secondary)]">
-                Creating lead records, dynamic field values, and scheduled follow-ups. Please wait...
-              </p>
-            </div>
-          )}
-
-          {/* STEP 5: SUCCESS REPORT */}
-          {step === "SUCCESS" && commitResult && (
-            <div className="py-8 text-center space-y-6 flex flex-col items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-lg ring-8 ring-emerald-500/10">
-                <CheckCircle2 className="w-10 h-10" />
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-bold text-[var(--import-text-primary)]">
-                  Import Completed Successfully!
-                </h3>
-                <p className="text-sm text-[var(--import-text-secondary)] mt-1 max-w-md mx-auto">
-                  {commitResult.message || `Successfully imported ${commitResult.importedCount} leads.`}
-                </p>
-              </div>
-
-              {/* Metrics Pills */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg">
-                <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/30">
-                  <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">LEADS CREATED</div>
-                  <div className="text-2xl font-extrabold text-[var(--import-text-primary)] mt-1">
-                    {commitResult.importedCount || 0}
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/30">
-                  <div className="text-xs font-bold text-blue-600 dark:text-blue-400">DYNAMIC VALUES</div>
-                  <div className="text-2xl font-extrabold text-[var(--import-text-primary)] mt-1">
-                    {commitResult.dynamicValuesCount || 0}
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-purple-500/20 bg-purple-50/50 dark:bg-purple-950/30">
-                  <div className="text-xs font-bold text-purple-600 dark:text-purple-400">FOLLOW-UPS</div>
-                  <div className="text-2xl font-extrabold text-[var(--import-text-primary)] mt-1">
-                    {commitResult.followUpsCount || 0}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* Footer Actions by Step */}
-        <div className="zappit-import-footer flex items-center justify-between gap-3 flex-wrap">
-          
-          {step === "SELECT_TEMPLATE_AND_UPLOAD" && (
-            <>
-              <div className="text-xs text-[var(--import-text-secondary)]">
-                Need help? Contact support or read import documentation.
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-[44px] min-h-[44px] px-5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-            </>
-          )}
-
-          {step === "PREVIEW" && validationData && (
-            <>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStep("SELECT_TEMPLATE_AND_UPLOAD")}
-                  disabled={importing}
-                  className="h-[44px] min-h-[44px] px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors flex items-center gap-1.5"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Choose Another File</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={importing}
-                  className="h-[44px] min-h-[44px] px-5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCommitImport}
-                  disabled={validationData.validCount === 0 || importing}
-                  className="h-[44px] min-h-[44px] px-6 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <span>Import {validationData.validCount} Valid Leads</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </>
-          )}
-
-          {step === "SUCCESS" && (
-            <div className="flex items-center justify-end gap-3 w-full">
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-[44px] min-h-[44px] px-8 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl shadow-md shadow-emerald-500/20 transition-all"
-              >
-                View All Leads
-              </button>
-            </div>
-          )}
-
-        </div>
-
+      <div className="zappit-import-dialog-shell" onClick={(e) => e.stopPropagation()}>
+        {workspaceContent}
       </div>
     </div>
   );
 
-  return typeof window !== "undefined" ? createPortal(modalContent, document.body) : null;
+  return typeof window !== "undefined" ? createPortal(modalOverlay, document.body) : null;
 }

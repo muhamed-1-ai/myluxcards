@@ -275,7 +275,7 @@ export default function PeopleView() {
 
   return (
     <div>
-      <div className="acc-header">
+      <div className="acc-header acc-entrance-header">
         <div className="acc-title-group">
           <h2 className="acc-title">People & Balances</h2>
           <p className="acc-subtitle">All people, customers, suppliers, payment history, and collection actions.</p>
@@ -369,7 +369,9 @@ export default function PeopleView() {
         </button>
       </div>
 
-      {/* Contacts List */}
+      {/* Subtab Content with Panel Entrance */}
+      <div key={subtab} className="acc-entrance-panel">
+        {/* Contacts List */}
       {subtab !== "PAYMENT_HISTORY" && (
         <div className="acc-card">
           {loading ? (
@@ -549,6 +551,8 @@ export default function PeopleView() {
           )}
         </div>
       )}
+
+      </div>
 
       {/* Add Contact Modal */}
       {addContactOpen && (

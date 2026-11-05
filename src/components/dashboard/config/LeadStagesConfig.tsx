@@ -551,6 +551,7 @@ export function LeadStagesConfig() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%", maxWidth: 1400, margin: "0 auto", paddingBottom: 40 }}>
       {/* 1. PAGE HEADER */}
       <div
+        className="dash-entrance-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -621,7 +622,9 @@ export function LeadStagesConfig() {
       >
         {/* KPI 1: TOTAL STAGES */}
         <div
+          className="dash-entrance-card"
           style={{
+            "--entrance-delay": "0ms",
             background: "var(--surface)",
             border: "1px solid var(--border-color)",
             borderRadius: 16,
@@ -631,7 +634,7 @@ export function LeadStagesConfig() {
             justifyContent: "space-between",
             height: 110,
             boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-          }}
+          } as React.CSSProperties}
         >
           <div>
             <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -660,7 +663,9 @@ export function LeadStagesConfig() {
 
         {/* KPI 2: ACTIVE STAGES */}
         <div
+          className="dash-entrance-card"
           style={{
+            "--entrance-delay": "60ms",
             background: "var(--surface)",
             border: "1px solid var(--border-color)",
             borderRadius: 16,
@@ -670,7 +675,7 @@ export function LeadStagesConfig() {
             justifyContent: "space-between",
             height: 110,
             boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-          }}
+          } as React.CSSProperties}
         >
           <div>
             <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -699,7 +704,9 @@ export function LeadStagesConfig() {
 
         {/* KPI 3: INACTIVE STAGES */}
         <div
+          className="dash-entrance-card"
           style={{
+            "--entrance-delay": "120ms",
             background: "var(--surface)",
             border: "1px solid var(--border-color)",
             borderRadius: 16,
@@ -709,7 +716,7 @@ export function LeadStagesConfig() {
             justifyContent: "space-between",
             height: 110,
             boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-          }}
+          } as React.CSSProperties}
         >
           <div>
             <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -739,7 +746,9 @@ export function LeadStagesConfig() {
 
       {/* 3. PIPELINE ORDER STRIP */}
       <div
+        className="dash-entrance-panel"
         style={{
+          "--entrance-delay": "180ms",
           background: "var(--surface)",
           border: "1px solid var(--border-color)",
           borderRadius: 16,
@@ -748,7 +757,7 @@ export function LeadStagesConfig() {
           alignItems: "center",
           gap: 16,
           flexWrap: "wrap",
-        }}
+        } as React.CSSProperties}
       >
         <span style={{ fontSize: 11, fontWeight: 800, color: "#0066FF", textTransform: "uppercase", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>
           PIPELINE ORDER:
