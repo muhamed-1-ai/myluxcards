@@ -33,19 +33,19 @@ export function usePrefersReducedMotion(): boolean {
 /**
  * Calculates a capped stagger delay for dashboard cards.
  * Follows visual reading order: index 0, 1, 2, ...
- * Desktop stagger: 60ms, capped at 240ms total delay.
- * Mobile stagger: 35ms, capped at 140ms total delay.
+ * Desktop stagger: 50ms, capped at 200ms total delay.
+ * Mobile stagger: 30ms, capped at 120ms total delay.
  * Also supports custom (index, staggerMs, maxDelayMs).
  */
 export function getCardEntranceDelay(
   index: number,
-  staggerMsOrIsMobile: number | boolean = 60,
-  maxDelayMs: number = 240
+  staggerMsOrIsMobile: number | boolean = 50,
+  maxDelayMs: number = 200
 ): number {
   if (typeof staggerMsOrIsMobile === "boolean") {
     return staggerMsOrIsMobile
-      ? Math.min(index * 35, 140)
-      : Math.min(index * 60, 240);
+      ? Math.min(index * 30, 120)
+      : Math.min(index * 50, 200);
   }
   return Math.min(index * staggerMsOrIsMobile, maxDelayMs);
 }
@@ -56,12 +56,13 @@ export interface UseAnimatedNumberOptions {
   formatter?: (val: number) => string;
   enabled?: boolean;
   isLoaded?: boolean;
+  delay?: number;
 }
 
 /**
  * Smoothly animates a numeric value once authoritative data is available.
  * - Distinguishes genuine zero results from loading placeholders.
- * - On first load with real data, animates up to target.
+ * - On first load with real data, animates up to target as card surfaces settle.
  * - On background refresh, retains previous value and transitions smoothly without resetting to zero.
  * - Uses cubic-bezier out easing: power3.out (1 - (1 - t)^3).
  * - When reduced motion is preferred, immediately reflects final target.
@@ -76,11 +77,12 @@ export function useAnimatedNumber(
   isReady: boolean;
 } {
   const {
-    duration = 800,
+    duration = 750,
     decimals = 0,
     formatter,
     enabled = true,
     isLoaded: passedIsLoaded,
+    delay = 160,
   } = options;
 
   const reducedMotion = usePrefersReducedMotion();
@@ -103,6 +105,7 @@ export function useAnimatedNumber(
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [isReady, setIsReady] = useState<boolean>(false);
   const rafIdRef = useRef<number | null>(null);
+  const startTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // If data is not yet authoritative, remain unready (or retain previous value if already loaded once)
@@ -126,6 +129,16 @@ export function useAnimatedNumber(
     const endValue = numericEnd;
     previousTargetRef.current = endValue;
 
+    // Clean up any pending timer or animation frame
+    if (startTimerRef.current !== null) {
+      clearTimeout(startTimerRef.current);
+      startTimerRef.current = null;
+    }
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
     // If animations disabled, reduced motion, or values identical, set immediately
     if (!enabled || reducedMotion || duration <= 0 || startValue === endValue) {
       setCurrentValue(endValue);
@@ -133,39 +146,50 @@ export function useAnimatedNumber(
       return;
     }
 
-    const startTime = performance.now();
-    setIsAnimating(true);
+    const initialWait = isFirstLoad && delay > 0 ? delay : 0;
 
-    const tick = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+    const startAnimation = () => {
+      const startTime = performance.now();
+      setIsAnimating(true);
 
-      // Easing: cubic-bezier power3.out: 1 - Math.pow(1 - progress, 3)
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const nextValue = startValue + (endValue - startValue) * eased;
+      const tick = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
 
-      if (progress < 1) {
-        setCurrentValue(nextValue);
-        rafIdRef.current = requestAnimationFrame(tick);
-      } else {
-        setCurrentValue(endValue);
-        setIsAnimating(false);
-        rafIdRef.current = null;
-      }
+        // Easing: cubic-bezier power3.out: 1 - Math.pow(1 - progress, 3)
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const nextValue = startValue + (endValue - startValue) * eased;
+
+        if (progress < 1) {
+          setCurrentValue(nextValue);
+          rafIdRef.current = requestAnimationFrame(tick);
+        } else {
+          setCurrentValue(endValue);
+          setIsAnimating(false);
+          rafIdRef.current = null;
+        }
+      };
+
+      rafIdRef.current = requestAnimationFrame(tick);
     };
 
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
+    if (initialWait > 0) {
+      startTimerRef.current = setTimeout(startAnimation, initialWait);
+    } else {
+      startAnimation();
     }
-    rafIdRef.current = requestAnimationFrame(tick);
 
     return () => {
+      if (startTimerRef.current !== null) {
+        clearTimeout(startTimerRef.current);
+        startTimerRef.current = null;
+      }
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
     };
-  }, [targetValue, hasLoadedData, duration, enabled, reducedMotion]);
+  }, [targetValue, hasLoadedData, duration, enabled, reducedMotion, delay]);
 
   const displayValue = isReady ? formatFn(currentValue) : "…";
   const finalValue = isReady ? formatFn(typeof targetValue === "number" ? targetValue : 0) : "Loading…";
@@ -181,6 +205,7 @@ export interface AnimatedNumberProps {
   formatter?: (val: number) => string;
   className?: string;
   style?: React.CSSProperties;
+  delay?: number;
 }
 
 /**
@@ -192,17 +217,19 @@ export interface AnimatedNumberProps {
 export function AnimatedNumber({
   value,
   isLoaded,
-  duration = 800,
+  duration = 750,
   decimals = 0,
   formatter,
   className = "",
   style,
+  delay = 160,
 }: AnimatedNumberProps) {
   const { displayValue, finalValue, isAnimating, isReady } = useAnimatedNumber(value, {
     duration,
     decimals,
     formatter,
     isLoaded,
+    delay,
   });
 
   if (!isReady) {
@@ -234,7 +261,7 @@ export function AnimatedNumber({
  * - Does not retrigger during background data refreshes or filter updates.
  * - Resets only when explicitly unmounted and remounted on new view navigation.
  */
-export function useDashboardEntrance(isDataLoaded: boolean = true, settleDelayMs: number = 1000) {
+export function useDashboardEntrance(isDataLoaded: boolean = true, settleDelayMs: number = 600) {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
   const [isSettled, setIsSettled] = useState<boolean>(false);
   const reducedMotion = usePrefersReducedMotion();

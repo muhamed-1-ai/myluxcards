@@ -79,7 +79,11 @@ export async function getWorkspaceImportContext(ownerUserId: string): Promise<Wo
 
   // 2. Fetch workspace users for Assigned To resolution
   const usersRes = await pool.query<{ id: string; name: string | null; email: string }>(
-    `SELECT id, name, email FROM users WHERE id = $1 OR created_by_admin_id = $1 OR id IN (SELECT owner_user_id FROM users WHERE created_by_admin_id = $1)`,
+    `SELECT id, name, email FROM users
+     WHERE id = $1
+        OR created_by_admin_id = $1
+        OR id = (SELECT created_by_admin_id FROM users WHERE id = $1)
+        OR (created_by_admin_id IS NOT NULL AND created_by_admin_id = (SELECT created_by_admin_id FROM users WHERE id = $1))`,
     [ownerUserId]
   );
 

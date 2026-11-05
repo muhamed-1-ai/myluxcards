@@ -13,6 +13,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const format = (searchParams.get("format") || "xlsx").toLowerCase();
 
+  if (format !== "csv" && format !== "xlsx") {
+    return Response.json(
+      { message: `Invalid template format '${format}'. Supported formats are 'xlsx' and 'csv'.` },
+      { status: 400 }
+    );
+  }
+
   try {
     const context = await getWorkspaceImportContext(identity.id);
 
@@ -60,12 +67,15 @@ export async function GET(request: Request) {
       const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
       const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
       const bomCsv = "\uFEFF" + csvOutput;
+      const csvBuffer = Buffer.from(bomCsv, "utf-8");
 
-      return new Response(bomCsv, {
+      return new Response(new Uint8Array(csvBuffer), {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="zappit_leads_import_template.csv"`,
+          "Content-Disposition": 'attachment; filename="zappit_leads_import_template.csv"',
+          "Content-Length": String(csvBuffer.byteLength),
+          "Cache-Control": "no-store, no-cache, must-revalidate",
         },
       });
     }
@@ -76,9 +86,6 @@ export async function GET(request: Request) {
     // Sheet 1: Import Data
     const sheetData = [headers, headers.map((h) => sampleRow[h] ?? "")];
     const dataSheet = XLSX.utils.aoa_to_sheet(sheetData);
-
-    // Freeze header row
-    dataSheet["!views"] = [{ state: "frozen", xSplit: 0, ySplit: 1, activeCell: "A2" }];
 
     // Auto-fit column widths
     const colWidths = headers.map((h) => ({ wch: Math.max(h.length + 4, 18) }));
@@ -119,13 +126,15 @@ export async function GET(request: Request) {
     ];
     XLSX.utils.book_append_sheet(workbook, instructionSheet, "Instructions");
 
-    const xlsxBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    const xlsxBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
-    return new Response(xlsxBuffer, {
+    return new Response(new Uint8Array(xlsxBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="zappit_leads_import_template.xlsx"`,
+        "Content-Disposition": 'attachment; filename="zappit_leads_import_template.xlsx"',
+        "Content-Length": String(xlsxBuffer.byteLength),
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (error: any) {

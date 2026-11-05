@@ -519,7 +519,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       <div
         key="daily_capacity"
         className={`crm-capacity-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-        style={{ "--entrance-delay": "220ms" } as React.CSSProperties}
+        style={{ "--entrance-delay": "120ms" } as React.CSSProperties}
       >
         <div className="dash-card-content">
           <div className="crm-capacity-header">
@@ -562,7 +562,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     <div
       key="pipeline_stages_card"
       className={`crm-pipeline-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "240ms" } as React.CSSProperties}
+      style={{ ...orderStyle, "--entrance-delay": "160ms" } as React.CSSProperties}
     >
       <div className="dash-card-content">
         <LeadLivePipeline
@@ -584,7 +584,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     <div
       key="lob_analysis_card"
       className={`crm-lob-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "240ms" } as React.CSSProperties}
+      style={{ ...orderStyle, "--entrance-delay": "160ms" } as React.CSSProperties}
     >
       <div className="crm-card-header-row">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -726,7 +726,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
     <div
       key="calendar_companion_card"
       className={`crm-calendar-widget-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-      style={{ ...orderStyle, "--entrance-delay": "320ms" } as React.CSSProperties}
+      style={{ ...orderStyle, "--entrance-delay": "200ms" } as React.CSSProperties}
     >
       <CompactDashboardCalendar
         onNavigateTab={onNavigateTab}
@@ -1067,7 +1067,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
       {(!data && loading) ? (
         <div className="crm-kpi-grid">
           {visibleCards.map((cardPref, cardIdx) => {
-            const cardDelay = `${getCardEntranceDelay(cardIdx, 60, 240)}ms`;
+            const cardDelay = `${getCardEntranceDelay(cardIdx, 50, 200)}ms`;
             return (
               <div
                 key={cardPref.id}
@@ -1088,7 +1088,7 @@ export function LeadManagementDashboard({ userName, identity, onNavigateTab }: L
         <div className="crm-kpi-grid">
           {visibleCards.map((cardPref, cardIdx) => {
             const label = (cardPref.displayName || cardPref.defaultTitle).toUpperCase();
-            const cardDelay = `${getCardEntranceDelay(cardIdx, 60, 240)}ms`;
+            const cardDelay = `${getCardEntranceDelay(cardIdx, 50, 200)}ms`;
             const cardClass = `crm-kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`;
             const cardStyle = { "--entrance-delay": cardDelay } as React.CSSProperties;
 

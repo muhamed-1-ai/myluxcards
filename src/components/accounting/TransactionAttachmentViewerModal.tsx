@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   ChevronLeft,
@@ -36,8 +37,23 @@ export default function TransactionAttachmentViewerModal({
   attachments,
   initialIndex = 0,
 }: TransactionAttachmentViewerModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [imageLoading, setImageLoading] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Background scroll lock
+  useEffect(() => {
+    if (!isOpen || !mounted) return;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, [isOpen, mounted]);
 
   // Sync initialIndex when modal opens
   useEffect(() => {
@@ -83,7 +99,7 @@ export default function TransactionAttachmentViewerModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handlePrev, handleNext, onClose]);
 
-  if (!isOpen || !attachments || attachments.length === 0) return null;
+  if (!isOpen || !attachments || attachments.length === 0 || !mounted) return null;
 
   const current = attachments[currentIndex] || attachments[0];
   const isPdf =
@@ -100,7 +116,7 @@ export default function TransactionAttachmentViewerModal({
     current.download_url ||
     `/api/accounting/transactions/attachments/${current.id}?download=1`;
 
-  return (
+  return createPortal(
     <div
       className="acc-modal-backdrop acc-attachment-viewer-backdrop"
       onClick={onClose}
@@ -273,6 +289,7 @@ export default function TransactionAttachmentViewerModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

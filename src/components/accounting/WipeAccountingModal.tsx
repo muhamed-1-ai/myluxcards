@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Trash2, ShieldCheck, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, Trash2, ShieldCheck, Loader2, X } from "lucide-react";
 
 interface ResetPreviewData {
   workspace: { id: string; name: string; currency: string; type: string };
@@ -42,7 +43,7 @@ interface WipeAccountingModalProps {
   onClose: () => void;
   workspace: { id: string; name: string; currency?: string; type?: string } | null;
   onSuccess: (versionNumber: number) => void;
-  formatMoney: (minor: number) => string;
+  formatMoney?: (minor: number) => string;
 }
 
 export default function WipeAccountingModal({
@@ -52,11 +53,19 @@ export default function WipeAccountingModal({
   onSuccess,
   formatMoney,
 }: WipeAccountingModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [preview, setPreview] = useState<ResetPreviewData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [reason, setReason] = useState("");
   const [resetting, setResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchPreview = useCallback(async () => {
     if (!workspace) return;
@@ -77,6 +86,7 @@ export default function WipeAccountingModal({
     }
   }, [workspace]);
 
+  // Load preview data when opened
   useEffect(() => {
     if (isOpen) {
       setReason("");
@@ -85,7 +95,71 @@ export default function WipeAccountingModal({
     }
   }, [isOpen, fetchPreview]);
 
-  if (!isOpen) return null;
+  // Background Scroll Lock (prevents layout shift and background scrolling)
+  useEffect(() => {
+    if (!isOpen || !mounted) return;
+
+    if (document.activeElement instanceof HTMLElement) {
+      previouslyFocusedElementRef.current = document.activeElement;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+      if (previouslyFocusedElementRef.current && typeof previouslyFocusedElementRef.current.focus === "function") {
+        previouslyFocusedElementRef.current.focus();
+      }
+    };
+  }, [isOpen, mounted]);
+
+  // Keyboard navigation: Escape to close, Tab focus trapping
+  useEffect(() => {
+    if (!isOpen || !mounted) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (!resetting) {
+          e.preventDefault();
+          onClose();
+        }
+      } else if (e.key === "Tab") {
+        if (!containerRef.current) return;
+        const focusableElements = containerRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, mounted, resetting, onClose]);
+
+  if (!isOpen || !mounted) return null;
 
   const handleExecuteReset = async () => {
     if (!workspace) return;
@@ -119,9 +193,11 @@ export default function WipeAccountingModal({
     }
   };
 
-  return (
+  const formattedZero = formatMoney ? formatMoney(0) : "₹0.00";
+
+  const modalMarkup = (
     <div
-      className="acc-modal-backdrop"
+      className="acc-wipe-modal-backdrop"
       onClick={() => {
         if (!resetting) onClose();
       }}
@@ -130,56 +206,28 @@ export default function WipeAccountingModal({
       aria-labelledby="wipe-accounting-modal-title"
     >
       <div
-        className="acc-modal-content"
+        ref={containerRef}
+        className="acc-wipe-modal-container"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: "580px",
-          width: "92vw",
-          borderRadius: "var(--acc-radius-lg, 12px)",
-          border: "1px solid rgba(239, 68, 68, 0.35)",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(220, 38, 38, 0.2)",
-        }}
       >
-        {/* Modal Header */}
-        <div
-          className="acc-modal-header"
-          style={{
-            borderBottom: "1px solid var(--acc-border)",
-            paddingBottom: "1rem",
-            marginBottom: "1.25rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "8px",
-                backgroundColor: "rgba(239, 68, 68, 0.15)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
+        {/* Sticky Header: NEVER scrolls away */}
+        <div className="acc-wipe-modal-header">
+          <div className="acc-wipe-modal-header-info">
+            <div className="acc-wipe-modal-icon-badge">
               <Trash2 size={20} color="#EF4444" />
             </div>
             <div>
-              <h3
-                id="wipe-accounting-modal-title"
-                className="acc-modal-title"
-                style={{ color: "#EF4444", fontSize: "1.125rem", fontWeight: 700, margin: 0 }}
-              >
+              <h3 id="wipe-accounting-modal-title" className="acc-wipe-modal-title">
                 Wipe Accounting Data
               </h3>
-              <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.75rem", color: "var(--acc-text-muted)" }}>
+              <p className="acc-wipe-modal-subtitle">
                 Workspace: <strong>{workspace?.name}</strong>
               </p>
             </div>
           </div>
           <button
             type="button"
-            className="acc-modal-close"
+            className="acc-wipe-modal-close"
             onClick={() => {
               if (!resetting) onClose();
             }}
@@ -187,44 +235,23 @@ export default function WipeAccountingModal({
             aria-label="Close dialog"
             style={{ cursor: resetting ? "not-allowed" : "pointer" }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        {/* Bounded Scrollable Body: Single scrollable area */}
+        <div className="acc-wipe-modal-body">
           {/* Warning Banner */}
-          <div
-            style={{
-              padding: "0.875rem 1rem",
-              backgroundColor: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.35)",
-              borderRadius: "8px",
-              color: "#EF4444",
-              fontSize: "0.875rem",
-              lineHeight: 1.45,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "0.625rem",
-            }}
-          >
+          <div className="acc-wipe-warning-banner">
             <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
             <div>
               <strong>Irreversible active ledger reset:</strong> All active financial transactions, invoices, journal entries, and account balances in <strong>{workspace?.name}</strong> will be wiped back to a clean zero-state.
             </div>
           </div>
 
-          {/* Active Records Itemized List */}
-          <div
-            style={{
-              fontSize: "0.8125rem",
-              backgroundColor: "var(--acc-raised)",
-              borderRadius: "8px",
-              padding: "0.875rem 1rem",
-              border: "1px solid var(--acc-border)",
-            }}
-          >
-            <div style={{ fontWeight: 600, color: "var(--acc-text-main)", marginBottom: "0.5rem" }}>
+          {/* Active Records Itemized List with High-Contrast Tokens */}
+          <div className="acc-wipe-records-box">
+            <div className="acc-wipe-records-title">
               The following active records will be archived and removed:
             </div>
             {loadingPreview ? (
@@ -233,57 +260,46 @@ export default function WipeAccountingModal({
                 <span>Calculating active workspace ledger impact...</span>
               </div>
             ) : (
-              <ul style={{ paddingLeft: "1.25rem", margin: 0, color: "var(--acc-text-muted)", lineHeight: 1.6 }}>
+              <ul className="acc-wipe-records-list">
                 <li>
-                  <strong style={{ color: "var(--acc-text-main)" }}>
+                  <strong>
                     {preview ? preview.recordCounts.transactions : 0}
                   </strong>{" "}
                   Financial transactions & journal records
                 </li>
                 <li>
-                  <strong style={{ color: "var(--acc-text-main)" }}>
+                  <strong>
                     {preview ? preview.recordCounts.invoices : 0}
                   </strong>{" "}
                   Invoices, sales, and payments
                 </li>
                 <li>
-                  <strong style={{ color: "var(--acc-text-main)" }}>
+                  <strong>
                     {preview ? preview.recordCounts.loans : 0}
                   </strong>{" "}
                   Loans, EMI records & reminders
                 </li>
                 <li>
-                  Account balances atomically reset to <strong style={{ color: "var(--acc-text-main)" }}>₹0.00</strong>
+                  Account balances atomically reset to <strong>{formattedZero}</strong>
                 </li>
                 <li>
                   Default Chart of Accounts and categories will be re-seeded clean
                 </li>
-                <li style={{ color: "#10B981" }}>
-                  <strong>100% Reversible:</strong> An immutable snapshot with 90-day retention is automatically preserved for one-click restoration.
+                <li className="acc-wipe-reversible-tag">
+                  <strong>100% Reversible:</strong> An immutable snapshot with {preview?.retentionDays || 90}-day retention is automatically preserved for one-click restoration.
                 </li>
               </ul>
             )}
           </div>
 
           {/* Strict ZAPPIT Isolation Guarantee */}
-          <div
-            style={{
-              padding: "0.875rem 1rem",
-              backgroundColor: "rgba(16, 185, 129, 0.08)",
-              border: "1px solid rgba(16, 185, 129, 0.28)",
-              borderRadius: "8px",
-              fontSize: "0.8125rem",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "0.625rem",
-            }}
-          >
+          <div className="acc-wipe-isolation-box">
             <ShieldCheck size={18} color="#10B981" style={{ flexShrink: 0, marginTop: "2px" }} />
             <div>
-              <div style={{ fontWeight: 600, color: "#10B981", marginBottom: "0.25rem" }}>
+              <div className="acc-wipe-isolation-title">
                 Strict ZAPPIT Isolation Guarantee
               </div>
-              <div style={{ color: "var(--acc-text-main)", fontSize: "0.775rem", lineHeight: 1.5 }}>
+              <div className="acc-wipe-isolation-text">
                 Reset strictly targets the <strong>Accounting</strong> module only. CRM leads, pipeline stages, follow-ups, user accounts, digital business cards, public profiles, NFC tags, QR codes, and SaaS subscriptions remain completely untouched.
               </div>
             </div>
@@ -292,11 +308,10 @@ export default function WipeAccountingModal({
           {/* Optional Reason Input */}
           <div className="acc-form-group" style={{ margin: 0 }}>
             <label
-              className="acc-form-label"
+              className="acc-wipe-reason-label"
               htmlFor="wipe-reason-input"
-              style={{ fontSize: "0.8125rem", marginBottom: "0.35rem" }}
             >
-              Reset Reason <span style={{ color: "var(--acc-text-muted)" }}>(Optional note saved in recovery version)</span>
+              Reset Reason <span className="acc-wipe-reason-sub">(Optional note saved in recovery version)</span>
             </label>
             <input
               id="wipe-reason-input"
@@ -312,67 +327,44 @@ export default function WipeAccountingModal({
 
           {/* Error Message */}
           {errorMessage && (
-            <div
-              style={{
-                padding: "0.75rem",
-                backgroundColor: "rgba(239, 68, 68, 0.12)",
-                border: "1px solid #EF4444",
-                borderRadius: "6px",
-                color: "#EF4444",
-                fontSize: "0.8125rem",
-                lineHeight: 1.4,
-              }}
-            >
+            <div className="acc-wipe-error-banner">
               {errorMessage}
             </div>
           )}
+        </div>
 
-          {/* Modal Actions */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: "0.75rem",
-              marginTop: "0.5rem",
-              paddingTop: "0.75rem",
-              borderTop: "1px solid var(--acc-border)",
-            }}
+        {/* Sticky Footer: NEVER scrolls away, responsive button layout */}
+        <div className="acc-wipe-modal-footer">
+          <button
+            type="button"
+            className="acc-btn acc-btn-outline acc-wipe-cancel-btn"
+            onClick={onClose}
+            disabled={resetting}
           >
-            <button
-              type="button"
-              className="acc-btn acc-btn-outline"
-              onClick={onClose}
-              disabled={resetting}
-              style={{ minWidth: "90px" }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="acc-wipe-data-btn"
-              onClick={handleExecuteReset}
-              disabled={resetting}
-              style={{
-                padding: "0.5rem 1.25rem",
-                minHeight: "38px",
-              }}
-            >
-              {resetting ? (
-                <>
-                  <Loader2 size={16} className="acc-spin" />
-                  <span>Archiving & Wiping...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 size={16} strokeWidth={2.2} />
-                  <span>Continue & Wipe Accounting</span>
-                </>
-              )}
-            </button>
-          </div>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="acc-wipe-data-btn acc-wipe-confirm-btn"
+            onClick={handleExecuteReset}
+            disabled={resetting}
+          >
+            {resetting ? (
+              <>
+                <Loader2 size={16} className="acc-spin" />
+                <span>Archiving & Wiping...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 size={16} strokeWidth={2.2} />
+                <span>Continue & Wipe Accounting</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modalMarkup, document.body);
 }

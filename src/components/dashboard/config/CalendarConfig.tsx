@@ -932,7 +932,7 @@ export function CalendarConfig({ initialDate }: { initialDate?: Date | string } 
       <div
         className="dash-entrance-panel"
         style={{
-          "--entrance-delay": "240ms",
+          "--entrance-delay": "200ms",
           background: "var(--surface)",
           border: "1px solid var(--border-color)",
           borderRadius: 18,

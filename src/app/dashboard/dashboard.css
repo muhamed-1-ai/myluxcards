@@ -11822,7 +11822,7 @@ body.light-mode .pts-card-label {
 
 /* 4. PANEL GENTLE LIFT MOTION: Long tables, forms, and tool views lift gently without distortion */
 .dash-entrance-panel {
-  animation: dashPanelEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: dashPanelEntrance 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--entrance-delay, 0ms);
   will-change: transform, opacity;
   backface-visibility: hidden;
@@ -11831,7 +11831,7 @@ body.light-mode .pts-card-label {
 @keyframes dashPanelEntrance {
   0% {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   100% {
     opacity: 1;
@@ -11870,7 +11870,7 @@ body.light-mode .pts-card-label {
 }
 
 .dash-entrance-header {
-  animation: dashHeaderEntrance 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: dashHeaderEntrance 0.30s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
@@ -11885,36 +11885,19 @@ body.light-mode .pts-card-label {
   }
 }
 
-/* 2. CARD GROW MOTION: Slot stays reserved in grid; visible surface grows upward from lower-center */
+/* 2. COMPACT CARD SUBTLE ENTRANCE: 8px upward movement and 0.98 -> 1 subtle scaling */
 .dash-entrance-card {
-  animation: dashCardGrow 0.40s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: dashCardEntrance 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--entrance-delay, 0ms);
-  transform-origin: 50% 100%; /* Lower-center anchor */
+  transform-origin: center bottom;
   will-change: transform, opacity;
   backface-visibility: hidden;
-}
-
-@keyframes dashCardGrow {
-  0% {
-    opacity: 0;
-    transform: scale(0.65) translateY(10px);
-  }
-  20% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 @keyframes dashCardEntrance {
   0% {
     opacity: 0;
-    transform: scale(0.65) translateY(10px);
-  }
-  20% {
-    opacity: 1;
+    transform: translateY(8px) scale(0.98);
   }
   100% {
     opacity: 1;
@@ -11922,17 +11905,28 @@ body.light-mode .pts-card-label {
   }
 }
 
-/* 3. CARD CONTENT REVEAL: Reveals a beat after each surface starts growing (staggered +120ms) */
+@keyframes dashCardGrow {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 3. CARD CONTENT REVEAL: Labels & controls reveal shortly after surface begins */
 .dash-entrance-card .dash-card-content {
-  animation: dashCardContentReveal 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--entrance-delay, 0ms) + 120ms);
+  animation: dashCardContentReveal 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--entrance-delay, 0ms) + 60ms);
   will-change: opacity, transform;
 }
 
 @keyframes dashCardContentReveal {
   0% {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   100% {
     opacity: 1;
@@ -11974,31 +11968,31 @@ body.light-mode .pts-card-label {
 @media (max-width: 640px) {
   .dash-entrance-card {
     animation-name: dashCardEntranceMobile;
-    animation-duration: 0.34s;
-    transform-origin: 50% 100%;
+    animation-duration: 0.28s;
+    transform-origin: center bottom;
   }
   @keyframes dashCardEntranceMobile {
-  0% {
-    opacity: 0;
-    transform: scale(0.90) translateY(10px);
+    0% {
+      opacity: 0;
+      transform: translateY(6px) scale(0.99);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
   }
-  100% {
-    opacity: 1;
-    transform: none;
-  }
-}
 
   .dash-entrance-card .dash-card-content {
-    animation-delay: calc(var(--entrance-delay, 0ms) + 80ms);
+    animation-delay: calc(var(--entrance-delay, 0ms) + 40ms);
   }
 
   .dash-entrance-panel {
-    animation-duration: 0.32s;
+    animation-duration: 0.28s;
   }
   @keyframes dashPanelEntrance {
     0% {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(6px);
     }
     100% {
       opacity: 1;
@@ -12134,32 +12128,10 @@ body.light-mode .pts-card-label {
   }
 }
 
-/* Pipeline Stages Donut Progressive Clockwise Sweep */
-.pipeline-donut-sweep-mask {
-  stroke-dasharray: 503;
-  stroke-dashoffset: 503;
-  animation: pipelineDonutSweep 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 240ms;
-}
-
-@keyframes pipelineDonutSweep {
-  from {
-    stroke-dashoffset: 503;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.pipeline-mask-settled {
-  stroke-dashoffset: 0 !important;
-  animation: none !important;
-}
-
 /* Pipeline Stage Table Legend Row Reveal */
 .pipeline-table-row.dash-legend-reveal {
-  animation: dashLegendRowFade 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--row-delay, 260ms);
+  animation: dashLegendRowFade 0.30s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--row-delay, 200ms);
 }
 
 @keyframes dashLegendRowFade {

@@ -825,7 +825,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Card 1: Available Balance */}
         <div
           className={`acc-primary-card acc-card-balance ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(0, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(0, 50, 200)}ms` } as React.CSSProperties}
         >
           <div>
             <div className="acc-card-header-row">
@@ -871,7 +871,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Card 2: Money Received */}
         <div
           className={`acc-primary-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(1, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(1, 50, 200)}ms` } as React.CSSProperties}
         >
           <div>
             <div className="acc-card-header-row">
@@ -908,7 +908,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Card 3: Money Paid */}
         <div
           className={`acc-primary-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(2, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(2, 50, 200)}ms` } as React.CSSProperties}
         >
           <div>
             <div className="acc-card-header-row">
@@ -948,7 +948,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Owed to Me */}
         <div
           className={`acc-compact-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(3, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(3, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="acc-card-header-row">
             <span className="acc-card-label">Owed to me</span>
@@ -980,7 +980,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* I Owe */}
         <div
           className={`acc-compact-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(4, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(4, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="acc-card-header-row">
             <span className="acc-card-label">I owe</span>
@@ -1015,7 +1015,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Left: Cash Flow Chart Card */}
         <div
           className={`acc-card acc-chart-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(5, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(5, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="acc-chart-header">
             <div>
@@ -1679,7 +1679,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
         {/* Right: Upcoming Bills (~39% Width) */}
         <div
           className={`acc-card acc-commitments-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(6, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(6, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="acc-commitments-content">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.875rem" }}>
@@ -1819,7 +1819,7 @@ export default function AccountingOverview({ onNavigateTab }: { onNavigateTab?: 
       {/* 5. FULL-WIDTH RECENT TRANSACTIONS TABLE */}
       <div
         className={`acc-card ${shouldAnimateEntrance ? "acc-entrance-card" : ""}`}
-        style={{ "--entrance-delay": `${getCardEntranceDelay(7, 60, 240)}ms` } as React.CSSProperties}
+        style={{ "--entrance-delay": `${getCardEntranceDelay(7, 50, 200)}ms` } as React.CSSProperties}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <div>

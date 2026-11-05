@@ -708,7 +708,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         {/* Card 1: Total Leads */}
         <div
           className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(0, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(0, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-emerald-500/10 text-emerald-400">
@@ -730,7 +730,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         {/* Card 2: Open Pipeline */}
         <div
           className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(1, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(1, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-blue-500/10 text-blue-400">
@@ -752,7 +752,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         {/* Card 3: Due Today */}
         <div
           className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(2, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(2, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-amber-500/10 text-amber-400">
@@ -774,7 +774,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
         {/* Card 4: Expected Revenue */}
         <div
           className={`kpi-card ${shouldAnimateEntrance ? "dash-entrance-card" : ""}`}
-          style={{ "--entrance-delay": `${getCardEntranceDelay(3, 60, 240)}ms` } as React.CSSProperties}
+          style={{ "--entrance-delay": `${getCardEntranceDelay(3, 50, 200)}ms` } as React.CSSProperties}
         >
           <div className="kpi-left-group">
             <div className="kpi-icon-box bg-purple-500/10 text-purple-400">
@@ -924,7 +924,7 @@ function LeadsWorkspaceContent({ identity }: LeadsWorkspaceProps) {
       )}
 
       {/* 4. Desktop Table (>= 768px) AND Dedicated Standalone Mobile Lead Cards (< 768px) */}
-      <div className={`w-full ${shouldAnimateEntrance ? "dash-entrance-panel" : ""}`} style={{ "--entrance-delay": "240ms" } as React.CSSProperties}>
+      <div className={`w-full ${shouldAnimateEntrance ? "dash-entrance-panel" : ""}`} style={{ "--entrance-delay": "200ms" } as React.CSSProperties}>
         {/* Notice when created lead is hidden by active filters */}
         {filterNotice && filterNotice.show && (
           <div className="crm-filter-notice" role="alert">

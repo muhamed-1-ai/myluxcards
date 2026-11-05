@@ -93,6 +93,10 @@ export default function ImportLeadsModal({
   const [commitResult, setCommitResult] = useState<any | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
 
+  // Template Download State
+  const [downloadingTemplate, setDownloadingTemplate] = useState<"xlsx" | "csv" | null>(null);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
   // Active Tab in Preview Mode: "ALL" | "ERRORS" | "WARNINGS"
   const [previewTab, setPreviewTab] = useState<"ALL" | "ERRORS" | "WARNINGS">("ALL");
 
@@ -127,6 +131,8 @@ export default function ImportLeadsModal({
       setImportProgress(0);
       setPreviewTab("ALL");
       setIsHistoryDrawerOpen(false);
+      setDownloadingTemplate(null);
+      setTemplateError(null);
     }
   }, [isOpen]);
 
@@ -143,14 +149,69 @@ export default function ImportLeadsModal({
   if (!isOpen || !mounted) return null;
 
   // Trigger Template Download (.xlsx or .csv)
-  const handleDownloadTemplate = (format: "xlsx" | "csv") => {
-    const url = `/api/leads/import/template?format=${format}`;
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `zappit_leads_import_template.${format}`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const handleDownloadTemplate = async (format: "xlsx" | "csv") => {
+    if (downloadingTemplate) return;
+    setDownloadingTemplate(format);
+    setTemplateError(null);
+    let blobUrl: string | null = null;
+
+    try {
+      const response = await fetch(`/api/leads/import/template?format=${format}`, {
+        method: "GET",
+        headers: {
+          Accept:
+            format === "xlsx"
+              ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream"
+              : "text/csv, text/plain, */*",
+        },
+      });
+
+      if (!response.ok) {
+        let errorMsg = `Download failed (${response.status} ${response.statusText})`;
+        try {
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            const data = await response.json();
+            errorMsg = data.message || data.error || errorMsg;
+          } else {
+            const text = await response.text();
+            if (text && text.length < 200) {
+              errorMsg = text;
+            }
+          }
+        } catch {
+          // ignore parsing error
+        }
+        throw new Error(errorMsg);
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      if (format === "xlsx" && !contentType.includes("spreadsheetml") && !contentType.includes("octet-stream")) {
+        throw new Error("Received unexpected response format instead of Excel spreadsheet.");
+      }
+      if (format === "csv" && !contentType.includes("csv") && !contentType.includes("plain") && !contentType.includes("octet-stream")) {
+        throw new Error("Received unexpected response format instead of CSV file.");
+      }
+
+      const blob = await response.blob();
+      blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.setAttribute("download", `zappit_leads_import_template.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      console.error("[Template Download Error]", err);
+      setTemplateError(err.message || "Failed to download template. Please try again.");
+    } finally {
+      setDownloadingTemplate(null);
+      if (blobUrl) {
+        setTimeout(() => {
+          if (blobUrl) window.URL.revokeObjectURL(blobUrl);
+        }, 1500);
+      }
+    }
   };
 
   // Drag & Drop Handlers
@@ -343,7 +404,7 @@ export default function ImportLeadsModal({
     setRecentImports([]);
     try {
       localStorage.removeItem(RECENT_IMPORTS_STORAGE_KEY);
-    } catch {}
+    } catch { }
   };
 
   // Keyboard navigation
@@ -406,11 +467,11 @@ export default function ImportLeadsModal({
       {/* STEP: UPLOAD (The balanced 2-column layout matching reference) */}
       {step === "UPLOAD" && (
         <div className="zappit-import-grid">
-          
+
           {/* LEFT CARD: UPLOAD DATA */}
           <div className="zappit-import-card">
             <div className="zappit-import-card-inner">
-              
+
               {/* Card Label */}
               <div className="zappit-import-card-label">
                 <UploadCloud />
@@ -526,12 +587,19 @@ export default function ImportLeadsModal({
                 <button
                   type="button"
                   onClick={() => handleDownloadTemplate("csv")}
+                  disabled={downloadingTemplate !== null}
                   className="zappit-template-tile tile-csv"
                   aria-label="Download CSV Template"
                 >
-                  <Download className="zappit-template-icon-csv" />
+                  {downloadingTemplate === "csv" ? (
+                    <Loader2 className="zappit-template-icon-csv animate-spin" />
+                  ) : (
+                    <Download className="zappit-template-icon-csv" />
+                  )}
                   <div>
-                    <div className="zappit-template-sub-csv">Download</div>
+                    <div className="zappit-template-sub-csv">
+                      {downloadingTemplate === "csv" ? "Downloading..." : "Download"}
+                    </div>
                     <div className="zappit-template-main-csv">CSV Template</div>
                   </div>
                 </button>
@@ -539,16 +607,39 @@ export default function ImportLeadsModal({
                 <button
                   type="button"
                   onClick={() => handleDownloadTemplate("xlsx")}
+                  disabled={downloadingTemplate !== null}
                   className="zappit-template-tile tile-excel"
                   aria-label="Download Excel Template"
                 >
-                  <Download className="zappit-template-icon-excel" />
+                  {downloadingTemplate === "xlsx" ? (
+                    <Loader2 className="zappit-template-icon-excel animate-spin" />
+                  ) : (
+                    <Download className="zappit-template-icon-excel" />
+                  )}
                   <div>
-                    <div className="zappit-template-sub-excel">Download</div>
+                    <div className="zappit-template-sub-excel">
+                      {downloadingTemplate === "xlsx" ? "Downloading..." : "Download"}
+                    </div>
                     <div className="zappit-template-main-excel">Excel Template</div>
                   </div>
                 </button>
               </div>
+
+              {/* Template Download Error Message */}
+              {templateError && (
+                <div className="zappit-template-error" role="alert">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-xs font-medium">{templateError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setTemplateError(null)}
+                    className="zappit-template-error-dismiss"
+                    aria-label="Dismiss error"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Compact Information Block */}
               <div className="zappit-import-info-block">
@@ -568,8 +659,8 @@ export default function ImportLeadsModal({
                     {validating
                       ? "Validating File..."
                       : validationData && validationData.validCount > 0
-                      ? `Start Import (${validationData.validCount} Leads)`
-                      : "Start Import Process"}
+                        ? `Start Import (${validationData.validCount} Leads)`
+                        : "Start Import Process"}
                   </span>
                 </button>
               </div>
@@ -579,7 +670,7 @@ export default function ImportLeadsModal({
 
           {/* RIGHT CARD: RECENT IMPORTS */}
           <div className="zappit-import-card">
-            
+
             {/* Header */}
             <div className="zappit-recent-card-header">
               <Database />
@@ -644,7 +735,7 @@ export default function ImportLeadsModal({
       {/* STEP: PREVIEW (Review validated leads before commit) */}
       {step === "PREVIEW" && validationData && (
         <div className="space-y-6">
-          
+
           {/* Commit Error Banner */}
           {commitError && (
             <div className="p-4 text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl flex items-center gap-2.5">
@@ -682,11 +773,10 @@ export default function ImportLeadsModal({
               <button
                 type="button"
                 onClick={() => setPreviewTab("ALL")}
-                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-                  previewTab === "ALL"
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-[var(--import-subtitle)] hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors ${previewTab === "ALL"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-[var(--import-subtitle)] hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
               >
                 Data Preview ({validationData.previewRows.length})
               </button>
@@ -695,11 +785,10 @@ export default function ImportLeadsModal({
                 <button
                   type="button"
                   onClick={() => setPreviewTab("ERRORS")}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-                    previewTab === "ERRORS"
-                      ? "bg-rose-600 text-white shadow-sm"
-                      : "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                  }`}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${previewTab === "ERRORS"
+                    ? "bg-rose-600 text-white shadow-sm"
+                    : "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    }`}
                 >
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>Row Errors ({validationData.errors.length})</span>
@@ -710,11 +799,10 @@ export default function ImportLeadsModal({
                 <button
                   type="button"
                   onClick={() => setPreviewTab("WARNINGS")}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
-                    previewTab === "WARNINGS"
-                      ? "bg-amber-600 text-white shadow-sm"
-                      : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                  }`}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${previewTab === "WARNINGS"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                    }`}
                 >
                   <AlertTriangle className="w-3.5 h-3.5" />
                   <span>Warnings ({validationData.warnings.length})</span>

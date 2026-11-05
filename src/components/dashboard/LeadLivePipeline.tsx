@@ -57,27 +57,11 @@ export function LeadLivePipeline({
 }: LeadLivePipelineProps) {
   const [hoveredStage, setHoveredStage] = useState<LeadStage | null>(null);
 
-  const rawId = useId();
-  const maskId = `pipeline-donut-mask-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const prefersReducedMotion = usePrefersReducedMotion();
-  const hasAnimatedRef = useRef(false);
-  const [isSettled, setIsSettled] = useState(false);
-
-  // Trigger entrance sweep once when real authoritative data is loaded
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setIsSettled(true);
-      hasAnimatedRef.current = true;
-      return;
-    }
-    if (!isLoading && !hasAnimatedRef.current) {
-      hasAnimatedRef.current = true;
-      const timer = setTimeout(() => {
-        setIsSettled(true);
-      }, 1150);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, prefersReducedMotion]);
+  const [sweepProgress, setSweepProgress] = useState<number>(prefersReducedMotion ? 1 : 0);
+  const [isSettled, setIsSettled] = useState<boolean>(prefersReducedMotion);
+  const rafIdRef = useRef<number | null>(null);
+  const startTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Compute calculated total from counts so ring and numbers always agree
   const calculatedTotal = useMemo(() => {
@@ -86,11 +70,59 @@ export function LeadLivePipeline({
 
   const totalLeads = typeof passedTotal === "number" && passedTotal >= calculatedTotal ? passedTotal : calculatedTotal;
 
-  // Center counter animation coordinated with donut sweep
-  const { displayValue: animatedCenterTotal } = useAnimatedNumber(totalLeads, {
-    duration: 850,
-    isLoaded: !isLoading,
-  });
+  // Trigger progressive clockwise sweep after card surface settles
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setSweepProgress(1);
+      setIsSettled(true);
+      return;
+    }
+
+    if (isLoading) return;
+
+    const startDelay = 220; // Starts after pipeline card surface settles
+    const duration = 1000; // 900–1100ms smooth clockwise draw
+
+    startTimerRef.current = setTimeout(() => {
+      const startTime = performance.now();
+
+      const tick = (now: number) => {
+        const elapsed = now - startTime;
+        const p = Math.min(elapsed / duration, 1);
+        // Cubic-bezier out easing: power3.out (1 - (1 - p)^3)
+        const eased = 1 - Math.pow(1 - p, 3);
+        setSweepProgress(eased);
+
+        if (p < 1) {
+          rafIdRef.current = requestAnimationFrame(tick);
+        } else {
+          setSweepProgress(1);
+          setIsSettled(true);
+          rafIdRef.current = null;
+        }
+      };
+
+      rafIdRef.current = requestAnimationFrame(tick);
+    }, startDelay);
+
+    return () => {
+      if (startTimerRef.current !== null) {
+        clearTimeout(startTimerRef.current);
+        startTimerRef.current = null;
+      }
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, [isLoading, prefersReducedMotion]);
+
+  // Center counter animation strictly synchronized with ring reveal
+  const animatedCenterTotal = useMemo(() => {
+    if (isLoading) return "…";
+    if (isSettled || prefersReducedMotion) return totalLeads.toLocaleString();
+    return Math.round(sweepProgress * totalLeads).toLocaleString();
+  }, [isLoading, isSettled, prefersReducedMotion, sweepProgress, totalLeads]);
 
   // Filter only active stages for the doughnut ring slices
   const activeSlices = useMemo(() => {
@@ -104,67 +136,89 @@ export function LeadLivePipeline({
   const strokeWidth = 18;
   const circumference = 2 * Math.PI * radius; // ~502.655
 
-    // Compute geometry for multi-slice ring with rounded caps and subtle gaps
-    const sliceArcs = useMemo(() => {
-      const n = activeSlices.length;
-      if (totalLeads <= 0 || n === 0) return [];
+  // Compute progressive geometry for multi-slice ring with smooth native rounded caps
+  const sliceArcs = useMemo(() => {
+    const n = activeSlices.length;
+    if (totalLeads <= 0 || n === 0) return [];
 
-      if (n === 1) {
-        return [{
-          stage: activeSlices[0],
-          isFullCircle: true,
-          pathData: "",
-        }];
+    if (n === 1) {
+      return [{
+        stage: activeSlices[0],
+        isFullCircle: true,
+        pathData: "",
+      }];
+    }
+
+    const gapDeg = 5; // degrees of gap between adjacent rounded tips
+    const capDeg = (strokeWidth / 2 / radius) * (180 / Math.PI); // cap compensation (~6.45 deg)
+    const totalGapSpan = n * gapDeg;
+    const availableDeg = 360 - totalGapSpan;
+
+    // Current total leads drawn along the progressive sweep
+    const currentTotalDrawn = (isSettled || prefersReducedMotion) ? totalLeads : sweepProgress * totalLeads;
+
+    // Start angle so New begins just past 12 o'clock (~15 deg) matching mockup
+    let currentAngle = 15;
+    const arcs: { stage: PipelineStageConfig; isFullCircle: boolean; pathData: string }[] = [];
+
+    let accumulatedLeads = 0;
+
+    for (let i = 0; i < n; i++) {
+      const stage = activeSlices[i];
+      const count = pipelineCounts?.[stage.key] || 0;
+      const sliceDeg = (count / totalLeads) * availableDeg;
+      const rawStart = currentAngle + gapDeg / 2;
+      const rawEnd = rawStart + sliceDeg;
+
+      let arcStart = rawStart + capDeg;
+      let arcEnd = rawEnd - capDeg;
+
+      if (arcEnd <= arcStart) {
+        const mid = (rawStart + rawEnd) / 2;
+        arcStart = mid - 0.1;
+        arcEnd = mid + 0.1;
       }
 
-      const gapDeg = 5; // degrees of gap between adjacent rounded tips
-      const capDeg = (strokeWidth / 2 / radius) * (180 / Math.PI); // cap compensation
-      const totalGapSpan = n * gapDeg;
-      const availableDeg = 360 - totalGapSpan;
+      const sliceStartLeads = accumulatedLeads;
+      const sliceEndLeads = accumulatedLeads + count;
+      accumulatedLeads = sliceEndLeads;
 
-      // Start angle so New begins just past 12 o'clock (~15 deg) matching mockup
-      let currentAngle = 15;
-      const arcs: { stage: PipelineStageConfig; isFullCircle: boolean; pathData: string }[] = [];
-
-      for (let i = 0; i < n; i++) {
-        const stage = activeSlices[i];
-        const count = pipelineCounts?.[stage.key] || 0;
-        const sliceDeg = (count / totalLeads) * availableDeg;
-        const rawStart = currentAngle + gapDeg / 2;
-        const rawEnd = rawStart + sliceDeg;
-
-        let arcStart = rawStart + capDeg;
-        let arcEnd = rawEnd - capDeg;
-
-        if (arcEnd <= arcStart) {
-          const mid = (rawStart + rawEnd) / 2;
-          arcStart = mid - 0.1;
-          arcEnd = mid + 0.1;
-        }
-
-        const pathData = describeArc(center, center, radius, arcStart, arcEnd);
-        arcs.push({ stage, isFullCircle: false, pathData });
-
+      // Check if progressive sweep has reached this slice
+      if (!isSettled && !prefersReducedMotion && currentTotalDrawn <= sliceStartLeads) {
         currentAngle = rawEnd + gapDeg / 2;
+        continue;
       }
 
-      return arcs;
-    }, [activeSlices, totalLeads, radius, strokeWidth, center, pipelineCounts]);
+      let drawnArcEnd = arcEnd;
+      if (!isSettled && !prefersReducedMotion && currentTotalDrawn < sliceEndLeads) {
+        const fraction = Math.max(0, (currentTotalDrawn - sliceStartLeads) / count);
+        const currentDeg = rawStart + fraction * sliceDeg;
+        drawnArcEnd = Math.max(arcStart + 0.2, currentDeg - capDeg);
+      }
 
-    return (
-          <div className="crm-pipeline-widget-root">
-            {/* 1. CARD HEADER */}
-            <div className="pipeline-header">
-              <div>
-                <h2 className="pipeline-title">Pipeline Stages</h2>
-                <p className="pipeline-subtitle">Lead distribution by stage</p>
-              </div>
-              <div className="pipeline-total-badge">
-                <span className="pipeline-total-badge-text">
-                  <AnimatedNumber value={totalLeads} /> total
-                </span>
-              </div>
-            </div>
+      const pathData = describeArc(center, center, radius, arcStart, drawnArcEnd);
+      arcs.push({ stage, isFullCircle: false, pathData });
+
+      currentAngle = rawEnd + gapDeg / 2;
+    }
+
+    return arcs;
+  }, [activeSlices, totalLeads, radius, strokeWidth, center, pipelineCounts, isSettled, prefersReducedMotion, sweepProgress]);
+
+  return (
+    <div className="crm-pipeline-widget-root">
+      {/* 1. CARD HEADER */}
+      <div className="pipeline-header">
+        <div>
+          <h2 className="pipeline-title">Pipeline Stages</h2>
+          <p className="pipeline-subtitle">Lead distribution by stage</p>
+        </div>
+        <div className="pipeline-total-badge">
+          <span className="pipeline-total-badge-text">
+            <AnimatedNumber value={totalLeads} /> total
+          </span>
+        </div>
+      </div>
 
       {/* 2. CARD BODY: CHART (LEFT) & TABLE LEGEND (RIGHT) */}
       <div className="pipeline-body">
@@ -179,25 +233,6 @@ export function LeadLivePipeline({
               aria-label={`Pipeline distribution: ${totalLeads} total leads`}
               role="img"
             >
-              <defs>
-                {/* Clockwise Sweep Mask starting at 12 o'clock (-90deg) */}
-                <mask id={maskId} maskUnits="userSpaceOnUse">
-                  <circle
-                    cx={center}
-                    cy={center}
-                    r={radius}
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth={strokeWidth + 14}
-                    strokeDasharray={`${circumference} ${circumference}`}
-                    strokeDashoffset={isSettled ? 0 : circumference}
-                    strokeLinecap="butt"
-                    transform={`rotate(-90 ${center} ${center})`}
-                    className={isSettled ? "pipeline-mask-settled" : "pipeline-donut-sweep-mask"}
-                  />
-                </mask>
-              </defs>
-
               {/* Neutral background track / placeholder ring */}
               <circle
                 cx={center}
@@ -219,7 +254,7 @@ export function LeadLivePipeline({
                   strokeWidth={strokeWidth}
                   className="pipeline-skeleton-ring"
                 />
-              ) : totalLeads === 0 || sliceArcs.length === 0 ? (
+              ) : totalLeads === 0 || activeSlices.length === 0 ? (
                 <circle
                   cx={center}
                   cy={center}
@@ -230,15 +265,14 @@ export function LeadLivePipeline({
                   className="pipeline-empty-ring"
                 />
               ) : (
-                <g
-                  className="pipeline-slices-group"
-                  mask={isSettled ? undefined : `url(#${maskId})`}
-                >
+                <g className="pipeline-slices-group">
                   {sliceArcs.map(({ stage, isFullCircle, pathData }) => {
                     const isHovered = hoveredStage === stage.key;
                     const strokeW = isHovered ? strokeWidth + 3 : strokeWidth;
 
                     if (isFullCircle) {
+                      const fullProgress = isSettled || prefersReducedMotion ? 1 : sweepProgress;
+                      const strokeDashoffset = circumference * (1 - fullProgress);
                       return (
                         <circle
                           key={stage.key}
@@ -248,7 +282,11 @@ export function LeadLivePipeline({
                           fill="none"
                           stroke={stage.color}
                           strokeWidth={strokeW}
-                          className="pipeline-doughnut-slice dash-animated-pipeline-fill"
+                          strokeLinecap="round"
+                          strokeDasharray={`${circumference} ${circumference}`}
+                          strokeDashoffset={strokeDashoffset}
+                          transform={`rotate(-90 ${center} ${center})`}
+                          className="pipeline-doughnut-slice"
                           style={{
                             cursor: canAccessAllLeads ? "pointer" : "default",
                             transition: "stroke-width 0.2s ease, filter 0.2s ease",
@@ -271,7 +309,7 @@ export function LeadLivePipeline({
                         stroke={stage.color}
                         strokeWidth={strokeW}
                         strokeLinecap="round"
-                        className="pipeline-doughnut-slice dash-animated-pipeline-fill"
+                        className="pipeline-doughnut-slice"
                         style={{
                           cursor: canAccessAllLeads ? "pointer" : "default",
                           transition: "stroke-width 0.2s ease, filter 0.2s ease",
@@ -296,7 +334,7 @@ export function LeadLivePipeline({
                 dominantBaseline="central"
                 className="pipeline-center-count"
               >
-                {isLoading ? "…" : animatedCenterTotal}
+                {animatedCenterTotal}
               </text>
               <text
                 x={center}
@@ -336,7 +374,7 @@ export function LeadLivePipeline({
                   key={stg.key}
                   className={`pipeline-table-row ${canAccessAllLeads ? "is-clickable" : ""} ${isHovered ? "is-active" : ""} ${!isSettled ? "dash-legend-reveal" : ""}`}
                   style={{
-                    "--row-delay": `${260 + idx * 45}ms`,
+                    "--row-delay": `${200 + idx * 40}ms`,
                   } as React.CSSProperties}
                   role={canAccessAllLeads ? "button" : "listitem"}
                   tabIndex={canAccessAllLeads ? 0 : undefined}
@@ -377,7 +415,7 @@ export function LeadLivePipeline({
                       color: hasLeads ? "var(--text-primary, #F8FAFC)" : "var(--text-muted, #64748B)",
                     }}
                   >
-                    <AnimatedNumber value={count} isLoaded={!isLoading} />
+                    {count}
                   </span>
 
                   {/* Share % */}
