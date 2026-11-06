@@ -72,10 +72,10 @@ export default function OrdersClient() {
           <p className="empty-orders-label">YOUR ORDER HISTORY</p>
           <h2>No orders yet</h2>
           <p className="empty-orders-copy">
-            When you purchase a MyLuxCard, its payment, production, delivery, and invoice details will appear here.
+            When you purchase a Zappit NFC card, its payment, production, delivery, and invoice details will appear here.
           </p>
-          <a className="empty-orders-action" href="/#card-configurator">
-            Design your first card <span aria-hidden>→</span>
+          <a className="empty-orders-action" href="/#materials">
+            Choose your NFC card <span aria-hidden>→</span>
           </a>
         </section>
       ) : (

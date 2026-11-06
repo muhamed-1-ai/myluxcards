@@ -8,8 +8,8 @@ export default function PartnerLayout({ children }: { children: React.ReactNode 
       </a>
       <nav aria-label="Main navigation">
         <a href="/">Home</a>
-        <a href="/#featured-categories-section">Shop</a>
-        <a href="/#card-configurator">NFC Cards</a>
+        <a href="/#materials">Cards</a>
+        <a href="/#bundles">Bundles</a>
         <a className="active" href="/partners">Partners</a>
       </nav>
       <div className="partner-main-actions">

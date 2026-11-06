@@ -15,7 +15,19 @@ async function getSessionToken(req: NextRequest) {
 }
 
 export async function middleware(request: NextRequest) {
-  const accountRoute = isAccountRoute(request.nextUrl.pathname);
+  const { pathname } = request.nextUrl;
+
+  // Never intercept static assets, Next.js internal chunks, or API routes
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname === "/favicon.ico" ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|css|js|map|ico|woff|woff2|ttf|eot)$/i.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
+  const accountRoute = isAccountRoute(pathname);
   const session = accountRoute ? await getSessionToken(request) : null;
   if (accountRoute) {
     console.log("[OAuth][TRACE][MIDDLEWARE_CHECK]", { pathname: request.nextUrl.pathname, hasSession: Boolean(session?.userId) });
@@ -151,5 +163,5 @@ function base64url(bytes: Uint8Array) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|map|ico|woff|woff2|ttf|eot)$).*)"],
 };

@@ -24,7 +24,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <p style={{color:"#94a3b8",lineHeight:1.7,fontSize:18}}>{product.description || "Product details are being prepared."}</p>
       <strong style={{display:"block",fontSize:28,margin:"28px 0"}}>{new Intl.NumberFormat("en-IN",{style:"currency",currency:product.currency}).format(price/100)}</strong>
       <p>{product.stock > 0 ? "Available" : "Currently unavailable"}</p>
-      <a href="/#featured-categories-section" style={{display:"inline-block",background:"linear-gradient(135deg, #0066FF, #0057FF)",color:"#ffffff",padding:"13px 18px",borderRadius:8,fontWeight:800,textDecoration:"none"}}>View products</a>
+      <a href="/#materials" style={{display:"inline-block",background:"linear-gradient(135deg, #0066FF, #0057FF)",color:"#ffffff",padding:"13px 18px",borderRadius:8,fontWeight:800,textDecoration:"none"}}>Explore Cards &amp; Bundles</a>
     </article>
   </main>;
 }

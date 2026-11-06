@@ -3,8 +3,8 @@ import LegacyPage from '@/components/layout/LegacyPage';
 import RecoveryRedirect from './RecoveryRedirect';
 
 export const metadata: Metadata = {
-  title: 'Zappit | One Tap. Your Digital World Connected.',
-  description: 'Smart NFC cards, vehicle identification, lost & found solutions, and business tools connected through one powerful platform.',
+  title: 'Zappit | Your business card. Your digital profile. One tap.',
+  description: 'Smart NFC business cards, instant digital profiles, and integrated lead management. Share your contact details with one tap. No app needed.',
 };
 
 const redesignedMarkup = `
@@ -12,44 +12,48 @@ const redesignedMarkup = `
   <!-- Custom Dynamic Cursor -->
   <div id="custom-cursor-ring" class="custom-cursor-ring"></div>
 
-  <!-- Page Loader -->
-  <div class="page-loader" id="page-loader">
-    <div class="loader-spinner"></div>
-    <div class="loader-logo">
-      <img src="/brand/zappit-logo-transparent.png" alt="Zappit logo" class="loader-logo-img" width="140" height="48">
+  <!-- Branded Lightning Page Loader -->
+  <div class="page-loader" id="page-loader" role="status" aria-live="polite">
+    <div class="loader-stage">
+      <div class="loader-ripple" aria-hidden="true"></div>
+      <div class="loader-logo-glow" aria-hidden="true"></div>
+      <svg class="loader-lightning-svg" viewBox="0 0 90 85" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path class="lightning-bolt-branch" d="M 50 34 L 62 45" pathLength="100" />
+        <path class="lightning-bolt-main" d="M 62 2 L 38 30 L 50 34 L 32 60 L 44 63 L 45 85" pathLength="100" />
+      </svg>
+      <div class="loader-logo">
+        <img src="/brand/zappit-logo-transparent.png" alt="Zappit logo" class="loader-logo-img" width="140" height="48" fetchpriority="high">
+      </div>
+      <div class="loader-status-label" id="loader-status-label">Loading Zappit…</div>
     </div>
   </div>
 
-  <!-- Floating Glass Navbar (Reference Design) -->
+  <!-- Floating Glass Navbar -->
   <header class="navbar-wrapper" id="navbar-wrapper">
     <div class="navbar-glow-indicator" id="navbar-scroll-indicator" aria-hidden="true"></div>
     <nav class="navbar" id="main-navbar" aria-label="Main Navigation">
       <div class="navbar-container">
-        <!-- Logo directly on Navbar on Left -->
+        <!-- Logo on Left -->
         <a href="/" class="logo logo-img-link" aria-label="Zappit Home">
           <img src="/brand/zappit-logo-navbar.png" alt="Zappit" class="brand-logo" width="118" height="55" loading="eager" decoding="async">
         </a>
         
-        <!-- Navigation items grouped inside one light-grey rounded capsule in Center -->
+        <!-- Navigation Menu in Center -->
         <ul class="nav-menu" id="nav-menu">
-          <li><a href="/" class="nav-link active">Home</a></li>
-          <li><a href="#materials" class="nav-link">Materials</a></li>
-          <li><a href="#profile-experience" class="nav-link">Digital Profile</a></li>
-          <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
-          <li><a href="#bundles" class="nav-link">Bundles</a></li>
+          <li><a href="/" class="nav-link active" id="nav-home-link" aria-current="page">Home</a></li>
+          <li><a href="#materials" class="nav-link" id="nav-materials-link">Cards</a></li>
+          <li><a href="#profile-experience" class="nav-link" id="nav-profile-link">Digital Profile</a></li>
+          <li><a href="#crm-workspace" class="nav-link" id="nav-crm-link">CRM Software</a></li>
+          <li><a href="#how-it-works" class="nav-link" id="nav-steps-link">How It Works</a></li>
+          <li><a href="#bundles" class="nav-link" id="nav-bundles-link">Bundles</a></li>
+          <li><a href="#faq" class="nav-link" id="nav-faq-link">FAQ</a></li>
           <li class="nav-dashboard-link"><a href="/dashboard" class="nav-link">Dashboard</a></li>
         </ul>
         
-        <!-- Properly Separated Controls on Right -->
+        <!-- Controls on Right -->
         <div class="nav-actions">
-          <!-- Wishlist Trigger with Dynamic Badge -->
-          <button class="btn-icon" id="wishlist-trigger" type="button" title="Wishlist" aria-label="Open wishlist">
-            <i data-lucide="heart" style="width: 17px; height: 17px;"></i>
-            <span class="badge-count wishlist-count-badge">0</span>
-          </button>
-          
           <!-- Shopping Bag Trigger with Dynamic Badge -->
-          <button class="btn-icon" id="cart-trigger" type="button" title="Shopping Cart" aria-label="Open shopping cart">
+          <button class="btn-icon" id="cart-trigger" type="button" title="Shopping Cart" aria-label="Open shopping cart" aria-haspopup="dialog" aria-controls="cart-drawer">
             <i data-lucide="shopping-bag" style="width: 17px; height: 17px;"></i>
             <span class="badge-count cart-count-badge">0</span>
           </button>
@@ -68,7 +72,7 @@ const redesignedMarkup = `
           </div>
 
           <!-- Primary Blue CTA -->
-          <a class="nav-design-cta" id="nav-design-cta" href="#bundles">Get Your Card</a>
+          <a class="nav-design-cta" id="nav-design-cta" href="#materials">Choose Your Card</a>
           
           <!-- Hamburger Button for Mobile -->
           <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu" aria-controls="nav-menu" aria-expanded="false">
@@ -89,30 +93,30 @@ const redesignedMarkup = `
         <div class="hero-content-col">
           <span class="hero-eyebrow">Zappit Smart Tap Solutions</span>
           <h1 class="hero-headline" id="hero-title">
-            One Tap.<br>
-            Your Digital<br>
-            World<br>
-            <span class="hero-headline-accent">Connected.</span>
+            Your business card.<br>
+            Your digital profile.<br>
+            <span class="hero-headline-accent">One tap.</span>
           </h1>
           <p class="hero-subtitle">
-            Smart NFC cards, vehicle identification, lost &amp; found solutions, and business tools connected through one powerful platform.
+            Share your contact details, social links, and services instantly. No app needed.
           </p>
 
           <div class="hero-cta-group">
-            <a href="#bundles" class="apple-btn apple-btn-primary">Get Your Card</a>
+            <a href="#materials" class="apple-btn apple-btn-primary">Choose Your Card</a>
+            <button class="apple-btn apple-btn-glass" id="hero-live-demo-btn" type="button">Try a Live Profile</button>
           </div>
         </div>
 
         <!-- Right Product Visual Column (~48%) -->
         <div class="hero-visual-col">
-          <div class="nfc-card-scene" aria-label="Two overlapping Zappit NFC smart cards">
+          <div class="nfc-card-scene" aria-label="Zappit NFC smart cards demonstration">
             <!-- Rear Card (Tilted slightly back-right, elevated) -->
             <div class="nfc-card nfc-card-back" aria-hidden="true">
               <div class="nfc-card-shine"></div>
               <div class="nfc-card-top-row">
                 <div class="nfc-card-identity">
-                  <div class="nfc-card-name">Your Name</div>
-                  <div class="nfc-card-subtitle">Sub Heading</div>
+                  <div class="nfc-card-name">Alex Morgan</div>
+                  <div class="nfc-card-subtitle">Apex Creative Studio</div>
                 </div>
                 <div class="nfc-nfc-icon-top">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -146,8 +150,8 @@ const redesignedMarkup = `
               </div>
             </div>
 
-            <!-- Front Card (Lower, left-shifted, overlapping with z-index: 2, interactive tap card) -->
-            <button class="nfc-card nfc-card-front tap-card" id="tap-card" type="button" aria-label="Simulate tapping Zappit NFC card">
+            <!-- Front Card (Lower, left-shifted, interactive tap card) -->
+            <button class="nfc-card nfc-card-front tap-card" id="tap-card" type="button" aria-label="Click or tap to preview digital profile" title="Click to test live profile demonstration">
               <div class="nfc-card-shine"></div>
               
               <!-- Top Row: Zappit Brand & NFC Icon -->
@@ -178,8 +182,8 @@ const redesignedMarkup = `
               <!-- Bottom Row: Name, Title & Microchip -->
               <div class="nfc-card-bottom-row">
                 <div class="nfc-card-person">
-                  <div class="nfc-card-name">Your Name</div>
-                  <div class="nfc-card-subtitle">CEO &amp; Founder</div>
+                  <div class="nfc-card-name">Alex Morgan</div>
+                  <div class="nfc-card-subtitle">Founder &amp; Managing Director</div>
                 </div>
                 
                 <div class="nfc-chip-icon" aria-hidden="true">
@@ -195,6 +199,12 @@ const redesignedMarkup = `
                   </svg>
                 </div>
               </div>
+
+              <!-- Discoverable Tap Hint -->
+              <span class="card-tap-hint">
+                <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i>
+                Tap or click to preview live profile
+              </span>
             </button>
           </div>
         </div>
@@ -239,7 +249,7 @@ const redesignedMarkup = `
             <i data-lucide="shield-check"></i>
           </div>
           <h3>Dual-Layer Connection</h3>
-          <p>Every card features an NFC antenna paired with a high-contrast QR code backup for broad smartphone compatibility.</p>
+          <p>Every card features an NFC antenna paired with a high-contrast QR code backup for complete smartphone compatibility.</p>
         </article>
 
         <article class="trust-card">
@@ -265,40 +275,52 @@ const redesignedMarkup = `
   <section class="apple-materials" id="materials" aria-labelledby="materials-title">
     <div class="container">
       <div class="section-intro">
-        <span class="section-eyebrow">Precision Engineering</span>
+        <span class="section-eyebrow">Card Finishes</span>
         <h2 class="section-title" id="materials-title">Crafted for presence. Finished with restraint.</h2>
-        <p class="section-desc">Two distinct tactile materials designed to feel substantial, durable, and unmistakably premium in any professional exchange.</p>
+        <p class="section-desc">Two durable PVC card finishes built to make an impression. Both cards feature embedded NTAG216 NFC chips and high-contrast QR backups.</p>
       </div>
 
       <div class="materials-grid">
         <!-- Matte Black PVC -->
-        <article class="material-card">
+        <article class="material-card is-selected" id="card-finish-black" data-finish="black">
           <div class="material-img-wrap">
             <img src="/assets/black-pvc-card.jpg" alt="Zappit Velvet Matte Black PVC smart card" class="material-img" loading="lazy">
           </div>
           <div class="material-body">
-            <span class="material-badge">Matte Finish</span>
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+              <span class="material-badge">Matte Finish</span>
+              <span class="material-selected-pill" id="badge-selected-black"><i data-lucide="check" style="width: 13px; height: 13px;"></i> Selected Finish</span>
+            </div>
             <h3>Velvet Matte Black PVC</h3>
-            <p>Deep obsidian polymer treated with a soft-touch matte finish and chamfered edges. Water-resistant, durable, and equipped with an embedded high-speed NFC antenna.</p>
+            <p>Durable matte PVC with a smooth, glare-free black finish. Water-resistant, sturdy, and embedded with a high-speed NTAG216 NFC chip and high-contrast QR backup.</p>
             <div class="material-footer">
-              <div class="material-price">₹1,199 <small>incl. 1-year profile</small></div>
-              <a href="#bundles" class="apple-btn apple-btn-glass">Choose Black</a>
+              <div class="material-price">₹1,999 <small>incl. 1-year profile hosting</small></div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="apple-btn apple-btn-primary" id="btn-choose-black" data-select-finish="black">Choose Black</button>
+                <button type="button" class="apple-btn apple-btn-glass" data-add-to-cart="black" title="Add Velvet Matte Black PVC to cart">Add to Cart</button>
+              </div>
             </div>
           </div>
         </article>
 
-        <!-- Minimalist White PVC -->
-        <article class="material-card">
+        <!-- Minimalist Ceramic White PVC -->
+        <article class="material-card" id="card-finish-white" data-finish="white">
           <div class="material-img-wrap">
-            <img src="/assets/white-pvc-card.jpg" alt="Zappit Minimalist Ceramic White PVC smart card" class="material-img" loading="lazy">
+            <img src="/assets/white-pvc-card.jpg" alt="Zappit Ceramic White PVC smart card" class="material-img" loading="lazy">
           </div>
           <div class="material-body">
-            <span class="material-badge">Minimalist</span>
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+              <span class="material-badge">Clean Gloss Finish</span>
+              <span class="material-selected-pill" id="badge-selected-white" style="display: none;"><i data-lucide="check" style="width: 13px; height: 13px;"></i> Selected Finish</span>
+            </div>
             <h3>Ceramic White PVC</h3>
-            <p>Pristine ceramic white aesthetic with laser-precise typography and ultra-durable composite core. Clean, architectural, and timeless in every setting.</p>
+            <p>Durable white PVC with a clean gloss ceramic-look finish. Resilient, water-resistant, and printed with crisp high-contrast typography and QR code backup.</p>
             <div class="material-footer">
-              <div class="material-price">₹999 <small>incl. 1-year profile</small></div>
-              <a href="#bundles" class="apple-btn apple-btn-glass">Choose White</a>
+              <div class="material-price">₹1,999 <small>incl. 1-year profile hosting</small></div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="apple-btn apple-btn-glass" id="btn-choose-white" data-select-finish="white">Choose White</button>
+                <button type="button" class="apple-btn apple-btn-glass" data-add-to-cart="white" title="Add Ceramic White PVC to cart">Add to Cart</button>
+              </div>
             </div>
           </div>
         </article>
@@ -306,15 +328,16 @@ const redesignedMarkup = `
     </div>
   </section>
 
-  <!-- Digital Profile Experience -->
+  <!-- Digital Profile Section -->
   <section class="apple-experience" id="profile-experience" aria-labelledby="experience-title">
     <div class="container">
       <div class="section-intro">
-        <span class="section-eyebrow">The Digital Ecosystem</span>
-        <h2 class="section-title" id="experience-title">More than a business card. Your complete presence.</h2>
-        <p class="section-desc">Turn a single tap into permanent client relationships, booked appointments, and immediate customer conversations.</p>
+        <span class="section-eyebrow">Digital Profile</span>
+        <h2 class="section-title" id="experience-title">Your complete digital presence in one tap.</h2>
+        <p class="section-desc">Instantly share your contact details, portfolio, and social channels without requiring the recipient to install any application.</p>
       </div>
 
+      <!-- Bento Features -->
       <div class="experience-bento">
         <!-- Contact Save -->
         <article class="bento-card">
@@ -364,6 +387,106 @@ const redesignedMarkup = `
     </div>
   </section>
 
+  <!-- Show the Software: CRM Lead Management Section -->
+  <section class="apple-experience" id="crm-workspace" aria-labelledby="crm-title" style="padding-top: 20px;">
+    <div class="container">
+      <div class="section-intro">
+        <span class="section-eyebrow">Lead Management mini-CRM</span>
+        <h2 class="section-title" id="crm-title">Turn conversations into tracked pipeline revenue.</h2>
+        <p class="section-desc">A centralized workspace to capture, follow up, and close opportunities generated from your digital business card.</p>
+      </div>
+
+      <!-- CRM Preview Controls Toolbar with Light / Dark Switch -->
+      <div class="crm-preview-toolbar">
+        <span class="crm-preview-tag">
+          <span class="crm-preview-tag-dot" aria-hidden="true"></span>
+          Real Workspace Preview
+        </span>
+        <div class="crm-preview-theme-switch" role="group" aria-label="Dashboard preview theme">
+          <button
+            type="button"
+            id="crm-theme-dark-btn"
+            class="crm-theme-btn active"
+            data-theme-val="dark"
+            aria-pressed="true"
+            aria-label="View CRM dashboard preview in Dark Mode"
+            onclick="(function(){var c=document.getElementById('crm-preview-card');if(c){c.setAttribute('data-preview-theme','dark');document.querySelectorAll('.crm-theme-btn').forEach(function(b){var isD=b.getAttribute('data-theme-val')==='dark';b.classList.toggle('active',isD);b.setAttribute('aria-pressed',isD?'true':'false');});try{sessionStorage.setItem('zappit_crm_preview_mode','dark');}catch(e){}}})()"
+          >
+            <svg class="crm-theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <span>Dark</span>
+          </button>
+          <button
+            type="button"
+            id="crm-theme-light-btn"
+            class="crm-theme-btn"
+            data-theme-val="light"
+            aria-pressed="false"
+            aria-label="View CRM dashboard preview in Light Mode"
+            onclick="(function(){var c=document.getElementById('crm-preview-card');if(c){c.setAttribute('data-preview-theme','light');document.querySelectorAll('.crm-theme-btn').forEach(function(b){var isL=b.getAttribute('data-theme-val')==='light';b.classList.toggle('active',isL);b.setAttribute('aria-pressed',isL?'true':'false');});try{sessionStorage.setItem('zappit_crm_preview_mode','light');}catch(e){}}})()"
+          >
+            <svg class="crm-theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <span>Light</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- High Fidelity CRM UI Preview (Actual Dashboard Screenshot Frame) -->
+      <figure class="crm-preview-card" id="crm-preview-card" data-preview-theme="dark" style="margin: 0 0 36px 0; padding: 0; border-radius: 16px; overflow: hidden; display: block;">
+        <div class="crm-preview-image-wrap" style="position: relative; width: 100%; aspect-ratio: 1024 / 519; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+          <img
+            src="/assets/crm-dashboard-dark.png"
+            alt="Zappit CRM dashboard dark mode preview showing KPI cards, daily follow-up capacity, growth velocity chart, and pipeline stages distribution"
+            width="1024"
+            height="519"
+            loading="eager"
+            decoding="async"
+            class="crm-preview-img crm-preview-img-dark"
+          />
+          <img
+            src="/assets/crm-dashboard-light.png"
+            alt="Zappit CRM dashboard light mode preview showing KPI cards, daily follow-up capacity, growth velocity chart, and pipeline stages distribution"
+            width="1024"
+            height="519"
+            loading="eager"
+            decoding="async"
+            class="crm-preview-img crm-preview-img-light"
+          />
+        </div>
+        <figcaption class="crm-preview-caption" id="crm-preview-caption">
+          Zappit CRM dashboard preview
+        </figcaption>
+      </figure>
+
+      <!-- Ethical Voluntary Capture Explanation -->
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 16px; padding: 24px; display: flex; gap: 18px; align-items: flex-start;">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(0, 102, 255, 0.1); color: var(--apple-blue); display: grid; place-items: center; flex-shrink: 0;">
+          <i data-lucide="shield-check" style="width: 22px; height: 22px;"></i>
+        </div>
+        <div>
+          <h4 style="font-size: 1.05rem; font-weight: 700; color: #0F172A; margin: 0 0 6px 0;">Ethical &amp; Voluntary Lead Capture</h4>
+          <p style="font-size: 0.925rem; color: #526176; margin: 0; line-height: 1.6;">
+            <strong>How taps become leads:</strong> When a recipient views your digital profile, they can tap the <em>Share Details</em> button to voluntarily submit their name, phone number, and requirements. Those details are instantly organized in your Zappit CRM workspace with source attribution.
+          </p>
+          <small style="display: block; margin-top: 8px; color: #64748B; font-size: 0.8rem;">
+            *Privacy guarantee: NFC cards do not silently capture or scrape private phone data without the visitor's explicit action and consent.
+          </small>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- How It Works (3 Clear Steps) -->
   <section class="apple-steps" id="how-it-works" aria-labelledby="steps-title">
     <div class="container">
@@ -376,26 +499,24 @@ const redesignedMarkup = `
       <div class="steps-grid">
         <article class="step-item">
           <span class="step-number">01</span>
-          <h3>Choose your card</h3>
-          <p>Select your card material (Matte Black or Ceramic White PVC), place your order, and receive your card delivered ready to tap.</p>
+          <h3>Choose your card finish</h3>
+          <p>Select your card finish (Velvet Matte Black or Ceramic White PVC), place your order, and receive your card delivered ready to tap.</p>
         </article>
 
         <article class="step-item">
           <span class="step-number">02</span>
           <h3>Build your profile</h3>
-          <p>Sign in to your Zappit Dashboard to add contact numbers, social links, portfolio images, and custom action buttons.</p>
+          <p>Sign in to your Zappit Dashboard to add contact numbers, social links, services, portfolio images, and custom action buttons.</p>
         </article>
 
         <article class="step-item">
           <span class="step-number">03</span>
-          <h3>Tap, share & connect</h3>
+          <h3>Tap, share &amp; connect</h3>
           <p>Hold your card to any compatible iPhone or Android. Your digital profile opens instantly in their browser with zero app installation.</p>
         </article>
       </div>
     </div>
   </section>
-
-
 
   <!-- Two-Bundle Comparison Section -->
   <section class="apple-bundles" id="bundles" aria-labelledby="bundles-title">
@@ -406,9 +527,22 @@ const redesignedMarkup = `
         <p class="section-desc">Choose our core smart NFC card with standard profile software, or upgrade to complete Lead Management to turn taps into tracked business revenue.</p>
       </div>
 
+      <!-- Finish Switcher Bar -->
+      <div class="bundles-finish-bar" aria-label="Choose card finish for bundle">
+        <span class="bundles-finish-label">Selected Card Finish:</span>
+        <button type="button" class="finish-toggle-btn is-active" id="bundle-toggle-black" data-select-finish="black">
+          <span class="finish-color-dot dot-black"></span>
+          <span>Velvet Matte Black PVC</span>
+        </button>
+        <button type="button" class="finish-toggle-btn" id="bundle-toggle-white" data-select-finish="white">
+          <span class="finish-color-dot dot-white"></span>
+          <span>Ceramic White PVC</span>
+        </button>
+      </div>
+
       <div class="bundles-container">
         <!-- Bundle 1: NFC Card + Software -->
-        <article class="bundle-card">
+        <article class="bundle-card" id="bundle-standard-card">
           <div class="bundle-card-header">
             <span class="bundle-kicker">Standard Bundle</span>
             <h3 class="bundle-title">NFC Card + Software</h3>
@@ -417,8 +551,8 @@ const redesignedMarkup = `
             <div class="bundle-price-block">
               <div class="bundle-price-row">
                 <span class="bundle-currency">₹</span>
-                <span class="bundle-price">999</span>
-                <span class="bundle-price-term">onwards</span>
+                <span class="bundle-price" id="price-bundle-standard">1,999</span>
+                <span class="bundle-price-term" id="term-bundle-standard">for Matte Black PVC</span>
               </div>
               <div class="bundle-billing-type">One-time hardware purchase</div>
               <p class="bundle-billing-detail">Includes 1-year digital profile hosting. Annual renewal at ₹499/year. No app required.</p>
@@ -432,7 +566,7 @@ const redesignedMarkup = `
             <ul class="bundle-feature-list">
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Custom double-sided NFC smart card (White or Matte Black PVC)</span>
+                <span id="card-feature-finish-label">Custom NFC smart card (Velvet Matte Black PVC)</span>
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
@@ -444,7 +578,7 @@ const redesignedMarkup = `
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Social links, direct WhatsApp link, and profile bio</span>
+                <span>Social links, direct WhatsApp chat link, and profile bio</span>
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
@@ -454,25 +588,25 @@ const redesignedMarkup = `
           </div>
 
           <div class="bundle-card-footer">
-            <a href="/support?topic=billing&bundle=nfc-card" class="bundle-btn bundle-btn-secondary" id="btn-bundle-standard">Get NFC Bundle</a>
+            <button type="button" class="bundle-btn bundle-btn-primary" id="btn-cart-standard" data-add-bundle-cart="standard" style="width: 100%;">Add Standard to Cart</button>
           </div>
         </article>
 
         <!-- Bundle 2: NFC Card + Lead Management -->
-        <article class="bundle-card bundle-featured">
+        <article class="bundle-card bundle-featured" id="bundle-crm-card">
           <div class="bundle-card-header">
             <div class="bundle-badge-wrapper">
-              <span class="bundle-badge">Includes Lead Management</span>
+              <span class="bundle-badge">Includes Full CRM Workspace</span>
             </div>
             <h3 class="bundle-title">NFC Card + Lead Management</h3>
-            <p class="bundle-desc">Everything in the NFC Card + Software bundle, plus our complete Lead Management mini-CRM to capture, track, and close deals.</p>
+            <p class="bundle-desc">Everything in the Standard bundle, plus our complete Lead Management mini-CRM to capture, track, and close deals.</p>
             
             <div class="bundle-price-block">
               <div class="bundle-price-row">
                 <span class="bundle-currency">₹</span>
-                <span class="bundle-price">1,999</span>
+                <span class="bundle-price" id="price-bundle-crm">2,999</span>
                 <span class="bundle-period">/year</span>
-                <span class="bundle-price-term">onwards</span>
+                <span class="bundle-price-term" id="term-bundle-crm">for Matte Black PVC</span>
               </div>
               <div class="bundle-billing-type">Yearly Plan · Billed Annually</div>
               <p class="bundle-billing-detail">Includes smart NFC card + 1 year of Lead Management CRM access. No app required.</p>
@@ -490,6 +624,10 @@ const redesignedMarkup = `
               </li>
               <li>
                 <i data-lucide="check" class="bundle-check-icon"></i>
+                <span>Voluntary lead capture when profile visitors tap "Share Details"</span>
+              </li>
+              <li>
+                <i data-lucide="check" class="bundle-check-icon"></i>
                 <span>Lead acquisition source attribution &amp; performance tracking</span>
               </li>
               <li>
@@ -504,28 +642,125 @@ const redesignedMarkup = `
                 <i data-lucide="check" class="bundle-check-icon"></i>
                 <span>Dynamic custom fields builder for tailored lead capture</span>
               </li>
-              <li>
-                <i data-lucide="check" class="bundle-check-icon"></i>
-                <span>Loss of Business (LOB) reason analytics &amp; pipeline reporting</span>
-              </li>
             </ul>
           </div>
 
           <div class="bundle-card-footer">
-            <a href="/support?topic=billing&bundle=lead-management" class="bundle-btn bundle-btn-primary" id="btn-bundle-leads">Get Lead Management Bundle</a>
+            <button type="button" class="bundle-btn bundle-btn-primary" id="btn-cart-crm" data-add-bundle-cart="crm" style="width: 100%;">Add CRM Bundle to Cart</button>
           </div>
         </article>
       </div>
     </div>
   </section>
 
+  <!-- Practical Verified FAQ Section -->
+  <section class="apple-faq" id="faq" aria-labelledby="faq-title">
+    <div class="container">
+      <div class="section-intro">
+        <span class="section-eyebrow">Clear Answers</span>
+        <h2 class="section-title" id="faq-title">Frequently Asked Questions</h2>
+        <p class="section-desc">Practical details about phone compatibility, ordering, delivery, and profile renewals.</p>
+      </div>
+
+      <div class="faq-grid" id="faq-accordion">
+        <!-- FAQ 1 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-1">
+            <span>Which smartphones are compatible with Zappit cards?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-1">
+            Zappit cards work natively with all modern iPhones (iPhone 7 and newer; background tag reading is supported natively on iPhone XS, XR, 11, 12, 13, 14, 15, and 16 running iOS 14+) and all NFC-enabled Android devices. For older smartphones or devices with NFC disabled, every Zappit card includes a high-contrast QR code on the back that works with any smartphone camera.
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-2">
+            <span>Does the recipient need to install an app or create an account?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-2">
+            No. The recipient does not need to download an app or create an account. When they tap your card or scan the QR code, your digital profile opens directly in their default mobile browser (Safari, Chrome, etc.). They can save your contact details or start a chat immediately.
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-3">
+            <span>How do I update my profile details after purchasing?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-3">
+            You can sign in to your Zappit web dashboard from any computer or mobile browser to update your phone numbers, title, bio, social links, company information, or catalogue at any time. Changes sync to the cloud instantly — your physical card never needs to be re-encoded or replaced.
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-4">
+            <span>How does card customization and ordering work?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-4">
+            First, choose your finish (Velvet Matte Black PVC or Ceramic White PVC) and select either the Standard or Lead Management bundle. Add it to your cart and complete checkout securely. Our team will verify your requirements, confirm personalization details, and program the high-speed NTAG216 chip before shipping your card ready to tap.
+          </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-5">
+            <span>What are the shipping and delivery terms?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-5">
+            Personalised cards enter production and encoding once your order and details are confirmed. Production and delivery estimates are provided on your order page. Address changes must be submitted to support prior to dispatch, as addresses cannot be modified once a parcel has left our facility.
+          </div>
+        </div>
+
+        <!-- FAQ 6 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-6">
+            <span>How does annual renewal work, and what happens after expiry?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-6">
+            The physical smart card is a one-time hardware purchase that you own permanently. The Standard bundle includes 1 year of digital profile hosting (annual profile renewal is ₹499/year). If a profile expires, your physical card remains yours, and your profile can be reactivated anytime upon renewal without needing a new card. The CRM bundle is billed annually and includes ongoing CRM workspace access.
+          </div>
+        </div>
+
+        <!-- FAQ 7 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-7">
+            <span>What happens if my card is lost or physically damaged?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-7">
+            Because your digital profile lives securely in the Zappit cloud, your data, contacts, and settings are never lost. If your physical card is lost or damaged, you can order a replacement card from your dashboard and link it to your existing profile in one click.
+          </div>
+        </div>
+
+        <!-- FAQ 8 -->
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-8">
+            <span>What is the difference between the Standard and CRM bundles?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </button>
+          <div class="faq-answer" id="faq-ans-8">
+            The Standard bundle (₹1,999) includes the physical smart NFC card and 1 year of digital profile hosting, featuring 1-tap .vcf contact downloads, WhatsApp chat, and social links. The Lead Management bundle (₹2,999/year) adds our complete CRM workspace, capturing voluntarily submitted visitor contact details, tracking lead acquisition sources (NFC Tap vs. QR Scan), scheduling follow-ups with reminders, and managing deals through pipeline stages.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Final Call to Action -->
-  <section class="apple-final-cta" aria-labelledby="cta-headline">
+  <section class="apple-final-cta" id="final-cta" aria-labelledby="cta-headline">
     <div class="final-cta-container">
       <h2 class="final-cta-headline" id="cta-headline">Make an impression that lasts.</h2>
       <p class="final-cta-desc">Engineered with durable PVC polymer materials and high-speed NFC technology. Delivered ready to tap.</p>
       <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-        <a href="#bundles" class="apple-btn apple-btn-primary" style="font-size: 1.05rem; padding: 16px 36px;">Get Started</a>
+        <a href="#materials" class="apple-btn apple-btn-primary" style="font-size: 1.05rem; padding: 16px 36px;">Choose Your Card</a>
         <a href="/dashboard" class="apple-btn apple-btn-glass" style="font-size: 1.05rem; padding: 16px 36px;">Open Dashboard</a>
       </div>
     </div>
@@ -545,6 +780,7 @@ const redesignedMarkup = `
           <ul class="footer-links">
             <li><a href="#materials">NFC Business Cards</a></li>
             <li><a href="#bundles">Software Bundles</a></li>
+            <li><a href="#crm-workspace">Lead Management CRM</a></li>
             <li><a href="/partners">Partners Programme</a></li>
           </ul>
         </div>
@@ -586,31 +822,21 @@ const redesignedMarkup = `
   </footer>
 
   <!-- Drawer Overlay -->
-  <div class="drawer-overlay" id="drawer-overlay"></div>
-
-  <!-- Wishlist Drawer -->
-  <div class="drawer glass-solid" id="wishlist-drawer">
-    <div class="drawer-header">
-      <h3>My Wishlist (<span class="wishlist-count-badge">0</span>)</h3>
-      <button class="drawer-close" type="button" aria-label="Close wishlist panel"><i data-lucide="x"></i></button>
-    </div>
-    <div class="drawer-body" id="wishlist-items"></div>
-    <div class="drawer-footer">
-      <button class="apple-btn apple-btn-primary" onclick="document.querySelector('#bundles')?.scrollIntoView({behavior: 'smooth'}); document.querySelector('#wishlist-drawer .drawer-close')?.click();" style="width: 100%;">Explore Bundles</button>
-    </div>
-  </div>
+  <div class="drawer-overlay" id="drawer-overlay" aria-hidden="true"></div>
 
   <!-- Cart Drawer -->
-  <div class="drawer glass-solid" id="cart-drawer">
+  <div class="drawer glass-solid" id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title">
     <div class="drawer-header">
-      <h3>My Cart (<span class="cart-count-badge">0</span>)</h3>
+      <h3 id="cart-drawer-title">My Cart (<span class="cart-count-badge">0</span>)</h3>
       <button class="drawer-close" type="button" aria-label="Close shopping cart panel"><i data-lucide="x"></i></button>
     </div>
-    <div class="drawer-body" id="cart-items"></div>
+    <div class="drawer-body" id="cart-items">
+      <!-- Populated via Javascript -->
+    </div>
     <div class="drawer-footer">
       <div class="drawer-total" style="display: flex; justify-content: space-between; margin-bottom: 16px; font-weight: 700; font-size: 1.15rem;">
         <span>Total:</span>
-        <span id="cart-total-price">&#8377;0</span>
+        <span id="cart-total-price">₹0</span>
       </div>
       <button class="apple-btn apple-btn-primary" id="checkout-trigger" type="button" style="width: 100%;">Continue to Payment</button>
     </div>
@@ -685,6 +911,76 @@ const redesignedMarkup = `
 
         <button class="apple-btn apple-btn-primary" id="checkout-submit" type="submit" style="width: 100%; margin-top: 24px; padding: 14px;">Place Order Securely</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Interactive Live Sample Profile Modal -->
+  <div class="modal-overlay" id="live-demo-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="live-demo-title">
+    <div class="modal-card glass-solid" style="max-width: 480px !important; padding: 24px 20px !important;">
+      <button class="modal-close" type="button" id="close-live-demo-btn" aria-label="Close live profile demo">
+        <i data-lucide="x"></i>
+      </button>
+
+      <div style="text-align: center; margin-bottom: 16px;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--apple-blue); text-transform: uppercase; letter-spacing: 0.05em;">Interactive Demonstration</span>
+        <h3 id="live-demo-title" style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 4px 0;">Zappit Digital Profile Experience</h3>
+        <p style="font-size: 0.825rem; color: #64748B; margin: 0;">This is exactly what opens when someone taps your Zappit smart card.</p>
+      </div>
+
+      <div class="phone-mockup-wrapper" style="box-shadow: none; border-width: 6px; max-width: 100%;">
+        <div class="phone-mockup-speaker"></div>
+        <div class="phone-mockup-screen">
+          <!-- Profile Header -->
+          <div style="text-align: center; padding: 12px 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #0066FF, #00E5FF); margin: 0 auto 10px auto; display: grid; place-items: center; font-size: 1.5rem; font-weight: 800; color: #FFF; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.4);">
+              AM
+            </div>
+            <h4 style="font-size: 1.2rem; font-weight: 800; margin: 0 0 2px 0; color: #FFFFFF;">Alex Morgan</h4>
+            <p style="font-size: 0.825rem; color: #94A3B8; margin: 0 0 4px 0; font-weight: 500;">Founder &amp; Managing Director</p>
+            <span style="display: inline-block; font-size: 0.75rem; color: #00E5FF; font-weight: 600;">Apex Creative Studio</span>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0;">
+            <button type="button" class="demo-phone-action" id="modal-demo-vcard" style="padding: 10px; border-radius: 10px; background: #0066FF; color: #FFF; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
+              Save Contact (.vcf)
+            </button>
+            <button type="button" class="demo-phone-action" id="modal-demo-whatsapp" style="padding: 10px; border-radius: 10px; background: #10B981; color: #FFF; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <i data-lucide="message-circle" style="width: 14px; height: 14px;"></i>
+              WhatsApp Chat
+            </button>
+          </div>
+
+          <!-- Contact Info Tiles -->
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
+              <i data-lucide="phone" style="width: 15px; height: 15px; color: #00E5FF;"></i>
+              <span>+91 98765 00123</span>
+            </div>
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
+              <i data-lucide="mail" style="width: 15px; height: 15px; color: #00E5FF;"></i>
+              <span>alex@apexcreativestudio.com</span>
+            </div>
+            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
+              <i data-lucide="globe" style="width: 15px; height: 15px; color: #00E5FF;"></i>
+              <span>apexcreativestudio.com</span>
+            </div>
+          </div>
+
+          <!-- Voluntary Share Details Lead Trigger -->
+          <button type="button" class="demo-phone-action" id="modal-demo-share-details" style="width: 100%; padding: 11px; border-radius: 10px; background: rgba(0, 102, 255, 0.2); border: 1px solid rgba(0, 229, 255, 0.4); color: #00E5FF; font-size: 0.825rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i data-lucide="send" style="width: 15px; height: 15px;"></i>
+            Exchange Contact (Share Details)
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; text-align: center;">
+        <button type="button" class="apple-btn apple-btn-primary" onclick="document.getElementById('live-demo-modal')?.classList.remove('open'); document.querySelector('#materials')?.scrollIntoView({behavior: 'smooth'});" style="width: 100%;">
+          Choose Your Card Now
+        </button>
+      </div>
     </div>
   </div>
 
@@ -851,31 +1147,11 @@ const redesignedMarkup = `
     </div>
   </div>
 
-  <!-- Forgot Password Modal -->
-  <div class="modal-overlay" id="forgot-password-modal" aria-hidden="true">
-    <div class="modal-card glass-solid" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
-      <button class="modal-close" type="button" aria-label="Close forgot password"><i data-lucide="x"></i></button>
-      <div class="modal-header">
-        <h3 id="forgot-password-title">Reset your password</h3>
-        <p>We'll email you a secure link to choose a new password.</p>
-      </div>
-      <form id="forgot-password-form">
-        <div class="form-group">
-          <label for="forgot-password-email">Email Address</label>
-          <input type="email" id="forgot-password-email" required autocomplete="email" placeholder="name@domain.com">
-        </div>
-        <small class="form-error" id="forgot-password-error" role="alert"></small>
-        <button class="apple-btn apple-btn-primary" type="submit" style="width:100%">Send reset link</button>
-      </form>
-      <div class="modal-footer"><p><a href="#" id="forgot-back-to-login">Back to login</a></p></div>
-    </div>
-  </div>
-
   <!-- Toast Alerts Container -->
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Sticky Mobile Action Pill -->
-  <a class="mobile-design-cta" href="#bundles">Get Your Card</a>
+  <a class="mobile-design-cta" href="#materials">Choose Your Card</a>
 </div>
 `;
 

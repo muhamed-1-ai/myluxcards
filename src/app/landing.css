@@ -17,7 +17,7 @@
   --apple-surface-elevated: #FFFFFF;
   --apple-surface-glass: rgba(255, 255, 255, 0.88);
   --apple-surface-card: #FFFFFF;
-  
+
   --apple-border: #E5EAF2;
   --apple-border-subtle: #EDF2F7;
   --apple-border-strong: #CBD5E1;
@@ -25,7 +25,7 @@
   --apple-text-primary: #111827;
   --apple-text-secondary: #526176;
   --apple-text-tertiary: #64748B;
-  
+
   --apple-blue: #0066FF;
   --apple-blue-hover: #0052CC;
   --apple-blue-active: #0047B3;
@@ -95,43 +95,396 @@ body:has(.landing-page) {
   box-sizing: border-box;
 }
 
-/* Page Loader */
+/* ==========================================================================
+   BRANDED LIGHTNING PAGE LOADER (Homepage Initial Loading State)
+   ========================================================================== */
+.landing-page #page-loader,
 .landing-page .page-loader {
   position: fixed;
   inset: 0;
-  background: #FFFFFF;
+  width: 100vw;
+  height: 100vh;
   z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  background-color: #08090B;
+  color: #F8FAFC;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.35s ease;
+  will-change: opacity, visibility;
+}
+
+/* Dark Mode (Near-black with electric-blue accent) */
+html[data-theme="dark"] .landing-page #page-loader,
+html.dark .landing-page #page-loader,
+body.dark-mode .landing-page #page-loader {
+  background-color: #07090E !important;
+  background-image: radial-gradient(circle at 50% 50%, rgba(0, 102, 255, 0.08) 0%, rgba(7, 9, 14, 1) 75%) !important;
+  color: #F8FAFC !important;
+}
+
+/* Light Mode (Pale blue-white with deeper blue accent) */
+html[data-theme="light"] .landing-page #page-loader,
+html.light .landing-page #page-loader,
+body.light-mode .landing-page #page-loader {
+  background-color: #F8FAFC !important;
+  background-image: radial-gradient(circle at 50% 50%, rgba(0, 102, 255, 0.05) 0%, rgba(248, 250, 252, 1) 75%) !important;
+  color: #0F172A !important;
+}
+
+/* Pre-JS System Preference Fallback */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not(.dark) .landing-page #page-loader {
+    background-color: #F8FAFC !important;
+    background-image: radial-gradient(circle at 50% 50%, rgba(0, 102, 255, 0.05) 0%, rgba(248, 250, 252, 1) 75%) !important;
+    color: #0F172A !important;
+  }
+}
+
+.landing-page #page-loader.is-hidden,
+.landing-page .page-loader.is-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Centered Stage */
+.landing-page .loader-stage {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  transition: opacity 0.35s ease, visibility 0.35s ease;
+  width: 240px;
+  min-height: 160px;
+  user-select: none;
 }
 
-.landing-page .page-loader.is-hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.landing-page .loader-spinner {
-  width: 44px;
-  height: 44px;
-  border: 3px solid #E5EAF2;
-  border-top-color: var(--apple-blue);
+/* Ambient Glow Behind Logo */
+.landing-page .loader-logo-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140px;
+  height: 60px;
   border-radius: 50%;
-  animation: appleSpin 0.75s linear infinite;
+  transform: translate(-50%, -50%) scale(0.85);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.18;
+  filter: blur(14px);
+  will-change: transform, opacity;
 }
 
-@keyframes appleSpin {
-  to { transform: rotate(360deg); }
+html[data-theme="dark"] .landing-page .loader-logo-glow,
+html.dark .landing-page .loader-logo-glow,
+body.dark-mode .landing-page .loader-logo-glow {
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.5) 0%, rgba(22, 139, 255, 0.28) 45%, transparent 75%);
+  animation: zappitGlowDark 0.45s ease-out 0.22s forwards;
+}
+
+html[data-theme="light"] .landing-page .loader-logo-glow,
+html.light .landing-page .loader-logo-glow,
+body.light-mode .landing-page .loader-logo-glow {
+  background: radial-gradient(circle, rgba(0, 102, 255, 0.35) 0%, rgba(22, 139, 255, 0.18) 45%, transparent 75%);
+  animation: zappitGlowLight 0.45s ease-out 0.22s forwards;
+}
+
+@keyframes zappitGlowDark {
+  0% {
+    opacity: 0.18;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+
+  45% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+
+  100% {
+    opacity: 0.45;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+@keyframes zappitGlowLight {
+  0% {
+    opacity: 0.12;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+
+  45% {
+    opacity: 0.65;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+
+  100% {
+    opacity: 0.32;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+/* Soft Blue Ripple (Single Silent Strike) */
+.landing-page .loader-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.35);
+  animation: zappitRipple 0.55s cubic-bezier(0.16, 0.8, 0.25, 1) 0.22s 1 forwards;
+  will-change: transform, opacity;
+}
+
+html[data-theme="dark"] .landing-page .loader-ripple,
+html.dark .landing-page .loader-ripple,
+body.dark-mode .landing-page .loader-ripple {
+  border: 1.5px solid rgba(0, 229, 255, 0.7);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.35), inset 0 0 12px rgba(22, 139, 255, 0.2);
+}
+
+html[data-theme="light"] .landing-page .loader-ripple,
+html.light .landing-page .loader-ripple,
+body.light-mode .landing-page .loader-ripple {
+  border: 1.5px solid rgba(0, 102, 255, 0.6);
+  box-shadow: 0 0 16px rgba(0, 102, 255, 0.25), inset 0 0 10px rgba(0, 102, 255, 0.15);
+}
+
+@keyframes zappitRipple {
+  0% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+
+  45% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.8);
+  }
+}
+
+/* Thin Electric-Blue Lightning Bolt */
+.landing-page .loader-lightning-svg {
+  position: absolute;
+  bottom: calc(50% - 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 85px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.landing-page .lightning-bolt-main {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: lightningDraw 0.26s cubic-bezier(0.12, 0.8, 0.25, 1) forwards;
+  will-change: stroke-dashoffset, opacity;
+}
+
+.landing-page .lightning-bolt-branch {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: lightningBranchDraw 0.24s cubic-bezier(0.12, 0.8, 0.25, 1) forwards;
+  will-change: stroke-dashoffset, opacity;
+}
+
+/* Dark Mode Bolt */
+html[data-theme="dark"] .landing-page .lightning-bolt-main,
+html.dark .landing-page .lightning-bolt-main,
+body.dark-mode .landing-page .lightning-bolt-main {
+  stroke: #00E5FF;
+  filter: drop-shadow(0 0 4px #00E5FF) drop-shadow(0 0 10px rgba(22, 139, 255, 0.8));
+}
+
+html[data-theme="dark"] .landing-page .lightning-bolt-branch,
+html.dark .landing-page .lightning-bolt-branch,
+body.dark-mode .landing-page .lightning-bolt-branch {
+  stroke: #00E5FF;
+  filter: drop-shadow(0 0 3px #00E5FF);
+}
+
+/* Light Mode Bolt */
+html[data-theme="light"] .landing-page .lightning-bolt-main,
+html.light .landing-page .lightning-bolt-main,
+body.light-mode .landing-page .lightning-bolt-main {
+  stroke: #0066FF;
+  filter: drop-shadow(0 0 4px #0066FF) drop-shadow(0 0 8px rgba(22, 139, 255, 0.6));
+}
+
+html[data-theme="light"] .landing-page .lightning-bolt-branch,
+html.light .landing-page .lightning-bolt-branch,
+body.light-mode .landing-page .lightning-bolt-branch {
+  stroke: #0066FF;
+  filter: drop-shadow(0 0 3px #0066FF);
+}
+
+@keyframes lightningDraw {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0.95;
+  }
+
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  90% {
+    stroke-dashoffset: 0;
+    opacity: 0.8;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes lightningBranchDraw {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+
+  40% {
+    stroke-dashoffset: 100;
+    opacity: 0.8;
+  }
+
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+/* Logo Styling & Full Opacity Transition on Strike */
+.landing-page .loader-logo {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.32;
+  transform: scale(0.97);
+  animation: logoStrikeReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards;
+  will-change: transform, opacity;
 }
 
 .landing-page .loader-logo-img {
-  height: 38px;
+  height: 44px;
   width: auto;
+  max-width: 140px;
   object-fit: contain;
+}
+
+@keyframes logoStrikeReveal {
+  0% {
+    opacity: 0.32;
+    transform: scale(0.97);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Loading Zappit… Label (revealed smoothly if load takes longer than 600ms) */
+.landing-page .loader-status-label {
+  margin-top: 18px;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  animation: statusFadeIn 0.35s ease-out 0.6s forwards;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+html[data-theme="dark"] .landing-page .loader-status-label,
+html.dark .landing-page .loader-status-label,
+body.dark-mode .landing-page .loader-status-label {
+  color: #94A3B8;
+}
+
+html[data-theme="light"] .landing-page .loader-status-label,
+html.light .landing-page .loader-status-label,
+body.light-mode .landing-page .loader-status-label {
+  color: #64748B;
+}
+
+@keyframes statusFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  100% {
+    opacity: 0.85;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced Motion (Static logo + status label, no flashing or strike) */
+@media (prefers-reduced-motion: reduce) {
+
+  .landing-page .loader-lightning-svg,
+  .landing-page .loader-ripple,
+  .landing-page .loader-logo-glow {
+    display: none !important;
+    animation: none !important;
+  }
+
+  .landing-page .loader-logo {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+    filter: none !important;
+  }
+
+  .landing-page .loader-status-label {
+    opacity: 0.85 !important;
+    transform: none !important;
+    animation: none !important;
+    display: block !important;
+  }
+
+  .landing-page #page-loader,
+  .landing-page .page-loader {
+    transition: opacity 0.12s ease !important;
+  }
 }
 
 /* Custom Dynamic Cursor */
@@ -185,7 +538,7 @@ body:has(.landing-page) {
 }
 
 .landing-page .navbar-wrapper.is-scrolled .navbar-glow-indicator,
-.landing-page .navbar.navbar-scrolled ~ .navbar-glow-indicator {
+.landing-page .navbar.navbar-scrolled~.navbar-glow-indicator {
   opacity: 1;
   transform: scaleX(1);
 }
@@ -205,7 +558,7 @@ body:has(.landing-page) {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(229, 234, 242, 0.95) !important;
-  box-shadow: 
+  box-shadow:
     0 10px 30px -4px rgba(0, 0, 0, 0.06),
     0 4px 12px rgba(0, 0, 0, 0.02),
     0 0 20px 2px rgba(0, 102, 255, 0.06),
@@ -220,7 +573,7 @@ body:has(.landing-page) {
 .landing-page .navbar.navbar-scrolled {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: #CBD5E1 !important;
-  box-shadow: 
+  box-shadow:
     0 14px 38px -4px rgba(0, 0, 0, 0.09),
     0 6px 16px rgba(0, 0, 0, 0.03),
     0 0 24px 3px rgba(0, 102, 255, 0.12),
@@ -776,7 +1129,7 @@ body:has(.landing-page) {
   background: linear-gradient(135deg, #0C1524 0%, #060B14 60%, #0F1D36 100%) !important;
   background-color: #060B14 !important;
   border: 1px solid rgba(0, 102, 255, 0.45) !important;
-  box-shadow: 
+  box-shadow:
     0 24px 60px -8px rgba(0, 0, 0, 0.35),
     0 8px 24px rgba(0, 0, 0, 0.2),
     0 0 35px rgba(0, 102, 255, 0.22) !important;
@@ -807,7 +1160,7 @@ body:has(.landing-page) {
   opacity: 0.94 !important;
   z-index: 1 !important;
   border: 1px solid rgba(0, 102, 255, 0.38) !important;
-  box-shadow: 
+  box-shadow:
     0 18px 45px rgba(0, 0, 0, 0.28),
     0 0 30px rgba(0, 102, 255, 0.18) !important;
 }
@@ -820,7 +1173,7 @@ body:has(.landing-page) {
   z-index: 2 !important;
   cursor: pointer !important;
   border: 1px solid rgba(0, 102, 255, 0.55) !important;
-  box-shadow: 
+  box-shadow:
     0 28px 70px -10px rgba(0, 0, 0, 0.42),
     0 10px 28px rgba(0, 0, 0, 0.25),
     0 0 45px rgba(0, 102, 255, 0.28) !important;
@@ -829,7 +1182,7 @@ body:has(.landing-page) {
 /* Hover Response on NFC Scene */
 .landing-page .nfc-card-scene:hover .nfc-card-back {
   transform: rotate(7.5deg) translateY(-8px) scale(0.98) !important;
-  box-shadow: 
+  box-shadow:
     0 22px 55px rgba(0, 0, 0, 0.35),
     0 0 35px rgba(0, 102, 255, 0.25) !important;
 }
@@ -837,7 +1190,7 @@ body:has(.landing-page) {
 .landing-page .nfc-card-scene:hover .nfc-card-front {
   transform: rotate(0deg) translateY(18px) translateX(-18px) scale(1.025) !important;
   border-color: rgba(0, 229, 255, 0.7) !important;
-  box-shadow: 
+  box-shadow:
     0 35px 80px -10px rgba(0, 0, 0, 0.48),
     0 14px 35px rgba(0, 0, 0, 0.28),
     0 0 55px rgba(0, 229, 255, 0.35) !important;
@@ -970,9 +1323,27 @@ body:has(.landing-page) {
   border: 2px solid #00E5FF !important;
   border-radius: 2px !important;
 }
-.landing-page .qr-tl { top: 4px !important; left: 4px !important; border-right: none !important; border-bottom: none !important; }
-.landing-page .qr-tr { top: 4px !important; right: 4px !important; border-left: none !important; border-bottom: none !important; }
-.landing-page .qr-bl { bottom: 4px !important; left: 4px !important; border-right: none !important; border-top: none !important; }
+
+.landing-page .qr-tl {
+  top: 4px !important;
+  left: 4px !important;
+  border-right: none !important;
+  border-bottom: none !important;
+}
+
+.landing-page .qr-tr {
+  top: 4px !important;
+  right: 4px !important;
+  border-left: none !important;
+  border-bottom: none !important;
+}
+
+.landing-page .qr-bl {
+  bottom: 4px !important;
+  left: 4px !important;
+  border-right: none !important;
+  border-top: none !important;
+}
 
 .landing-page .qr-dots {
   display: grid !important;
@@ -1316,6 +1687,215 @@ body:has(.landing-page) {
 }
 
 /* ==========================================================================
+   CRM LEAD MANAGEMENT PREVIEW (Dashboard Screenshot Frame & Switcher)
+   ========================================================================== */
+.landing-page .crm-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.landing-page .crm-preview-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #526176;
+  letter-spacing: 0.02em;
+}
+
+.landing-page .crm-preview-tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.landing-page .crm-preview-theme-switch {
+  display: inline-flex;
+  align-items: center;
+  background: #F0F4F9;
+  border: 1px solid #DEE5EF;
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 3px;
+  margin-left: auto;
+  /* Aligned to the right */
+}
+
+.landing-page .crm-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748B;
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landing-page .crm-theme-btn:hover {
+  color: #111827;
+}
+
+.landing-page .crm-theme-btn:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+.landing-page .crm-theme-btn.active {
+  background: #FFFFFF;
+  color: #0066FF;
+  border-color: #DEE5EF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.landing-page .crm-theme-btn-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* --- Frame Appearance: Transitions & Dynamic Theme Matching --- */
+.landing-page .crm-preview-card {
+  margin: 0 0 36px 0;
+  padding: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  display: block;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Dark Mode Frame (Default) */
+.landing-page .crm-preview-card,
+.landing-page .crm-preview-card[data-preview-theme="dark"] {
+  background: #08090B !important;
+  border: 1px solid #25282C !important;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35) !important;
+}
+
+.landing-page .crm-preview-card[data-preview-theme="dark"] .crm-preview-image-wrap {
+  background: #030405 !important;
+}
+
+.landing-page .crm-preview-card[data-preview-theme="dark"] .crm-preview-caption {
+  color: #A1A1AA !important;
+  background: #08090B !important;
+  border-top: 1px solid #25282C !important;
+}
+
+/* Light Mode Frame */
+.landing-page .crm-preview-card[data-preview-theme="light"] {
+  background: #FFFFFF !important;
+  border: 1px solid #DEE5EF !important;
+  box-shadow: 0 16px 36px rgba(0, 50, 150, 0.08) !important;
+}
+
+.landing-page .crm-preview-card[data-preview-theme="light"] .crm-preview-image-wrap {
+  background: #F5F7FB !important;
+}
+
+.landing-page .crm-preview-card[data-preview-theme="light"] .crm-preview-caption {
+  color: #64748B !important;
+  background: #FFFFFF !important;
+  border-top: 1px solid #DEE5EF !important;
+}
+
+/* --- Reserved Space & Seamless Fade Transition --- */
+.landing-page .crm-preview-image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1024 / 519;
+  overflow: hidden;
+  transition: background-color 0.25s ease;
+}
+
+.landing-page .crm-preview-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  display: block;
+  object-fit: contain;
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+  border: none;
+}
+
+/* Dark mode image visibility */
+.landing-page .crm-preview-card[data-preview-theme="dark"] .crm-preview-img-dark {
+  opacity: 1;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.landing-page .crm-preview-card[data-preview-theme="dark"] .crm-preview-img-light {
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Light mode image visibility */
+.landing-page .crm-preview-card[data-preview-theme="light"] .crm-preview-img-light {
+  opacity: 1;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.landing-page .crm-preview-card[data-preview-theme="light"] .crm-preview-img-dark {
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* --- Caption --- */
+.landing-page .crm-preview-caption {
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin: 0;
+  transition: color 0.25s ease, background-color 0.25s ease, border-color 0.25s ease;
+}
+
+@media (max-width: 768px) {
+  .landing-page .crm-preview-toolbar {
+    margin-bottom: 12px;
+  }
+
+  .landing-page .crm-theme-btn {
+    min-height: 40px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+  }
+
+  .landing-page .crm-preview-card {
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+
+  .landing-page .crm-preview-caption {
+    font-size: 0.775rem;
+    padding: 10px 14px;
+  }
+}
+
+/* ==========================================================================
    HOW IT WORKS (3 Clean Steps on Light Blue Surface)
    ========================================================================== */
 .landing-page .apple-steps {
@@ -1388,7 +1968,7 @@ body:has(.landing-page) {
   box-shadow: none !important;
 }
 
-.landing-page .guided-configurator .designer-progress > div {
+.landing-page .guided-configurator .designer-progress>div {
   background: #F7F9FC !important;
   border-radius: var(--apple-radius-full) !important;
   padding: 12px 20px !important;
@@ -1719,7 +2299,7 @@ body:has(.landing-page) {
   margin: 0;
 }
 
-.landing-page .live-price dl > div {
+.landing-page .live-price dl>div {
   display: flex;
   justify-content: space-between;
   font-size: 0.875rem;
@@ -2635,6 +3215,7 @@ body.dark-mode .zappit-login-footer {
    RESPONSIVE LAYOUTS (Desktop, Tablet, Mobile)
    ========================================================================== */
 @media (max-width: 1024px) {
+
   .landing-page .trust-grid,
   .landing-page .shop-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2775,10 +3356,12 @@ body.dark-mode .zappit-login-footer {
   .landing-page .hamburger[aria-expanded="true"] span:nth-child(1) {
     transform: translateY(6px) rotate(45deg) !important;
   }
+
   .landing-page .hamburger[aria-expanded="true"] span:nth-child(2) {
     opacity: 0 !important;
     transform: scaleX(0) !important;
   }
+
   .landing-page .hamburger[aria-expanded="true"] span:nth-child(3) {
     transform: translateY(-6px) rotate(-45deg) !important;
   }

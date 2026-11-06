@@ -748,8 +748,27 @@ class LuxApp {
     const overlay = document.getElementById('drawer-overlay');
     const drawer = document.getElementById('cart-drawer');
     if (!overlay || !drawer) return;
+    document.body.style.overflow = 'hidden';
     overlay.classList.add('open');
     drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    this.renderCartDrawer();
+  }
+
+  closeCartDrawer() {
+    const overlay = document.getElementById('drawer-overlay');
+    const drawer = document.getElementById('cart-drawer');
+    const wishlistDrawer = document.getElementById('wishlist-drawer');
+    document.body.style.overflow = '';
+    if (overlay) overlay.classList.remove('open');
+    if (drawer) {
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+    }
+    if (wishlistDrawer) {
+      wishlistDrawer.classList.remove('open');
+      wishlistDrawer.setAttribute('aria-hidden', 'true');
+    }
   }
 
   openCheckout() {
@@ -1237,7 +1256,7 @@ class LuxApp {
     this.state.currentPage = num;
     this.renderCatalog();
     // catalog-cards section removed — scroll to top of catalog area instead
-    const el = document.querySelector('.catalog-content') || document.getElementById('featured-categories-section');
+    const el = document.querySelector('.catalog-content') || document.getElementById('materials') || document.getElementById('bundles');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -1285,15 +1304,41 @@ class LuxApp {
 
     if (this.state.cart.length === 0) {
       listContainer.innerHTML = `
-        <div class="drawer-empty">
-          <i data-lucide="shopping-cart"></i>
-          <h4>Your cart is empty</h4>
-          <p>Find premium designs and unlock them to download.</p>
+        <div class="drawer-empty" style="text-align: center; padding: 48px 16px;">
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: #EFF6FF; color: #0066FF; display: grid; place-items: center; margin: 0 auto 16px auto;">
+            <i data-lucide="credit-card" style="width: 28px; height: 28px;"></i>
+          </div>
+          <h4 style="font-size: 1.15rem; font-weight: 700; color: #111827; margin: 0 0 8px 0;">Your cart is empty</h4>
+          <p style="font-size: 0.875rem; color: #64748B; margin: 0 0 20px 0; line-height: 1.5;">Choose your NFC card and bundle to get started.</p>
+          <button type="button" class="apple-btn apple-btn-primary" id="drawer-explore-cards-btn" style="padding: 10px 24px; font-size: 0.9rem;">
+            Explore Cards
+          </button>
         </div>
       `;
       if (totalElem) totalElem.textContent = '\u20B90';
+      const checkoutBtn = document.getElementById('checkout-trigger');
+      if (checkoutBtn) {
+        checkoutBtn.setAttribute('disabled', 'true');
+        checkoutBtn.style.opacity = '0.5';
+        checkoutBtn.style.cursor = 'not-allowed';
+      }
+      const exploreBtn = document.getElementById('drawer-explore-cards-btn');
+      if (exploreBtn) {
+        exploreBtn.addEventListener('click', () => {
+          this.closeCartDrawer();
+          const target = document.querySelector('#materials');
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
       if (window.lucide) window.lucide.createIcons();
       return;
+    }
+
+    const checkoutBtn = document.getElementById('checkout-trigger');
+    if (checkoutBtn) {
+      checkoutBtn.removeAttribute('disabled');
+      checkoutBtn.style.opacity = '1';
+      checkoutBtn.style.cursor = 'pointer';
     }
 
     listContainer.innerHTML = this.state.cart.map(card => {
@@ -1466,17 +1511,31 @@ class LuxApp {
 
     supportTrigger?.addEventListener('click', () => this.openSupportModal());
 
+    let lastActiveTrigger = null;
     const openDrawer = (drawer) => {
+      lastActiveTrigger = document.activeElement;
+      document.body.style.overflow = 'hidden';
       overlay.classList.add('open');
       drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
       if (drawer === cartDrawer) this.renderCartDrawer();
       if (drawer === wishlistDrawer) this.renderWishlistDrawer();
+      const closeBtn = drawer.querySelector('.drawer-close');
+      if (closeBtn) closeBtn.focus();
     };
 
     const closeDrawers = () => {
+      document.body.style.overflow = '';
       overlay.classList.remove('open');
       cartDrawer.classList.remove('open');
-      wishlistDrawer.classList.remove('open');
+      cartDrawer.setAttribute('aria-hidden', 'true');
+      if (wishlistDrawer) {
+        wishlistDrawer.classList.remove('open');
+        wishlistDrawer.setAttribute('aria-hidden', 'true');
+      }
+      if (lastActiveTrigger && typeof lastActiveTrigger.focus === 'function') {
+        lastActiveTrigger.focus();
+      }
     };
 
     document.getElementById('cart-trigger')?.addEventListener('click', () => openDrawer(cartDrawer));
@@ -1493,8 +1552,23 @@ class LuxApp {
     document.querySelectorAll('.drawer-close').forEach(b => b.addEventListener('click', closeDrawers));
     overlay?.addEventListener('click', closeDrawers);
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (cartDrawer.classList.contains('open') || (wishlistDrawer && wishlistDrawer.classList.contains('open'))) {
+          closeDrawers();
+        }
+      }
+    });
+
     // 3. Checkout payment choices
-    document.getElementById('checkout-trigger')?.addEventListener('click', () => this.openCheckout());
+    document.getElementById('checkout-trigger')?.addEventListener('click', () => {
+      if (!this.state.cart.length) {
+        this.showToast('Your cart is empty. Choose a card or bundle to get started.', 'info');
+        return;
+      }
+      closeDrawers();
+      this.openCheckout();
+    });
     document.querySelector('[data-close-checkout]')?.addEventListener('click', () => this.closeCheckout());
     document.getElementById('checkout-modal')?.addEventListener('click', (event) => {
       if (event.target.id === 'checkout-modal') this.closeCheckout();
@@ -2162,9 +2236,9 @@ class LuxApp {
       const messageField = document.getElementById('support-message');
       if (messageField && !messageField.value.trim()) {
         if (queryBundle === 'lead-management') {
-          messageField.value = 'I would like to get the NFC Card + Lead Management bundle (Yearly Plan · Billed Annually at ₹1,999/year onwards).';
+          messageField.value = 'I would like to get the NFC Card + Lead Management bundle (Yearly Plan · Billed Annually at ₹2,999/year).';
         } else if (queryBundle === 'nfc-card') {
-          messageField.value = 'I would like to get the NFC Card + Software standard bundle (₹999 onwards).';
+          messageField.value = 'I would like to get the NFC Card + Software standard bundle (₹1,999).';
         }
       }
     }
@@ -2283,7 +2357,7 @@ class LuxApp {
 
   handleEngageAction() {
     this.showToast('Let’s keep exploring the premium collection.', 'success');
-    document.querySelector('#featured-categories-section')?.scrollIntoView({ behavior: 'smooth' });
+    document.querySelector('#materials')?.scrollIntoView({ behavior: 'smooth' });
     this.hideEngageBanner();
   }
 
