@@ -129,7 +129,7 @@ const redesignedMarkup = `
               </div>
 
               <!-- Stylized Matrix / QR Grid -->
-              <div class="nfc-qr-area">
+              <div class="nfc-qr-area" aria-hidden="true">
                 <div class="qr-box">
                   <div class="qr-corner qr-tl"></div>
                   <div class="qr-corner qr-tr"></div>
@@ -146,12 +146,11 @@ const redesignedMarkup = `
                     </svg>
                   </div>
                 </div>
-                <span class="qr-label">Scan to Connect</span>
               </div>
             </div>
 
             <!-- Front Card (Lower, left-shifted, interactive tap card) -->
-            <button class="nfc-card nfc-card-front tap-card" id="tap-card" type="button" aria-label="Click or tap to preview digital profile" title="Click to test live profile demonstration">
+            <button class="nfc-card nfc-card-front tap-card" id="tap-card" type="button" aria-label="Alex Morgan smart card preview - click to view live demo profile" title="Click to view live demo profile">
               <div class="nfc-card-shine"></div>
               
               <!-- Top Row: Zappit Brand & NFC Icon -->
@@ -199,12 +198,14 @@ const redesignedMarkup = `
                   </svg>
                 </div>
               </div>
+            </button>
+          </div>
 
-              <!-- Discoverable Tap Hint -->
-              <span class="card-tap-hint">
-                <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i>
-                Tap or click to preview live profile
-              </span>
+          <!-- Centered Demo Profile Trigger Below Entire Stack -->
+          <div class="hero-card-demo-wrap">
+            <button class="hero-card-demo-btn" id="hero-demo-profile-trigger" type="button" aria-haspopup="dialog" aria-label="View interactive demo profile">
+              <span>View demo profile</span>
+              <span class="hero-demo-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
         </div>
@@ -310,11 +311,11 @@ const redesignedMarkup = `
           </div>
           <div class="material-body">
             <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-              <span class="material-badge">Clean Gloss Finish</span>
+              <span class="material-badge">Matte Finish</span>
               <span class="material-selected-pill" id="badge-selected-white" style="display: none;"><i data-lucide="check" style="width: 13px; height: 13px;"></i> Selected Finish</span>
             </div>
             <h3>Ceramic White PVC</h3>
-            <p>Durable white PVC with a clean gloss ceramic-look finish. Resilient, water-resistant, and printed with crisp high-contrast typography and QR code backup.</p>
+            <p>Durable white PVC with a smooth, glare-free matte finish. Resilient, water-resistant, and printed with crisp high-contrast typography and QR code backup.</p>
             <div class="material-footer">
               <div class="material-price">₹1,999 <small>incl. 1-year profile hosting</small></div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">

@@ -188,12 +188,6 @@
 
     if (crmPriceEl) crmPriceEl.textContent = '2,999';
     if (crmTermEl) crmTermEl.textContent = isBlack ? 'for Matte Black PVC' : 'for Ceramic White PVC';
-
-    // If Enquiry Modal is currently open, sync it too
-    if (enquiryState) {
-      enquiryState.finish = finish;
-      renderEnquirySummary();
-    }
   };
 
   const initFinishButtons = () => {
@@ -219,6 +213,7 @@
     const demoModal = document.getElementById('live-demo-modal');
     const heroCard = document.getElementById('tap-card');
     const heroBtn = document.getElementById('hero-live-demo-btn');
+    const heroDemoTrigger = document.getElementById('hero-demo-profile-trigger');
     const sectionBtn = document.getElementById('section-live-demo-btn');
     const closeBtn = document.getElementById('close-live-demo-btn');
 
@@ -239,6 +234,7 @@
 
     heroCard?.addEventListener('click', openDemoModal);
     heroBtn?.addEventListener('click', openDemoModal);
+    heroDemoTrigger?.addEventListener('click', openDemoModal);
     sectionBtn?.addEventListener('click', openDemoModal);
     closeBtn?.addEventListener('click', closeDemoModal);
 
@@ -344,7 +340,7 @@
         const finish = btn.getAttribute('data-add-to-cart');
         const isBlack = finish === 'black';
         const product = {
-          id: isBlack ? 'black-matte-pvc-card' : 'white-gloss-pvc-card',
+          id: isBlack ? 'black-matte-pvc-card' : 'white-matte-pvc-card',
           title: isBlack ? 'Velvet Matte Black PVC Card' : 'Ceramic White PVC Card',
           price: 1999,
           currency: 'INR',
