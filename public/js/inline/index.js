@@ -334,18 +334,24 @@
 
   // 9. Add to Cart Handlers for Cards and Bundles
   const initAddToCart = () => {
-    // Add individual finish cards
+    // Add individual finish cards (Direct shortcut: Add Standard Bundle)
     document.querySelectorAll('[data-add-to-cart]').forEach(btn => {
       btn.addEventListener('click', () => {
         const finish = btn.getAttribute('data-add-to-cart');
         const isBlack = finish === 'black';
         const product = {
-          id: isBlack ? 'black-matte-pvc-card' : 'white-matte-pvc-card',
-          title: isBlack ? 'Velvet Matte Black PVC Card' : 'Ceramic White PVC Card',
+          id: `bundle-standard-${finish}`,
+          title: `NFC Card + Software (${isBlack ? 'Velvet Matte Black PVC' : 'Ceramic White PVC'})`,
           price: 1999,
           currency: 'INR',
           image: isBlack ? '/assets/black-pvc-card.jpg' : '/assets/white-pvc-card.jpg',
-          details: 'NTAG216 NFC + High-Contrast QR Backup'
+          details: 'Includes Hardware + 1-Year Profile Hosting',
+          billingPeriod: 'One-time hardware',
+          dueToday: 1999,
+          renewsLater: 'Renews at ₹499/year after Year 1 · Manual profile renewal',
+          renewalTerm: '₹499/yr after 1st yr',
+          finish: isBlack ? 'Velvet Matte Black PVC' : 'Ceramic White PVC',
+          bundleType: 'standard'
         };
 
         if (window.app && window.app.state) {
@@ -374,99 +380,167 @@
         const bundleProduct = {
           id: isCRM ? `bundle-crm-${currentFinish}` : `bundle-standard-${currentFinish}`,
           title: isCRM
-            ? `NFC Card + Lead Management CRM (${isBlack ? 'Matte Black' : 'Ceramic White'})`
-            : `NFC Card + Software (${isBlack ? 'Matte Black' : 'Ceramic White'})`,
+            ? `NFC Card + Lead Management CRM (${isBlack ? 'Velvet Matte Black PVC' : 'Ceramic White PVC'})`
+          : `NFC Card + Software (${isBlack ? 'Velvet Matte Black PVC' : 'Ceramic White PVC'})`,
           price: isCRM ? 2999 : 1999,
-          currency: 'INR',
-          image: isBlack ? '/assets/black-pvc-card.jpg' : '/assets/white-pvc-card.jpg',
-          details: isCRM ? 'Includes Hardware + 1-Year Full CRM Workspace' : 'Includes Hardware + 1-Year Profile Hosting'
-        };
+            currency: 'INR',
+              image: isBlack ? '/assets/black-pvc-card.jpg' : '/assets/white-pvc-card.jpg',
+        details: isCRM ? 'Includes Hardware + 1-Year Full CRM Workspace' : 'Includes Hardware + 1-Year Profile Hosting',
+          billingPeriod: isCRM ? '₹2,999/year' : 'One-time hardware',
+            dueToday: isCRM ? 2999 : 1999,
+              renewsLater: isCRM
+                ? 'Renews at ₹2,999/year · Manual annual renewal'
+                : 'Renews at ₹499/year after Year 1 · Manual profile renewal',
+                renewalTerm: isCRM ? '₹2,999/year' : '₹499/yr after 1st yr',
+                  finish: isBlack ? 'Velvet Matte Black PVC' : 'Ceramic White PVC',
+                    bundleType: isCRM ? 'crm' : 'standard'
+      };
 
-        if (window.app && window.app.state) {
-          const exists = window.app.state.cart.find(i => String(i.id) === bundleProduct.id);
-          if (exists) {
-            exists.quantity = (Number(exists.quantity) || 1) + 1;
-            window.app.showToast(`${bundleProduct.title} quantity updated in cart.`, 'success');
-          } else {
-            window.app.state.cart.push({ ...bundleProduct, quantity: 1 });
-            window.app.showToast(`${bundleProduct.title} added to cart.`, 'success');
-          }
-          window.app.updateCounters();
-          window.app.renderCartDrawer();
-          window.app.openCartDrawer();
+      if (window.app && window.app.state) {
+        const exists = window.app.state.cart.find(i => String(i.id) === bundleProduct.id);
+        if (exists) {
+          exists.quantity = (Number(exists.quantity) || 1) + 1;
+          window.app.showToast(`${bundleProduct.title} quantity updated in cart.`, 'success');
+        } else {
+          window.app.state.cart.push({ ...bundleProduct, quantity: 1 });
+          window.app.showToast(`${bundleProduct.title} added to cart.`, 'success');
         }
-      });
-    });
-  };
-
-  // 9. Global Escape Key for Dialogs & Modals
-  const initGlobalEscape = () => {
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const demoModal = document.getElementById('live-demo-modal');
-        if (demoModal?.classList.contains('open')) {
-          demoModal.classList.remove('open');
-          demoModal.setAttribute('aria-hidden', 'true');
-          document.body.style.overflow = '';
-        }
+        window.app.updateCounters();
+        window.app.renderCartDrawer();
+        window.app.openCartDrawer();
       }
     });
-  };
+  });
+};
 
-  // 10. Isolated CRM Dashboard Preview Theme Switcher (Dark / Light)
-  const initCrmPreviewThemeSwitcher = () => {
-    const card = document.getElementById('crm-preview-card');
-    const toggleBtns = document.querySelectorAll('.crm-theme-btn');
-    if (!card || !toggleBtns.length) return;
+// 9. Global Escape Key for Dialogs & Modals
+const initGlobalEscape = () => {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const demoModal = document.getElementById('live-demo-modal');
+      if (demoModal?.classList.contains('open')) {
+        demoModal.classList.remove('open');
+        demoModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+      }
+    }
+  });
+};
 
-    const setPreviewMode = (mode) => {
-      const isLight = mode === 'light';
-      card.setAttribute('data-preview-theme', isLight ? 'light' : 'dark');
+// 10. Isolated CRM Dashboard Preview Theme Switcher (Dark / Light)
+const initCrmPreviewThemeSwitcher = () => {
+  const card = document.getElementById('crm-preview-card');
+  const toggleBtns = document.querySelectorAll('.crm-theme-btn');
+  if (!card || !toggleBtns.length) return;
 
-      toggleBtns.forEach((btn) => {
-        const active = btn.getAttribute('data-theme-val') === (isLight ? 'light' : 'dark');
-        btn.classList.toggle('active', active);
-        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
-
-      try {
-        sessionStorage.setItem('zappit_crm_preview_mode', isLight ? 'light' : 'dark');
-      } catch { }
-    };
+  const setPreviewMode = (mode) => {
+    const isLight = mode === 'light';
+    card.setAttribute('data-preview-theme', isLight ? 'light' : 'dark');
 
     toggleBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const mode = btn.getAttribute('data-theme-val');
-        if (mode) setPreviewMode(mode);
-      });
+      const active = btn.getAttribute('data-theme-val') === (isLight ? 'light' : 'dark');
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
 
+    // Synchronize full-size lightbox image & badge if present
+    const fullsizeImg = document.getElementById('crm-fullsize-img');
+    const fullsizeBadge = document.getElementById('crm-fullsize-mode-badge');
+    if (fullsizeImg) fullsizeImg.src = isLight ? '/assets/crm-dashboard-light.png' : '/assets/crm-dashboard-dark.png';
+    if (fullsizeBadge) fullsizeBadge.textContent = isLight ? 'Light Mode' : 'Dark Mode';
+
     try {
-      const saved = sessionStorage.getItem('zappit_crm_preview_mode');
-      if (saved === 'light') {
-        setPreviewMode('light');
-      }
+      sessionStorage.setItem('zappit_crm_preview_mode', isLight ? 'light' : 'dark');
     } catch { }
   };
 
-  // Master Initializer
-  const init = () => {
-    initMobileNav();
-    initScrollSpy();
-    initFinishButtons();
-    initLiveProfileDemo();
-    initFaqAccordion();
-    initAddToCart();
-    initGlobalEscape();
-    initCrmPreviewThemeSwitcher();
-    updateFinishUI('black');
-    if (window.lucide) window.lucide.createIcons();
+  toggleBtns.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const mode = btn.getAttribute('data-theme-val');
+      if (mode) setPreviewMode(mode);
+    });
+  });
+
+  try {
+    const saved = sessionStorage.getItem('zappit_crm_preview_mode');
+    if (saved === 'light') {
+      setPreviewMode('light');
+    }
+  } catch { }
+};
+
+// 11. CRM Full-Size Preview Lightbox Modal
+const initCrmFullsizeModal = () => {
+  const openBtn = document.getElementById('crm-preview-fullsize-btn');
+  const modal = document.getElementById('crm-fullsize-modal');
+  const closeBtn = document.getElementById('crm-fullsize-close-btn');
+  const img = document.getElementById('crm-fullsize-img');
+  const badge = document.getElementById('crm-fullsize-mode-badge');
+  const card = document.getElementById('crm-preview-card');
+  if (!openBtn || !modal) return;
+
+  let lastOpener = null;
+
+  const openModal = () => {
+    lastOpener = document.activeElement;
+    const isLight = card?.getAttribute('data-preview-theme') === 'light';
+    if (img) img.src = isLight ? '/assets/crm-dashboard-light.png' : '/assets/crm-dashboard-dark.png';
+    if (badge) badge.textContent = isLight ? 'Light Mode' : 'Dark Mode';
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    document.body.style.overflow = 'hidden';
+    if (closeBtn) {
+      setTimeout(() => {
+        try { closeBtn.focus(); } catch (err) { }
+      }, 50);
+    }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
-})();
+  const closeModal = () => {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    if (lastOpener && typeof lastOpener.focus === 'function') {
+      try { lastOpener.focus(); } catch (err) { }
+      lastOpener = null;
+    }
+  };
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) {
+      e.preventDefault();
+      closeModal();
+    }
+  });
+};
+
+// Master Initializer
+const init = () => {
+  initMobileNav();
+  initScrollSpy();
+  initFinishButtons();
+  initLiveProfileDemo();
+  initFaqAccordion();
+  initAddToCart();
+  initGlobalEscape();
+  initCrmPreviewThemeSwitcher();
+  initCrmFullsizeModal();
+  updateFinishUI('black');
+  if (window.lucide) window.lucide.createIcons();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init, { once: true });
+} else {
+  init();
+}
+}) ();

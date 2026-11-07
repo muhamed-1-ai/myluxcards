@@ -5,6 +5,16 @@ import RecoveryRedirect from './RecoveryRedirect';
 export const metadata: Metadata = {
   title: 'Zappit | Your business card. Your digital profile. One tap.',
   description: 'Smart NFC business cards, instant digital profiles, and integrated lead management. Share your contact details with one tap. No app needed.',
+  icons: {
+    icon: [
+      { url: '/favicon.png', sizes: '96x96', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
+  },
 };
 
 const redesignedMarkup = `
@@ -298,7 +308,7 @@ const redesignedMarkup = `
               <div class="material-price">₹1,999 <small>incl. 1-year profile hosting</small></div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button type="button" class="apple-btn apple-btn-primary" id="btn-choose-black" data-select-finish="black">Choose Black</button>
-                <button type="button" class="apple-btn apple-btn-glass" data-add-to-cart="black" title="Add Velvet Matte Black PVC to cart">Add to Cart</button>
+                <button type="button" class="apple-btn apple-btn-glass" data-add-to-cart="black" title="Add Standard Bundle (Velvet Matte Black PVC)">Add Standard Bundle</button>
               </div>
             </div>
           </div>
@@ -320,7 +330,7 @@ const redesignedMarkup = `
               <div class="material-price">₹1,999 <small>incl. 1-year profile hosting</small></div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button type="button" class="apple-btn apple-btn-glass" id="btn-choose-white" data-select-finish="white">Choose White</button>
-                <button type="button" class="apple-btn apple-btn-glass" data-add-to-cart="white" title="Add Ceramic White PVC to cart">Add to Cart</button>
+                <button type="button" class="apple-btn apple-btn-glass" data-add-to-cart="white" title="Add Standard Bundle (Ceramic White PVC)">Add Standard Bundle</button>
               </div>
             </div>
           </div>
@@ -393,17 +403,33 @@ const redesignedMarkup = `
     <div class="container">
       <div class="section-intro">
         <span class="section-eyebrow">Lead Management mini-CRM</span>
-        <h2 class="section-title" id="crm-title">Turn conversations into tracked pipeline revenue.</h2>
+        <h2 class="section-title" id="crm-title">Capture leads. Track follow-ups. Close more deals.</h2>
         <p class="section-desc">A centralized workspace to capture, follow up, and close opportunities generated from your digital business card.</p>
       </div>
 
-      <!-- CRM Preview Controls Toolbar with Light / Dark Switch -->
+      <!-- CRM Preview Controls Toolbar with Light / Dark Switch & Full-Size Action -->
       <div class="crm-preview-toolbar">
         <span class="crm-preview-tag">
           <span class="crm-preview-tag-dot" aria-hidden="true"></span>
           Real Workspace Preview
         </span>
-        <div class="crm-preview-theme-switch" role="group" aria-label="Dashboard preview theme">
+        <div class="crm-preview-actions-group">
+          <button
+            type="button"
+            id="crm-preview-fullsize-btn"
+            class="crm-fullsize-btn"
+            aria-label="View full-size dashboard screenshot"
+            title="View full-size screenshot"
+          >
+            <svg class="crm-fullsize-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            <span>View full-size</span>
+          </button>
+          <div class="crm-preview-theme-switch" role="group" aria-label="Dashboard preview theme">
           <button
             type="button"
             id="crm-theme-dark-btn"
@@ -440,6 +466,7 @@ const redesignedMarkup = `
             </svg>
             <span>Light</span>
           </button>
+        </div>
         </div>
       </div>
 
@@ -835,10 +862,11 @@ const redesignedMarkup = `
       <!-- Populated via Javascript -->
     </div>
     <div class="drawer-footer">
-      <div class="drawer-total" style="display: flex; justify-content: space-between; margin-bottom: 16px; font-weight: 700; font-size: 1.15rem;">
-        <span>Total:</span>
+      <div class="drawer-total" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 700; font-size: 1.15rem;">
+        <span>Due Today:</span>
         <span id="cart-total-price">₹0</span>
       </div>
+      <div id="cart-billing-terms-note" class="drawer-billing-note" style="display: none;"></div>
       <button class="apple-btn apple-btn-primary" id="checkout-trigger" type="button" style="width: 100%;">Continue to Payment</button>
     </div>
   </div>
@@ -981,6 +1009,29 @@ const redesignedMarkup = `
         <button type="button" class="apple-btn apple-btn-primary" onclick="document.getElementById('live-demo-modal')?.classList.remove('open'); document.querySelector('#materials')?.scrollIntoView({behavior: 'smooth'});" style="width: 100%;">
           Choose Your Card Now
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CRM Dashboard Full-Size Lightbox Modal -->
+  <div class="modal-overlay crm-fullsize-modal-overlay" id="crm-fullsize-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="crm-fullsize-title">
+    <div class="crm-fullsize-modal-container">
+      <div class="crm-fullsize-modal-header">
+        <div class="crm-fullsize-modal-title-wrap">
+          <h3 id="crm-fullsize-title" class="crm-fullsize-modal-title">Zappit CRM Workspace · Full-Size Preview</h3>
+          <span id="crm-fullsize-mode-badge" class="crm-fullsize-mode-badge">Dark Mode</span>
+        </div>
+        <button type="button" id="crm-fullsize-close-btn" class="crm-fullsize-close-btn" aria-label="Close full-size preview">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="crm-fullsize-modal-body">
+        <img
+          id="crm-fullsize-img"
+          src="/assets/crm-dashboard-dark.png"
+          alt="Zappit CRM full-size dashboard preview"
+          class="crm-fullsize-modal-img"
+        />
       </div>
     </div>
   </div>

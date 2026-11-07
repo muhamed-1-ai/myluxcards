@@ -3040,6 +3040,7 @@ body.dark-mode .feature-icon {
   width: 400px;
   height: 100vh;
   z-index: 2000;
+  z-index: 10002;
   transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
@@ -3162,6 +3163,7 @@ body.dark-mode .feature-icon {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   z-index: 1999;
+  z-index: 10001;
   display: none;
 }
 
@@ -12498,18 +12500,35 @@ body.light-mode .pts-card-label {
 }
 
 @keyframes zappitShareOverlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes zappitShareSheetSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes zappitShareDialogPop {
-  from { transform: scale(0.96) translateY(8px); opacity: 0; }
-  to { transform: scale(1) translateY(0); opacity: 1; }
+  from {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Modal Sheet / Dialog */
@@ -12825,8 +12844,15 @@ body.light-mode .pts-card-label {
 }
 
 @keyframes zappitShareToastPop {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Footer Buttons */

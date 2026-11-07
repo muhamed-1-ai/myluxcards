@@ -7,7 +7,7 @@ function safeStorageGetJSON(key, fallback) {
     return JSON.parse(raw);
   } catch (err) {
     console.warn(`[Zappit Storage] Invalid stored state for "${key}". Resetting to fallback.`, err);
-    try { localStorage.removeItem(key); } catch {}
+    try { localStorage.removeItem(key); } catch { }
     return fallback;
   }
 }
@@ -123,7 +123,7 @@ class LuxApp {
   async logout() {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch (_) {}
+    } catch (_) { }
     localStorage.removeItem('myluxcards_current_user');
     window.dispatchEvent(new CustomEvent('zappit:auth-changed', { detail: { isAuthenticated: false, user: null } }));
     this.updateAccountButton(null);
@@ -204,9 +204,9 @@ class LuxApp {
     }
   }
 
-  initGoogleOneTap() {}
-  setupGoogleOneTap() {}
-  handleGoogleOneTapResponse() {}
+  initGoogleOneTap() { }
+  setupGoogleOneTap() { }
+  handleGoogleOneTapResponse() { }
 
   init() {
     this.dismissPageLoader();
@@ -744,21 +744,30 @@ class LuxApp {
     return Object.entries(totals).map(([currency, amount]) => this.formatPrice({ currency, price: amount })).join(' + ');
   }
 
-  openCartDrawer() {
+  openCartDrawer(opener) {
     const overlay = document.getElementById('drawer-overlay');
     const drawer = document.getElementById('cart-drawer');
     if (!overlay || !drawer) return;
+    this.lastCartOpener = opener || document.activeElement;
+    document.body.classList.add('drawer-open');
     document.body.style.overflow = 'hidden';
     overlay.classList.add('open');
     drawer.classList.add('open');
     drawer.setAttribute('aria-hidden', 'false');
     this.renderCartDrawer();
+    const closeBtn = drawer.querySelector('.drawer-close');
+    if (closeBtn) {
+      setTimeout(() => {
+        try { closeBtn.focus(); } catch (err) {}
+      }, 50);
+    }
   }
 
   closeCartDrawer() {
     const overlay = document.getElementById('drawer-overlay');
     const drawer = document.getElementById('cart-drawer');
     const wishlistDrawer = document.getElementById('wishlist-drawer');
+    document.body.classList.remove('drawer-open');
     document.body.style.overflow = '';
     if (overlay) overlay.classList.remove('open');
     if (drawer) {
@@ -768,6 +777,10 @@ class LuxApp {
     if (wishlistDrawer) {
       wishlistDrawer.classList.remove('open');
       wishlistDrawer.setAttribute('aria-hidden', 'true');
+    }
+    if (this.lastCartOpener && typeof this.lastCartOpener.focus === 'function') {
+      try { this.lastCartOpener.focus(); } catch (err) {}
+      this.lastCartOpener = null;
     }
   }
 
@@ -788,7 +801,19 @@ class LuxApp {
     const summary = document.getElementById('checkout-summary');
     if (!checkout) return;
     const itemCount = this.state.cart.reduce((total, item) => total + (Number(item.quantity) || 1), 0);
-    if (summary) summary.textContent = `${itemCount} item${itemCount === 1 ? '' : 's'} · ${this.formatCartTotal()}`;
+    if (summary) {
+      const hasCrm = this.state.cart.some(i => String(i.id).includes('bundle-crm'));
+      const hasStandard = this.state.cart.some(i => String(i.id).includes('bundle-standard') || String(i.id).includes('-pvc-card'));
+      let renewalNote = '';
+      if (hasCrm && hasStandard) {
+        renewalNote = 'CRM renews at ₹2,999/yr · Profile hosting renews at ₹499/yr after 1st yr (manual renewals upon expiry)';
+      } else if (hasCrm) {
+        renewalNote = 'Includes 1-yr CRM access · Renews annually at ₹2,999/yr upon expiry (manual renewal; no auto-debit)';
+      } else if (hasStandard) {
+        renewalNote = 'Includes 1-yr profile hosting · Renews at ₹499/yr after Year 1 (manual renewal; no auto-debit)';
+      }
+      summary.innerHTML = `${itemCount} item${itemCount === 1 ? '' : 's'} · <strong>Due Today: ${this.formatCartTotal()}</strong>${renewalNote ? `<br><small style="color: #64748B; font-size: 0.8rem; display: block; margin-top: 4px;">${this.escapeHtml(renewalNote)}</small>` : ''}`;
+    }
     const user = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
     const name = document.getElementById('checkout-name');
     const email = document.getElementById('checkout-email');
@@ -1316,6 +1341,11 @@ class LuxApp {
         </div>
       `;
       if (totalElem) totalElem.textContent = '\u20B90';
+      const termsNoteEl = document.getElementById('cart-billing-terms-note');
+      if (termsNoteEl) {
+        termsNoteEl.style.display = 'none';
+        termsNoteEl.innerHTML = '';
+      }
       const checkoutBtn = document.getElementById('checkout-trigger');
       if (checkoutBtn) {
         checkoutBtn.setAttribute('disabled', 'true');
@@ -1344,6 +1374,20 @@ class LuxApp {
     listContainer.innerHTML = this.state.cart.map(card => {
       const safeTitle = this.escapeHtml(card.title);
       const safeDetails = card.details ? this.escapeHtml(card.details) : '';
+      const isCrmBundle = String(card.id).includes('bundle-crm');
+      const isStandardBundle = String(card.id).includes('bundle-standard') || String(card.id).includes('-pvc-card');
+      const billingPeriod = card.billingPeriod || (isCrmBundle ? '₹2,999/year' : (isStandardBundle ? 'One-time hardware' : 'One-time'));
+      let renewsLaterText = card.renewsLater || '';
+      if (!renewsLaterText) {
+        if (isCrmBundle) {
+          renewsLaterText = 'Renews at ₹2,999/year · Manual annual renewal';
+        } else if (isStandardBundle) {
+          renewsLaterText = 'Renews at ₹499/year after Year 1 · Manual profile renewal';
+        }
+      }
+      const qty = Number(card.quantity) || 1;
+      const duePrice = (Number(card.price) || 0) * qty;
+
       return `
         <div class="drawer-item glass">
           <div class="drawer-item-img">
@@ -1351,13 +1395,17 @@ class LuxApp {
           </div>
           <div class="drawer-item-info">
             <h4>${safeTitle}</h4>
-            ${safeDetails ? `<small>${safeDetails}</small>` : ''}
-            <p>${this.formatPrice({ ...card, price: (Number(card.price) || 0) * (Number(card.quantity) || 1) })}</p>
+            ${safeDetails ? `<small class="drawer-item-detail">${safeDetails}</small>` : ''}
+            <div class="drawer-billing-badge-row">
+              <span class="drawer-billing-badge">${this.escapeHtml(billingPeriod)}</span>
+            </div>
+            <p class="drawer-item-price">Due today: ${this.formatPrice({ ...card, price: duePrice })}</p>
+            ${renewsLaterText ? `<p class="drawer-renewal-text"><i data-lucide="refresh-cw" style="width: 11px; height: 11px; display: inline-block; vertical-align: middle; margin-right: 3px;"></i>${this.escapeHtml(renewsLaterText)}</p>` : ''}
           </div>
           <div class="drawer-item-actions">
             <div class="quantity-control" aria-label="Quantity for ${safeTitle}">
               <button type="button" data-quantity-change="-1" data-cart-id="${card.id}" aria-label="Decrease quantity">−</button>
-              <span>${Number(card.quantity) || 1}</span>
+              <span>${qty}</span>
               <button type="button" data-quantity-change="1" data-cart-id="${card.id}" aria-label="Increase quantity">+</button>
             </div>
             <button class="drawer-item-remove" type="button" data-cart-id="${card.id}" aria-label="Remove ${safeTitle}"><i data-lucide="trash-2"></i></button>
@@ -1365,6 +1413,33 @@ class LuxApp {
         </div>
       `;
     }).join('');
+
+    const termsNoteEl = document.getElementById('cart-billing-terms-note');
+    if (termsNoteEl) {
+      const hasCrm = this.state.cart.some(i => String(i.id).includes('bundle-crm'));
+      const hasStandard = this.state.cart.some(i => String(i.id).includes('bundle-standard') || String(i.id).includes('-pvc-card'));
+      termsNoteEl.style.display = 'block';
+      if (hasCrm && hasStandard) {
+        termsNoteEl.innerHTML = `
+          <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">Billing &amp; Renewal Breakdown:</div>
+          <div>• <strong>CRM Bundle:</strong> Includes 1-yr CRM workspace. Annual renewal at ₹2,999/yr (manual renewal upon expiry).</div>
+          <div style="margin-top: 3px;">• <strong>Standard Bundle:</strong> Includes 1-yr profile hosting. Annual renewal at ₹499/yr after 1st yr (manual renewal).</div>
+          <div style="margin-top: 4px; color: #0066FF; font-weight: 500;">✓ No recurring auto-debit · One-time checkout today</div>
+        `;
+      } else if (hasCrm) {
+        termsNoteEl.innerHTML = `
+          <div style="font-weight: 600; color: #0F172A; margin-bottom: 3px;">Billing Terms:</div>
+          <div>Includes custom NFC card + 1-year Full CRM Workspace. Renews annually at ₹2,999/year. Manual renewal upon expiry; no recurring auto-debits.</div>
+        `;
+      } else if (hasStandard) {
+        termsNoteEl.innerHTML = `
+          <div style="font-weight: 600; color: #0F172A; margin-bottom: 3px;">Billing Terms:</div>
+          <div>Includes custom NFC card + 1-year digital profile hosting. Annual profile renewal at ₹499/year after Year 1. Manual renewal; no recurring auto-debits.</div>
+        `;
+      } else {
+        termsNoteEl.innerHTML = `<div>All prices include applicable taxes. One-time payment due today.</div>`;
+      }
+    }
 
     if (totalElem) totalElem.textContent = this.formatCartTotal();
     listContainer.querySelectorAll('[data-cart-id]').forEach(button => {
@@ -1512,29 +1587,68 @@ class LuxApp {
     supportTrigger?.addEventListener('click', () => this.openSupportModal());
 
     let lastActiveTrigger = null;
+    const trapFocusInDrawer = (e, drawerEl) => {
+      if (e.key !== 'Tab') return;
+      const focusables = Array.from(
+        drawerEl.querySelectorAll(
+          'button:not([disabled]):not([aria-hidden="true"]), [href]:not([disabled]):not([aria-hidden="true"]), input:not([disabled]):not([type="hidden"]):not([aria-hidden="true"]), select:not([disabled]):not([aria-hidden="true"]), textarea:not([disabled]):not([aria-hidden="true"]), [tabindex]:not([tabindex="-1"]):not([disabled])'
+        )
+      ).filter(el => {
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      });
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first || !drawerEl.contains(document.activeElement)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last || !drawerEl.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    if (cartDrawer) {
+      cartDrawer.addEventListener('keydown', (e) => trapFocusInDrawer(e, cartDrawer));
+    }
+    if (wishlistDrawer) {
+      wishlistDrawer.addEventListener('keydown', (e) => trapFocusInDrawer(e, wishlistDrawer));
+    }
+
     const openDrawer = (drawer) => {
+      if (drawer === cartDrawer) {
+        this.openCartDrawer(document.activeElement);
+        return;
+      }
       lastActiveTrigger = document.activeElement;
+      document.body.classList.add('drawer-open');
       document.body.style.overflow = 'hidden';
       overlay.classList.add('open');
       drawer.classList.add('open');
       drawer.setAttribute('aria-hidden', 'false');
-      if (drawer === cartDrawer) this.renderCartDrawer();
       if (drawer === wishlistDrawer) this.renderWishlistDrawer();
       const closeBtn = drawer.querySelector('.drawer-close');
-      if (closeBtn) closeBtn.focus();
+      if (closeBtn) {
+        setTimeout(() => {
+          try { closeBtn.focus(); } catch (err) {}
+        }, 50);
+      }
     };
 
     const closeDrawers = () => {
-      document.body.style.overflow = '';
-      overlay.classList.remove('open');
-      cartDrawer.classList.remove('open');
-      cartDrawer.setAttribute('aria-hidden', 'true');
+      this.closeCartDrawer();
       if (wishlistDrawer) {
         wishlistDrawer.classList.remove('open');
         wishlistDrawer.setAttribute('aria-hidden', 'true');
       }
       if (lastActiveTrigger && typeof lastActiveTrigger.focus === 'function') {
-        lastActiveTrigger.focus();
+        try { lastActiveTrigger.focus(); } catch (err) {}
+        lastActiveTrigger = null;
       }
     };
 
@@ -2074,7 +2188,7 @@ class LuxApp {
         });
         const data = await response.json().catch(() => ({}));
         const confirmationMsg = data.message || "If this account is eligible, we’ll email you a link to set or reset your password.";
-        
+
         if (messageBox) {
           messageBox.style.display = 'block';
           messageBox.textContent = confirmationMsg + " Check your inbox and spam folder. The link is valid for 15 minutes.";
@@ -2236,9 +2350,9 @@ class LuxApp {
       const messageField = document.getElementById('support-message');
       if (messageField && !messageField.value.trim()) {
         if (queryBundle === 'lead-management') {
-          messageField.value = 'I would like to get the NFC Card + Lead Management bundle (Yearly Plan · Billed Annually at ₹2,999/year).';
+          messageField.value = 'I would like to get the NFC Card + Lead Management bundle (Yearly Plan · Billed Annually at ₹1,999/year onwards).';
         } else if (queryBundle === 'nfc-card') {
-          messageField.value = 'I would like to get the NFC Card + Software standard bundle (₹1,999).';
+          messageField.value = 'I would like to get the NFC Card + Software standard bundle (₹999 onwards).';
         }
       }
     }
