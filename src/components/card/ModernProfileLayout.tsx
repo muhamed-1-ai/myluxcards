@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, CardProfileProduct, isValidStoreUrl, resolveAppDownloadTile } from "@/lib/cards";
+import {
+  formatCountryCode,
+  CardProfileProduct,
+  isValidStoreUrl,
+  resolveAppDownloadTile,
+  resolveInstagramTiles,
+  type InstagramAccount,
+} from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
 import { BrandLogo } from "./BrandLogo";
@@ -76,6 +83,7 @@ export interface ModernProfileLayoutProps {
     brochure?: string;
     brochureData?: string;
     social?: Record<string, string>;
+    instagramAccounts?: InstagramAccount[];
     services?: string[];
     logo?: string;
     cover?: string;
@@ -173,7 +181,7 @@ export function ModernProfileLayout({
           setFetchedProducts(data.products);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       isMounted = false;
@@ -251,8 +259,18 @@ export function ModernProfileLayout({
     }
   };
 
+  const igTiles = resolveInstagramTiles(card.instagramAccounts, card.social?.Instagram || card.social?.instagram);
+
   const socialLinks = [
-    { key: "instagram", name: "Instagram", url: card.social?.Instagram || card.social?.instagram, brand: "instagram" },
+    ...igTiles.map((tile) => ({
+      key: tile.key,
+      name: tile.name,
+      subText: tile.subText,
+      url: tile.url,
+      brand: "instagram",
+      ariaLabel: tile.ariaLabel,
+      isAppDownload: false,
+    })),
     { key: "website", name: "Website", url: card.website, brand: "website" },
     { key: "linkedin", name: "LinkedIn", url: card.social?.LinkedIn || card.social?.linkedin, brand: "linkedin" },
     { key: "youtube", name: "YouTube", url: card.social?.YouTube || card.social?.youtube, brand: "youtube" },
@@ -293,7 +311,7 @@ export function ModernProfileLayout({
   return (
     <div className={`zappit-modern-wrapper ${themeClass}`} style={styleVars}>
       <div className={`zappit-modern-container ${themeClass}`}>
-        
+
         {/* ── TOP-RIGHT EDIT BUTTON ── */}
         {onEditProfile && (
           <div className="zappit-profile-edit-bar">

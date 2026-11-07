@@ -21,7 +21,19 @@ import { resolveThemeTokens, resolveSimpleProfileTokens, PROFILE_THEME_PRESETS, 
 import { ShareDetailsModal } from "@/components/card/ShareDetailsModal";
 import { ProfileThemeSwitcher } from "@/components/card/ProfileThemeSwitcher";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, CardContactNumber, MAX_CONTACT_NUMBERS, reconcileContactNumbers, AppDownloadSettings, isValidStoreUrl } from "@/lib/cards";
+import {
+  formatCountryCode,
+  CardContactNumber,
+  MAX_CONTACT_NUMBERS,
+  reconcileContactNumbers,
+  AppDownloadSettings,
+  isValidStoreUrl,
+  InstagramAccount,
+  MAX_INSTAGRAM_ACCOUNTS,
+  extractInstagramHandle,
+  isValidInstagramUrl,
+  cleanInstagramAccounts,
+} from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
 import "@/components/accounting/accounting.css";
@@ -165,7 +177,7 @@ type Card = {
   id: string; ownerId: string; name: string; slug: string; title: string; business: string;
   countryCode: string; countryIso: string; mobile: string; whatsapp: string; email: string; website: string;
   state: string; stateCode: string; city: string; address: string; brochure: string; brochureData?: string;
-  social: Record<string, string>; about: string; services: string[];
+  social: Record<string, string>; instagramAccounts?: InstagramAccount[]; about: string; services: string[];
   logo: string; cover: string; profileBackground: string; profileAccent: string; profileText: string;
   logoScale: number; logoZoom?: number; logoRotation: number; logoX: number; logoY: number;
   coverScale: number; coverRotation: number; coverX: number; coverY: number;
@@ -323,6 +335,7 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     contactNumbers: [],
     profileThemePreference: "dashboard",
     appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
+    instagramAccounts: [{ url: "", name: "" }],
   };
 };
 const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUser | null): Card => {
@@ -357,6 +370,11 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
       playStoreUrl: String(card.appDownload?.playStoreUrl || "").trim(),
       referralUrl: String(card.appDownload?.referralUrl || "").trim(),
     },
+    instagramAccounts: Array.isArray(card.instagramAccounts) && card.instagramAccounts.length > 0
+      ? card.instagramAccounts
+      : (card.social?.Instagram || card.social?.instagram
+        ? [{ id: "ig_legacy", url: card.social?.Instagram || card.social?.instagram, name: "" }]
+        : [{ url: "", name: "" }]),
   };
 };
 const emptyCard = createBlankCard({ id: "", name: "", email: "" });
@@ -1149,1037 +1167,1460 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       }
     }
     if (section === "social" || section === "dashboard") {
-      socialFields.forEach((key) => {
+      socialFields.filter((key) => key !== "Instagram").forEach((key) => {
         if (!validUrl(draft.social[key])) next[key] = "Include http:// or https://.";
       });
-      if (draft.appDownload?.appStoreUrl && !isValidStoreUrl(draft.appDownload.appStoreUrl, "apple")) {
-        next.appStoreUrl = "Enter a valid direct store link or HTTPS referral link for Apple devices.";
+        const igAccounts = Array.isArray(draft.instagramAccounts) ? draft.instagramAccounts : [];
+        const seenIgHandles = new Set<string>();
+        igAccounts.forEach((acc, idx) => {
+          const rawUrl = String(acc.url || "").trim();
+          const rawName = String(acc.name || "").trim();
+          if (!rawUrl && !rawName) return;
+          if (!rawUrl && rawName) {
+            next[`instagram_${idx}`] = "Please enter an Instagram profile URL for this display name.";
+            return;
+          }
+          const handle = extractInstagramHandle(rawUrl);
+          if (!handle) {
+            next[`instagram_${idx}`] = "Enter a valid Instagram profile URL (e.g. https://instagram.com/yourname).";
+            return;
+          }
+          const lowerHandle = handle.toLowerCase();
+          if (seenIgHandles.has(lowerHandle)) {
+            next[`instagram_${idx}`] = "This Instagram account has already been added.";
+            return;
+          }
+          seenIgHandles.add(lowerHandle);
+        });
+        if (draft.appDownload?.appStoreUrl && !isValidStoreUrl(draft.appDownload.appStoreUrl, "apple")) {
+          next.appStoreUrl = "Enter a valid direct store link or HTTPS referral link for Apple devices.";
+        }
+        if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
+          next.playStoreUrl = "Enter a valid direct store link or HTTPS referral link for Android devices.";
+        }
+        if (draft.appDownload?.referralUrl && !isValidStoreUrl(draft.appDownload.referralUrl, "universal")) {
+          next.referralUrl = "Enter a valid HTTPS referral or smart link (e.g. https://...).";
+        }
       }
-      if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
-        next.playStoreUrl = "Enter a valid direct store link or HTTPS referral link for Android devices.";
-      }
-      if (draft.appDownload?.referralUrl && !isValidStoreUrl(draft.appDownload.referralUrl, "universal")) {
-        next.referralUrl = "Enter a valid HTTPS referral or smart link (e.g. https://...).";
-      }
-    }
     setErrors(next); return Object.keys(next).length === 0;
-  };
-  const save = async (section: Tab, next?: Tab, silent = false) => {
-    if (saving) return;
-    if (!validate(section)) { setSaveStatus("error"); if (!silent) notify("Please fix the highlighted fields."); return; }
-    const currentSeq = ++saveSeqRef.current;
-    setSaving(true);
-    setSaveStatus("saving");
-    if (!silent) notify("Saving your card…");
-    console.log("[ProfileImageDebug] SAVE_STARTED", { cardId: draft.id, section, logo: draft.logo ? draft.logo.slice(0, 60) : null });
-    console.log("[MediaTrace] AUTOSAVE_START", { cardId: draft.id, section, logo: draft.logo ? draft.logo.slice(0, 60) : null });
-    const optimizedDraft = {
-      ...draft,
-      logo: await optimizeProfileImage(draft.logo, 800, 800),
-      cover: await optimizeProfileImage(draft.cover, 1600, 900),
     };
-    const saved = cards.map((card) => card.id === optimizedDraft.id ? optimizedDraft : card);
-    setCards(saved);
-    if (currentUser) cacheCards(currentUser.id, saved);
-    try {
-      // Filter empty draft rows for the network save payload ONLY
-      const payloadContactNumbers = Array.isArray(optimizedDraft.contactNumbers)
-        ? optimizedDraft.contactNumbers.filter((n, idx) => idx === 0 || Boolean((n.phoneNumber || "").trim()))
-        : optimizedDraft.contactNumbers;
-
-      const savePayload = {
-        ...optimizedDraft,
-        contactNumbers: payloadContactNumbers,
+    const save = async (section: Tab, next?: Tab, silent = false) => {
+      if (saving) return;
+      if (!validate(section)) { setSaveStatus("error"); if (!silent) notify("Please fix the highlighted fields."); return; }
+      const currentSeq = ++saveSeqRef.current;
+      setSaving(true);
+      setSaveStatus("saving");
+      if (!silent) notify("Saving your card…");
+      console.log("[ProfileImageDebug] SAVE_STARTED", { cardId: draft.id, section, logo: draft.logo ? draft.logo.slice(0, 60) : null });
+      console.log("[MediaTrace] AUTOSAVE_START", { cardId: draft.id, section, logo: draft.logo ? draft.logo.slice(0, 60) : null });
+      const optimizedDraft = {
+        ...draft,
+        logo: await optimizeProfileImage(draft.logo, 800, 800),
+        cover: await optimizeProfileImage(draft.cover, 1600, 900),
       };
+      const saved = cards.map((card) => card.id === optimizedDraft.id ? optimizedDraft : card);
+      setCards(saved);
+      if (currentUser) cacheCards(currentUser.id, saved);
+      try {
+        // Filter empty draft rows for the network save payload ONLY
+        const payloadContactNumbers = Array.isArray(optimizedDraft.contactNumbers)
+          ? optimizedDraft.contactNumbers.filter((n, idx) => idx === 0 || Boolean((n.phoneNumber || "").trim()))
+          : optimizedDraft.contactNumbers;
 
-      const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
-      const payload = await response.json().catch(() => ({}));
-      console.log("[ProfileImageDebug] SAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
-      console.log("[MediaTrace] AUTOSAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
-      if (currentSeq !== saveSeqRef.current) {
-        // Discard stale in-flight response if a newer save was triggered
-        return;
-      }
-      if (!response.ok) {
-        if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); setSaving(false); return; }
-        throw new Error(payload.message || "Cloud save failed.");
-      }
-      const cloudCard = payload.card as Card;
-      setDraft((currentDraft) => {
-        const isLogoNewer = Boolean(currentDraft.logo && currentDraft.logo !== optimizedDraft.logo && currentDraft.logo !== cloudCard.logo);
-        const isCoverNewer = Boolean(currentDraft.cover && currentDraft.cover !== optimizedDraft.cover && currentDraft.cover !== cloudCard.cover);
-
-        const finalLogo = isLogoNewer ? currentDraft.logo : (cloudCard.logo || optimizedDraft.logo);
-        const finalCover = isCoverNewer ? currentDraft.cover : (cloudCard.cover || optimizedDraft.cover);
-
-        // Reconcile contact numbers: do NOT write filtered collection back over editor draft rows!
-        const finalContactNumbers = reconcileContactNumbers(
-          currentDraft.contactNumbers,
-          cloudCard.contactNumbers
-        );
-
-        const updated = {
-          ...cloudCard,
-          ...currentDraft,
-          id: cloudCard.id || currentDraft.id,
-          slug: cloudCard.slug || currentDraft.slug,
-          active: typeof cloudCard.active === "boolean" ? cloudCard.active : currentDraft.active,
-          activatedAt: cloudCard.activatedAt !== undefined ? cloudCard.activatedAt : currentDraft.activatedAt,
-          logo: finalLogo,
-          cover: finalCover,
-          contactNumbers: finalContactNumbers,
-          appDownload: currentDraft.appDownload || cloudCard.appDownload || { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
+        const cleanedIgAccounts = cleanInstagramAccounts(optimizedDraft.instagramAccounts);
+        const updatedSocial = {
+          ...(optimizedDraft.social || {}),
+          Instagram: cleanedIgAccounts.length > 0 ? cleanedIgAccounts[0].url : "",
         };
 
-        setCards((prevCards) => prevCards.map((c) => (c.id === updated.id ? updated : c)));
-        if (currentUser) cacheCards(currentUser.id, [updated]);
-        lastSavedRef.current = JSON.stringify(updated);
-        return updated;
-      });
-      setCloudReady(true);
-      setSaveStatus("saved");
-      if (!silent) notify("Card saved securely.");
-    } catch (error) { setSaveStatus("error"); if (!silent) notify(error instanceof Error ? error.message : "Saved in this browser, but cloud save failed. Try again."); }
-    finally { setSaving(false); }
-    if (next) selectTab(next);
-  };
-  useEffect(() => {
-    if (!authReady || !cloudReady || !currentUser || !draft.name || uploadingKind || JSON.stringify(draft) === lastSavedRef.current) return;
-    setSaveStatus("unsaved");
-    const timer = window.setTimeout(() => { void save("dashboard", undefined, true); }, 1200);
-    return () => window.clearTimeout(timer);
-  }, [draft, authReady, cloudReady, currentUser, uploadingKind]);
-  const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
-  const logout = async () => {
-    try {
-      const { unsubscribeDeviceFromPush } = await import("@/lib/pushClient");
-      await unsubscribeDeviceFromPush().catch(() => { });
-    } catch {
-      // ignore
-    }
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
-    localStorage.removeItem("myluxcards_current_user");
-    window.location.replace("/");
-  };
-  const handleFile = async (event: ChangeEvent<HTMLInputElement>, kind: "logo" | "cover" | "brochure") => {
-    const file = event.target.files?.[0]; if (!file) return;
-    console.log("[ProfileImageDebug] FILE_SELECTED", { kind, fileName: file.name, fileSize: file.size, fileType: file.type });
-    console.log("[MediaTrace] UPLOAD_START", { kind, fileName: file.name, fileSize: file.size });
-    if (kind === "brochure") {
-      if (file.type !== "application/pdf" || file.size > 5 * 1024 * 1024) {
-        setErrors((e) => ({ ...e, brochure: "PDF only, maximum 5 MB." })); return;
-      }
-      setErrors((e) => ({ ...e, brochure: "" }));
-    }
-    if (kind !== "brochure") {
-      const supportedImages = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
-      if (!supportedImages.has(file.type)) {
-        notify("Please choose a PNG, JPG, WebP, or GIF image.");
-        event.target.value = "";
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        notify("Images must be 5 MB or smaller.");
-        event.target.value = "";
-        return;
-      }
-    }
-    let localUrl = "";
-    if (kind !== "brochure") {
-      localUrl = URL.createObjectURL(file);
-      update(kind, localUrl);
-    }
+        const savePayload = {
+          ...optimizedDraft,
+          social: updatedSocial,
+          instagramAccounts: cleanedIgAccounts,
+          contactNumbers: payloadContactNumbers,
+        };
 
-    const form = new FormData();
-    form.append("file", file);
-    form.append("kind", kind);
-    setUploadingKind(kind);
-    notify("Uploading securely…");
-    console.log("[ProfileImageDebug] MEDIA_UPLOAD_STARTED", { kind, fileName: file.name });
-
-    try {
-      const response = await fetchWithSessionRefresh("/api/media", { method: "POST", body: form });
-      const payload = await response.json().catch(() => ({}));
-      console.log("[ProfileImageDebug] MEDIA_UPLOAD_RESPONSE", { status: response.status, ok: response.ok, hasUrl: Boolean(payload.url) });
-      if (!response.ok || !payload.url) throw new Error(payload.message || "Upload failed.");
-
-      console.log("[ProfileImageDebug] MEDIA_REFERENCE_RECEIVED", { kind, reference: payload.url.slice(0, 60) });
-      console.log("[MediaTrace] UPLOAD_SUCCESS", { kind, key: payload.key, url: payload.url });
-
-      if (kind === "brochure") {
-        setDraft((old) => ({ ...old, brochure: file.name, brochureData: payload.url }));
-      } else {
-        update(kind, payload.url);
-      }
-      notify("Upload complete. Press Save & Finish to publish it.");
-    } catch (error) {
-      console.error("[ProfileImageDebug] UPLOAD_ERROR", error);
-      notify(error instanceof Error ? error.message : "Upload failed.");
-    } finally {
-      setUploadingKind(null);
-      event.target.value = "";
-      if (localUrl && localUrl.startsWith("blob:")) {
-        setTimeout(() => {
-          URL.revokeObjectURL(localUrl);
-        }, 10000);
-      }
-    }
-  };
-  const clearCard = async (cardId: string) => {
-    if (/^[0-9a-f-]{36}$/i.test(cardId)) {
-      const response = await fetchWithSessionRefresh("/api/cards", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: cardId }) });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) { notify(payload.message || "Card could not be removed."); return; }
-    }
-    const remaining = cards.filter(card => card.id !== cardId);
-    const next = remaining[0] || createBlankCard(identity);
-    const nextCards = remaining.length ? remaining : [next];
-    setCards(nextCards); setDraft(next); setSelectedId(next.id);
-    cacheCards(identity.id, nextCards);
-    setDeleteId(null); setSaveStatus("saved"); notify("Card removed.");
-  };
-  const [overviewAnalytics, setOverviewAnalytics] = useState<{ totalOpens: number; nfcTaps: number; qrScans: number; otherOpens: number } | null>(null);
-  const [dashboardLayout, setDashboardLayout] = useState<DashboardLayoutType>("business");
-  const [layoutModalOpen, setLayoutModalOpen] = useState(false);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<"7d" | "30d" | "90d">("30d");
-  const [whatsappConnected, setWhatsappConnected] = useState(true);
-  const [masterConfigOpen, setMasterConfigOpen] = useState(true);
-  const [accountingOpen, setAccountingOpen] = useState(true);
-
-  // Moving Active Selection Highlight (Sorvo Reference)
-  const navScrollRef = useRef<HTMLElement | null>(null);
-  const [indicatorStyle, setIndicatorStyle] = useState({
-    top: 0,
-    left: 0,
-    width: 0,
-    height: 0,
-    borderRadius: 14,
-    visible: false,
-  });
-  const [indicatorReady, setIndicatorReady] = useState(false);
-
-  const updateActiveIndicator = useCallback((immediate = false) => {
-    const nav = navScrollRef.current;
-    if (!nav) return;
-    const activeEl = nav.querySelector<HTMLElement>('[data-active-nav="true"]');
-    if (!activeEl) {
-      setIndicatorStyle((prev) => (prev.visible ? { ...prev, visible: false } : prev));
-      return;
-    }
-
-    const navRect = nav.getBoundingClientRect();
-    const elRect = activeEl.getBoundingClientRect();
-
-    if (elRect.width === 0 || elRect.height === 0) return;
-
-    const top = elRect.top - navRect.top + nav.scrollTop;
-    const left = elRect.left - navRect.left + nav.scrollLeft;
-    const width = elRect.width;
-    const height = elRect.height;
-    const isSubnav = activeEl.classList.contains("side-subnav-item");
-    const borderRadius = isSubnav ? 10 : (desktopCollapsed ? 12 : 14);
-
-    setIndicatorStyle({
-      top,
-      left,
-      width,
-      height,
-      borderRadius,
-      visible: true,
-    });
-
-    if (immediate) {
-      setIndicatorReady(false);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIndicatorReady(true);
-        });
-      });
-    } else {
-      setIndicatorReady(true);
-    }
-  }, [desktopCollapsed]);
-
-  // Initial instantaneous placement
-  useEffect(() => {
-    updateActiveIndicator(true);
-  }, [updateActiveIndicator]);
-
-  // Update on route/tab change, accordions, or sidebar expand/collapse
-  useEffect(() => {
-    updateActiveIndicator(false);
-  }, [tab, accountingOpen, masterConfigOpen, desktopCollapsed, updateActiveIndicator]);
-
-  // Keep aligned during sidebar scrolling, resizing, and responsive reflows
-  useEffect(() => {
-    const nav = navScrollRef.current;
-    if (!nav) return;
-
-    const handleResize = () => {
-      updateActiveIndicator(false);
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(() => {
-        updateActiveIndicator(false);
-      });
-      resizeObserver.observe(nav);
-    }
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      if (resizeObserver) resizeObserver.disconnect();
-    };
-  }, [updateActiveIndicator]);
-
-
-
-  // Load user dashboard layout preference
-  useEffect(() => {
-    let active = true;
-    const fetchLayoutPref = async () => {
-      try {
-        const res = await fetch("/api/user/dashboard-layout", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (active && data.layout) {
-            setDashboardLayout(data.layout as DashboardLayoutType);
-          }
+        const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
+        const payload = await response.json().catch(() => ({}));
+        console.log("[ProfileImageDebug] SAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
+        console.log("[MediaTrace] AUTOSAVE_RESPONSE", { status: response.status, ok: response.ok, savedLogo: payload.card?.logo ? payload.card.logo.slice(0, 60) : null });
+        if (currentSeq !== saveSeqRef.current) {
+          // Discard stale in-flight response if a newer save was triggered
+          return;
         }
+        if (!response.ok) {
+          if (response.status === 401) { notify("Your secure session expired. Please sign in once, then press Save & finish again."); setSaving(false); return; }
+          throw new Error(payload.message || "Cloud save failed.");
+        }
+        const cloudCard = payload.card as Card;
+        setDraft((currentDraft) => {
+          const isLogoNewer = Boolean(currentDraft.logo && currentDraft.logo !== optimizedDraft.logo && currentDraft.logo !== cloudCard.logo);
+          const isCoverNewer = Boolean(currentDraft.cover && currentDraft.cover !== optimizedDraft.cover && currentDraft.cover !== cloudCard.cover);
+
+          const finalLogo = isLogoNewer ? currentDraft.logo : (cloudCard.logo || optimizedDraft.logo);
+          const finalCover = isCoverNewer ? currentDraft.cover : (cloudCard.cover || optimizedDraft.cover);
+
+          // Reconcile contact numbers: do NOT write filtered collection back over editor draft rows!
+          const finalContactNumbers = reconcileContactNumbers(
+            currentDraft.contactNumbers,
+            cloudCard.contactNumbers
+          );
+
+          const updated = {
+            ...cloudCard,
+            ...currentDraft,
+            id: cloudCard.id || currentDraft.id,
+            slug: cloudCard.slug || currentDraft.slug,
+            active: typeof cloudCard.active === "boolean" ? cloudCard.active : currentDraft.active,
+            activatedAt: cloudCard.activatedAt !== undefined ? cloudCard.activatedAt : currentDraft.activatedAt,
+            logo: finalLogo,
+            cover: finalCover,
+            contactNumbers: finalContactNumbers,
+            appDownload: currentDraft.appDownload || cloudCard.appDownload || { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
+            instagramAccounts: Array.isArray(currentDraft.instagramAccounts) && currentDraft.instagramAccounts.length > 0
+              ? currentDraft.instagramAccounts
+              : (Array.isArray(cloudCard.instagramAccounts) && cloudCard.instagramAccounts.length > 0
+                ? cloudCard.instagramAccounts
+                : [{ url: "", name: "" }]),
+          };
+
+          setCards((prevCards) => prevCards.map((c) => (c.id === updated.id ? updated : c)));
+          if (currentUser) cacheCards(currentUser.id, [updated]);
+          lastSavedRef.current = JSON.stringify(updated);
+          return updated;
+        });
+        setCloudReady(true);
+        setSaveStatus("saved");
+        if (!silent) notify("Card saved securely.");
+      } catch (error) { setSaveStatus("error"); if (!silent) notify(error instanceof Error ? error.message : "Saved in this browser, but cloud save failed. Try again."); }
+      finally { setSaving(false); }
+      if (next) selectTab(next);
+    };
+    useEffect(() => {
+      if (!authReady || !cloudReady || !currentUser || !draft.name || uploadingKind || JSON.stringify(draft) === lastSavedRef.current) return;
+      setSaveStatus("unsaved");
+      const timer = window.setTimeout(() => { void save("dashboard", undefined, true); }, 1200);
+      return () => window.clearTimeout(timer);
+    }, [draft, authReady, cloudReady, currentUser, uploadingKind]);
+    const openEditor = (card: Card) => { setSelectedId(card.id); setDraft(card); selectTab("contact"); };
+    const logout = async () => {
+      try {
+        const { unsubscribeDeviceFromPush } = await import("@/lib/pushClient");
+        await unsubscribeDeviceFromPush().catch(() => { });
       } catch {
-        /* fallback to default 'business' */
+        // ignore
+      }
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+      localStorage.removeItem("myluxcards_current_user");
+      window.location.replace("/");
+    };
+    const handleFile = async (event: ChangeEvent<HTMLInputElement>, kind: "logo" | "cover" | "brochure") => {
+      const file = event.target.files?.[0]; if (!file) return;
+      console.log("[ProfileImageDebug] FILE_SELECTED", { kind, fileName: file.name, fileSize: file.size, fileType: file.type });
+      console.log("[MediaTrace] UPLOAD_START", { kind, fileName: file.name, fileSize: file.size });
+      if (kind === "brochure") {
+        if (file.type !== "application/pdf" || file.size > 5 * 1024 * 1024) {
+          setErrors((e) => ({ ...e, brochure: "PDF only, maximum 5 MB." })); return;
+        }
+        setErrors((e) => ({ ...e, brochure: "" }));
+      }
+      if (kind !== "brochure") {
+        const supportedImages = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+        if (!supportedImages.has(file.type)) {
+          notify("Please choose a PNG, JPG, WebP, or GIF image.");
+          event.target.value = "";
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          notify("Images must be 5 MB or smaller.");
+          event.target.value = "";
+          return;
+        }
+      }
+      let localUrl = "";
+      if (kind !== "brochure") {
+        localUrl = URL.createObjectURL(file);
+        update(kind, localUrl);
+      }
+
+      const form = new FormData();
+      form.append("file", file);
+      form.append("kind", kind);
+      setUploadingKind(kind);
+      notify("Uploading securely…");
+      console.log("[ProfileImageDebug] MEDIA_UPLOAD_STARTED", { kind, fileName: file.name });
+
+      try {
+        const response = await fetchWithSessionRefresh("/api/media", { method: "POST", body: form });
+        const payload = await response.json().catch(() => ({}));
+        console.log("[ProfileImageDebug] MEDIA_UPLOAD_RESPONSE", { status: response.status, ok: response.ok, hasUrl: Boolean(payload.url) });
+        if (!response.ok || !payload.url) throw new Error(payload.message || "Upload failed.");
+
+        console.log("[ProfileImageDebug] MEDIA_REFERENCE_RECEIVED", { kind, reference: payload.url.slice(0, 60) });
+        console.log("[MediaTrace] UPLOAD_SUCCESS", { kind, key: payload.key, url: payload.url });
+
+        if (kind === "brochure") {
+          setDraft((old) => ({ ...old, brochure: file.name, brochureData: payload.url }));
+        } else {
+          update(kind, payload.url);
+        }
+        notify("Upload complete. Press Save & Finish to publish it.");
+      } catch (error) {
+        console.error("[ProfileImageDebug] UPLOAD_ERROR", error);
+        notify(error instanceof Error ? error.message : "Upload failed.");
+      } finally {
+        setUploadingKind(null);
+        event.target.value = "";
+        if (localUrl && localUrl.startsWith("blob:")) {
+          setTimeout(() => {
+            URL.revokeObjectURL(localUrl);
+          }, 10000);
+        }
       }
     };
-    void fetchLayoutPref();
-    return () => { active = false; };
-  }, []);
+    const clearCard = async (cardId: string) => {
+      if (/^[0-9a-f-]{36}$/i.test(cardId)) {
+        const response = await fetchWithSessionRefresh("/api/cards", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: cardId }) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) { notify(payload.message || "Card could not be removed."); return; }
+      }
+      const remaining = cards.filter(card => card.id !== cardId);
+      const next = remaining[0] || createBlankCard(identity);
+      const nextCards = remaining.length ? remaining : [next];
+      setCards(nextCards); setDraft(next); setSelectedId(next.id);
+      cacheCards(identity.id, nextCards);
+      setDeleteId(null); setSaveStatus("saved"); notify("Card removed.");
+    };
+    const [overviewAnalytics, setOverviewAnalytics] = useState<{ totalOpens: number; nfcTaps: number; qrScans: number; otherOpens: number } | null>(null);
+    const [dashboardLayout, setDashboardLayout] = useState<DashboardLayoutType>("business");
+    const [layoutModalOpen, setLayoutModalOpen] = useState(false);
+    const [analyticsPeriod, setAnalyticsPeriod] = useState<"7d" | "30d" | "90d">("30d");
+    const [whatsappConnected, setWhatsappConnected] = useState(true);
+    const [masterConfigOpen, setMasterConfigOpen] = useState(true);
+    const [accountingOpen, setAccountingOpen] = useState(true);
 
-  // Load WhatsApp connection status
-  useEffect(() => {
-    let active = true;
-    const checkWa = async () => {
-      try {
-        const res = await fetch("/api/whatsapp/connection", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json().catch(() => ({}));
-          if (active) setWhatsappConnected(Boolean(json?.connected === true));
-        } else {
+    // Moving Active Selection Highlight (Sorvo Reference)
+    const navScrollRef = useRef<HTMLElement | null>(null);
+    const [indicatorStyle, setIndicatorStyle] = useState({
+      top: 0,
+      left: 0,
+      width: 0,
+      height: 0,
+      borderRadius: 14,
+      visible: false,
+    });
+    const [indicatorReady, setIndicatorReady] = useState(false);
+
+    const updateActiveIndicator = useCallback((immediate = false) => {
+      const nav = navScrollRef.current;
+      if (!nav) return;
+      const activeEl = nav.querySelector<HTMLElement>('[data-active-nav="true"]');
+      if (!activeEl) {
+        setIndicatorStyle((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+        return;
+      }
+
+      const navRect = nav.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
+
+      if (elRect.width === 0 || elRect.height === 0) return;
+
+      const top = elRect.top - navRect.top + nav.scrollTop;
+      const left = elRect.left - navRect.left + nav.scrollLeft;
+      const width = elRect.width;
+      const height = elRect.height;
+      const isSubnav = activeEl.classList.contains("side-subnav-item");
+      const borderRadius = isSubnav ? 10 : (desktopCollapsed ? 12 : 14);
+
+      setIndicatorStyle({
+        top,
+        left,
+        width,
+        height,
+        borderRadius,
+        visible: true,
+      });
+
+      if (immediate) {
+        setIndicatorReady(false);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setIndicatorReady(true);
+          });
+        });
+      } else {
+        setIndicatorReady(true);
+      }
+    }, [desktopCollapsed]);
+
+    // Initial instantaneous placement
+    useEffect(() => {
+      updateActiveIndicator(true);
+    }, [updateActiveIndicator]);
+
+    // Update on route/tab change, accordions, or sidebar expand/collapse
+    useEffect(() => {
+      updateActiveIndicator(false);
+    }, [tab, accountingOpen, masterConfigOpen, desktopCollapsed, updateActiveIndicator]);
+
+    // Keep aligned during sidebar scrolling, resizing, and responsive reflows
+    useEffect(() => {
+      const nav = navScrollRef.current;
+      if (!nav) return;
+
+      const handleResize = () => {
+        updateActiveIndicator(false);
+      };
+
+      window.addEventListener("resize", handleResize);
+
+      let resizeObserver: ResizeObserver | null = null;
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => {
+          updateActiveIndicator(false);
+        });
+        resizeObserver.observe(nav);
+      }
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        if (resizeObserver) resizeObserver.disconnect();
+      };
+    }, [updateActiveIndicator]);
+
+
+
+    // Load user dashboard layout preference
+    useEffect(() => {
+      let active = true;
+      const fetchLayoutPref = async () => {
+        try {
+          const res = await fetch("/api/user/dashboard-layout", { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+            if (active && data.layout) {
+              setDashboardLayout(data.layout as DashboardLayoutType);
+            }
+          }
+        } catch {
+          /* fallback to default 'business' */
+        }
+      };
+      void fetchLayoutPref();
+      return () => { active = false; };
+    }, []);
+
+    // Load WhatsApp connection status
+    useEffect(() => {
+      let active = true;
+      const checkWa = async () => {
+        try {
+          const res = await fetch("/api/whatsapp/connection", { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json().catch(() => ({}));
+            if (active) setWhatsappConnected(Boolean(json?.connected === true));
+          } else {
+            if (active) setWhatsappConnected(false);
+          }
+        } catch {
+          console.log("WhatsApp connection unavailable");
           if (active) setWhatsappConnected(false);
         }
-      } catch {
-        console.log("WhatsApp connection unavailable");
-        if (active) setWhatsappConnected(false);
-      }
-    };
-    void checkWa();
-    return () => { active = false; };
-  }, []);
+      };
+      void checkWa();
+      return () => { active = false; };
+    }, []);
 
 
-  // Handler for layout changes
-  const handleSelectDashboardLayout = async (newLayout: DashboardLayoutType) => {
-    const previous = dashboardLayout;
-    setDashboardLayout(newLayout);
-    notify("Dashboard updated.");
+    // Handler for layout changes
+    const handleSelectDashboardLayout = async (newLayout: DashboardLayoutType) => {
+      const previous = dashboardLayout;
+      setDashboardLayout(newLayout);
+      notify("Dashboard updated.");
 
-    try {
-      const res = await fetch("/api/user/dashboard-layout", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ layout: newLayout }),
-      });
-      if (!res.ok) {
-        setDashboardLayout(previous);
-        notify("Could not save layout preference.");
-      }
-    } catch {
-      setDashboardLayout(previous);
-      notify("Failed to save layout preference.");
-    }
-  };
-
-  useEffect(() => {
-    let active = true;
-    const loadOverviewAnalytics = async () => {
       try {
-        const res = await fetch(`/api/analytics?period=${analyticsPeriod}`, { cache: "no-store" });
-        const json = await res.json().catch(() => ({}));
-        if (active && res.ok && json?.summary) {
-          setOverviewAnalytics({
-            totalOpens: Number(json.summary.totalOpens || 0),
-            nfcTaps: Number(json.summary.nfcTaps || 0),
-            qrScans: Number(json.summary.qrScans || 0),
-            otherOpens: Number(json.summary.otherOpens || 0),
-          });
+        const res = await fetch("/api/user/dashboard-layout", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ layout: newLayout }),
+        });
+        if (!res.ok) {
+          setDashboardLayout(previous);
+          notify("Could not save layout preference.");
         }
       } catch {
-        /* fail silently */
+        setDashboardLayout(previous);
+        notify("Failed to save layout preference.");
       }
     };
-    void loadOverviewAnalytics();
-    return () => { active = false; };
-  }, [cards, analyticsPeriod]);
 
-  // Handle Escape key to close mobile drawer navigation
-  useEffect(() => {
-    if (!sidebar) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSidebar(false);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sidebar]);
+    useEffect(() => {
+      let active = true;
+      const loadOverviewAnalytics = async () => {
+        try {
+          const res = await fetch(`/api/analytics?period=${analyticsPeriod}`, { cache: "no-store" });
+          const json = await res.json().catch(() => ({}));
+          if (active && res.ok && json?.summary) {
+            setOverviewAnalytics({
+              totalOpens: Number(json.summary.totalOpens || 0),
+              nfcTaps: Number(json.summary.nfcTaps || 0),
+              qrScans: Number(json.summary.qrScans || 0),
+              otherOpens: Number(json.summary.otherOpens || 0),
+            });
+          }
+        } catch {
+          /* fail silently */
+        }
+      };
+      void loadOverviewAnalytics();
+      return () => { active = false; };
+    }, [cards, analyticsPeriod]);
 
-  const selected = cards.find((card) => card.id === selectedId) || draft;
-  const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
-  const serverTotalOpens = overviewAnalytics?.totalOpens ?? totalViews;
-  const serverNfcTaps = overviewAnalytics?.nfcTaps ?? 0;
-  const serverQrScans = overviewAnalytics?.qrScans ?? 0;
-  const serverOtherOpens = overviewAnalytics?.otherOpens ?? 0;
+    // Handle Escape key to close mobile drawer navigation
+    useEffect(() => {
+      if (!sidebar) return;
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setSidebar(false);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [sidebar]);
 
-  const overviewUnreadRepliesCount = useMemo(() => {
-    return leads.filter((l: any) => l.hasNewReply || l.has_new_reply).length;
-  }, [leads]);
+    const selected = cards.find((card) => card.id === selectedId) || draft;
+    const totalViews = cards.reduce((sum, card) => sum + (card.analytics?.VIEW || card.views || 0), 0);
+    const serverTotalOpens = overviewAnalytics?.totalOpens ?? totalViews;
+    const serverNfcTaps = overviewAnalytics?.nfcTaps ?? 0;
+    const serverQrScans = overviewAnalytics?.qrScans ?? 0;
+    const serverOtherOpens = overviewAnalytics?.otherOpens ?? 0;
 
-  const overviewFollowUpsCount = useMemo(() => {
-    const now = new Date();
-    return leads.filter((l: any) => {
-      if (!l.nextFollowUpAt && !l.next_follow_up_at) return false;
-      const d = new Date(l.nextFollowUpAt || l.next_follow_up_at);
-      return d.getTime() <= now.getTime() + 24 * 60 * 60 * 1000;
-    }).length;
-  }, [leads]);
+    const overviewUnreadRepliesCount = useMemo(() => {
+      return leads.filter((l: any) => l.hasNewReply || l.has_new_reply).length;
+    }, [leads]);
 
-  const activeCards = cards.filter((card) => card.active).length;
-  const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
-  const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
-  const filtered = useMemo(() => cards.filter((card) =>
-    `${card.name} ${card.slug}`.toLowerCase().includes(search.toLowerCase())), [cards, search]);
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const start = filtered.length ? (page - 1) * pageSize + 1 : 0;
-  const end = Math.min(page * pageSize, filtered.length);
+    const overviewFollowUpsCount = useMemo(() => {
+      const now = new Date();
+      return leads.filter((l: any) => {
+        if (!l.nextFollowUpAt && !l.next_follow_up_at) return false;
+        const d = new Date(l.nextFollowUpAt || l.next_follow_up_at);
+        return d.getTime() <= now.getTime() + 24 * 60 * 60 * 1000;
+      }).length;
+    }, [leads]);
 
-  if (!authReady || !currentUser) {
-    return <div className="dash-auth-loading">Opening your dashboard…</div>;
-  }
+    const activeCards = cards.filter((card) => card.active).length;
+    const profileFields = [selected.name, selected.title, selected.business, selected.email, selected.mobile, selected.website, selected.about, selected.logo];
+    const profileCompletion = Math.round(profileFields.filter((value) => fieldValue(value)).length / profileFields.length * 100);
+    const filtered = useMemo(() => cards.filter((card) =>
+      `${card.name} ${card.slug}`.toLowerCase().includes(search.toLowerCase())), [cards, search]);
+    const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+    const start = filtered.length ? (page - 1) * pageSize + 1 : 0;
+    const end = Math.min(page * pageSize, filtered.length);
 
-  const userRole = currentUser.role || identity.role;
-  const userPermissions = currentUser.featurePermissions || identity.featurePermissions;
-  const isSuperOrAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN";
-  const hasAnyFeatureAccess = isSuperOrAdmin || FEATURE_CATALOGUE.some((f) => isFeatureAllowed(userPermissions, f.key, userRole));
+    if (!authReady || !currentUser) {
+      return <div className="dash-auth-loading">Opening your dashboard…</div>;
+    }
 
-  if (!hasAnyFeatureAccess) {
-    return (
-      <div className="dash-shell flex flex-col min-h-screen font-sans">
-        <DashboardBackgroundDecor />
-        {/* Top Header Bar */}
-        <header className="dash-main-header">
-          <div className="dash-header-left">
-            <span className="font-extrabold text-xl tracking-tight text-white flex-shrink-0">Zappit</span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex-shrink-0">
-              Access Pending
-            </span>
-          </div>
+    const userRole = currentUser.role || identity.role;
+    const userPermissions = currentUser.featurePermissions || identity.featurePermissions;
+    const isSuperOrAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN";
+    const hasAnyFeatureAccess = isSuperOrAdmin || FEATURE_CATALOGUE.some((f) => isFeatureAllowed(userPermissions, f.key, userRole));
 
-          <div className="dash-header-right">
-            <button
-              type="button"
-              onClick={toggleThemeWithTransition}
-              className="dash-theme-btn"
-            >
-              <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
-              <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-            </button>
-            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-300 flex-shrink-0">
-              <span className="font-medium text-white">{currentUser?.name || currentUser?.email}</span>
-              <span className="text-xs text-slate-400">({currentUser?.email})</span>
+    if (!hasAnyFeatureAccess) {
+      return (
+        <div className="dash-shell flex flex-col min-h-screen font-sans">
+          <DashboardBackgroundDecor />
+          {/* Top Header Bar */}
+          <header className="dash-main-header">
+            <div className="dash-header-left">
+              <span className="font-extrabold text-xl tracking-tight text-white flex-shrink-0">Zappit</span>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex-shrink-0">
+                Access Pending
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer flex-shrink-0"
-            >
-              Sign out
-            </button>
-          </div>
-        </header>
 
-        {/* Access Pending Card or Security Settings */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          {tab === "settings" || tab === "security" ? (
-            <div className="w-full max-w-2xl bg-[#1B1C21] border border-[#343740] rounded-2xl p-6 shadow-2xl">
+            <div className="dash-header-right">
               <button
                 type="button"
-                onClick={() => selectTab("dashboard")}
-                className="mb-4 text-xs font-bold text-sky-400 hover:text-sky-300 cursor-pointer inline-flex items-center gap-1"
+                onClick={toggleThemeWithTransition}
+                className="dash-theme-btn"
               >
-                ← Back to Overview
+                <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+                <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
               </button>
-              <GlobalAccountSettingsView
-                currentUser={currentUser}
-                onUpdateNickname={(newName) => {
-                  setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
-                }}
-                onNavigateTab={(t: string) => selectTab(t as Tab)}
-              />
-            </div>
-          ) : (
-            <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
-                <Clock className="w-8 h-8" />
+              <div className="hidden sm:flex items-center gap-2 text-sm text-slate-300 flex-shrink-0">
+                <span className="font-medium text-white">{currentUser?.name || currentUser?.email}</span>
+                <span className="text-xs text-slate-400">({currentUser?.email})</span>
               </div>
-              <h2 className="text-2xl font-bold text-[#F5F6F8] mb-2">Access pending</h2>
-              <p className="text-[#B5B8C2] text-sm leading-relaxed mb-6">
-                Your account is active, but no features have been enabled yet. Please contact your administrator.
-              </p>
-              <div className="pt-4 border-t border-[#343740] w-full flex flex-col items-center gap-3">
-                <div className="w-full flex items-center justify-between text-xs text-[#969CA8]">
-                  <span>Account Role: <strong className="text-[#F5F6F8]">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
-                  <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
-                </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer flex-shrink-0"
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          {/* Access Pending Card or Security Settings */}
+          <div className="flex-1 flex items-center justify-center p-6">
+            {tab === "settings" || tab === "security" ? (
+              <div className="w-full max-w-2xl bg-[#1B1C21] border border-[#343740] rounded-2xl p-6 shadow-2xl">
                 <button
                   type="button"
-                  onClick={() => selectTab("settings")}
-                  className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
+                  onClick={() => selectTab("dashboard")}
+                  className="mb-4 text-xs font-bold text-sky-400 hover:text-sky-300 cursor-pointer inline-flex items-center gap-1"
                 >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>Account Settings</span>
+                  ← Back to Overview
                 </button>
+                <GlobalAccountSettingsView
+                  currentUser={currentUser}
+                  onUpdateNickname={(newName) => {
+                    setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
+                  }}
+                  onNavigateTab={(t: string) => selectTab(t as Tab)}
+                />
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
+                  <Clock className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-[#F5F6F8] mb-2">Access pending</h2>
+                <p className="text-[#B5B8C2] text-sm leading-relaxed mb-6">
+                  Your account is active, but no features have been enabled yet. Please contact your administrator.
+                </p>
+                <div className="pt-4 border-t border-[#343740] w-full flex flex-col items-center gap-3">
+                  <div className="w-full flex items-center justify-between text-xs text-[#969CA8]">
+                    <span>Account Role: <strong className="text-[#F5F6F8]">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
+                    <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => selectTab("settings")}
+                    className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Account Settings</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
-  const userInitials = userDisplayName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("") || "U";
+    const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
+    const userInitials = userDisplayName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "U";
 
-  // Active state helpers for Moving Selection Highlight (Sorvo reference)
-  const isOverviewActive = tab === "dashboard";
-  const isLeadsActive = tab === "leads";
+    // Active state helpers for Moving Selection Highlight (Sorvo reference)
+    const isOverviewActive = tab === "dashboard";
+    const isLeadsActive = tab === "leads";
 
-  const isMasterConfigGroupActive = [
-    "config-sources",
-    "config-products",
-    "config-stages",
-    "config-calendar",
-    "config-reasons",
-    "config-dynamic",
-  ].includes(tab);
-  const isMasterConfigParentActive = (!masterConfigOpen || desktopCollapsed) && isMasterConfigGroupActive;
+    const isMasterConfigGroupActive = [
+      "config-sources",
+      "config-products",
+      "config-stages",
+      "config-calendar",
+      "config-reasons",
+      "config-dynamic",
+    ].includes(tab);
+    const isMasterConfigParentActive = (!masterConfigOpen || desktopCollapsed) && isMasterConfigGroupActive;
 
-  const isAccountingGroupActive = tab.startsWith("accounting-");
-  const isAccountingParentActive = (!accountingOpen || desktopCollapsed) && isAccountingGroupActive;
+    const isAccountingGroupActive = tab.startsWith("accounting-");
+    const isAccountingParentActive = (!accountingOpen || desktopCollapsed) && isAccountingGroupActive;
 
-  const isCardProfileGroupActive = ["modes", "contact", "social", "company", "appearance"].includes(tab);
-  const isCardProfileRailActive = desktopCollapsed && isCardProfileGroupActive;
+    const isCardProfileGroupActive = ["modes", "contact", "social", "company", "appearance"].includes(tab);
+    const isCardProfileRailActive = desktopCollapsed && isCardProfileGroupActive;
 
-  const isCardsActive = tab === "cards";
-  const isSettingsActive = tab === "settings" || tab === "security";
+    const isCardsActive = tab === "cards";
+    const isSettingsActive = tab === "settings" || tab === "security";
 
-  return (
-    <div className={`dash-shell ${desktopCollapsed ? "is-rail" : ""}`}>
-      <DashboardBackgroundDecor />
-      {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
+    return (
+      <div className={`dash-shell ${desktopCollapsed ? "is-rail" : ""}`}>
+        <DashboardBackgroundDecor />
+        {sidebar && <button className="side-scrim" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
 
-      {/* 1. RECREATED INSET VERTICAL SIDEBAR MATCHING REFERENCE */}
-      <aside className={`dash-side ${sidebar ? "open" : ""} ${desktopCollapsed ? "is-rail" : ""} has-moving-indicator`}>
-        <div className="side-logo-wrap">
-          <div className="side-logo-container">
-            <a className="side-brand" href="/" title="Zappit" aria-label="Zappit Dashboard Home">
-              <img
-                src="/brand/zappit-logo-transparent.png"
-                alt="Zappit"
-                className="side-brand-logo"
-                width={898}
-                height={436}
-              />
-            </a>
+        {/* 1. RECREATED INSET VERTICAL SIDEBAR MATCHING REFERENCE */}
+        <aside className={`dash-side ${sidebar ? "open" : ""} ${desktopCollapsed ? "is-rail" : ""} has-moving-indicator`}>
+          <div className="side-logo-wrap">
+            <div className="side-logo-container">
+              <a className="side-brand" href="/" title="Zappit" aria-label="Zappit Dashboard Home">
+                <img
+                  src="/brand/zappit-logo-transparent.png"
+                  alt="Zappit"
+                  className="side-brand-logo"
+                  width={898}
+                  height={436}
+                />
+              </a>
+            </div>
+
+            {/* Desktop rail collapse toggle button (hidden on mobile, matches Sorvo reference) */}
+            <button
+              type="button"
+              className="side-collapse-btn"
+              onClick={toggleDesktopSidebar}
+              aria-label={desktopCollapsed ? "Expand sidebar (Press [)" : "Collapse sidebar (Press [)"}
+              aria-pressed={desktopCollapsed}
+              aria-keyshortcuts="["
+              title={desktopCollapsed ? "Expand sidebar ([)" : "Collapse sidebar ([)"}
+              onMouseEnter={(e) => {
+                if (desktopCollapsed) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setActiveRailTip({ text: "Expand  [", top: rect.top + rect.height / 2 });
+                }
+              }}
+              onMouseLeave={() => setActiveRailTip(null)}
+            >
+              <svg
+                className="side-collapse-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M9 3v18" />
+                <path d="m16 15-3-3 3-3" />
+              </svg>
+            </button>
+
+            {/* Mobile drawer close button */}
+            <button
+              type="button"
+              className="side-close-btn"
+              onClick={() => setSidebar(false)}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
           </div>
 
-          {/* Desktop rail collapse toggle button (hidden on mobile, matches Sorvo reference) */}
-          <button
-            type="button"
-            className="side-collapse-btn"
-            onClick={toggleDesktopSidebar}
-            aria-label={desktopCollapsed ? "Expand sidebar (Press [)" : "Collapse sidebar (Press [)"}
-            aria-pressed={desktopCollapsed}
-            aria-keyshortcuts="["
-            title={desktopCollapsed ? "Expand sidebar ([)" : "Collapse sidebar ([)"}
+          <nav className="side-nav-scroll scrollbar-thin" ref={navScrollRef}>
+            {/* Animated Active Selection Highlight (Sorvo Reference) */}
+            <div
+              className={`side-active-indicator ${indicatorReady ? "is-ready" : ""}`}
+              style={{
+                transform: `translate3d(${indicatorStyle.left}px, ${indicatorStyle.top}px, 0)`,
+                width: `${indicatorStyle.width}px`,
+                height: `${indicatorStyle.height}px`,
+                borderRadius: `${indicatorStyle.borderRadius}px`,
+                opacity: indicatorStyle.visible ? 1 : 0,
+              }}
+              aria-hidden="true"
+            />
+            {/* Section: Dashboards */}
+            {(isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) ||
+              isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role)) && (
+                <div className="side-nav-group">
+                  <span className="side-group-title">Dashboards</span>
+                  {isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-nav-item ${isOverviewActive ? "active" : ""}`}
+                      data-active-nav={isOverviewActive ? "true" : undefined}
+                      aria-current={isOverviewActive ? "page" : undefined}
+                      onClick={() => { selectTab("dashboard"); setSidebar(false); setRailFlyout(null); }}
+                      onMouseEnter={(e) => {
+                        if (desktopCollapsed && window.innerWidth > 1024) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setActiveRailTip({ text: "Overview", top: rect.top + rect.height / 2 });
+                        }
+                      }}
+                      onMouseLeave={() => setActiveRailTip(null)}
+                      onFocus={(e) => {
+                        if (desktopCollapsed && window.innerWidth > 1024) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setActiveRailTip({ text: "Overview", top: rect.top + rect.height / 2 });
+                        }
+                      }}
+                      onBlur={() => setActiveRailTip(null)}
+                      data-tip="Overview"
+                    >
+                      <span className="side-nav-item-left">
+                        <LayoutDashboard className="side-nav-icon" />
+                        <span>Overview</span>
+                      </span>
+                    </button>
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) && (
+                    <button
+                      type="button"
+                      className={`side-nav-item ${isLeadsActive ? "active" : ""}`}
+                      data-active-nav={isLeadsActive ? "true" : undefined}
+                      aria-current={isLeadsActive ? "page" : undefined}
+                      onClick={() => { selectTab("leads"); setSidebar(false); setRailFlyout(null); }}
+                      onMouseEnter={(e) => {
+                        if (desktopCollapsed && window.innerWidth > 1024) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setActiveRailTip({ text: "All Leads", top: rect.top + rect.height / 2 });
+                        }
+                      }}
+                      onMouseLeave={() => setActiveRailTip(null)}
+                      onFocus={(e) => {
+                        if (desktopCollapsed && window.innerWidth > 1024) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setActiveRailTip({ text: "All Leads", top: rect.top + rect.height / 2 });
+                        }
+                      }}
+                      onBlur={() => setActiveRailTip(null)}
+                      data-tip="All Leads"
+                    >
+                      <span className="side-nav-item-left">
+                        <Users className="side-nav-icon" />
+                        <span>All Leads</span>
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+            {/* Section: Management (Master Configuration) */}
+            {isGroupAllowed("Master Config", currentUser?.featurePermissions) && (
+              <div className="side-nav-group">
+                <span className="side-group-title">Management</span>
+                <div className="side-config-group">
+                  <button
+                    type="button"
+                    className={`side-nav-item side-parent-btn ${isMasterConfigParentActive ? "active" : ""} ${isMasterConfigGroupActive && masterConfigOpen && !desktopCollapsed ? "is-parent-expanded-active" : ""}`}
+                    data-active-nav={isMasterConfigParentActive ? "true" : undefined}
+                    aria-current={isMasterConfigParentActive ? "page" : undefined}
+                    onClick={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setRailFlyout((prev) => prev?.group === "master-config" ? null : { group: "master-config", top: rect.top });
+                        setActiveRailTip(null);
+                      } else {
+                        setMasterConfigOpen((prev) => !prev);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveRailTip({ text: "Master Config", top: rect.top + rect.height / 2 });
+                      }
+                    }}
+                    onMouseLeave={() => setActiveRailTip(null)}
+                    onFocus={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveRailTip({ text: "Master Config", top: rect.top + rect.height / 2 });
+                      }
+                    }}
+                    onBlur={() => setActiveRailTip(null)}
+                    data-tip="Master Config"
+                  >
+                    <span className="side-nav-item-left">
+                      <SlidersHorizontal className="side-nav-icon" />
+                      <span>Master Config</span>
+                    </span>
+                    <ChevronDown className={`side-chevron ${masterConfigOpen ? "expanded" : ""}`} />
+                  </button>
+
+                  {masterConfigOpen && (
+                    <div className="side-subnav-list">
+                      {isFeatureAllowed(currentUser?.featurePermissions, "lead_sources", currentUser?.role) && (
+                        <button
+                          type="button"
+                          className={`side-subnav-item ${tab === "config-sources" ? "active" : ""}`}
+                          data-active-nav={!desktopCollapsed && tab === "config-sources" ? "true" : undefined}
+                          aria-current={!desktopCollapsed && tab === "config-sources" ? "page" : undefined}
+                          onClick={() => { selectTab("config-sources" as Tab); setSidebar(false); setRailFlyout(null); }}
+                        >
+                          <span>Lead Sources</span>
+                          {tab === "config-sources" && <span className="side-subnav-dot" />}
+                        </button>
+                      )}
+                      {isFeatureAllowed(currentUser?.featurePermissions, "config_products", currentUser?.role) && (
+                        <button
+                          type="button"
+                          className={`side-subnav-item ${tab === "config-products" ? "active" : ""}`}
+                          data-active-nav={!desktopCollapsed && tab === "config-products" ? "true" : undefined}
+                          aria-current={!desktopCollapsed && tab === "config-products" ? "page" : undefined}
+                          onClick={() => { selectTab("config-products" as Tab); setSidebar(false); setRailFlyout(null); }}
+                        >
+                          <span>Products</span>
+                          {tab === "config-products" && <span className="side-subnav-dot" />}
+                        </button>
+                      )}
+                      {isFeatureAllowed(currentUser?.featurePermissions, "lead_stages", currentUser?.role) && (
+                        <button
+                          type="button"
+                          className={`side-subnav-item ${tab === "config-stages" ? "active" : ""}`}
+                          data-active-nav={!desktopCollapsed && tab === "config-stages" ? "true" : undefined}
+                          aria-current={!desktopCollapsed && tab === "config-stages" ? "page" : undefined}
+                          onClick={() => { selectTab("config-stages" as Tab); setSidebar(false); setRailFlyout(null); }}
+                        >
+                          <span>Lead Stages</span>
+                          {tab === "config-stages" && <span className="side-subnav-dot" />}
+                        </button>
+                      )}
+                      {isFeatureAllowed(currentUser?.featurePermissions, "calendar", currentUser?.role) && (
+                        <button
+                          type="button"
+                          className={`side-subnav-item ${tab === "config-calendar" ? "active" : ""}`}
+                          data-active-nav={!desktopCollapsed && tab === "config-calendar" ? "true" : undefined}
+                          aria-current={!desktopCollapsed && tab === "config-calendar" ? "page" : undefined}
+                          onClick={() => { selectTab("config-calendar" as Tab); setSidebar(false); setRailFlyout(null); }}
+                        >
+                          <span>Calendar</span>
+                          {tab === "config-calendar" && <span className="side-subnav-dot" />}
+                        </button>
+                      )}
+                      {isFeatureAllowed(currentUser?.featurePermissions, "lob_reasons", currentUser?.role) && (
+                        <button
+                          type="button"
+                          className={`side-subnav-item ${tab === "config-reasons" ? "active" : ""}`}
+                          data-active-nav={!desktopCollapsed && tab === "config-reasons" ? "true" : undefined}
+                          aria-current={!desktopCollapsed && tab === "config-reasons" ? "page" : undefined}
+                          onClick={() => { selectTab("config-reasons" as Tab); setSidebar(false); setRailFlyout(null); }}
+                        >
+                          <span>LOB Reasons</span>
+                          {tab === "config-reasons" && <span className="side-subnav-dot" />}
+                        </button>
+                      )}
+                      {isFeatureAllowed(currentUser?.featurePermissions, "dynamic_leads", currentUser?.role) && (
+                        <button
+                          type="button"
+                          className={`side-subnav-item ${tab === "config-dynamic" ? "active" : ""}`}
+                          data-active-nav={!desktopCollapsed && tab === "config-dynamic" ? "true" : undefined}
+                          aria-current={!desktopCollapsed && tab === "config-dynamic" ? "page" : undefined}
+                          onClick={() => { selectTab("config-dynamic" as Tab); setSidebar(false); setRailFlyout(null); }}
+                        >
+                          <span>Dynamic Fields</span>
+                          {tab === "config-dynamic" && <span className="side-subnav-dot" />}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Section: Management (Accounting - One Expandable Sidebar Group) */}
+            {isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) && (
+              <div className="side-nav-group">
+                <span className="side-group-title">Accounting</span>
+                <div className="side-config-group">
+                  <button
+                    type="button"
+                    className={`side-nav-item side-parent-btn ${isAccountingParentActive ? "active" : ""} ${isAccountingGroupActive && accountingOpen && !desktopCollapsed ? "is-parent-expanded-active" : ""}`}
+                    data-active-nav={isAccountingParentActive ? "true" : undefined}
+                    aria-current={isAccountingParentActive ? "page" : undefined}
+                    onClick={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setRailFlyout((prev) => prev?.group === "accounting" ? null : { group: "accounting", top: rect.top });
+                        setActiveRailTip(null);
+                      } else {
+                        setAccountingOpen((prev) => !prev);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveRailTip({ text: "Accounting", top: rect.top + rect.height / 2 });
+                      }
+                    }}
+                    onMouseLeave={() => setActiveRailTip(null)}
+                    onFocus={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveRailTip({ text: "Accounting", top: rect.top + rect.height / 2 });
+                      }
+                    }}
+                    onBlur={() => setActiveRailTip(null)}
+                    data-tip="Accounting"
+                  >
+                    <span className="side-nav-item-left">
+                      <Landmark className="side-nav-icon" />
+                      <span>Accounting</span>
+                    </span>
+                    <ChevronDown className={`side-chevron ${accountingOpen ? "expanded" : ""}`} />
+                  </button>
+
+                  {accountingOpen && (
+                    <div className="side-subnav-list">
+                      {/* 1. Home */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-overview" || tab === "accounting-home" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && (tab === "accounting-overview" || tab === "accounting-home") ? "true" : undefined}
+                        aria-current={!desktopCollapsed && (tab === "accounting-overview" || tab === "accounting-home") ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-overview" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Home</span>
+                        {(tab === "accounting-overview" || tab === "accounting-home") && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* 2. Transactions */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-transactions" || tab === "accounting-accounts-transfers" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && (tab === "accounting-transactions" || tab === "accounting-accounts-transfers") ? "true" : undefined}
+                        aria-current={!desktopCollapsed && (tab === "accounting-transactions" || tab === "accounting-accounts-transfers") ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-transactions" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Transactions</span>
+                        {(tab === "accounting-transactions" || tab === "accounting-accounts-transfers") && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* 3. People */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-people" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "accounting-people" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "accounting-people" ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-people" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>People</span>
+                        {tab === "accounting-people" && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* 4. Invoices */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-sales-invoices" || tab === "accounting-invoices" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && (tab === "accounting-sales-invoices" || tab === "accounting-invoices") ? "true" : undefined}
+                        aria-current={!desktopCollapsed && (tab === "accounting-sales-invoices" || tab === "accounting-invoices") ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-invoices" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Invoices</span>
+                        {(tab === "accounting-sales-invoices" || tab === "accounting-invoices") && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* 5. Products & Services */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-products" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "accounting-products" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "accounting-products" ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-products" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Products & Services</span>
+                        {tab === "accounting-products" && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* 6. Categories */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-categories" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "accounting-categories" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "accounting-categories" ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-categories" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Categories</span>
+                        {tab === "accounting-categories" && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* 7. Reports */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "accounting-reports" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "accounting-reports" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "accounting-reports" ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-reports" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Reports</span>
+                        {tab === "accounting-reports" && <span className="side-subnav-dot" />}
+                      </button>
+
+                      {/* Secondary: More Tools */}
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${[
+                          "accounting-more",
+                          "accounting-budgets",
+                          "accounting-loans",
+                          "accounting-recurring",
+                          "accounting-reminders",
+                        ].includes(tab) ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && [
+                          "accounting-more",
+                          "accounting-budgets",
+                          "accounting-loans",
+                          "accounting-recurring",
+                          "accounting-reminders",
+                        ].includes(tab) ? "true" : undefined}
+                        aria-current={!desktopCollapsed && [
+                          "accounting-more",
+                          "accounting-budgets",
+                          "accounting-loans",
+                          "accounting-recurring",
+                          "accounting-reminders",
+                        ].includes(tab) ? "page" : undefined}
+                        onClick={() => { selectTab("accounting-more" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>More</span>
+                        {[
+                          "accounting-more",
+                          "accounting-budgets",
+                          "accounting-loans",
+                          "accounting-recurring",
+                          "accounting-reminders",
+                        ].includes(tab) && <span className="side-subnav-dot" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Section: Card & Profile */}
+            {isGroupAllowed("Card & Profile", currentUser?.featurePermissions) && (
+              <div className="side-nav-group">
+                <span className="side-group-title">Card &amp; Profile</span>
+                {/* Collapsed Rail button for Card & Profile */}
+                {desktopCollapsed && (
+                  <button
+                    type="button"
+                    className={`side-nav-item ${isCardProfileRailActive ? "active" : ""}`}
+                    data-active-nav={isCardProfileRailActive ? "true" : undefined}
+                    aria-current={isCardProfileRailActive ? "page" : undefined}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setRailFlyout((prev) => prev?.group === "card-profile" ? null : { group: "card-profile", top: rect.top });
+                      setActiveRailTip(null);
+                    }}
+                    onMouseEnter={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveRailTip({ text: `Card: ${selected.name}`, top: rect.top + rect.height / 2 });
+                      }
+                    }}
+                    onMouseLeave={() => setActiveRailTip(null)}
+                    onFocus={(e) => {
+                      if (desktopCollapsed && window.innerWidth > 1024) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveRailTip({ text: `Card: ${selected.name}`, top: rect.top + rect.height / 2 });
+                      }
+                    }}
+                    onBlur={() => setActiveRailTip(null)}
+                    aria-label={`Card and Profile: ${selected.name}`}
+                    data-tip={`Card: ${selected.name}`}
+                  >
+                    <CreditCard className="side-nav-icon" />
+                    <span
+                      className="rail-status-dot-badge"
+                      style={{ background: selected.active ? "#10B981" : "#F59E0B" }}
+                    />
+                  </button>
+                )}
+
+                <div className="side-card-profile-box">
+                  <div className="side-card-profile-header">
+                    <span className="side-card-owner-info">
+                      <span className="side-card-status-dot" style={{ background: selected.active ? "#10B981" : "#F59E0B" }} />
+                      <strong className="side-card-name-text">{selected.name}</strong>
+                    </span>
+                    <span className="side-card-status-pill">
+                      {selected.active ? "Published" : "Draft"}
+                    </span>
+                  </div>
+                  <div className="side-subnav-list">
+                    {isFeatureAllowed(currentUser?.featurePermissions, "profile_features", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "modes" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "modes" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "modes" ? "page" : undefined}
+                        onClick={() => { selectTab("modes"); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Profile Features</span>
+                        {tab === "modes" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "contact_info", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "contact" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "contact" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "contact" ? "page" : undefined}
+                        onClick={() => { selectTab("contact"); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Contact Info</span>
+                        {tab === "contact" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "apps_links", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "social" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "social" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "social" ? "page" : undefined}
+                        onClick={() => { selectTab("social"); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Apps &amp; Links</span>
+                        {tab === "social" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "company", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "company" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "company" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "company" ? "page" : undefined}
+                        onClick={() => { selectTab("company"); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Company</span>
+                        {tab === "company" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                    {isFeatureAllowed(currentUser?.featurePermissions, "card_design", currentUser?.role) && (
+                      <button
+                        type="button"
+                        className={`side-subnav-item ${tab === "appearance" ? "active" : ""}`}
+                        data-active-nav={!desktopCollapsed && tab === "appearance" ? "true" : undefined}
+                        aria-current={!desktopCollapsed && tab === "appearance" ? "page" : undefined}
+                        onClick={() => { selectTab("appearance"); setSidebar(false); setRailFlyout(null); }}
+                      >
+                        <span>Card Design</span>
+                        {tab === "appearance" && <span className="side-subnav-dot" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Section: Workspace */}
+            <div className="side-nav-group">
+              <span className="side-group-title">Workspace</span>
+              {isFeatureAllowed(currentUser?.featurePermissions, "my_cards", currentUser?.role) && (
+                <button
+                  type="button"
+                  className={`side-nav-item ${isCardsActive ? "active" : ""}`}
+                  data-active-nav={isCardsActive ? "true" : undefined}
+                  aria-current={isCardsActive ? "page" : undefined}
+                  onClick={() => { selectTab("cards"); setSidebar(false); setRailFlyout(null); }}
+                  onMouseEnter={(e) => {
+                    if (desktopCollapsed && window.innerWidth > 1024) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setActiveRailTip({ text: "My Cards", top: rect.top + rect.height / 2 });
+                    }
+                  }}
+                  onMouseLeave={() => setActiveRailTip(null)}
+                  onFocus={(e) => {
+                    if (desktopCollapsed && window.innerWidth > 1024) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setActiveRailTip({ text: "My Cards", top: rect.top + rect.height / 2 });
+                    }
+                  }}
+                  onBlur={() => setActiveRailTip(null)}
+                  data-tip="My Cards"
+                >
+                  <span className="side-nav-item-left">
+                    <CreditCard className="side-nav-icon" />
+                    <span>My Cards</span>
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Section: Global Settings (outside all module-specific groups) */}
+            <div className="side-nav-group side-nav-settings-group">
+              <button
+                type="button"
+                className={`side-nav-item ${isSettingsActive ? "active" : ""}`}
+                data-active-nav={isSettingsActive ? "true" : undefined}
+                aria-current={isSettingsActive ? "page" : undefined}
+                onClick={() => { selectTab("settings" as Tab); setSidebar(false); setRailFlyout(null); }}
+                onMouseEnter={(e) => {
+                  if (desktopCollapsed && window.innerWidth > 1024) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setActiveRailTip({ text: "Settings", top: rect.top + rect.height / 2 });
+                  }
+                }}
+                onMouseLeave={() => setActiveRailTip(null)}
+                onFocus={(e) => {
+                  if (desktopCollapsed && window.innerWidth > 1024) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setActiveRailTip({ text: "Settings", top: rect.top + rect.height / 2 });
+                  }
+                }}
+                onBlur={() => setActiveRailTip(null)}
+                data-tip="Settings"
+              >
+                <span className="side-nav-item-left">
+                  <Settings className="side-nav-icon" />
+                  <span>Settings</span>
+                </span>
+              </button>
+              {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
+                <a
+                  className="side-nav-item side-link side-admin-link"
+                  href="/admin"
+                  onMouseEnter={(e) => {
+                    if (desktopCollapsed && window.innerWidth > 1024) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setActiveRailTip({ text: "Admin Portal", top: rect.top + rect.height / 2 });
+                    }
+                  }}
+                  onMouseLeave={() => setActiveRailTip(null)}
+                  onFocus={(e) => {
+                    if (desktopCollapsed && window.innerWidth > 1024) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setActiveRailTip({ text: "Admin Portal", top: rect.top + rect.height / 2 });
+                    }
+                  }}
+                  onBlur={() => setActiveRailTip(null)}
+                  data-tip="Admin Portal"
+                >
+                  <span className="side-nav-item-left">
+                    <ShieldAlert className="side-nav-icon" style={{ color: "#0066FF" }} />
+                    <span style={{ color: "#0066FF", fontWeight: 700 }}>Admin Portal</span>
+                  </span>
+                </a>
+              )}
+            </div>
+          </nav>
+
+          {/* Footer in Expanded state */}
+          <div className="side-footer-badge">
+            <div className="side-footer-status">
+              <span className="side-status-pulse" />
+              <span>{cloudReady ? "Secure Cloud Workspace" : "Offline Workspace"}</span>
+            </div>
+            <small className="side-footer-email">{currentUser.email}</small>
+          </div>
+
+          {/* Footer in Collapsed Rail state (Sorvo reference) */}
+          <div
+            className="side-rail-footer"
             onMouseEnter={(e) => {
-              if (desktopCollapsed) {
+              if (desktopCollapsed && window.innerWidth > 1024) {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setActiveRailTip({ text: "Expand  [", top: rect.top + rect.height / 2 });
+                setActiveRailTip({
+                  text: `${currentUser?.name || currentUser?.email} · ${cloudReady ? "Secure Cloud" : "Offline"}`,
+                  top: rect.top + rect.height / 2,
+                });
               }
             }}
             onMouseLeave={() => setActiveRailTip(null)}
           >
-            <svg
-              className="side-collapse-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <button
+              type="button"
+              className="rail-user-avatar-btn"
+              onClick={() => { selectTab("settings" as Tab); setRailFlyout(null); }}
+              aria-label="Account Settings"
             >
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M9 3v18" />
-              <path d="m16 15-3-3 3-3" />
-            </svg>
-          </button>
+              <span>{userInitials}</span>
+              <span className="rail-user-status-dot" />
+            </button>
+          </div>
+        </aside>
 
-          {/* Mobile drawer close button */}
-          <button
-            type="button"
-            className="side-close-btn"
-            onClick={() => setSidebar(false)}
-            aria-label="Close menu"
-          >
-            ✕
-          </button>
-        </div>
-
-        <nav className="side-nav-scroll scrollbar-thin" ref={navScrollRef}>
-          {/* Animated Active Selection Highlight (Sorvo Reference) */}
+        {/* Floating Rail Tooltip (Sorvo reference) */}
+        {activeRailTip && desktopCollapsed && (
           <div
-            className={`side-active-indicator ${indicatorReady ? "is-ready" : ""}`}
+            className="rail-floating-tooltip"
+            style={{ top: `${activeRailTip.top}px` }}
+            role="tooltip"
+          >
+            {activeRailTip.text}
+          </div>
+        )}
+
+        {/* Anchored Subnav Flyout Popover (Sorvo reference) */}
+        {railFlyout && desktopCollapsed && (
+          <div
+            className="rail-flyout-popover"
             style={{
-              transform: `translate3d(${indicatorStyle.left}px, ${indicatorStyle.top}px, 0)`,
-              width: `${indicatorStyle.width}px`,
-              height: `${indicatorStyle.height}px`,
-              borderRadius: `${indicatorStyle.borderRadius}px`,
-              opacity: indicatorStyle.visible ? 1 : 0,
+              top: `${Math.max(16, Math.min(typeof window !== "undefined" ? window.innerHeight - 380 : 400, railFlyout.top - 10))}px`,
             }}
-            aria-hidden="true"
-          />
-          {/* Section: Dashboards */}
-          {(isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) ||
-            isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role)) && (
-              <div className="side-nav-group">
-                <span className="side-group-title">Dashboards</span>
-                {isFeatureAllowed(currentUser?.featurePermissions, "overview", currentUser?.role) && (
+          >
+            {railFlyout.group === "accounting" && (
+              <>
+                <div className="rail-flyout-header">
+                  <div className="rail-flyout-header-title">
+                    <Landmark style={{ width: 16, height: 16, color: "#168BFF" }} />
+                    <span>Accounting</span>
+                  </div>
+                </div>
+                <div className="rail-flyout-list">
                   <button
                     type="button"
-                    className={`side-nav-item ${isOverviewActive ? "active" : ""}`}
-                    data-active-nav={isOverviewActive ? "true" : undefined}
-                    aria-current={isOverviewActive ? "page" : undefined}
-                    onClick={() => { selectTab("dashboard"); setSidebar(false); setRailFlyout(null); }}
-                    onMouseEnter={(e) => {
-                      if (desktopCollapsed && window.innerWidth > 1024) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveRailTip({ text: "Overview", top: rect.top + rect.height / 2 });
-                      }
-                    }}
-                    onMouseLeave={() => setActiveRailTip(null)}
-                    onFocus={(e) => {
-                      if (desktopCollapsed && window.innerWidth > 1024) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveRailTip({ text: "Overview", top: rect.top + rect.height / 2 });
-                      }
-                    }}
-                    onBlur={() => setActiveRailTip(null)}
-                    data-tip="Overview"
+                    className={`rail-flyout-item ${tab === "accounting-overview" || tab === "accounting-home" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-overview" as Tab); setRailFlyout(null); }}
                   >
-                    <span className="side-nav-item-left">
-                      <LayoutDashboard className="side-nav-icon" />
-                      <span>Overview</span>
-                    </span>
+                    <span>Home</span>
+                    {(tab === "accounting-overview" || tab === "accounting-home") && <span className="side-subnav-dot" />}
                   </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "all_leads", currentUser?.role) && (
                   <button
                     type="button"
-                    className={`side-nav-item ${isLeadsActive ? "active" : ""}`}
-                    data-active-nav={isLeadsActive ? "true" : undefined}
-                    aria-current={isLeadsActive ? "page" : undefined}
-                    onClick={() => { selectTab("leads"); setSidebar(false); setRailFlyout(null); }}
-                    onMouseEnter={(e) => {
-                      if (desktopCollapsed && window.innerWidth > 1024) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveRailTip({ text: "All Leads", top: rect.top + rect.height / 2 });
-                      }
-                    }}
-                    onMouseLeave={() => setActiveRailTip(null)}
-                    onFocus={(e) => {
-                      if (desktopCollapsed && window.innerWidth > 1024) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveRailTip({ text: "All Leads", top: rect.top + rect.height / 2 });
-                      }
-                    }}
-                    onBlur={() => setActiveRailTip(null)}
-                    data-tip="All Leads"
+                    className={`rail-flyout-item ${tab === "accounting-transactions" || tab === "accounting-accounts-transfers" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-transactions" as Tab); setRailFlyout(null); }}
                   >
-                    <span className="side-nav-item-left">
-                      <Users className="side-nav-icon" />
-                      <span>All Leads</span>
-                    </span>
+                    <span>Transactions</span>
+                    {(tab === "accounting-transactions" || tab === "accounting-accounts-transfers") && <span className="side-subnav-dot" />}
                   </button>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    className={`rail-flyout-item ${tab === "accounting-people" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-people" as Tab); setRailFlyout(null); }}
+                  >
+                    <span>People</span>
+                    {tab === "accounting-people" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`rail-flyout-item ${tab === "accounting-sales-invoices" || tab === "accounting-invoices" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-invoices" as Tab); setRailFlyout(null); }}
+                  >
+                    <span>Invoices</span>
+                    {(tab === "accounting-sales-invoices" || tab === "accounting-invoices") && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`rail-flyout-item ${tab === "accounting-products" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-products" as Tab); setRailFlyout(null); }}
+                  >
+                    <span>Products & Services</span>
+                    {tab === "accounting-products" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`rail-flyout-item ${tab === "accounting-categories" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-categories" as Tab); setRailFlyout(null); }}
+                  >
+                    <span>Categories</span>
+                    {tab === "accounting-categories" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`rail-flyout-item ${tab === "accounting-reports" ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-reports" as Tab); setRailFlyout(null); }}
+                  >
+                    <span>Reports</span>
+                    {tab === "accounting-reports" && <span className="side-subnav-dot" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`rail-flyout-item ${[
+                      "accounting-more",
+                      "accounting-budgets",
+                      "accounting-loans",
+                      "accounting-recurring",
+                      "accounting-reminders",
+                    ].includes(tab) ? "active" : ""}`}
+                    onClick={() => { selectTab("accounting-more" as Tab); setRailFlyout(null); }}
+                  >
+                    <span>More Tools</span>
+                    {[
+                      "accounting-more",
+                      "accounting-budgets",
+                      "accounting-loans",
+                      "accounting-recurring",
+                      "accounting-reminders",
+                    ].includes(tab) && <span className="side-subnav-dot" />}
+                  </button>
+                </div>
+              </>
             )}
 
-          {/* Section: Management (Master Configuration) */}
-          {isGroupAllowed("Master Config", currentUser?.featurePermissions) && (
-            <div className="side-nav-group">
-              <span className="side-group-title">Management</span>
-              <div className="side-config-group">
-                <button
-                  type="button"
-                  className={`side-nav-item side-parent-btn ${isMasterConfigParentActive ? "active" : ""} ${isMasterConfigGroupActive && masterConfigOpen && !desktopCollapsed ? "is-parent-expanded-active" : ""}`}
-                  data-active-nav={isMasterConfigParentActive ? "true" : undefined}
-                  aria-current={isMasterConfigParentActive ? "page" : undefined}
-                  onClick={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setRailFlyout((prev) => prev?.group === "master-config" ? null : { group: "master-config", top: rect.top });
-                      setActiveRailTip(null);
-                    } else {
-                      setMasterConfigOpen((prev) => !prev);
-                    }
-                  }}
-                  onMouseEnter={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveRailTip({ text: "Master Config", top: rect.top + rect.height / 2 });
-                    }
-                  }}
-                  onMouseLeave={() => setActiveRailTip(null)}
-                  onFocus={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveRailTip({ text: "Master Config", top: rect.top + rect.height / 2 });
-                    }
-                  }}
-                  onBlur={() => setActiveRailTip(null)}
-                  data-tip="Master Config"
-                >
-                  <span className="side-nav-item-left">
-                    <SlidersHorizontal className="side-nav-icon" />
+            {railFlyout.group === "master-config" && (
+              <>
+                <div className="rail-flyout-header">
+                  <div className="rail-flyout-header-title">
+                    <SlidersHorizontal style={{ width: 16, height: 16, color: "#168BFF" }} />
                     <span>Master Config</span>
-                  </span>
-                  <ChevronDown className={`side-chevron ${masterConfigOpen ? "expanded" : ""}`} />
-                </button>
-
-                {masterConfigOpen && (
-                  <div className="side-subnav-list">
-                    {isFeatureAllowed(currentUser?.featurePermissions, "lead_sources", currentUser?.role) && (
-                      <button
-                        type="button"
-                        className={`side-subnav-item ${tab === "config-sources" ? "active" : ""}`}
-                        data-active-nav={!desktopCollapsed && tab === "config-sources" ? "true" : undefined}
-                        aria-current={!desktopCollapsed && tab === "config-sources" ? "page" : undefined}
-                        onClick={() => { selectTab("config-sources" as Tab); setSidebar(false); setRailFlyout(null); }}
-                      >
-                        <span>Lead Sources</span>
-                        {tab === "config-sources" && <span className="side-subnav-dot" />}
-                      </button>
-                    )}
-                    {isFeatureAllowed(currentUser?.featurePermissions, "config_products", currentUser?.role) && (
-                      <button
-                        type="button"
-                        className={`side-subnav-item ${tab === "config-products" ? "active" : ""}`}
-                        data-active-nav={!desktopCollapsed && tab === "config-products" ? "true" : undefined}
-                        aria-current={!desktopCollapsed && tab === "config-products" ? "page" : undefined}
-                        onClick={() => { selectTab("config-products" as Tab); setSidebar(false); setRailFlyout(null); }}
-                      >
-                        <span>Products</span>
-                        {tab === "config-products" && <span className="side-subnav-dot" />}
-                      </button>
-                    )}
-                    {isFeatureAllowed(currentUser?.featurePermissions, "lead_stages", currentUser?.role) && (
-                      <button
-                        type="button"
-                        className={`side-subnav-item ${tab === "config-stages" ? "active" : ""}`}
-                        data-active-nav={!desktopCollapsed && tab === "config-stages" ? "true" : undefined}
-                        aria-current={!desktopCollapsed && tab === "config-stages" ? "page" : undefined}
-                        onClick={() => { selectTab("config-stages" as Tab); setSidebar(false); setRailFlyout(null); }}
-                      >
-                        <span>Lead Stages</span>
-                        {tab === "config-stages" && <span className="side-subnav-dot" />}
-                      </button>
-                    )}
-                    {isFeatureAllowed(currentUser?.featurePermissions, "calendar", currentUser?.role) && (
-                      <button
-                        type="button"
-                        className={`side-subnav-item ${tab === "config-calendar" ? "active" : ""}`}
-                        data-active-nav={!desktopCollapsed && tab === "config-calendar" ? "true" : undefined}
-                        aria-current={!desktopCollapsed && tab === "config-calendar" ? "page" : undefined}
-                        onClick={() => { selectTab("config-calendar" as Tab); setSidebar(false); setRailFlyout(null); }}
-                      >
-                        <span>Calendar</span>
-                        {tab === "config-calendar" && <span className="side-subnav-dot" />}
-                      </button>
-                    )}
-                    {isFeatureAllowed(currentUser?.featurePermissions, "lob_reasons", currentUser?.role) && (
-                      <button
-                        type="button"
-                        className={`side-subnav-item ${tab === "config-reasons" ? "active" : ""}`}
-                        data-active-nav={!desktopCollapsed && tab === "config-reasons" ? "true" : undefined}
-                        aria-current={!desktopCollapsed && tab === "config-reasons" ? "page" : undefined}
-                        onClick={() => { selectTab("config-reasons" as Tab); setSidebar(false); setRailFlyout(null); }}
-                      >
-                        <span>LOB Reasons</span>
-                        {tab === "config-reasons" && <span className="side-subnav-dot" />}
-                      </button>
-                    )}
-                    {isFeatureAllowed(currentUser?.featurePermissions, "dynamic_leads", currentUser?.role) && (
-                      <button
-                        type="button"
-                        className={`side-subnav-item ${tab === "config-dynamic" ? "active" : ""}`}
-                        data-active-nav={!desktopCollapsed && tab === "config-dynamic" ? "true" : undefined}
-                        aria-current={!desktopCollapsed && tab === "config-dynamic" ? "page" : undefined}
-                        onClick={() => { selectTab("config-dynamic" as Tab); setSidebar(false); setRailFlyout(null); }}
-                      >
-                        <span>Dynamic Fields</span>
-                        {tab === "config-dynamic" && <span className="side-subnav-dot" />}
-                      </button>
-                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Section: Management (Accounting - One Expandable Sidebar Group) */}
-          {isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) && (
-            <div className="side-nav-group">
-              <span className="side-group-title">Accounting</span>
-              <div className="side-config-group">
-                <button
-                  type="button"
-                  className={`side-nav-item side-parent-btn ${isAccountingParentActive ? "active" : ""} ${isAccountingGroupActive && accountingOpen && !desktopCollapsed ? "is-parent-expanded-active" : ""}`}
-                  data-active-nav={isAccountingParentActive ? "true" : undefined}
-                  aria-current={isAccountingParentActive ? "page" : undefined}
-                  onClick={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setRailFlyout((prev) => prev?.group === "accounting" ? null : { group: "accounting", top: rect.top });
-                      setActiveRailTip(null);
-                    } else {
-                      setAccountingOpen((prev) => !prev);
-                    }
-                  }}
-                  onMouseEnter={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveRailTip({ text: "Accounting", top: rect.top + rect.height / 2 });
-                    }
-                  }}
-                  onMouseLeave={() => setActiveRailTip(null)}
-                  onFocus={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveRailTip({ text: "Accounting", top: rect.top + rect.height / 2 });
-                    }
-                  }}
-                  onBlur={() => setActiveRailTip(null)}
-                  data-tip="Accounting"
-                >
-                  <span className="side-nav-item-left">
-                    <Landmark className="side-nav-icon" />
-                    <span>Accounting</span>
-                  </span>
-                  <ChevronDown className={`side-chevron ${accountingOpen ? "expanded" : ""}`} />
-                </button>
-
-                {accountingOpen && (
-                  <div className="side-subnav-list">
-                    {/* 1. Home */}
+                </div>
+                <div className="rail-flyout-list">
+                  {isFeatureAllowed(currentUser?.featurePermissions, "lead_sources", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "accounting-overview" || tab === "accounting-home" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && (tab === "accounting-overview" || tab === "accounting-home") ? "true" : undefined}
-                      aria-current={!desktopCollapsed && (tab === "accounting-overview" || tab === "accounting-home") ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-overview" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "config-sources" ? "active" : ""}`}
+                      onClick={() => { selectTab("config-sources" as Tab); setRailFlyout(null); }}
                     >
-                      <span>Home</span>
-                      {(tab === "accounting-overview" || tab === "accounting-home") && <span className="side-subnav-dot" />}
+                      <span>Lead Sources</span>
+                      {tab === "config-sources" && <span className="side-subnav-dot" />}
                     </button>
-
-                    {/* 2. Transactions */}
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "config_products", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "accounting-transactions" || tab === "accounting-accounts-transfers" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && (tab === "accounting-transactions" || tab === "accounting-accounts-transfers") ? "true" : undefined}
-                      aria-current={!desktopCollapsed && (tab === "accounting-transactions" || tab === "accounting-accounts-transfers") ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-transactions" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "config-products" ? "active" : ""}`}
+                      onClick={() => { selectTab("config-products" as Tab); setRailFlyout(null); }}
                     >
-                      <span>Transactions</span>
-                      {(tab === "accounting-transactions" || tab === "accounting-accounts-transfers") && <span className="side-subnav-dot" />}
+                      <span>Products</span>
+                      {tab === "config-products" && <span className="side-subnav-dot" />}
                     </button>
-
-                    {/* 3. People */}
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "lead_stages", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "accounting-people" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "accounting-people" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "accounting-people" ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-people" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "config-stages" ? "active" : ""}`}
+                      onClick={() => { selectTab("config-stages" as Tab); setRailFlyout(null); }}
                     >
-                      <span>People</span>
-                      {tab === "accounting-people" && <span className="side-subnav-dot" />}
+                      <span>Lead Stages</span>
+                      {tab === "config-stages" && <span className="side-subnav-dot" />}
                     </button>
-
-                    {/* 4. Invoices */}
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "calendar", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "accounting-sales-invoices" || tab === "accounting-invoices" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && (tab === "accounting-sales-invoices" || tab === "accounting-invoices") ? "true" : undefined}
-                      aria-current={!desktopCollapsed && (tab === "accounting-sales-invoices" || tab === "accounting-invoices") ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-invoices" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "config-calendar" ? "active" : ""}`}
+                      onClick={() => { selectTab("config-calendar" as Tab); setRailFlyout(null); }}
                     >
-                      <span>Invoices</span>
-                      {(tab === "accounting-sales-invoices" || tab === "accounting-invoices") && <span className="side-subnav-dot" />}
+                      <span>Calendar</span>
+                      {tab === "config-calendar" && <span className="side-subnav-dot" />}
                     </button>
-
-                    {/* 5. Products & Services */}
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "lob_reasons", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "accounting-products" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "accounting-products" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "accounting-products" ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-products" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "config-reasons" ? "active" : ""}`}
+                      onClick={() => { selectTab("config-reasons" as Tab); setRailFlyout(null); }}
                     >
-                      <span>Products & Services</span>
-                      {tab === "accounting-products" && <span className="side-subnav-dot" />}
+                      <span>LOB Reasons</span>
+                      {tab === "config-reasons" && <span className="side-subnav-dot" />}
                     </button>
-
-                    {/* 6. Categories */}
+                  )}
+                  {isFeatureAllowed(currentUser?.featurePermissions, "dynamic_leads", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "accounting-categories" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "accounting-categories" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "accounting-categories" ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-categories" as Tab); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "config-dynamic" ? "active" : ""}`}
+                      onClick={() => { selectTab("config-dynamic" as Tab); setRailFlyout(null); }}
                     >
-                      <span>Categories</span>
-                      {tab === "accounting-categories" && <span className="side-subnav-dot" />}
+                      <span>Dynamic Fields</span>
+                      {tab === "config-dynamic" && <span className="side-subnav-dot" />}
                     </button>
+                  )}
+                </div>
+              </>
+            )}
 
-                    {/* 7. Reports */}
-                    <button
-                      type="button"
-                      className={`side-subnav-item ${tab === "accounting-reports" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "accounting-reports" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "accounting-reports" ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-reports" as Tab); setSidebar(false); setRailFlyout(null); }}
-                    >
-                      <span>Reports</span>
-                      {tab === "accounting-reports" && <span className="side-subnav-dot" />}
-                    </button>
-
-                    {/* Secondary: More Tools */}
-                    <button
-                      type="button"
-                      className={`side-subnav-item ${[
-                        "accounting-more",
-                        "accounting-budgets",
-                        "accounting-loans",
-                        "accounting-recurring",
-                        "accounting-reminders",
-                      ].includes(tab) ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && [
-                        "accounting-more",
-                        "accounting-budgets",
-                        "accounting-loans",
-                        "accounting-recurring",
-                        "accounting-reminders",
-                      ].includes(tab) ? "true" : undefined}
-                      aria-current={!desktopCollapsed && [
-                        "accounting-more",
-                        "accounting-budgets",
-                        "accounting-loans",
-                        "accounting-recurring",
-                        "accounting-reminders",
-                      ].includes(tab) ? "page" : undefined}
-                      onClick={() => { selectTab("accounting-more" as Tab); setSidebar(false); setRailFlyout(null); }}
-                    >
-                      <span>More</span>
-                      {[
-                        "accounting-more",
-                        "accounting-budgets",
-                        "accounting-loans",
-                        "accounting-recurring",
-                        "accounting-reminders",
-                      ].includes(tab) && <span className="side-subnav-dot" />}
-                    </button>
+            {railFlyout.group === "card-profile" && (
+              <>
+                <div className="rail-flyout-header">
+                  <div className="rail-flyout-header-title">
+                    <span
+                      className="side-card-status-dot"
+                      style={{ background: selected.active ? "#10B981" : "#F59E0B" }}
+                    />
+                    <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {selected.name}
+                    </span>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Section: Card & Profile */}
-          {isGroupAllowed("Card & Profile", currentUser?.featurePermissions) && (
-            <div className="side-nav-group">
-              <span className="side-group-title">Card &amp; Profile</span>
-              {/* Collapsed Rail button for Card & Profile */}
-              {desktopCollapsed && (
-                <button
-                  type="button"
-                  className={`side-nav-item ${isCardProfileRailActive ? "active" : ""}`}
-                  data-active-nav={isCardProfileRailActive ? "true" : undefined}
-                  aria-current={isCardProfileRailActive ? "page" : undefined}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setRailFlyout((prev) => prev?.group === "card-profile" ? null : { group: "card-profile", top: rect.top });
-                    setActiveRailTip(null);
-                  }}
-                  onMouseEnter={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveRailTip({ text: `Card: ${selected.name}`, top: rect.top + rect.height / 2 });
-                    }
-                  }}
-                  onMouseLeave={() => setActiveRailTip(null)}
-                  onFocus={(e) => {
-                    if (desktopCollapsed && window.innerWidth > 1024) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveRailTip({ text: `Card: ${selected.name}`, top: rect.top + rect.height / 2 });
-                    }
-                  }}
-                  onBlur={() => setActiveRailTip(null)}
-                  aria-label={`Card and Profile: ${selected.name}`}
-                  data-tip={`Card: ${selected.name}`}
-                >
-                  <CreditCard className="side-nav-icon" />
-                  <span
-                    className="rail-status-dot-badge"
-                    style={{ background: selected.active ? "#10B981" : "#F59E0B" }}
-                  />
-                </button>
-              )}
-
-              <div className="side-card-profile-box">
-                <div className="side-card-profile-header">
-                  <span className="side-card-owner-info">
-                    <span className="side-card-status-dot" style={{ background: selected.active ? "#10B981" : "#F59E0B" }} />
-                    <strong className="side-card-name-text">{selected.name}</strong>
-                  </span>
                   <span className="side-card-status-pill">
                     {selected.active ? "Published" : "Draft"}
                   </span>
                 </div>
-                <div className="side-subnav-list">
+                <div className="rail-flyout-list">
                   {isFeatureAllowed(currentUser?.featurePermissions, "profile_features", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "modes" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "modes" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "modes" ? "page" : undefined}
-                      onClick={() => { selectTab("modes"); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "modes" ? "active" : ""}`}
+                      onClick={() => { selectTab("modes"); setRailFlyout(null); }}
                     >
                       <span>Profile Features</span>
                       {tab === "modes" && <span className="side-subnav-dot" />}
@@ -2188,10 +2629,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                   {isFeatureAllowed(currentUser?.featurePermissions, "contact_info", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "contact" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "contact" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "contact" ? "page" : undefined}
-                      onClick={() => { selectTab("contact"); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "contact" ? "active" : ""}`}
+                      onClick={() => { selectTab("contact"); setRailFlyout(null); }}
                     >
                       <span>Contact Info</span>
                       {tab === "contact" && <span className="side-subnav-dot" />}
@@ -2200,10 +2639,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                   {isFeatureAllowed(currentUser?.featurePermissions, "apps_links", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "social" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "social" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "social" ? "page" : undefined}
-                      onClick={() => { selectTab("social"); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "social" ? "active" : ""}`}
+                      onClick={() => { selectTab("social"); setRailFlyout(null); }}
                     >
                       <span>Apps &amp; Links</span>
                       {tab === "social" && <span className="side-subnav-dot" />}
@@ -2212,10 +2649,8 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                   {isFeatureAllowed(currentUser?.featurePermissions, "company", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "company" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "company" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "company" ? "page" : undefined}
-                      onClick={() => { selectTab("company"); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "company" ? "active" : ""}`}
+                      onClick={() => { selectTab("company"); setRailFlyout(null); }}
                     >
                       <span>Company</span>
                       {tab === "company" && <span className="side-subnav-dot" />}
@@ -2224,878 +2659,503 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                   {isFeatureAllowed(currentUser?.featurePermissions, "card_design", currentUser?.role) && (
                     <button
                       type="button"
-                      className={`side-subnav-item ${tab === "appearance" ? "active" : ""}`}
-                      data-active-nav={!desktopCollapsed && tab === "appearance" ? "true" : undefined}
-                      aria-current={!desktopCollapsed && tab === "appearance" ? "page" : undefined}
-                      onClick={() => { selectTab("appearance"); setSidebar(false); setRailFlyout(null); }}
+                      className={`rail-flyout-item ${tab === "appearance" ? "active" : ""}`}
+                      onClick={() => { selectTab("appearance"); setRailFlyout(null); }}
                     >
                       <span>Card Design</span>
                       {tab === "appearance" && <span className="side-subnav-dot" />}
                     </button>
                   )}
                 </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 2. REWORKED DASHBOARD SHELL & INTEGRATED HEADER */}
+        <main className="dash-main main-content">
+          <header className="dash-main-header">
+            <div className="dash-header-left">
+              <button className="hamb-toggle" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">
+                ☰
+              </button>
+              <div className="dash-breadcrumbs">
+                <span className="crumb-brand">Zappit</span>
+                <span className="crumb-slash">/</span>
+                <span className="crumb-target">
+                  {tab === "settings" || tab === "security"
+                    ? "Settings · Account & Security"
+                    : tab === "cards"
+                      ? "My Cards"
+                      : tab === "dashboard"
+                        ? "Dashboard"
+                        : tab === "leads"
+                          ? "All Leads"
+                          : tab.startsWith("accounting-")
+                            ? `Zappit Accounts · ${tab === "accounting-overview" || tab === "accounting-home"
+                              ? "HOME"
+                              : tab === "accounting-sales-invoices" || tab === "accounting-invoices"
+                                ? "INVOICES"
+                                : tab === "accounting-products"
+                                  ? "PRODUCTS & SERVICES"
+                                  : tab === "accounting-categories"
+                                    ? "CATEGORIES"
+                                    : tab === "accounting-accounts-transfers"
+                                      ? "TRANSACTIONS & BALANCES"
+                                      : tab === "accounting-more"
+                                        ? "MORE TOOLS"
+                                        : ["accounting-budgets", "accounting-loans", "accounting-recurring", "accounting-reminders"].includes(tab)
+                                          ? `MORE · ${tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()}`
+                                          : tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()
+                            }`
+                            : tab.startsWith("config-")
+                              ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
+                              : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
+                </span>
+                <span className={`save-state ${saveStatus}`}>
+                  {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Section: Workspace */}
-          <div className="side-nav-group">
-            <span className="side-group-title">Workspace</span>
-            {isFeatureAllowed(currentUser?.featurePermissions, "my_cards", currentUser?.role) && (
+            <div className="dash-header-right">
               <button
                 type="button"
-                className={`side-nav-item ${isCardsActive ? "active" : ""}`}
-                data-active-nav={isCardsActive ? "true" : undefined}
-                aria-current={isCardsActive ? "page" : undefined}
-                onClick={() => { selectTab("cards"); setSidebar(false); setRailFlyout(null); }}
-                onMouseEnter={(e) => {
-                  if (desktopCollapsed && window.innerWidth > 1024) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setActiveRailTip({ text: "My Cards", top: rect.top + rect.height / 2 });
-                  }
-                }}
-                onMouseLeave={() => setActiveRailTip(null)}
-                onFocus={(e) => {
-                  if (desktopCollapsed && window.innerWidth > 1024) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setActiveRailTip({ text: "My Cards", top: rect.top + rect.height / 2 });
-                  }
-                }}
-                onBlur={() => setActiveRailTip(null)}
-                data-tip="My Cards"
+                onClick={toggleThemeWithTransition}
+                title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                aria-label="Toggle Theme"
+                className="dash-theme-btn"
               >
-                <span className="side-nav-item-left">
-                  <CreditCard className="side-nav-icon" />
-                  <span>My Cards</span>
-                </span>
+                <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+                <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
               </button>
-            )}
-          </div>
-
-          {/* Section: Global Settings (outside all module-specific groups) */}
-          <div className="side-nav-group side-nav-settings-group">
-            <button
-              type="button"
-              className={`side-nav-item ${isSettingsActive ? "active" : ""}`}
-              data-active-nav={isSettingsActive ? "true" : undefined}
-              aria-current={isSettingsActive ? "page" : undefined}
-              onClick={() => { selectTab("settings" as Tab); setSidebar(false); setRailFlyout(null); }}
-              onMouseEnter={(e) => {
-                if (desktopCollapsed && window.innerWidth > 1024) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setActiveRailTip({ text: "Settings", top: rect.top + rect.height / 2 });
+              <NotificationBell onSelectEntity={(entityType, entityId, actionUrl, notifId) => {
+                if (actionUrl) {
+                  try {
+                    const parsed = new URL(actionUrl, window.location.origin);
+                    const targetTab = (parsed.searchParams.get("tab") || "leads") as Tab;
+                    if (notifId) {
+                      parsed.searchParams.set("notificationId", notifId);
+                    }
+                    if (tab !== targetTab) {
+                      setTab(targetTab);
+                    }
+                    router.push(parsed.pathname + parsed.search);
+                  } catch {
+                    window.location.href = actionUrl;
+                  }
                 }
-              }}
-              onMouseLeave={() => setActiveRailTip(null)}
-              onFocus={(e) => {
-                if (desktopCollapsed && window.innerWidth > 1024) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setActiveRailTip({ text: "Settings", top: rect.top + rect.height / 2 });
-                }
-              }}
-              onBlur={() => setActiveRailTip(null)}
-              data-tip="Settings"
-            >
-              <span className="side-nav-item-left">
-                <Settings className="side-nav-icon" />
-                <span>Settings</span>
-              </span>
-            </button>
-            {(currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && (
-              <a
-                className="side-nav-item side-link side-admin-link"
-                href="/admin"
-                onMouseEnter={(e) => {
-                  if (desktopCollapsed && window.innerWidth > 1024) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setActiveRailTip({ text: "Admin Portal", top: rect.top + rect.height / 2 });
-                  }
-                }}
-                onMouseLeave={() => setActiveRailTip(null)}
-                onFocus={(e) => {
-                  if (desktopCollapsed && window.innerWidth > 1024) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setActiveRailTip({ text: "Admin Portal", top: rect.top + rect.height / 2 });
-                  }
-                }}
-                onBlur={() => setActiveRailTip(null)}
-                data-tip="Admin Portal"
-              >
-                <span className="side-nav-item-left">
-                  <ShieldAlert className="side-nav-icon" style={{ color: "#0066FF" }} />
-                  <span style={{ color: "#0066FF", fontWeight: 700 }}>Admin Portal</span>
-                </span>
-              </a>
-            )}
-          </div>
-        </nav>
-
-        {/* Footer in Expanded state */}
-        <div className="side-footer-badge">
-          <div className="side-footer-status">
-            <span className="side-status-pulse" />
-            <span>{cloudReady ? "Secure Cloud Workspace" : "Offline Workspace"}</span>
-          </div>
-          <small className="side-footer-email">{currentUser.email}</small>
-        </div>
-
-        {/* Footer in Collapsed Rail state (Sorvo reference) */}
-        <div
-          className="side-rail-footer"
-          onMouseEnter={(e) => {
-            if (desktopCollapsed && window.innerWidth > 1024) {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setActiveRailTip({
-                text: `${currentUser?.name || currentUser?.email} · ${cloudReady ? "Secure Cloud" : "Offline"}`,
-                top: rect.top + rect.height / 2,
-              });
-            }
-          }}
-          onMouseLeave={() => setActiveRailTip(null)}
-        >
-          <button
-            type="button"
-            className="rail-user-avatar-btn"
-            onClick={() => { selectTab("settings" as Tab); setRailFlyout(null); }}
-            aria-label="Account Settings"
-          >
-            <span>{userInitials}</span>
-            <span className="rail-user-status-dot" />
-          </button>
-        </div>
-      </aside>
-
-      {/* Floating Rail Tooltip (Sorvo reference) */}
-      {activeRailTip && desktopCollapsed && (
-        <div
-          className="rail-floating-tooltip"
-          style={{ top: `${activeRailTip.top}px` }}
-          role="tooltip"
-        >
-          {activeRailTip.text}
-        </div>
-      )}
-
-      {/* Anchored Subnav Flyout Popover (Sorvo reference) */}
-      {railFlyout && desktopCollapsed && (
-        <div
-          className="rail-flyout-popover"
-          style={{
-            top: `${Math.max(16, Math.min(typeof window !== "undefined" ? window.innerHeight - 380 : 400, railFlyout.top - 10))}px`,
-          }}
-        >
-          {railFlyout.group === "accounting" && (
-            <>
-              <div className="rail-flyout-header">
-                <div className="rail-flyout-header-title">
-                  <Landmark style={{ width: 16, height: 16, color: "#168BFF" }} />
-                  <span>Accounting</span>
-                </div>
-              </div>
-              <div className="rail-flyout-list">
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-overview" || tab === "accounting-home" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-overview" as Tab); setRailFlyout(null); }}
-                >
-                  <span>Home</span>
-                  {(tab === "accounting-overview" || tab === "accounting-home") && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-transactions" || tab === "accounting-accounts-transfers" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-transactions" as Tab); setRailFlyout(null); }}
-                >
-                  <span>Transactions</span>
-                  {(tab === "accounting-transactions" || tab === "accounting-accounts-transfers") && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-people" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-people" as Tab); setRailFlyout(null); }}
-                >
-                  <span>People</span>
-                  {tab === "accounting-people" && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-sales-invoices" || tab === "accounting-invoices" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-invoices" as Tab); setRailFlyout(null); }}
-                >
-                  <span>Invoices</span>
-                  {(tab === "accounting-sales-invoices" || tab === "accounting-invoices") && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-products" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-products" as Tab); setRailFlyout(null); }}
-                >
-                  <span>Products & Services</span>
-                  {tab === "accounting-products" && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-categories" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-categories" as Tab); setRailFlyout(null); }}
-                >
-                  <span>Categories</span>
-                  {tab === "accounting-categories" && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${tab === "accounting-reports" ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-reports" as Tab); setRailFlyout(null); }}
-                >
-                  <span>Reports</span>
-                  {tab === "accounting-reports" && <span className="side-subnav-dot" />}
-                </button>
-                <button
-                  type="button"
-                  className={`rail-flyout-item ${[
-                    "accounting-more",
-                    "accounting-budgets",
-                    "accounting-loans",
-                    "accounting-recurring",
-                    "accounting-reminders",
-                  ].includes(tab) ? "active" : ""}`}
-                  onClick={() => { selectTab("accounting-more" as Tab); setRailFlyout(null); }}
-                >
-                  <span>More Tools</span>
-                  {[
-                    "accounting-more",
-                    "accounting-budgets",
-                    "accounting-loans",
-                    "accounting-recurring",
-                    "accounting-reminders",
-                  ].includes(tab) && <span className="side-subnav-dot" />}
-                </button>
-              </div>
-            </>
-          )}
-
-          {railFlyout.group === "master-config" && (
-            <>
-              <div className="rail-flyout-header">
-                <div className="rail-flyout-header-title">
-                  <SlidersHorizontal style={{ width: 16, height: 16, color: "#168BFF" }} />
-                  <span>Master Config</span>
-                </div>
-              </div>
-              <div className="rail-flyout-list">
-                {isFeatureAllowed(currentUser?.featurePermissions, "lead_sources", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "config-sources" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-sources" as Tab); setRailFlyout(null); }}
-                  >
-                    <span>Lead Sources</span>
-                    {tab === "config-sources" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "config_products", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "config-products" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-products" as Tab); setRailFlyout(null); }}
-                  >
-                    <span>Products</span>
-                    {tab === "config-products" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "lead_stages", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "config-stages" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-stages" as Tab); setRailFlyout(null); }}
-                  >
-                    <span>Lead Stages</span>
-                    {tab === "config-stages" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "calendar", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "config-calendar" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-calendar" as Tab); setRailFlyout(null); }}
-                  >
-                    <span>Calendar</span>
-                    {tab === "config-calendar" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "lob_reasons", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "config-reasons" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-reasons" as Tab); setRailFlyout(null); }}
-                  >
-                    <span>LOB Reasons</span>
-                    {tab === "config-reasons" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "dynamic_leads", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "config-dynamic" ? "active" : ""}`}
-                    onClick={() => { selectTab("config-dynamic" as Tab); setRailFlyout(null); }}
-                  >
-                    <span>Dynamic Fields</span>
-                    {tab === "config-dynamic" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-
-          {railFlyout.group === "card-profile" && (
-            <>
-              <div className="rail-flyout-header">
-                <div className="rail-flyout-header-title">
-                  <span
-                    className="side-card-status-dot"
-                    style={{ background: selected.active ? "#10B981" : "#F59E0B" }}
-                  />
-                  <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {selected.name}
-                  </span>
-                </div>
-                <span className="side-card-status-pill">
-                  {selected.active ? "Published" : "Draft"}
-                </span>
-              </div>
-              <div className="rail-flyout-list">
-                {isFeatureAllowed(currentUser?.featurePermissions, "profile_features", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "modes" ? "active" : ""}`}
-                    onClick={() => { selectTab("modes"); setRailFlyout(null); }}
-                  >
-                    <span>Profile Features</span>
-                    {tab === "modes" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "contact_info", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "contact" ? "active" : ""}`}
-                    onClick={() => { selectTab("contact"); setRailFlyout(null); }}
-                  >
-                    <span>Contact Info</span>
-                    {tab === "contact" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "apps_links", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "social" ? "active" : ""}`}
-                    onClick={() => { selectTab("social"); setRailFlyout(null); }}
-                  >
-                    <span>Apps &amp; Links</span>
-                    {tab === "social" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "company", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "company" ? "active" : ""}`}
-                    onClick={() => { selectTab("company"); setRailFlyout(null); }}
-                  >
-                    <span>Company</span>
-                    {tab === "company" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-                {isFeatureAllowed(currentUser?.featurePermissions, "card_design", currentUser?.role) && (
-                  <button
-                    type="button"
-                    className={`rail-flyout-item ${tab === "appearance" ? "active" : ""}`}
-                    onClick={() => { selectTab("appearance"); setRailFlyout(null); }}
-                  >
-                    <span>Card Design</span>
-                    {tab === "appearance" && <span className="side-subnav-dot" />}
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* 2. REWORKED DASHBOARD SHELL & INTEGRATED HEADER */}
-      <main className="dash-main main-content">
-        <header className="dash-main-header">
-          <div className="dash-header-left">
-            <button className="hamb-toggle" onClick={() => setSidebar(!sidebar)} aria-label="Toggle navigation">
-              ☰
-            </button>
-            <div className="dash-breadcrumbs">
-              <span className="crumb-brand">Zappit</span>
-              <span className="crumb-slash">/</span>
-              <span className="crumb-target">
-                {tab === "settings" || tab === "security"
-                  ? "Settings · Account & Security"
-                  : tab === "cards"
-                    ? "My Cards"
-                    : tab === "dashboard"
-                      ? "Dashboard"
-                      : tab === "leads"
-                        ? "All Leads"
-                        : tab.startsWith("accounting-")
-                          ? `Zappit Accounts · ${tab === "accounting-overview" || tab === "accounting-home"
-                            ? "HOME"
-                            : tab === "accounting-sales-invoices" || tab === "accounting-invoices"
-                              ? "INVOICES"
-                              : tab === "accounting-products"
-                                ? "PRODUCTS & SERVICES"
-                                : tab === "accounting-categories"
-                                  ? "CATEGORIES"
-                                  : tab === "accounting-accounts-transfers"
-                                    ? "TRANSACTIONS & BALANCES"
-                                    : tab === "accounting-more"
-                                      ? "MORE TOOLS"
-                                      : ["accounting-budgets", "accounting-loans", "accounting-recurring", "accounting-reminders"].includes(tab)
-                                        ? `MORE · ${tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()}`
-                                        : tab.replace("accounting-", "").replace(/-/g, " ").toUpperCase()
-                          }`
-                          : tab.startsWith("config-")
-                            ? `Master Config · ${tab.replace("config-", "").toUpperCase()}`
-                            : `Edit Card · ${tab[0].toUpperCase() + tab.slice(1)}`}
-              </span>
-              <span className={`save-state ${saveStatus}`}>
-                {saveStatus === "saving" ? "Saving…" : saveStatus === "unsaved" ? "Changes pending" : saveStatus === "error" ? "Cloud save failed" : "Saved"}
-              </span>
-            </div>
-          </div>
-
-          <div className="dash-header-right">
-            <button
-              type="button"
-              onClick={toggleThemeWithTransition}
-              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-              aria-label="Toggle Theme"
-              className="dash-theme-btn"
-            >
-              <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
-              <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-            </button>
-            <NotificationBell onSelectEntity={(entityType, entityId, actionUrl, notifId) => {
-              if (actionUrl) {
-                try {
-                  const parsed = new URL(actionUrl, window.location.origin);
-                  const targetTab = (parsed.searchParams.get("tab") || "leads") as Tab;
-                  if (notifId) {
-                    parsed.searchParams.set("notificationId", notifId);
-                  }
-                  if (tab !== targetTab) {
-                    setTab(targetTab);
-                  }
-                  router.push(parsed.pathname + parsed.search);
-                } catch {
-                  window.location.href = actionUrl;
-                }
-              }
-            }} />
-            <div className="account-menu">
-              {(() => {
-                const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
-                const userInitials = userDisplayName
-                  .split(" ")
-                  .filter(Boolean)
-                  .map((part) => part[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase() || "ML";
-                return (
-                  <>
-                    <button className="avatar" title={currentUser?.email || ""} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>
-                      {userInitials}
-                    </button>
-                    {accountMenu && (
-                      <div className="account-popover" role="menu" aria-label="Account menu">
-                        <div className="account-popover-info">
-                          <strong className="account-popover-name">{userDisplayName}</strong>
-                          <span className="account-popover-email">{currentUser?.email || ""}</span>
-                        </div>
-                        <div className="account-popover-menu">
-                          {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
-                            <a
-                              href="/admin"
-                              className="account-popover-item account-popover-link"
+              }} />
+              <div className="account-menu">
+                {(() => {
+                  const userDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "User";
+                  const userInitials = userDisplayName
+                    .split(" ")
+                    .filter(Boolean)
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase() || "ML";
+                  return (
+                    <>
+                      <button className="avatar" title={currentUser?.email || ""} aria-label="Open account menu" aria-expanded={accountMenu} onClick={() => setAccountMenu((open) => !open)}>
+                        {userInitials}
+                      </button>
+                      {accountMenu && (
+                        <div className="account-popover" role="menu" aria-label="Account menu">
+                          <div className="account-popover-info">
+                            <strong className="account-popover-name">{userDisplayName}</strong>
+                            <span className="account-popover-email">{currentUser?.email || ""}</span>
+                          </div>
+                          <div className="account-popover-menu">
+                            {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && (
+                              <a
+                                href="/admin"
+                                className="account-popover-item account-popover-link"
+                                role="menuitem"
+                              >
+                                <Settings size={14} className="account-popover-icon" />
+                                <span>Admin Portal</span>
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              className="account-popover-item"
                               role="menuitem"
+                              onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}
                             >
                               <Settings size={14} className="account-popover-icon" />
-                              <span>Admin Portal</span>
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            className="account-popover-item"
-                            role="menuitem"
-                            onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}
-                          >
-                            <Settings size={14} className="account-popover-icon" />
-                            <span>Settings</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="account-popover-item btn-change-nickname"
-                            role="menuitem"
-                            onClick={handleOpenNicknameModal}
-                          >
-                            <Edit3 size={14} className="account-popover-icon" />
-                            <span>Change Nickname</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="account-popover-item"
-                            role="menuitem"
-                            onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}
-                          >
-                            <Shield size={14} className="account-popover-icon" />
-                            <span>Security &amp; Password</span>
-                          </button>
-                          <div className="account-popover-divider" />
-                          <button
-                            type="button"
-                            className="account-popover-item account-popover-danger"
-                            role="menuitem"
-                            onClick={logout}
-                          >
-                            <LogOut size={14} className="account-popover-icon" />
-                            <span>Log out</span>
-                          </button>
+                              <span>Settings</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="account-popover-item btn-change-nickname"
+                              role="menuitem"
+                              onClick={handleOpenNicknameModal}
+                            >
+                              <Edit3 size={14} className="account-popover-icon" />
+                              <span>Change Nickname</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="account-popover-item"
+                              role="menuitem"
+                              onClick={() => { selectTab("settings" as Tab); setAccountMenu(false); }}
+                            >
+                              <Shield size={14} className="account-popover-icon" />
+                              <span>Security &amp; Password</span>
+                            </button>
+                            <div className="account-popover-divider" />
+                            <button
+                              type="button"
+                              className="account-popover-item account-popover-danger"
+                              role="menuitem"
+                              onClick={logout}
+                            >
+                              <LogOut size={14} className="account-popover-icon" />
+                              <span>Log out</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
-          </div>
-        </header>
-        <div className={`dash-main-tab-wrap ${isTabLeaving ? "dash-tab-leaving" : "dash-tab-entering"}`} key={tab}>
-          {tab === "dashboard" && (
-            <section>
-              <LeadManagementDashboard
-                userName={currentUser.name}
-                identity={{
-                  id: currentUser.id || identity?.id || "",
-                  name: currentUser.name || null,
-                  email: currentUser.email || "",
-                  role: userRole || identity?.role || "CUSTOMER",
-                  featurePermissions: userPermissions,
-                }}
-                onNavigateTab={(t: string, params?: Record<string, string>) => selectTab(t as Tab, params)}
-              />
-            </section>
-          )}
-
-          {tab === "leads" && (
-            <section>
-              <LeadsWorkspace identity={{ id: currentUser.id || identity?.id || "", name: currentUser.name || null, email: currentUser.email || "", role: currentUser.role || "CUSTOMER" }} />
-            </section>
-          )}
-
-          {/* Master Configuration Page Views */}
-          {tab === "config-sources" && <section><LeadSourcesConfig /></section>}
-          {tab === "config-products" && <section><ProductsConfig /></section>}
-          {tab === "config-stages" && <section><LeadStagesConfig /></section>}
-          {tab === "config-calendar" && <section><CalendarConfig /></section>}
-          {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
-          {tab === "config-dynamic" && <section><LeadDynamicsConfig /></section>}
-
-          {/* Zappit Accounts Financial Management Page Views */}
-          {tab.startsWith("accounting-") && (
-            <section style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
-              {!isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "4rem 2rem",
-                    margin: "2rem auto",
-                    maxWidth: "560px",
-                    borderRadius: "12px",
-                    backgroundColor: "var(--acc-surface, #121A26)",
-                    border: "1px solid var(--acc-border, #293548)",
+          </header>
+          <div className={`dash-main-tab-wrap ${isTabLeaving ? "dash-tab-leaving" : "dash-tab-entering"}`} key={tab}>
+            {tab === "dashboard" && (
+              <section>
+                <LeadManagementDashboard
+                  userName={currentUser.name}
+                  identity={{
+                    id: currentUser.id || identity?.id || "",
+                    name: currentUser.name || null,
+                    email: currentUser.email || "",
+                    role: userRole || identity?.role || "CUSTOMER",
+                    featurePermissions: userPermissions,
                   }}
-                >
-                  <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>🔒</div>
-                  <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--acc-text-main, #F1F5F9)", margin: 0 }}>
-                    Zappit Accounts · Access Restricted
-                  </h2>
-                  <p style={{ color: "var(--acc-text-muted, #A8B5C7)", marginTop: "0.75rem", fontSize: "0.875rem", lineHeight: 1.5 }}>
-                    You do not have entitlement to access the Accounting module. Contact a platform administrator to grant you access in the Admin Portal.
-                  </p>
-                  <button
-                    type="button"
-                    style={{
-                      marginTop: "1.5rem",
-                      padding: "0.625rem 1.25rem",
-                      borderRadius: "8px",
-                      backgroundColor: "var(--acc-blue, #3B82F6)",
-                      color: "#FFFFFF",
-                      fontWeight: 600,
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => selectTab("dashboard")}
-                  >
-                    Return to Leads Dashboard
-                  </button>
-                </div>
-              ) : (
-                <AccountingApp
-                  currentTab={tab}
-                  onSelectTab={(t) => selectTab(t as Tab)}
-                  onReturnToDashboard={() => selectTab("dashboard")}
+                  onNavigateTab={(t: string, params?: Record<string, string>) => selectTab(t as Tab, params)}
                 />
-              )}
-            </section>
-          )}
+              </section>
+            )}
 
-          <DashboardLayoutSelectorModal
-            currentLayout={dashboardLayout}
-            onSelectLayout={handleSelectDashboardLayout}
-            isOpen={layoutModalOpen}
-            onClose={() => setLayoutModalOpen(false)}
-          />
+            {tab === "leads" && (
+              <section>
+                <LeadsWorkspace identity={{ id: currentUser.id || identity?.id || "", name: currentUser.name || null, email: currentUser.email || "", role: currentUser.role || "CUSTOMER" }} />
+              </section>
+            )}
 
-          {(tab === "settings" || tab === "security") && (
-            <section className="dashboard-content-section" style={{ minHeight: "80vh", padding: "1rem" }}>
-              <GlobalAccountSettingsView
-                currentUser={currentUser}
-                onUpdateNickname={(newName) => {
-                  setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
-                }}
-                onNavigateTab={(t) => selectTab(t as Tab)}
-              />
-            </section>
-          )}
+            {/* Master Configuration Page Views */}
+            {tab === "config-sources" && <section><LeadSourcesConfig /></section>}
+            {tab === "config-products" && <section><ProductsConfig /></section>}
+            {tab === "config-stages" && <section><LeadStagesConfig /></section>}
+            {tab === "config-calendar" && <section><CalendarConfig /></section>}
+            {tab === "config-reasons" && <section><LobReasonsConfig /></section>}
+            {tab === "config-dynamic" && <section><LeadDynamicsConfig /></section>}
 
-          {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
-            <div className="page-heading edit-heading dash-entrance-header"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
-            <div className="edit-layout dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
-              <div className="form-card">
-                {tab === "modes" && <ModesForm draft={draft} update={update} contactNumbers={contactNumbers} emergencyContacts={emergencyContacts} onContactsRefresh={reloadContactsData} />}
-                {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
-                {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
-                {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
-                {tab === "appearance" && (
-                  <AppearanceForm
-                    draft={draft}
-                    update={update}
-                    handleFile={handleFile}
-                    uploadingKind={uploadingKind}
-                    appliedDesign={appliedDesign}
-                    previewDesign={effectivePreviewDesign}
-                    onSelectPreviewDesign={(fmt: "modern" | "simple") => {
-                      setPreviewProfileFormat(fmt);
-                      setDesignFeedback(null);
+            {/* Zappit Accounts Financial Management Page Views */}
+            {tab.startsWith("accounting-") && (
+              <section style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
+                {!isAccountingEntitled(currentUser?.featurePermissions, currentUser?.role) ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "4rem 2rem",
+                      margin: "2rem auto",
+                      maxWidth: "560px",
+                      borderRadius: "12px",
+                      backgroundColor: "var(--acc-surface, #121A26)",
+                      border: "1px solid var(--acc-border, #293548)",
                     }}
-                    onApplyDesign={handleApplyProfileDesign}
-                    applyingDesign={applyingDesign}
-                    designFeedback={designFeedback}
+                  >
+                    <div style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>🔒</div>
+                    <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--acc-text-main, #F1F5F9)", margin: 0 }}>
+                      Zappit Accounts · Access Restricted
+                    </h2>
+                    <p style={{ color: "var(--acc-text-muted, #A8B5C7)", marginTop: "0.75rem", fontSize: "0.875rem", lineHeight: 1.5 }}>
+                      You do not have entitlement to access the Accounting module. Contact a platform administrator to grant you access in the Admin Portal.
+                    </p>
+                    <button
+                      type="button"
+                      style={{
+                        marginTop: "1.5rem",
+                        padding: "0.625rem 1.25rem",
+                        borderRadius: "8px",
+                        backgroundColor: "var(--acc-blue, #3B82F6)",
+                        color: "#FFFFFF",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => selectTab("dashboard")}
+                    >
+                      Return to Leads Dashboard
+                    </button>
+                  </div>
+                ) : (
+                  <AccountingApp
+                    currentTab={tab}
+                    onSelectTab={(t) => selectTab(t as Tab)}
+                    onReturnToDashboard={() => selectTab("dashboard")}
                   />
                 )}
-                {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
-                <div className="form-actions">
-                  <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
-                  {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "modes" ? "contact" : tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
-                  {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
+              </section>
+            )}
+
+            <DashboardLayoutSelectorModal
+              currentLayout={dashboardLayout}
+              onSelectLayout={handleSelectDashboardLayout}
+              isOpen={layoutModalOpen}
+              onClose={() => setLayoutModalOpen(false)}
+            />
+
+            {(tab === "settings" || tab === "security") && (
+              <section className="dashboard-content-section" style={{ minHeight: "80vh", padding: "1rem" }}>
+                <GlobalAccountSettingsView
+                  currentUser={currentUser}
+                  onUpdateNickname={(newName) => {
+                    setCurrentUser((prev) => (prev ? { ...prev, name: newName } : prev));
+                  }}
+                  onNavigateTab={(t) => selectTab(t as Tab)}
+                />
+              </section>
+            )}
+
+            {(["modes", "contact", "social", "company", "appearance"] as Tab[]).includes(tab) && <section>
+              <div className="page-heading edit-heading dash-entrance-header"><div><p>EDIT CARD</p><h1>{tab === "modes" ? "Profile mode & feature settings" : tab === "contact" ? "Contact information" : tab === "social" ? "Apps & links" : tab === "company" ? "Company details" : "Card appearance"}</h1><span>Changes appear in the preview as you type.</span></div></div>
+              <div className="edit-layout dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
+                <div className="form-card">
+                  {tab === "modes" && <ModesForm draft={draft} update={update} contactNumbers={contactNumbers} emergencyContacts={emergencyContacts} onContactsRefresh={reloadContactsData} />}
+                  {tab === "contact" && <ContactForm draft={draft} update={update} errors={errors} same={sameAsMobile} setSame={setSameAsMobile} handleFile={handleFile} />}
+                  {tab === "social" && <SocialForm draft={draft} update={update} errors={errors} />}
+                  {tab === "company" && <CompanyForm draft={draft} update={update} service={service} setService={setService} notify={notify} />}
+                  {tab === "appearance" && (
+                    <AppearanceForm
+                      draft={draft}
+                      update={update}
+                      handleFile={handleFile}
+                      uploadingKind={uploadingKind}
+                      appliedDesign={appliedDesign}
+                      previewDesign={effectivePreviewDesign}
+                      onSelectPreviewDesign={(fmt: "modern" | "simple") => {
+                        setPreviewProfileFormat(fmt);
+                        setDesignFeedback(null);
+                      }}
+                      onApplyDesign={handleApplyProfileDesign}
+                      applyingDesign={applyingDesign}
+                      designFeedback={designFeedback}
+                    />
+                  )}
+                  {tab === "appearance" && <div className="save-finish-reminder" role="note"><span aria-hidden>✓</span><p><strong>Remember to save</strong>Always press <b>Save &amp; finish</b> when you’re done so your latest changes appear on every device.</p></div>}
+                  <div className="form-actions">
+                    <button className="save" disabled={saving} onClick={() => save(tab)}>{saving ? "Saving…" : "Update"}</button>
+                    {tab !== "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, tab === "modes" ? "contact" : tab === "contact" ? "social" : tab === "social" ? "company" : "appearance")}>{saving ? "Saving…" : "Next →"}</button>}
+                    {tab === "appearance" && <button className="next" disabled={saving} onClick={() => save(tab, "cards")}>{saving ? "Saving…" : "Save & finish →"}</button>}
+                  </div>
                 </div>
-              </div>
-              <PreviewPanel
-                card={{ ...draft, profileFormat: effectivePreviewDesign }}
-                onOpen={requestCardOpen}
-                onUpdateThemePreference={async (pref) => {
-                  update("profileThemePreference", pref);
-                  if (draft.slug) {
-                    try {
-                      await fetchWithSessionRefresh(`/api/cards/public/${encodeURIComponent(draft.slug)}`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ profileThemePreference: pref }),
-                      });
-                    } catch (err) {
-                      console.warn("[DashboardDemo] Failed to sync profileThemePreference:", err);
+                <PreviewPanel
+                  card={{ ...draft, profileFormat: effectivePreviewDesign }}
+                  onOpen={requestCardOpen}
+                  onUpdateThemePreference={async (pref) => {
+                    update("profileThemePreference", pref);
+                    if (draft.slug) {
+                      try {
+                        await fetchWithSessionRefresh(`/api/cards/public/${encodeURIComponent(draft.slug)}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ profileThemePreference: pref }),
+                        });
+                      } catch (err) {
+                        console.warn("[DashboardDemo] Failed to sync profileThemePreference:", err);
+                      }
                     }
-                  }
+                  }}
+                />
+              </div>
+            </section>}
+
+            {tab === "cards" && <section>
+              <div className="page-heading dash-entrance-header"><div><p>CARD LIBRARY</p><h1>My Cards</h1><span>Search, publish, and manage your digital cards.</span></div><button className="primary" onClick={() => selectTab("contact")}>Edit my card</button></div>
+              <div className="table-card dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
+                <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
+                <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
+                  <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={() => requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: card.id, slug: card.slug, toggleActive: true }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { notify(payload.message || "Status could not be changed."); return; } const confirmed = { ...card, ...payload.card }; lastSavedRef.current = JSON.stringify(confirmed); setCards(current => current.map(item => item.id === card.id ? confirmed : item)); if (selectedId === card.id) setDraft(confirmed); setSaveStatus("saved"); notify(confirmed.active ? "Card published." : "Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
+                </table></div>
+                <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
+              </div>
+            </section>}
+          </div>
+        </main>
+        {toast && <div className="dash-toast">✓ {toast}</div>}
+        <MyLuxModal
+          isOpen={nicknameModalOpen}
+          onClose={() => {
+            if (!savingNickname) setNicknameModalOpen(false);
+          }}
+          title="Change Nickname"
+          subtitle="Update your nickname displayed across your profile."
+          maxWidth={440}
+          footer={
+            <>
+              <button
+                type="button"
+                className="mylux-btn-cancel"
+                onClick={() => setNicknameModalOpen(false)}
+                disabled={savingNickname}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="mylux-btn-submit"
+                onClick={handleSaveNickname}
+                disabled={savingNickname}
+              >
+                {savingNickname ? "Saving…" : "Save"}
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={handleSaveNickname} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6, fontWeight: 600 }}>
+                Current Nickname
+              </label>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#ffffff", background: "rgba(255, 255, 255, 0.05)", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                {currentUser?.name || "N/A"}
+              </div>
+            </div>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label htmlFor="nickname-input" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                  New Nickname
+                </label>
+                <span style={{ fontSize: 11, color: nicknameInput.trim().length > 30 ? "#ff4d4f" : "rgba(255,255,255,0.5)" }}>
+                  {nicknameInput.trim().length}/30
+                </span>
+              </div>
+              <input
+                id="nickname-input"
+                type="text"
+                value={nicknameInput}
+                onChange={(e) => {
+                  setNicknameInput(e.target.value);
+                  if (nicknameError) setNicknameError("");
+                }}
+                placeholder="Enter new nickname"
+                maxLength={30}
+                autoFocus
+                disabled={savingNickname}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  background: "#0c0d12",
+                  border: nicknameError ? "1px solid #ff4d4f" : "1px solid rgba(0, 102, 255, 0.4)",
+                  borderRadius: 8,
+                  color: "#ffffff",
+                  fontSize: 14,
+                  outline: "none",
+                  boxSizing: "border-box",
                 }}
               />
+              {nicknameError && (
+                <p style={{ color: "#ff4d4f", fontSize: 12, marginTop: 6, marginBottom: 0 }}>
+                  {nicknameError}
+                </p>
+              )}
             </div>
-          </section>}
-
-          {tab === "cards" && <section>
-            <div className="page-heading dash-entrance-header"><div><p>CARD LIBRARY</p><h1>My Cards</h1><span>Search, publish, and manage your digital cards.</span></div><button className="primary" onClick={() => selectTab("contact")}>Edit my card</button></div>
-            <div className="table-card dash-entrance-panel" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
-              <div className="table-tools"><label>Show <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}><option>10</option><option>25</option><option>50</option></select> entries</label><label className="search">⌕ <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search cards..." /></label></div>
-              <div className="table-scroll"><table><thead><tr><th>Sr. No.</th><th>Name (slug)</th><th>Availability</th><th>Views</th><th>Edit</th><th>Status</th><th>Delete</th></tr></thead>
-                <tbody>{visible.map((card, index) => <tr key={card.id}><td data-label="Card">{start + index}</td><td data-label="Name"><button className="card-name-link" onClick={() => requestCardOpen(card)}><strong>{card.name}</strong><small>/{card.slug}</small></button></td><td data-label="Availability">{card.active ? "Published until you switch it off" : "Switched off"}</td><td data-label="Views"><span className="view-badge">{card.analytics?.VIEW || card.views || 0}</span></td><td data-label="Edit"><button className="edit-btn" onClick={() => openEditor(card)}>Edit</button></td><td data-label="Published"><button className={`switch ${card.active ? "on" : ""}`} aria-label={`Toggle ${card.name}`} onClick={async () => { const response = await fetchWithSessionRefresh("/api/cards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: card.id, slug: card.slug, toggleActive: true }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { notify(payload.message || "Status could not be changed."); return; } const confirmed = { ...card, ...payload.card }; lastSavedRef.current = JSON.stringify(confirmed); setCards(current => current.map(item => item.id === card.id ? confirmed : item)); if (selectedId === card.id) setDraft(confirmed); setSaveStatus("saved"); notify(confirmed.active ? "Card published." : "Card switched off. It will stay off until you turn it on."); }}><span /></button></td><td data-label="Remove"><button className="delete-btn" onClick={() => setDeleteId(card.id)}>Delete</button></td></tr>)}</tbody>
-              </table></div>
-              <div className="table-footer"><span>Showing {start} to {end} of {filtered.length} entries</span><div><button disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</button><button className="current">{page}</button><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next</button></div></div>
-            </div>
-          </section>}
-        </div>
-      </main>
-      {toast && <div className="dash-toast">✓ {toast}</div>}
-      <MyLuxModal
-        isOpen={nicknameModalOpen}
-        onClose={() => {
-          if (!savingNickname) setNicknameModalOpen(false);
-        }}
-        title="Change Nickname"
-        subtitle="Update your nickname displayed across your profile."
-        maxWidth={440}
-        footer={
-          <>
-            <button
-              type="button"
-              className="mylux-btn-cancel"
-              onClick={() => setNicknameModalOpen(false)}
-              disabled={savingNickname}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="mylux-btn-submit"
-              onClick={handleSaveNickname}
-              disabled={savingNickname}
-            >
-              {savingNickname ? "Saving…" : "Save"}
-            </button>
-          </>
-        }
-      >
-        <form onSubmit={handleSaveNickname} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <label style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6, fontWeight: 600 }}>
-              Current Nickname
-            </label>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#ffffff", background: "rgba(255, 255, 255, 0.05)", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255, 255, 255, 0.1)" }}>
-              {currentUser?.name || "N/A"}
-            </div>
+          </form>
+        </MyLuxModal>
+        <MyLuxModal
+          isOpen={Boolean(deleteId)}
+          onClose={() => setDeleteId(null)}
+          title="Remove this card?"
+          subtitle="This permanently removes only this card. Your other cards and account remain unchanged."
+          maxWidth={480}
+          footer={
+            <>
+              <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)}>Cancel</button>
+              <button type="button" style={{ background: "#e74c3c", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 700, cursor: "pointer" }} onClick={() => deleteId && clearCard(deleteId)}>Remove card</button>
+            </>
+          }
+        >
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
+            Are you sure you want to remove this digital card? All configuration and settings for this card will be permanently removed from your account.
           </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <label htmlFor="nickname-input" style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                New Nickname
-              </label>
-              <span style={{ fontSize: 11, color: nicknameInput.trim().length > 30 ? "#ff4d4f" : "rgba(255,255,255,0.5)" }}>
-                {nicknameInput.trim().length}/30
-              </span>
-            </div>
-            <input
-              id="nickname-input"
-              type="text"
-              value={nicknameInput}
-              onChange={(e) => {
-                setNicknameInput(e.target.value);
-                if (nicknameError) setNicknameError("");
-              }}
-              placeholder="Enter new nickname"
-              maxLength={30}
-              autoFocus
-              disabled={savingNickname}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                background: "#0c0d12",
-                border: nicknameError ? "1px solid #ff4d4f" : "1px solid rgba(0, 102, 255, 0.4)",
-                borderRadius: 8,
-                color: "#ffffff",
-                fontSize: 14,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            {nicknameError && (
-              <p style={{ color: "#ff4d4f", fontSize: 12, marginTop: 6, marginBottom: 0 }}>
-                {nicknameError}
-              </p>
-            )}
-          </div>
-        </form>
-      </MyLuxModal>
-      <MyLuxModal
-        isOpen={Boolean(deleteId)}
-        onClose={() => setDeleteId(null)}
-        title="Remove this card?"
-        subtitle="This permanently removes only this card. Your other cards and account remain unchanged."
-        maxWidth={480}
-        footer={
-          <>
-            <button type="button" className="mylux-btn-cancel" onClick={() => setDeleteId(null)}>Cancel</button>
-            <button type="button" style={{ background: "#e74c3c", color: "#fff", border: "none", padding: "10px 18px", borderRadius: 10, fontWeight: 700, cursor: "pointer" }} onClick={() => deleteId && clearCard(deleteId)}>Remove card</button>
-          </>
-        }
-      >
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
-          Are you sure you want to remove this digital card? All configuration and settings for this card will be permanently removed from your account.
-        </div>
-      </MyLuxModal>
-      <LegalConsentModal
-        isOpen={consentModalOpen}
-        onConsentAccepted={() => setConsentModalOpen(false)}
-      />
-    </div>
-  );
-}
+        </MyLuxModal>
+        <LegalConsentModal
+          isOpen={consentModalOpen}
+          onConsentAccepted={() => setConsentModalOpen(false)}
+        />
+      </div>
+    );
+  }
 
 
 
-function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { draft: Card; update: (field: string, val: any) => void; onContactsRefresh: () => void }) {
-  const [savingFeature, setSavingFeature] = useState<string | null>(null);
-  const [featureError, setFeatureError] = useState("");
-  const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "OFF">("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
-  const [loadingCounts, setLoadingCounts] = useState(false);
-  const [activeManagerSection, setActiveManagerSection] = useState<string | null>(null);
+  function ProfileFeatureEngineManager({ draft, update, onContactsRefresh }: { draft: Card; update: (field: string, val: any) => void; onContactsRefresh: () => void }) {
+    const [savingFeature, setSavingFeature] = useState<string | null>(null);
+    const [featureError, setFeatureError] = useState("");
+    const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "OFF">("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+    const [loadingCounts, setLoadingCounts] = useState(false);
+    const [activeManagerSection, setActiveManagerSection] = useState<string | null>(null);
 
-  const featureMetadata: Record<string, { label: string; icon: string; desc: string; category: string }> = {
-    BASIC_PROFILE: { label: "About Me", icon: "👤", desc: "Your photo, title, business name, bio & overview", category: "PERSONAL" },
-    CONTACT: { label: "Contact Details", icon: "📞", desc: "Phone, WhatsApp, email & vCard save contact button", category: "PERSONAL" },
-    SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Instagram, LinkedIn, X, YouTube & web profiles", category: "PERSONAL" },
-    WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Company website URL & downloadable PDF brochure", category: "PERSONAL" },
-    PRODUCTS: { label: "Products", icon: "🛍️", desc: "Custom profile products with pricing, photos & CTAs", category: "BUSINESS" },
-    VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Vehicle details, parking notes & direct contact", category: "SPECIAL" },
-    LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Tagged item lost-and-found finder contact form", category: "SPECIAL" },
-    EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Emergency contact details & rapid safety response", category: "SPECIAL" },
-  };
+    const featureMetadata: Record<string, { label: string; icon: string; desc: string; category: string }> = {
+      BASIC_PROFILE: { label: "About Me", icon: "👤", desc: "Your photo, title, business name, bio & overview", category: "PERSONAL" },
+      CONTACT: { label: "Contact Details", icon: "📞", desc: "Phone, WhatsApp, email & vCard save contact button", category: "PERSONAL" },
+      SOCIAL_LINKS: { label: "Social Links", icon: "🔗", desc: "Instagram, LinkedIn, X, YouTube & web profiles", category: "PERSONAL" },
+      WEBSITE: { label: "Website & Brochure", icon: "🌐", desc: "Company website URL & downloadable PDF brochure", category: "PERSONAL" },
+      PRODUCTS: { label: "Products", icon: "🛍️", desc: "Custom profile products with pricing, photos & CTAs", category: "BUSINESS" },
+      VEHICLE: { label: "Vehicle Connect", icon: "🚗", desc: "Vehicle details, parking notes & direct contact", category: "SPECIAL" },
+      LOST_AND_FOUND: { label: "Lost & Found", icon: "🏷️", desc: "Tagged item lost-and-found finder contact form", category: "SPECIAL" },
+      EMERGENCY_CONTACT: { label: "Emergency Contact", icon: "🚨", desc: "Emergency contact details & rapid safety response", category: "SPECIAL" },
+    };
 
-  const SECTION_CATEGORIES = [
-    { key: "PERSONAL", title: "PERSONAL", desc: "Basic details, contact info & links" },
-    { key: "BUSINESS", title: "BUSINESS", desc: "Custom profile products & store" },
-    { key: "SPECIAL", title: "SPECIAL", desc: "Vehicle Connect, Lost & Found & Emergency" },
-  ];
+    const SECTION_CATEGORIES = [
+      { key: "PERSONAL", title: "PERSONAL", desc: "Basic details, contact info & links" },
+      { key: "BUSINESS", title: "BUSINESS", desc: "Custom profile products & store" },
+      { key: "SPECIAL", title: "SPECIAL", desc: "Vehicle Connect, Lost & Found & Emergency" },
+    ];
 
-  const profileFeatures = (draft as any).profileFeatures || {
-    BASIC_PROFILE: { enabled: true, sortOrder: 0 },
-    CONTACT: { enabled: true, sortOrder: 1 },
-    SOCIAL_LINKS: { enabled: true, sortOrder: 2 },
-    WEBSITE: { enabled: true, sortOrder: 3 },
-    EMERGENCY_CONTACT: { enabled: true, sortOrder: 4 },
-    VEHICLE: { enabled: true, sortOrder: 5 },
-    LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
-    PRODUCTS: { enabled: false, sortOrder: 7 },
-  };
+    const profileFeatures = (draft as any).profileFeatures || {
+      BASIC_PROFILE: { enabled: true, sortOrder: 0 },
+      CONTACT: { enabled: true, sortOrder: 1 },
+      SOCIAL_LINKS: { enabled: true, sortOrder: 2 },
+      WEBSITE: { enabled: true, sortOrder: 3 },
+      EMERGENCY_CONTACT: { enabled: true, sortOrder: 4 },
+      VEHICLE: { enabled: true, sortOrder: 5 },
+      LOST_AND_FOUND: { enabled: true, sortOrder: 6 },
+      PRODUCTS: { enabled: false, sortOrder: 7 },
+    };
 
-  const featureOrder = (draft as any).featureOrder || [
-    "BASIC_PROFILE",
-    "CONTACT",
-    "SOCIAL_LINKS",
-    "WEBSITE",
-    "EMERGENCY_CONTACT",
-    "VEHICLE",
-    "LOST_AND_FOUND",
-    "PRODUCTS",
-  ];
+    const featureOrder = (draft as any).featureOrder || [
+      "BASIC_PROFILE",
+      "CONTACT",
+      "SOCIAL_LINKS",
+      "WEBSITE",
+      "EMERGENCY_CONTACT",
+      "VEHICLE",
+      "LOST_AND_FOUND",
+      "PRODUCTS",
+    ];
 
   const socialLinkCount = useMemo(() => {
     if (!draft.social || typeof draft.social !== "object") return 0;
-    return Object.values(draft.social).filter(Boolean).length;
-  }, [draft.social]);
+    const igAccounts = Array.isArray(draft.instagramAccounts)
+      ? draft.instagramAccounts.filter((a) => Boolean(a.url && a.url.trim()))
+      : [];
+    const igCount = igAccounts.length > 0 ? igAccounts.length : (draft.social.Instagram ? 1 : 0);
+    const otherCount = Object.entries(draft.social)
+      .filter(([k, v]) => k !== "Instagram" && Boolean(v && String(v).trim()))
+      .length;
+    return igCount + otherCount;
+  }, [draft.social, draft.instagramAccounts]);
 
   // Fetch count metadata for section items where applicable
   useEffect(() => {
@@ -6100,7 +6160,197 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
     </>
   );
 }
+function InstagramAccountsEditor({ draft, update, errors }: any) {
+  const accounts: InstagramAccount[] = useMemo(() => {
+    if (Array.isArray(draft.instagramAccounts) && draft.instagramAccounts.length > 0) {
+      return draft.instagramAccounts;
+    }
+    const legacyUrl = draft.social?.Instagram || draft.social?.instagram || "";
+    return [{ url: legacyUrl, name: "" }];
+  }, [draft.instagramAccounts, draft.social?.Instagram, draft.social?.instagram]);
+
+  const [revealedNames, setRevealedNames] = useState<Record<number, boolean>>({});
+
+  const updateAccount = (index: number, changes: Partial<InstagramAccount>) => {
+    const next = accounts.map((item, idx) => (idx === index ? { ...item, ...changes } : item));
+    update("instagramAccounts", next);
+    const firstNonEmpty = next.find((a) => Boolean(a.url && a.url.trim()));
+    update("social", { ...draft.social, Instagram: firstNonEmpty ? firstNonEmpty.url : "" });
+  };
+
+  const removeAccount = (index: number) => {
+    let next: InstagramAccount[];
+    if (accounts.length <= 1) {
+      next = [{ url: "", name: "" }];
+    } else {
+      next = accounts.filter((_, idx) => idx !== index);
+    }
+    update("instagramAccounts", next);
+    const firstNonEmpty = next.find((a) => Boolean(a.url && a.url.trim()));
+    update("social", { ...draft.social, Instagram: firstNonEmpty ? firstNonEmpty.url : "" });
+    setRevealedNames((prev) => {
+      const updated: Record<number, boolean> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const k = Number(key);
+        if (k < index) updated[k] = val;
+        else if (k > index) updated[k - 1] = val;
+      });
+      return updated;
+    });
+  };
+
+  const addAccount = () => {
+    if (accounts.length >= MAX_INSTAGRAM_ACCOUNTS) return;
+    const next = [...accounts, { url: "", name: "" }];
+    update("instagramAccounts", next);
+  };
+
+  return (
+    <div className="zappit-instagram-editor-section" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      {accounts.map((acc, index) => {
+        const errorMsg = errors[`instagram_${index}`];
+        const isNameVisible = Boolean(acc.name && acc.name.trim()) || Boolean(revealedNames[index]);
+        const isRemovable = accounts.length > 1 || Boolean(acc.url || acc.name);
+
+        return (
+          <div
+            key={acc.id || `ig_row_${index}`}
+            className="zappit-ig-row"
+            style={{
+              padding: accounts.length > 1 ? "12px" : "0",
+              background: accounts.length > 1 ? "rgba(255, 255, 255, 0.02)" : "transparent",
+              border: accounts.length > 1 ? "1px solid rgba(255, 255, 255, 0.06)" : "none",
+              borderRadius: "8px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-main, #fff)" }}>
+                {accounts.length > 1 ? `Instagram URL ${index + 1}` : "Instagram URL"}
+              </label>
+              {isRemovable && (
+                <button
+                  type="button"
+                  onClick={() => removeAccount(index)}
+                  aria-label={`Remove Instagram account ${index + 1}`}
+                  title="Remove this account"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-muted, #94a3b8)",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted, #94a3b8)")}
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+
+            <div className="social-input">
+              <span title="Instagram">I</span>
+              <input
+                value={acc.url || ""}
+                onChange={(e) => updateAccount(index, { url: e.target.value })}
+                placeholder="https://instagram.com/yourname"
+                aria-label={`Instagram URL ${index + 1}`}
+              />
+            </div>
+
+            {errorMsg && (
+              <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px", fontWeight: 500 }}>
+                {errorMsg}
+              </div>
+            )}
+
+            {!isNameVisible ? (
+              <div style={{ marginTop: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => setRevealedNames((prev) => ({ ...prev, [index]: true }))}
+                  className="zappit-customize-name-action"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--apple-blue, #0066FF)",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    padding: "2px 0",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <span>+ Customize name</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: "8px" }}>
+                <label style={{ fontSize: "11.5px", color: "var(--text-muted, #94a3b8)", marginBottom: "3px", display: "block" }}>
+                  Display name (optional)
+                </label>
+                <div className="social-input" style={{ maxWidth: "340px" }}>
+                  <input
+                    value={acc.name || ""}
+                    onChange={(e) => updateAccount(index, { name: e.target.value })}
+                    placeholder="e.g. Personal, Shop, Portfolio"
+                    maxLength={60}
+                    aria-label={`Instagram display name for account ${index + 1}`}
+                    style={{ paddingLeft: "12px" }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start", marginTop: "2px", marginBottom: "8px" }}>
+        <button
+          type="button"
+          disabled={accounts.length >= MAX_INSTAGRAM_ACCOUNTS}
+          onClick={addAccount}
+          style={{
+            background: accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "rgba(255,255,255,0.04)" : "rgba(0, 102, 255, 0.12)",
+            color: accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "rgba(255,255,255,0.3)" : "#0066FF",
+            border: "1px solid " + (accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "rgba(255,255,255,0.08)" : "rgba(0, 102, 255, 0.3)"),
+            borderRadius: "6px",
+            padding: "6px 14px",
+            fontSize: "12.5px",
+            fontWeight: 500,
+            cursor: accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "not-allowed" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            transition: "all 0.15s ease",
+          }}
+        >
+          + Add more
+        </button>
+        {accounts.length >= MAX_INSTAGRAM_ACCOUNTS && (
+          <span style={{ fontSize: "11.5px", color: "#94a3b8" }}>
+            Maximum of 3 Instagram accounts reached. Remove an account to add another.
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SocialForm({ draft, update, errors }: any) {
+  const otherSocialFields = socialFields.filter((key) => key !== "Instagram");
+
   return (
     <>
       <div className="form-intro">
@@ -6108,7 +6358,9 @@ function SocialForm({ draft, update, errors }: any) {
         <p>Add social profiles, your Google Maps location, and useful links for visitors.</p>
       </div>
       <div className="social-list">
-        {socialFields.map((key) => {
+        <InstagramAccountsEditor draft={draft} update={update} errors={errors} />
+
+        {otherSocialFields.map((key) => {
           const isReviews = key === "Google Reviews";
           const isMaps = key === "Google Maps";
           return (

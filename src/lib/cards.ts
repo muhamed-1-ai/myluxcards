@@ -1,5 +1,15 @@
 import { createHash } from "crypto";
 import { normalizePhoneNumber } from "./phone";
+import {
+  cleanInstagramAccounts,
+  extractInstagramHandle,
+  isValidInstagramUrl,
+  normalizeInstagramUrl,
+  resolveInstagramTiles,
+  MAX_INSTAGRAM_ACCOUNTS,
+  type InstagramAccount,
+  type ResolvedInstagramTile,
+} from "./instagram";
 
 export function formatCountryCode(code?: string | null): string {
   if (!code) return "+";
@@ -9,14 +19,14 @@ export function formatCountryCode(code?: string | null): string {
 }
 
 export const CARD_FIELDS = [
-  "name","title","business","countryCode","countryIso","mobile","whatsapp","email","website",
-  "state","stateCode","city","address","brochure","brochureData","social","about","services",
-  "logo","cover","theme","profileTheme","profileBackground","profileAccent","profileText","start","expiry",
-  "logoScale","logoZoom","logoRotation","logoX","logoY","coverScale","coverRotation","coverX","coverY",
-  "profileMode","enabledFeatures","vehicleConnect","emergencyContact","lostAndFound",
-  "defaultContactPhone","defaultEmergencyName","defaultEmergencyRelationship","defaultEmergencyPhone",
-  "profileFeatures","featureOrder","profileFormat","modernConfig","simpleConfig",
-  "contactNumbers","appDownload","profileThemePreference",
+  "name", "title", "business", "countryCode", "countryIso", "mobile", "whatsapp", "email", "website",
+  "state", "stateCode", "city", "address", "brochure", "brochureData", "social", "about", "services",
+  "logo", "cover", "theme", "profileTheme", "profileBackground", "profileAccent", "profileText", "start", "expiry",
+  "logoScale", "logoZoom", "logoRotation", "logoX", "logoY", "coverScale", "coverRotation", "coverX", "coverY",
+  "profileMode", "enabledFeatures", "vehicleConnect", "emergencyContact", "lostAndFound",
+  "defaultContactPhone", "defaultEmergencyName", "defaultEmergencyRelationship", "defaultEmergencyPhone",
+  "profileFeatures", "featureOrder", "profileFormat", "modernConfig", "simpleConfig",
+  "contactNumbers", "appDownload", "profileThemePreference", "instagramAccounts",
 ] as const;
 
 export interface AppDownloadSettings {
@@ -372,10 +382,10 @@ export const DEFAULT_LOST_AND_FOUND: LostAndFoundSettings = {
 };
 
 const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
-  name:"", title:"", business:"", countryCode:"", countryIso:"", mobile:"", whatsapp:"", email:"", website:"",
-  state:"", stateCode:"", city:"", address:"", brochure:"", brochureData:"", social:{}, about:"", services:[],
-  logo:"", cover:"", profileBackground:"#050B14", profileAccent:"#0066FF", profileText:"#ffffff", start:"", expiry:"",
-  logoScale:100, logoZoom:100, logoRotation:0, logoX:50, logoY:50, coverScale:100, coverRotation:0, coverX:50, coverY:50,
+  name: "", title: "", business: "", countryCode: "", countryIso: "", mobile: "", whatsapp: "", email: "", website: "",
+  state: "", stateCode: "", city: "", address: "", brochure: "", brochureData: "", social: {}, about: "", services: [],
+  logo: "", cover: "", profileBackground: "#050B14", profileAccent: "#0066FF", profileText: "#ffffff", start: "", expiry: "",
+  logoScale: 100, logoZoom: 100, logoRotation: 0, logoX: 50, logoY: 50, coverScale: 100, coverRotation: 0, coverX: 50, coverY: 50,
   profileMode: "DIGITAL_PROFILE",
   profileFormat: "modern",
   modernConfig: {},
@@ -383,7 +393,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   contactNumbers: [] as CardContactNumber[],
   enabledFeatures: { ...DEFAULT_ENABLED_FEATURES },
   profileFeatures: { ...DEFAULT_PROFILE_FEATURES },
-  featureOrder: [ ...DEFAULT_FEATURE_ORDER ],
+  featureOrder: [...DEFAULT_FEATURE_ORDER],
   vehicleConnect: { ...DEFAULT_VEHICLE_CONNECT },
   emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT },
   lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
@@ -444,6 +454,18 @@ export function cleanCardProfile(input: Record<string, unknown>) {
     } else if (field === "social" && value && typeof value === "object" && !Array.isArray(value)) {
       output.social = Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 24)
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
+    } else if (field === "instagramAccounts") {
+      if (Array.isArray(value)) {
+        const cleanedAccounts = cleanInstagramAccounts(value);
+        output.instagramAccounts = cleanedAccounts;
+        const socialObj = (output.social && typeof output.social === "object" ? output.social : {}) as Record<string, string>;
+        output.social = socialObj;
+        if (cleanedAccounts.length > 0) {
+          socialObj.Instagram = cleanedAccounts[0].url;
+        } else {
+          socialObj.Instagram = "";
+        }
+      }
     } else if (field === "appDownload" && value && typeof value === "object" && !Array.isArray(value)) {
       const ad = value as Record<string, unknown>;
       const appName = typeof ad.appName === "string" ? ad.appName.trim().slice(0, 100) : "";
@@ -559,11 +581,11 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         returnInstructions: String(v.returnInstructions || DEFAULT_LOST_AND_FOUND.returnInstructions).trim().slice(0, 1000),
         allowAnonymousMessage: v.allowAnonymousMessage !== false,
       };
-    } else if (["logoScale","logoZoom","coverScale"].includes(field)) {
+    } else if (["logoScale", "logoZoom", "coverScale"].includes(field)) {
       output[field] = clamp(value, field === "logoZoom" ? 100 : 25, 300, 100);
-    } else if (["logoRotation","coverRotation"].includes(field)) {
+    } else if (["logoRotation", "coverRotation"].includes(field)) {
       output[field] = clamp(value, -180, 180, 0);
-    } else if (["logoX","logoY","coverX","coverY"].includes(field)) {
+    } else if (["logoX", "logoY", "coverX", "coverY"].includes(field)) {
       output[field] = clamp(value, 0, 100, 50);
     } else if (field === "profileThemePreference") {
       const norm = String(value || "").toLowerCase().trim();
@@ -580,7 +602,7 @@ export function cleanCardProfile(input: Record<string, unknown>) {
       const trimmed = value.trim();
       if (field === "website") output[field] = cleanUrl(trimmed);
       else if (field === "email") output[field] = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed.toLowerCase().slice(0, 254) : "";
-      else if (["mobile","whatsapp","defaultContactPhone","defaultEmergencyPhone"].includes(field)) {
+      else if (["mobile", "whatsapp", "defaultContactPhone", "defaultEmergencyPhone"].includes(field)) {
         if (!/^[0-9 ()+.-]{0,30}$/.test(trimmed)) {
           output[field] = "";
         } else {
@@ -595,8 +617,8 @@ export function cleanCardProfile(input: Record<string, unknown>) {
         }
       }
       else if (field === "countryCode") output[field] = /^\+?[0-9]{0,5}$/.test(trimmed) ? trimmed : "";
-      else if (["theme","profileTheme"].includes(field)) output[field] = trimmed.slice(0, 50);
-      else if (["profileBackground","profileAccent","profileText"].includes(field)) {
+      else if (["theme", "profileTheme"].includes(field)) output[field] = trimmed.slice(0, 50);
+      else if (["profileBackground", "profileAccent", "profileText"].includes(field)) {
         const fallback = field === "profileBackground" ? "#050B14" : field === "profileAccent" ? "#0066FF" : "#ffffff";
         if (/^#[0-9a-fA-F]{6}$/i.test(trimmed)) {
           output[field] = trimmed;
@@ -607,11 +629,35 @@ export function cleanCardProfile(input: Record<string, unknown>) {
           output[field] = fallback;
         }
       }
-      else if (["logo","cover"].includes(field)) output[field] = cleanImage(trimmed);
+      else if (["logo", "cover"].includes(field)) output[field] = cleanImage(trimmed);
       else if (field === "brochureData") output[field] = /^https?:\/\/[^\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 2000) : /^data:application\/pdf;base64,[a-z0-9+/=\r\n]+$/i.test(trimmed) ? trimmed.slice(0, 7_000_000) : "";
       else output[field] = trimmed.slice(0, field === "about" ? 3000 : 500);
     }
   }
+
+  if (output.instagramAccounts === undefined) {
+    const socialObj = (output.social && typeof output.social === "object" ? output.social : {}) as Record<string, string>;
+    const legacyIg = socialObj.Instagram || socialObj.instagram;
+    if (legacyIg && typeof legacyIg === "string" && legacyIg.trim()) {
+      const handle = extractInstagramHandle(legacyIg);
+      if (handle) {
+        output.instagramAccounts = [{
+          id: "ig_legacy",
+          url: `https://instagram.com/${handle}`,
+          name: "",
+        }];
+        socialObj.Instagram = `https://instagram.com/${handle}`;
+        output.social = socialObj;
+      } else {
+        output.instagramAccounts = [];
+        socialObj.Instagram = "";
+        output.social = socialObj;
+      }
+    } else {
+      output.instagramAccounts = [];
+    }
+  }
+
   return output;
 }
 
@@ -659,6 +705,7 @@ export function completeCardProfile(input: unknown) {
     emergencyContact: { ...DEFAULT_EMERGENCY_CONTACT, ...(cleaned.emergencyContact as object) },
     lostAndFound: { ...DEFAULT_LOST_AND_FOUND, ...(cleaned.lostAndFound as object) },
     appDownload: cleaned.appDownload && typeof cleaned.appDownload === "object" ? cleaned.appDownload : { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
+    instagramAccounts: Array.isArray(cleaned.instagramAccounts) ? cleaned.instagramAccounts : [],
   };
 }
 
@@ -692,7 +739,7 @@ export function hashActivationCode(code: string) {
 
 export function safePublicCard(row: any) {
   const profile = completeCardProfile(row.profile);
-  
+
   // PUBLIC PRIVACY SANITIZATION:
   // Never expose raw private emergency phone numbers to unauthenticated browser visitors.
   // Instead, return boolean flags like hasEmergencyPhone and sanitized emergency metadata.
@@ -716,3 +763,13 @@ export function safePublicCard(row: any) {
 }
 
 export { resolveAppDownloadTile, type AppTileResolution, type AppTileBrand } from "./appDownload";
+export {
+  cleanInstagramAccounts,
+  extractInstagramHandle,
+  isValidInstagramUrl,
+  normalizeInstagramUrl,
+  resolveInstagramTiles,
+  MAX_INSTAGRAM_ACCOUNTS,
+  type InstagramAccount,
+  type ResolvedInstagramTile,
+} from "./instagram";

@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { CardProfileProduct, isValidStoreUrl, resolveAppDownloadTile } from "@/lib/cards";
+import {
+  CardProfileProduct,
+  isValidStoreUrl,
+  resolveAppDownloadTile,
+  resolveInstagramTiles,
+  type InstagramAccount,
+} from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { BrandLogo } from "./BrandLogo";
 import { AppStoreChooserModal, type AppDownloadSettings } from "./AppStoreChooserModal";
@@ -44,6 +50,7 @@ export interface SimpleProfileLayoutProps {
     brochure?: string;
     brochureData?: string;
     social?: Record<string, string>;
+    instagramAccounts?: InstagramAccount[];
     services?: string[];
     logo?: string;
     cover?: string;
@@ -130,7 +137,7 @@ export function SimpleProfileLayout({
           setFetchedProducts(data.products);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       isMounted = false;
@@ -226,9 +233,19 @@ export function SimpleProfileLayout({
     }
   };
 
+  const igTiles = resolveInstagramTiles(card.instagramAccounts, card.social?.Instagram || card.social?.instagram);
+
   // Social links
   const socialLinks = [
-    { key: "instagram", name: "Instagram", url: card.social?.Instagram || card.social?.instagram, brand: "instagram" },
+    ...igTiles.map((tile) => ({
+      key: tile.key,
+      name: tile.name,
+      subText: tile.subText,
+      url: tile.url,
+      brand: "instagram",
+      ariaLabel: tile.ariaLabel,
+      isAppDownload: false,
+    })),
     { key: "linkedin", name: "LinkedIn", url: card.social?.LinkedIn || card.social?.linkedin, brand: "linkedin" },
     { key: "website", name: "Website", url: card.website, brand: "website" },
     { key: "youtube", name: "YouTube", url: card.social?.YouTube || card.social?.youtube, brand: "youtube" },
@@ -359,319 +376,319 @@ export function SimpleProfileLayout({
               </div>
               {themeSwitcher}
             </div>
-        </div>
-
-        {/* ── 2. Name Heading, Job Title & Company ── */}
-        <div className="zappit-simple-identity">
-          <h1 className="zappit-simple-name">{name}</h1>
-
-          {(title || business) && (
-            <p className="zappit-simple-subtitle">
-              {title}
-              {title && business ? " • " : ""}
-              {business}
-            </p>
-          )}
-
-          {/* Short Bio (Hidden cleanly when empty) */}
-          {about && (
-            <p className="zappit-simple-bio">{about}</p>
-          )}
-        </div>
-
-        {/* ── 3. Primary Contact Action (Save Contact) ── */}
-        {onSaveContact && (
-          <div className="zappit-simple-primary-wrap">
-            <button
-              type="button"
-              className="zappit-simple-btn-primary"
-              onClick={onSaveContact}
-              aria-label="Save contact to phone address book"
-            >
-              <UserPlus className="w-4.5 h-4.5 flex-shrink-0" />
-              <span>Save Contact</span>
-            </button>
           </div>
-        )}
 
-        {/* ── 4. Neatly Grouped Secondary Contact Actions ── */}
-        {(telHref || waHref || emailHref || websiteHref) && (
-          <div className="zappit-simple-actions-group">
-            {telHref && (
-              <a
-                href={telHref}
-                className="zappit-simple-action-pill"
-                aria-label={`Call ${fullPhone}`}
-              >
-                <Phone className="w-4 h-4 flex-shrink-0" />
-                <span>Call</span>
-              </a>
+          {/* ── 2. Name Heading, Job Title & Company ── */}
+          <div className="zappit-simple-identity">
+            <h1 className="zappit-simple-name">{name}</h1>
+
+            {(title || business) && (
+              <p className="zappit-simple-subtitle">
+                {title}
+                {title && business ? " • " : ""}
+                {business}
+              </p>
             )}
 
-            {waHref && (
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="zappit-simple-action-pill"
-                aria-label="Send WhatsApp message"
-              >
-                <MessageCircle className="w-4 h-4 flex-shrink-0" />
-                <span>WhatsApp</span>
-              </a>
-            )}
-
-            {emailHref && (
-              <a
-                href={emailHref}
-                className="zappit-simple-action-pill"
-                aria-label={`Email ${card.email}`}
-              >
-                <Mail className="w-4 h-4 flex-shrink-0" />
-                <span>Email</span>
-              </a>
-            )}
-
-            {websiteHref && (
-              <a
-                href={websiteHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="zappit-simple-action-pill"
-                aria-label="Visit website"
-              >
-                <Globe className="w-4 h-4 flex-shrink-0" />
-                <span>Website</span>
-              </a>
+            {/* Short Bio (Hidden cleanly when empty) */}
+            {about && (
+              <p className="zappit-simple-bio">{about}</p>
             )}
           </div>
-        )}
 
-        {/* ── 5. Detailed Direct Contacts (Copyable List) ── */}
-        {(allPhones.length > 0 || card.email || websiteHref) && (
-          <div className="zappit-simple-contact-list">
-            {allPhones.map((phone) => (
-              <div key={phone.id} className="zappit-simple-contact-row">
-                <div className="zappit-simple-contact-left">
-                  <span className="zappit-simple-contact-icon">
-                    <Phone className="w-4 h-4" />
-                  </span>
-                  <div className="zappit-simple-contact-text">
-                    <span className="zappit-simple-contact-label">{phone.label || "Phone"}</span>
-                    <a href={phone.telHref} className="zappit-simple-contact-value">
-                      {phone.displayNumber}
-                    </a>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="zappit-simple-copy-btn"
-                  onClick={() => handleCopy(phone.displayNumber, `phone-${phone.id}`)}
-                  aria-label={`Copy ${phone.label || "phone"} number`}
-                  title={`Copy ${phone.label || "phone"}`}
+          {/* ── 3. Primary Contact Action (Save Contact) ── */}
+          {onSaveContact && (
+            <div className="zappit-simple-primary-wrap">
+              <button
+                type="button"
+                className="zappit-simple-btn-primary"
+                onClick={onSaveContact}
+                aria-label="Save contact to phone address book"
+              >
+                <UserPlus className="w-4.5 h-4.5 flex-shrink-0" />
+                <span>Save Contact</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── 4. Neatly Grouped Secondary Contact Actions ── */}
+          {(telHref || waHref || emailHref || websiteHref) && (
+            <div className="zappit-simple-actions-group">
+              {telHref && (
+                <a
+                  href={telHref}
+                  className="zappit-simple-action-pill"
+                  aria-label={`Call ${fullPhone}`}
                 >
-                  {copiedLabel === `phone-${phone.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            ))}
+                  <Phone className="w-4 h-4 flex-shrink-0" />
+                  <span>Call</span>
+                </a>
+              )}
 
-            {card.email && (
-              <div className="zappit-simple-contact-row">
-                <div className="zappit-simple-contact-left">
-                  <span className="zappit-simple-contact-icon">
-                    <Mail className="w-4 h-4" />
-                  </span>
-                  <div className="zappit-simple-contact-text">
-                    <span className="zappit-simple-contact-label">Email</span>
-                    <a href={emailHref} className="zappit-simple-contact-value">
-                      {card.email}
-                    </a>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="zappit-simple-copy-btn"
-                  onClick={() => handleCopy(card.email || "", "email")}
-                  aria-label="Copy email address"
-                  title="Copy email"
+              {waHref && (
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="zappit-simple-action-pill"
+                  aria-label="Send WhatsApp message"
                 >
-                  {copiedLabel === "email" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            )}
+                  <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>WhatsApp</span>
+                </a>
+              )}
 
-            {websiteHref && (
-              <div className="zappit-simple-contact-row">
-                <div className="zappit-simple-contact-left">
-                  <span className="zappit-simple-contact-icon">
-                    <Globe className="w-4 h-4" />
-                  </span>
-                  <div className="zappit-simple-contact-text">
-                    <span className="zappit-simple-contact-label">Website</span>
-                    <a
-                      href={websiteHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="zappit-simple-contact-value"
-                    >
-                      {websiteHref.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
-                    </a>
-                  </div>
-                </div>
+              {emailHref && (
+                <a
+                  href={emailHref}
+                  className="zappit-simple-action-pill"
+                  aria-label={`Email ${card.email}`}
+                >
+                  <Mail className="w-4 h-4 flex-shrink-0" />
+                  <span>Email</span>
+                </a>
+              )}
+
+              {websiteHref && (
                 <a
                   href={websiteHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="zappit-simple-copy-btn"
-                  aria-label="Open website"
-                  title="Open website"
+                  className="zappit-simple-action-pill"
+                  aria-label="Visit website"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <Globe className="w-4 h-4 flex-shrink-0" />
+                  <span>Website</span>
                 </a>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── 6. Neatly Grouped Social Links ── */}
-        {socialLinks.length > 0 && (
-          <div className="zappit-simple-social-section">
-            <div className="zappit-simple-section-header">
-              <h2 className="zappit-simple-section-title">Connect &amp; Social</h2>
-              <button
-                ref={appsShareTriggerRef}
-                type="button"
-                onClick={() => setShareAppsModalOpen(true)}
-                className="zappit-apps-share-btn"
-                aria-label="Share apps and links"
-                title="Share apps and links"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-              </button>
+              )}
             </div>
-            <div className="zappit-simple-social-grid">
-              {socialLinks.map((item) => (
-                <a
-                  key={item.key}
-                  href={item.url}
-                  target={item.url && item.url !== "#" ? "_blank" : undefined}
-                  rel={item.url && item.url !== "#" ? "noopener noreferrer" : undefined}
-                  className="zappit-simple-social-card"
-                  aria-label={item.ariaLabel || `Visit ${item.name}`}
-                  onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
-                >
-                  <span className="zappit-simple-social-icon">
-                    <BrandLogo brand={item.brand} name={item.name} size={26} />
-                  </span>
-                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
-                    <span className="zappit-simple-social-name" style={item.isAppDownload ? { whiteSpace: "nowrap" } : undefined}>{item.name}</span>
-                    {item.subText && (
-                      <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px", lineHeight: 1.2 }}>
-                        {item.subText}
-                      </span>
-                    )}
+          )}
+
+          {/* ── 5. Detailed Direct Contacts (Copyable List) ── */}
+          {(allPhones.length > 0 || card.email || websiteHref) && (
+            <div className="zappit-simple-contact-list">
+              {allPhones.map((phone) => (
+                <div key={phone.id} className="zappit-simple-contact-row">
+                  <div className="zappit-simple-contact-left">
+                    <span className="zappit-simple-contact-icon">
+                      <Phone className="w-4 h-4" />
+                    </span>
+                    <div className="zappit-simple-contact-text">
+                      <span className="zappit-simple-contact-label">{phone.label || "Phone"}</span>
+                      <a href={phone.telHref} className="zappit-simple-contact-value">
+                        {phone.displayNumber}
+                      </a>
+                    </div>
                   </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 7. Business Services (When provided) ── */}
-        {Array.isArray(card.services) && card.services.length > 0 && (
-          <div className="zappit-simple-services-section">
-            <h2 className="zappit-simple-section-title">Services &amp; Offerings</h2>
-            <div className="zappit-simple-services-list">
-              {card.services.map((service, index) => (
-                <div key={index} className="zappit-simple-service-item">
-                  <span className="zappit-simple-service-dot">•</span>
-                  <span className="zappit-simple-service-text">{service}</span>
+                  <button
+                    type="button"
+                    className="zappit-simple-copy-btn"
+                    onClick={() => handleCopy(phone.displayNumber, `phone-${phone.id}`)}
+                    aria-label={`Copy ${phone.label || "phone"} number`}
+                    title={`Copy ${phone.label || "phone"}`}
+                  >
+                    {copiedLabel === `phone-${phone.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
 
-        {/* ── 8. Profile Products (When present) ── */}
-        {effectiveProducts.length > 0 && (
-          <div className="zappit-simple-products-section">
-            <h2 className="zappit-simple-section-title">Products</h2>
-            <div className="zappit-simple-products-grid">
-              {effectiveProducts.map((product) => (
-                <div key={product.id} className="zappit-simple-product-card">
-                  {product.imageUrl && (
-                    <div className="zappit-simple-product-image">
-                      <img src={resolveMediaUrl(product.imageUrl)} alt={product.name} />
+              {card.email && (
+                <div className="zappit-simple-contact-row">
+                  <div className="zappit-simple-contact-left">
+                    <span className="zappit-simple-contact-icon">
+                      <Mail className="w-4 h-4" />
+                    </span>
+                    <div className="zappit-simple-contact-text">
+                      <span className="zappit-simple-contact-label">Email</span>
+                      <a href={emailHref} className="zappit-simple-contact-value">
+                        {card.email}
+                      </a>
                     </div>
-                  )}
-                  <div className="zappit-simple-product-body">
-                    <div className="zappit-simple-product-name">{product.name}</div>
-                    {product.description && (
-                      <p className="zappit-simple-product-desc">{product.description}</p>
-                    )}
-                    <div className="zappit-simple-product-footer">
-                      {product.price && (
-                        <span className="zappit-simple-product-price">
-                          {product.currency || "$"}
-                          {product.price}
+                  </div>
+                  <button
+                    type="button"
+                    className="zappit-simple-copy-btn"
+                    onClick={() => handleCopy(card.email || "", "email")}
+                    aria-label="Copy email address"
+                    title="Copy email"
+                  >
+                    {copiedLabel === "email" ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              )}
+
+              {websiteHref && (
+                <div className="zappit-simple-contact-row">
+                  <div className="zappit-simple-contact-left">
+                    <span className="zappit-simple-contact-icon">
+                      <Globe className="w-4 h-4" />
+                    </span>
+                    <div className="zappit-simple-contact-text">
+                      <span className="zappit-simple-contact-label">Website</span>
+                      <a
+                        href={websiteHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="zappit-simple-contact-value"
+                      >
+                        {websiteHref.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
+                      </a>
+                    </div>
+                  </div>
+                  <a
+                    href={websiteHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="zappit-simple-copy-btn"
+                    aria-label="Open website"
+                    title="Open website"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 6. Neatly Grouped Social Links ── */}
+          {socialLinks.length > 0 && (
+            <div className="zappit-simple-social-section">
+              <div className="zappit-simple-section-header">
+                <h2 className="zappit-simple-section-title">Connect &amp; Social</h2>
+                <button
+                  ref={appsShareTriggerRef}
+                  type="button"
+                  onClick={() => setShareAppsModalOpen(true)}
+                  className="zappit-apps-share-btn"
+                  aria-label="Share apps and links"
+                  title="Share apps and links"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="zappit-simple-social-grid">
+                {socialLinks.map((item) => (
+                  <a
+                    key={item.key}
+                    href={item.url}
+                    target={item.url && item.url !== "#" ? "_blank" : undefined}
+                    rel={item.url && item.url !== "#" ? "noopener noreferrer" : undefined}
+                    className="zappit-simple-social-card"
+                    aria-label={item.ariaLabel || `Visit ${item.name}`}
+                    onClick={item.isAppDownload ? handleAppDownloadClick : undefined}
+                  >
+                    <span className="zappit-simple-social-icon">
+                      <BrandLogo brand={item.brand} name={item.name} size={26} />
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                      <span className="zappit-simple-social-name" style={item.isAppDownload ? { whiteSpace: "nowrap" } : undefined}>{item.name}</span>
+                      {item.subText && (
+                        <span style={{ fontSize: "10px", color: "var(--simple-text-muted, #94a3b8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px", lineHeight: 1.2 }}>
+                          {item.subText}
                         </span>
                       )}
-                      {product.ctaUrl && (
-                        <a
-                          href={product.ctaUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="zappit-simple-product-cta"
-                        >
-                          {product.ctaLabel || "View"} →
-                        </a>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 7. Business Services (When provided) ── */}
+          {Array.isArray(card.services) && card.services.length > 0 && (
+            <div className="zappit-simple-services-section">
+              <h2 className="zappit-simple-section-title">Services &amp; Offerings</h2>
+              <div className="zappit-simple-services-list">
+                {card.services.map((service, index) => (
+                  <div key={index} className="zappit-simple-service-item">
+                    <span className="zappit-simple-service-dot">•</span>
+                    <span className="zappit-simple-service-text">{service}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 8. Profile Products (When present) ── */}
+          {effectiveProducts.length > 0 && (
+            <div className="zappit-simple-products-section">
+              <h2 className="zappit-simple-section-title">Products</h2>
+              <div className="zappit-simple-products-grid">
+                {effectiveProducts.map((product) => (
+                  <div key={product.id} className="zappit-simple-product-card">
+                    {product.imageUrl && (
+                      <div className="zappit-simple-product-image">
+                        <img src={resolveMediaUrl(product.imageUrl)} alt={product.name} />
+                      </div>
+                    )}
+                    <div className="zappit-simple-product-body">
+                      <div className="zappit-simple-product-name">{product.name}</div>
+                      {product.description && (
+                        <p className="zappit-simple-product-desc">{product.description}</p>
                       )}
+                      <div className="zappit-simple-product-footer">
+                        {product.price && (
+                          <span className="zappit-simple-product-price">
+                            {product.currency || "$"}
+                            {product.price}
+                          </span>
+                        )}
+                        {product.ctaUrl && (
+                          <a
+                            href={product.ctaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="zappit-simple-product-cta"
+                          >
+                            {product.ctaLabel || "View"} →
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* ── 9. Secondary Utilities (Exchange Contact, Brochure, Share) ── */}
+          <div className="zappit-simple-utilities">
+            {onShareDetails && (
+              <button
+                type="button"
+                className="zappit-simple-util-btn"
+                onClick={onShareDetails}
+                aria-label="Share your contact details with this person"
+              >
+                <Users className="w-4 h-4" />
+                <span>Exchange Details</span>
+              </button>
+            )}
+
+            {hasBrochure && onOpenBrochure && (
+              <button
+                type="button"
+                className="zappit-simple-util-btn"
+                onClick={onOpenBrochure}
+                aria-label="Download business brochure"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Brochure</span>
+              </button>
+            )}
+
+            {onShare && (
+              <button
+                type="button"
+                className="zappit-simple-util-btn"
+                onClick={onShare}
+                aria-label="Share this card link"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share</span>
+              </button>
+            )}
           </div>
-        )}
-
-        {/* ── 9. Secondary Utilities (Exchange Contact, Brochure, Share) ── */}
-        <div className="zappit-simple-utilities">
-          {onShareDetails && (
-            <button
-              type="button"
-              className="zappit-simple-util-btn"
-              onClick={onShareDetails}
-              aria-label="Share your contact details with this person"
-            >
-              <Users className="w-4 h-4" />
-              <span>Exchange Details</span>
-            </button>
-          )}
-
-          {hasBrochure && onOpenBrochure && (
-            <button
-              type="button"
-              className="zappit-simple-util-btn"
-              onClick={onOpenBrochure}
-              aria-label="Download business brochure"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Brochure</span>
-            </button>
-          )}
-
-          {onShare && (
-            <button
-              type="button"
-              className="zappit-simple-util-btn"
-              onClick={onShare}
-              aria-label="Share this card link"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>Share</span>
-            </button>
-          )}
-        </div>
 
         </div>{/* End zappit-simple-body */}
       </div>{/* End zappit-simple-card */}

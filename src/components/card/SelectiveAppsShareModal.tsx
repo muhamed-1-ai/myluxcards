@@ -69,7 +69,10 @@ export function buildFormattedSharePayload(
   return selectedItems
     .map((item) => {
       const url = resolveItemShareUrl(item, appDownload);
-      return `${item.name}: ${url}`;
+      const label = item.subText && !item.name.includes(item.subText)
+        ? `${item.name} (${item.subText})`
+        : item.name;
+      return `${label}: ${url}`;
     })
     .join("\n");
 }
