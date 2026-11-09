@@ -33,6 +33,13 @@ import {
   extractInstagramHandle,
   isValidInstagramUrl,
   cleanInstagramAccounts,
+  cleanSocialAccounts,
+  ORDERED_LINK_TYPES,
+  SOCIAL_LINK_DEFINITIONS,
+  MAX_URLS_PER_TYPE,
+  canonicalDedupeKey,
+  isValidSocialUrl,
+  type SocialLinkAccount,
 } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { FEATURE_CATALOGUE, isFeatureAllowed, isGroupAllowed, getFirstPermittedTab, isAccountingEntitled } from "@/lib/permissionsRegistry";
@@ -177,7 +184,7 @@ type Card = {
   id: string; ownerId: string; name: string; slug: string; title: string; business: string;
   countryCode: string; countryIso: string; mobile: string; whatsapp: string; email: string; website: string;
   state: string; stateCode: string; city: string; address: string; brochure: string; brochureData?: string;
-  social: Record<string, string>; instagramAccounts?: InstagramAccount[]; about: string; services: string[];
+  social: Record<string, string>; instagramAccounts?: InstagramAccount[]; socialAccounts?: Record<string, SocialLinkAccount[]>; about: string; services: string[];
   logo: string; cover: string; profileBackground: string; profileAccent: string; profileText: string;
   logoScale: number; logoZoom?: number; logoRotation: number; logoX: number; logoY: number;
   coverScale: number; coverRotation: number; coverX: number; coverY: number;
@@ -336,11 +343,34 @@ const createBlankCard = (user?: CurrentUser | null): Card => {
     profileThemePreference: "dashboard",
     appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
     instagramAccounts: [{ url: "", name: "" }],
+    socialAccounts: Object.fromEntries(ORDERED_LINK_TYPES.map((t) => [t, [{ url: "", name: "" }]])),
   };
 };
 const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUser | null): Card => {
   const fallback = createBlankCard(user);
   const card = value && typeof value === "object" ? value : {};
+  const normInstagram = Array.isArray(card.instagramAccounts) && card.instagramAccounts.length > 0
+    ? card.instagramAccounts
+    : (card.social?.Instagram || card.social?.instagram
+      ? [{ id: "ig_legacy", url: card.social?.Instagram || card.social?.instagram, name: "" }]
+      : [{ url: "", name: "" }]);
+
+  const existingSocialAccounts = card.socialAccounts && typeof card.socialAccounts === "object" ? card.socialAccounts : {};
+  const normSocialAccounts: Record<string, SocialLinkAccount[]> = {};
+  for (const linkType of ORDERED_LINK_TYPES) {
+    if (Array.isArray(existingSocialAccounts[linkType]) && existingSocialAccounts[linkType].length > 0) {
+      normSocialAccounts[linkType] = existingSocialAccounts[linkType];
+    } else if (linkType === "Instagram") {
+      normSocialAccounts.Instagram = normInstagram;
+    } else if (linkType === "Website") {
+      const w = card.website && card.website.trim() ? [{ id: "website_legacy", url: card.website.trim(), name: "" }] : [{ url: "", name: "" }];
+      normSocialAccounts.Website = w;
+    } else {
+      const leg = card.social?.[linkType] || (card.social as any)?.[linkType.toLowerCase().replace(/[^a-z0-9]/g, "")];
+      normSocialAccounts[linkType] = leg && leg.trim() ? [{ id: `${linkType}_legacy`, url: leg.trim(), name: "" }] : [{ url: "", name: "" }];
+    }
+  }
+
   return {
     ...fallback,
     ...card,
@@ -370,11 +400,8 @@ const normalizeCard = (value: Partial<Card> | null | undefined, user?: CurrentUs
       playStoreUrl: String(card.appDownload?.playStoreUrl || "").trim(),
       referralUrl: String(card.appDownload?.referralUrl || "").trim(),
     },
-    instagramAccounts: Array.isArray(card.instagramAccounts) && card.instagramAccounts.length > 0
-      ? card.instagramAccounts
-      : (card.social?.Instagram || card.social?.instagram
-        ? [{ id: "ig_legacy", url: card.social?.Instagram || card.social?.instagram, name: "" }]
-        : [{ url: "", name: "" }]),
+    instagramAccounts: normInstagram,
+    socialAccounts: normSocialAccounts,
   };
 };
 const emptyCard = createBlankCard({ id: "", name: "", email: "" });
@@ -1167,41 +1194,57 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
       }
     }
     if (section === "social" || section === "dashboard") {
-      socialFields.filter((key) => key !== "Instagram").forEach((key) => {
-        if (!validUrl(draft.social[key])) next[key] = "Include http:// or https://.";
-      });
-        const igAccounts = Array.isArray(draft.instagramAccounts) ? draft.instagramAccounts : [];
-        const seenIgHandles = new Set<string>();
-        igAccounts.forEach((acc, idx) => {
+      for (const linkType of ORDERED_LINK_TYPES) {
+        const rows = draft.socialAccounts?.[linkType] || [];
+        const seenKeys = new Set<string>();
+
+        rows.forEach((acc, idx) => {
           const rawUrl = String(acc.url || "").trim();
           const rawName = String(acc.name || "").trim();
           if (!rawUrl && !rawName) return;
+
+          const errorKey = `${linkType}_${idx}`;
           if (!rawUrl && rawName) {
-            next[`instagram_${idx}`] = "Please enter an Instagram profile URL for this display name.";
+            next[errorKey] = "Please enter a URL for this display name.";
             return;
           }
-          const handle = extractInstagramHandle(rawUrl);
-          if (!handle) {
-            next[`instagram_${idx}`] = "Enter a valid Instagram profile URL (e.g. https://instagram.com/yourname).";
-            return;
+
+          if (linkType === "Instagram") {
+            const handle = extractInstagramHandle(rawUrl);
+            if (!handle) {
+              next[errorKey] = "Enter a valid Instagram profile URL (e.g. https://instagram.com/yourname).";
+              return;
+            }
+            const lowerHandle = handle.toLowerCase();
+            if (seenKeys.has(lowerHandle)) {
+              next[errorKey] = "This Instagram account has already been added.";
+              return;
+            }
+            seenKeys.add(lowerHandle);
+          } else {
+            if (!validUrl(rawUrl)) {
+              next[errorKey] = "Include http:// or https://.";
+              return;
+            }
+            const dedupeKey = canonicalDedupeKey(linkType, rawUrl);
+            if (dedupeKey && seenKeys.has(dedupeKey)) {
+              next[errorKey] = `This ${linkType} URL has already been added.`;
+              return;
+            }
+            if (dedupeKey) seenKeys.add(dedupeKey);
           }
-          const lowerHandle = handle.toLowerCase();
-          if (seenIgHandles.has(lowerHandle)) {
-            next[`instagram_${idx}`] = "This Instagram account has already been added.";
-            return;
-          }
-          seenIgHandles.add(lowerHandle);
         });
-        if (draft.appDownload?.appStoreUrl && !isValidStoreUrl(draft.appDownload.appStoreUrl, "apple")) {
-          next.appStoreUrl = "Enter a valid direct store link or HTTPS referral link for Apple devices.";
-        }
-        if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
-          next.playStoreUrl = "Enter a valid direct store link or HTTPS referral link for Android devices.";
-        }
-        if (draft.appDownload?.referralUrl && !isValidStoreUrl(draft.appDownload.referralUrl, "universal")) {
-          next.referralUrl = "Enter a valid HTTPS referral or smart link (e.g. https://...).";
-        }
       }
+      if (draft.appDownload?.appStoreUrl && !isValidStoreUrl(draft.appDownload.appStoreUrl, "apple")) {
+        next.appStoreUrl = "Enter a valid direct store link or HTTPS referral link for Apple devices.";
+      }
+      if (draft.appDownload?.playStoreUrl && !isValidStoreUrl(draft.appDownload.playStoreUrl, "google")) {
+        next.playStoreUrl = "Enter a valid direct store link or HTTPS referral link for Android devices.";
+      }
+      if (draft.appDownload?.referralUrl && !isValidStoreUrl(draft.appDownload.referralUrl, "universal")) {
+        next.referralUrl = "Enter a valid HTTPS referral or smart link (e.g. https://...).";
+      }
+    }
     setErrors(next); return Object.keys(next).length === 0;
     };
     const save = async (section: Tab, next?: Tab, silent = false) => {
@@ -1227,16 +1270,27 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
           ? optimizedDraft.contactNumbers.filter((n, idx) => idx === 0 || Boolean((n.phoneNumber || "").trim()))
           : optimizedDraft.contactNumbers;
 
-        const cleanedIgAccounts = cleanInstagramAccounts(optimizedDraft.instagramAccounts);
-        const updatedSocial = {
-          ...(optimizedDraft.social || {}),
-          Instagram: cleanedIgAccounts.length > 0 ? cleanedIgAccounts[0].url : "",
-        };
+        const cleanedSocialAccounts = cleanSocialAccounts(optimizedDraft.socialAccounts);
+        const cleanedIgAccounts = cleanedSocialAccounts.Instagram || cleanInstagramAccounts(optimizedDraft.instagramAccounts);
+        const updatedSocial: Record<string, string> = { ...(optimizedDraft.social || {}) };
+
+        for (const linkType of ORDERED_LINK_TYPES) {
+          if (linkType === "Instagram") {
+            updatedSocial.Instagram = cleanedIgAccounts.length > 0 ? cleanedIgAccounts[0].url : "";
+          } else if (linkType === "Website") {
+            // Handled via website
+          } else {
+            const list = cleanedSocialAccounts[linkType] || [];
+            updatedSocial[linkType] = list.length > 0 ? list[0].url : "";
+          }
+        }
 
         const savePayload = {
           ...optimizedDraft,
           social: updatedSocial,
+          website: cleanedSocialAccounts.Website?.[0]?.url ?? (optimizedDraft.website || ""),
           instagramAccounts: cleanedIgAccounts,
+          socialAccounts: cleanedSocialAccounts,
           contactNumbers: payloadContactNumbers,
         };
 
@@ -1277,6 +1331,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             cover: finalCover,
             contactNumbers: finalContactNumbers,
             appDownload: currentDraft.appDownload || cloudCard.appDownload || { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
+            socialAccounts: currentDraft.socialAccounts || cloudCard.socialAccounts || cleanedSocialAccounts,
             instagramAccounts: Array.isArray(currentDraft.instagramAccounts) && currentDraft.instagramAccounts.length > 0
               ? currentDraft.instagramAccounts
               : (Array.isArray(cloudCard.instagramAccounts) && cloudCard.instagramAccounts.length > 0
@@ -3146,16 +3201,27 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
     ];
 
   const socialLinkCount = useMemo(() => {
-    if (!draft.social || typeof draft.social !== "object") return 0;
-    const igAccounts = Array.isArray(draft.instagramAccounts)
-      ? draft.instagramAccounts.filter((a) => Boolean(a.url && a.url.trim()))
-      : [];
-    const igCount = igAccounts.length > 0 ? igAccounts.length : (draft.social.Instagram ? 1 : 0);
-    const otherCount = Object.entries(draft.social)
-      .filter(([k, v]) => k !== "Instagram" && Boolean(v && String(v).trim()))
-      .length;
-    return igCount + otherCount;
-  }, [draft.social, draft.instagramAccounts]);
+    let count = 0;
+    if (draft.socialAccounts && typeof draft.socialAccounts === "object") {
+      for (const list of Object.values(draft.socialAccounts)) {
+        if (Array.isArray(list)) {
+          count += list.filter((a) => Boolean(a.url && a.url.trim())).length;
+        }
+      }
+    } else {
+      if (draft.social && typeof draft.social === "object") {
+        const igAccounts = Array.isArray(draft.instagramAccounts)
+          ? draft.instagramAccounts.filter((a) => Boolean(a.url && a.url.trim()))
+          : [];
+        const igCount = igAccounts.length > 0 ? igAccounts.length : (draft.social.Instagram ? 1 : 0);
+        const otherCount = Object.entries(draft.social)
+          .filter(([k, v]) => k !== "Instagram" && Boolean(v && String(v).trim()))
+          .length;
+        count = igCount + otherCount;
+      }
+    }
+    return count;
+  }, [draft.social, draft.instagramAccounts, draft.socialAccounts]);
 
   // Fetch count metadata for section items where applicable
   useEffect(() => {
@@ -6089,7 +6155,19 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
           <input type="email" value={draft.email} onChange={(e) => update("email", e.target.value)} placeholder="name@company.com" />
         </Field>
         <Field label="Website" error={errors.website}>
-          <input value={draft.website} onChange={(e) => update("website", e.target.value)} placeholder="https://example.com" />
+          <input
+            value={draft.website}
+            onChange={(e) => {
+              const val = e.target.value;
+              update("website", val);
+              const currentWeb = draft.socialAccounts?.Website || [{ url: "", name: "" }];
+              const nextWeb = currentWeb.length > 0
+                ? currentWeb.map((w: any, i: number) => (i === 0 ? { ...w, url: val } : w))
+                : [{ url: val, name: "" }];
+              update("socialAccounts", { ...(draft.socialAccounts || {}), Website: nextWeb });
+            }}
+            placeholder="https://example.com"
+          />
         </Field>
         <Field label="State / Province">
           <div className={`country-search ${!selectedCountryIso ? "is-disabled" : ""}`}>
@@ -6160,34 +6238,73 @@ function ContactForm({ draft, update, errors, same, setSame, handleFile }: any) 
     </>
   );
 }
-function InstagramAccountsEditor({ draft, update, errors }: any) {
-  const accounts: InstagramAccount[] = useMemo(() => {
-    if (Array.isArray(draft.instagramAccounts) && draft.instagramAccounts.length > 0) {
-      return draft.instagramAccounts;
+function getSocialIcon(key: string) {
+  if (key === "Google Maps") return "⌖";
+  if (key === "Google Reviews") {
+    return (
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{ borderRadius: "50%" }}>
+        <circle cx="12" cy="12" r="12" fill="#FFFFFF" />
+        <path fill="#4285F4" d="M20.64 12.2c0-.64-.06-1.25-.16-1.84H12v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
+        <path fill="#34A853" d="M12 21c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H3.86v2.33C5.34 18.94 8.43 21 12 21z" />
+        <path fill="#FBBC04" d="M6.96 13.71c-.18-.54-.28-1.12-.28-1.71s.1-1.17.28-1.71V7.96H3.86C3.31 9.06 3 10.49 3 12s.31 2.94.86 4.04l3.1-2.33z" />
+        <path fill="#EA4335" d="M12 6.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C16.46 3.9 14.43 3 12 3 8.43 3 5.34 5.06 3.86 8.04l3.1 2.41c.71-2.13 2.7-3.87 5.04-3.87z" />
+      </svg>
+    );
+  }
+  if (key === "Website") {
+    return (
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+      </svg>
+    );
+  }
+  return key[0];
+}
+
+function SocialLinkTypeEditor({
+  linkType,
+  accounts: rawAccounts,
+  onChange,
+  errors,
+}: {
+  linkType: string;
+  accounts: SocialLinkAccount[];
+  onChange: (next: SocialLinkAccount[]) => void;
+  errors: Record<string, string>;
+}) {
+  const def = SOCIAL_LINK_DEFINITIONS[linkType] || {
+    key: linkType,
+    label: linkType,
+    brand: linkType.toLowerCase().replace(/[^a-z0-9]/g, ""),
+    defaultLabel: linkType,
+    placeholder: "https://...",
+  };
+
+  const accounts = useMemo(() => {
+    if (Array.isArray(rawAccounts) && rawAccounts.length > 0) {
+      return rawAccounts;
     }
-    const legacyUrl = draft.social?.Instagram || draft.social?.instagram || "";
-    return [{ url: legacyUrl, name: "" }];
-  }, [draft.instagramAccounts, draft.social?.Instagram, draft.social?.instagram]);
+    return [{ url: "", name: "" }];
+  }, [rawAccounts]);
 
   const [revealedNames, setRevealedNames] = useState<Record<number, boolean>>({});
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  const updateAccount = (index: number, changes: Partial<InstagramAccount>) => {
+  const updateAccount = (index: number, changes: Partial<SocialLinkAccount>) => {
     const next = accounts.map((item, idx) => (idx === index ? { ...item, ...changes } : item));
-    update("instagramAccounts", next);
-    const firstNonEmpty = next.find((a) => Boolean(a.url && a.url.trim()));
-    update("social", { ...draft.social, Instagram: firstNonEmpty ? firstNonEmpty.url : "" });
+    onChange(next);
   };
 
   const removeAccount = (index: number) => {
-    let next: InstagramAccount[];
+    let next: SocialLinkAccount[];
     if (accounts.length <= 1) {
       next = [{ url: "", name: "" }];
     } else {
       next = accounts.filter((_, idx) => idx !== index);
     }
-    update("instagramAccounts", next);
-    const firstNonEmpty = next.find((a) => Boolean(a.url && a.url.trim()));
-    update("social", { ...draft.social, Instagram: firstNonEmpty ? firstNonEmpty.url : "" });
+    onChange(next);
     setRevealedNames((prev) => {
       const updated: Record<number, boolean> = {};
       Object.entries(prev).forEach(([key, val]) => {
@@ -6200,39 +6317,45 @@ function InstagramAccountsEditor({ draft, update, errors }: any) {
   };
 
   const addAccount = () => {
-    if (accounts.length >= MAX_INSTAGRAM_ACCOUNTS) return;
+    if (accounts.length >= MAX_URLS_PER_TYPE) return;
+    const newIdx = accounts.length;
     const next = [...accounts, { url: "", name: "" }];
-    update("instagramAccounts", next);
+    onChange(next);
+    setTimeout(() => {
+      inputRefs.current[newIdx]?.focus();
+    }, 50);
   };
 
   return (
-    <div className="zappit-instagram-editor-section" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+    <div className="zappit-link-type-editor" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       {accounts.map((acc, index) => {
-        const errorMsg = errors[`instagram_${index}`];
+        const isMultiple = accounts.length > 1;
         const isNameVisible = Boolean(acc.name && acc.name.trim()) || Boolean(revealedNames[index]);
         const isRemovable = accounts.length > 1 || Boolean(acc.url || acc.name);
+        const errorKey = `${linkType}_${index}`;
+        const errorMsg = errors[errorKey] || (index === 0 ? errors[linkType] : undefined);
 
         return (
           <div
-            key={acc.id || `ig_row_${index}`}
-            className="zappit-ig-row"
+            key={acc.id || `${linkType}_row_${index}`}
+            className="field wide"
             style={{
-              padding: accounts.length > 1 ? "12px" : "0",
-              background: accounts.length > 1 ? "rgba(255, 255, 255, 0.02)" : "transparent",
-              border: accounts.length > 1 ? "1px solid rgba(255, 255, 255, 0.06)" : "none",
+              padding: isMultiple ? "14px" : "0",
+              background: isMultiple ? "rgba(255, 255, 255, 0.02)" : "transparent",
+              border: isMultiple ? "1px solid rgba(255, 255, 255, 0.06)" : "none",
               borderRadius: "8px",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-main, #fff)" }}>
-                {accounts.length > 1 ? `Instagram URL ${index + 1}` : "Instagram URL"}
-              </label>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-main, #fff)" }}>
+                {isMultiple ? `${def.label} URL ${index + 1}` : `${def.label} URL`}
+              </span>
               {isRemovable && (
                 <button
                   type="button"
                   onClick={() => removeAccount(index)}
-                  aria-label={`Remove Instagram account ${index + 1}`}
-                  title="Remove this account"
+                  aria-label={`Remove ${def.label} URL ${index + 1}`}
+                  title={`Remove this ${def.label} URL`}
                   style={{
                     background: "transparent",
                     border: "none",
@@ -6258,14 +6381,23 @@ function InstagramAccountsEditor({ draft, update, errors }: any) {
             </div>
 
             <div className="social-input">
-              <span title="Instagram">I</span>
+              <span title={def.label}>
+                {getSocialIcon(linkType)}
+              </span>
               <input
+                ref={(el) => { inputRefs.current[index] = el; }}
                 value={acc.url || ""}
                 onChange={(e) => updateAccount(index, { url: e.target.value })}
-                placeholder="https://instagram.com/yourname"
-                aria-label={`Instagram URL ${index + 1}`}
+                placeholder={def.placeholder}
+                aria-label={`${def.label} URL ${index + 1}`}
               />
             </div>
+
+            {index === 0 && def.hint && (
+              <small className="field-hint" style={{ display: "block", marginTop: "6px", fontSize: "12px", color: "var(--foreground-muted, #94a3b8)", lineHeight: "1.4" }}>
+                {def.hint}
+              </small>
+            )}
 
             {errorMsg && (
               <div style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px", fontWeight: 500 }}>
@@ -6304,10 +6436,10 @@ function InstagramAccountsEditor({ draft, update, errors }: any) {
                   <input
                     value={acc.name || ""}
                     onChange={(e) => updateAccount(index, { name: e.target.value })}
-                    placeholder="e.g. Personal, Shop, Portfolio"
+                    placeholder="e.g. Shop, Personal, Main Office"
                     maxLength={60}
-                    aria-label={`Instagram display name for account ${index + 1}`}
-                    style={{ paddingLeft: "12px" }}
+                    aria-label={`${def.label} display name for URL ${index + 1}`}
+                    style={{ paddingLeft: "12px", borderRadius: "5px" }}
                   />
                 </div>
               </div>
@@ -6319,28 +6451,28 @@ function InstagramAccountsEditor({ draft, update, errors }: any) {
       <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start", marginTop: "2px", marginBottom: "8px" }}>
         <button
           type="button"
-          disabled={accounts.length >= MAX_INSTAGRAM_ACCOUNTS}
+          disabled={accounts.length >= MAX_URLS_PER_TYPE}
           onClick={addAccount}
           style={{
-            background: accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "rgba(255,255,255,0.04)" : "rgba(0, 102, 255, 0.12)",
-            color: accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "rgba(255,255,255,0.3)" : "#0066FF",
-            border: "1px solid " + (accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "rgba(255,255,255,0.08)" : "rgba(0, 102, 255, 0.3)"),
+            background: accounts.length >= MAX_URLS_PER_TYPE ? "rgba(255,255,255,0.04)" : "rgba(0, 102, 255, 0.12)",
+            color: accounts.length >= MAX_URLS_PER_TYPE ? "rgba(255,255,255,0.3)" : "#0066FF",
+            border: "1px solid " + (accounts.length >= MAX_URLS_PER_TYPE ? "rgba(255,255,255,0.08)" : "rgba(0, 102, 255, 0.3)"),
             borderRadius: "6px",
             padding: "6px 14px",
             fontSize: "12.5px",
             fontWeight: 500,
-            cursor: accounts.length >= MAX_INSTAGRAM_ACCOUNTS ? "not-allowed" : "pointer",
+            cursor: accounts.length >= MAX_URLS_PER_TYPE ? "not-allowed" : "pointer",
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
             transition: "all 0.15s ease",
           }}
         >
-          + Add more
+          + Add more URL
         </button>
-        {accounts.length >= MAX_INSTAGRAM_ACCOUNTS && (
+        {accounts.length >= MAX_URLS_PER_TYPE && (
           <span style={{ fontSize: "11.5px", color: "#94a3b8" }}>
-            Maximum of 3 Instagram accounts reached. Remove an account to add another.
+            Maximum of 3 {def.label} URLs reached. Remove a URL to add another.
           </span>
         )}
       </div>
@@ -6349,7 +6481,25 @@ function InstagramAccountsEditor({ draft, update, errors }: any) {
 }
 
 function SocialForm({ draft, update, errors }: any) {
-  const otherSocialFields = socialFields.filter((key) => key !== "Instagram");
+  const updateLinkType = (linkType: string, accounts: SocialLinkAccount[]) => {
+    const nextSocialAccounts = {
+      ...(draft.socialAccounts || {}),
+      [linkType]: accounts,
+    };
+    update("socialAccounts", nextSocialAccounts);
+
+    const firstNonEmpty = accounts.find((a) => Boolean(a.url && a.url.trim()));
+    const firstUrl = firstNonEmpty ? firstNonEmpty.url : "";
+
+    if (linkType === "Instagram") {
+      update("instagramAccounts", accounts);
+      update("social", { ...draft.social, Instagram: firstUrl });
+    } else if (linkType === "Website") {
+      update("website", firstUrl);
+    } else {
+      update("social", { ...draft.social, [linkType]: firstUrl });
+    }
+  };
 
   return (
     <>
@@ -6358,51 +6508,16 @@ function SocialForm({ draft, update, errors }: any) {
         <p>Add social profiles, your Google Maps location, and useful links for visitors.</p>
       </div>
       <div className="social-list">
-        <InstagramAccountsEditor draft={draft} update={update} errors={errors} />
-
-        {otherSocialFields.map((key) => {
-          const isReviews = key === "Google Reviews";
-          const isMaps = key === "Google Maps";
+        {ORDERED_LINK_TYPES.map((linkType) => {
+          const accounts = draft.socialAccounts?.[linkType] || [];
           return (
-            <Field
-              key={key}
-              label={`${key} URL`}
-              error={errors[key]}
-              hint={
-                isReviews
-                  ? "Paste your business’s Google review link so visitors can read or leave a review."
-                  : undefined
-              }
-            >
-              <div className="social-input">
-                <span title={key}>
-                  {isMaps ? (
-                    "⌖"
-                  ) : isReviews ? (
-                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{ borderRadius: "50%" }}>
-                      <circle cx="12" cy="12" r="12" fill="#FFFFFF" />
-                      <path fill="#4285F4" d="M20.64 12.2c0-.64-.06-1.25-.16-1.84H12v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
-                      <path fill="#34A853" d="M12 21c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H3.86v2.33C5.34 18.94 8.43 21 12 21z" />
-                      <path fill="#FBBC04" d="M6.96 13.71c-.18-.54-.28-1.12-.28-1.71s.1-1.17.28-1.71V7.96H3.86C3.31 9.06 3 10.49 3 12s.31 2.94.86 4.04l3.1-2.33z" />
-                      <path fill="#EA4335" d="M12 6.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C16.46 3.9 14.43 3 12 3 8.43 3 5.34 5.06 3.86 8.04l3.1 2.41c.71-2.13 2.7-3.87 5.04-3.87z" />
-                    </svg>
-                  ) : (
-                    key[0]
-                  )}
-                </span>
-                <input
-                  value={draft.social[key] || ""}
-                  onChange={(e) => update("social", { ...draft.social, [key]: e.target.value })}
-                  placeholder={
-                    isMaps
-                      ? "Paste your Google Maps place or directions link"
-                      : isReviews
-                        ? "Paste your Google review link (e.g. https://g.page/r/.../review)"
-                        : `https://${key.toLowerCase().replace(" ", "")}.com/yourname`
-                  }
-                />
-              </div>
-            </Field>
+            <SocialLinkTypeEditor
+              key={linkType}
+              linkType={linkType}
+              accounts={accounts}
+              onChange={(next) => updateLinkType(linkType, next)}
+              errors={errors}
+            />
           );
         })}
       </div>

@@ -7,7 +7,9 @@ import {
   isValidStoreUrl,
   resolveAppDownloadTile,
   resolveInstagramTiles,
+  resolveAllCardSocialTiles,
   type InstagramAccount,
+  type SocialLinkAccount,
 } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { BrandLogo } from "./BrandLogo";
@@ -51,6 +53,7 @@ export interface SimpleProfileLayoutProps {
     brochureData?: string;
     social?: Record<string, string>;
     instagramAccounts?: InstagramAccount[];
+    socialAccounts?: Record<string, SocialLinkAccount[]>;
     services?: string[];
     logo?: string;
     cover?: string;
@@ -233,28 +236,19 @@ export function SimpleProfileLayout({
     }
   };
 
-  const igTiles = resolveInstagramTiles(card.instagramAccounts, card.social?.Instagram || card.social?.instagram);
+  const allResolvedTiles = resolveAllCardSocialTiles(card);
 
   // Social links
   const socialLinks = [
-    ...igTiles.map((tile) => ({
+    ...allResolvedTiles.map((tile) => ({
       key: tile.key,
       name: tile.name,
       subText: tile.subText,
       url: tile.url,
-      brand: "instagram",
+      brand: tile.brand,
       ariaLabel: tile.ariaLabel,
       isAppDownload: false,
     })),
-    { key: "linkedin", name: "LinkedIn", url: card.social?.LinkedIn || card.social?.linkedin, brand: "linkedin" },
-    { key: "website", name: "Website", url: card.website, brand: "website" },
-    { key: "youtube", name: "YouTube", url: card.social?.YouTube || card.social?.youtube, brand: "youtube" },
-    { key: "facebook", name: "Facebook", url: card.social?.Facebook || card.social?.facebook, brand: "facebook" },
-    { key: "twitter", name: "X", url: card.social?.Twitter || card.social?.twitter, brand: "twitter" },
-    { key: "github", name: "GitHub", url: card.social?.GitHub || card.social?.github, brand: "github" },
-    { key: "google-business", name: "Google Business", url: card.social?.["Google Business"] || card.social?.googlebusiness, brand: "google" },
-    { key: "google-maps", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.googlemaps || (!card.social?.["Google Business"] && !card.social?.googlebusiness ? card.social?.google : undefined), brand: "maps" },
-    { key: "google-reviews", name: "Google Reviews", url: card.social?.["Google Reviews"] || card.social?.["google-reviews"] || card.social?.["google_reviews"] || card.social?.googlereviews || card.social?.reviews, brand: "reviews" },
     ...(appTileRes.visible ? [{
       key: "app-download",
       name: appTileRes.name,
@@ -266,6 +260,7 @@ export function SimpleProfileLayout({
       ariaLabel: appTileRes.ariaLabel,
     }] : []),
     { key: "whatsapp", name: "WhatsApp", url: card.social?.WhatsApp || card.social?.whatsapp, brand: "whatsapp" },
+    { key: "github", name: "GitHub", url: card.social?.GitHub || card.social?.github, brand: "github" },
   ].filter((item) => item.url && item.url.trim().length > 0);
 
   // Initials fallback for contained avatar

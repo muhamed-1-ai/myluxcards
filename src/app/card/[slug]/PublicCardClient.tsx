@@ -10,7 +10,7 @@ import { ProfileThemeSwitcher } from "@/components/card/ProfileThemeSwitcher";
 import { CompactProfileThemeSwitcher } from "@/components/card/CompactProfileThemeSwitcher";
 import LeadContactCardDrawer from "@/components/leads/LeadContactCardDrawer";
 import { resolveMediaUrl } from "@/lib/storage/resolver";
-import { formatCountryCode, type InstagramAccount } from "@/lib/cards";
+import { formatCountryCode, type InstagramAccount, type SocialLinkAccount } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { buildVCardString } from "@/lib/vcard";
 import {
@@ -200,7 +200,7 @@ type Card = {
   ownerId?: string;
   name: string; slug: string; title: string; business: string; countryCode: string; countryIso?: string; mobile: string;
   whatsapp: string; email: string; website: string; state: string; city: string; address: string;
-  brochure: string; brochureData?: string; social: Record<string, string>; instagramAccounts?: InstagramAccount[]; about: string;
+  brochure: string; brochureData?: string; social: Record<string, string>; instagramAccounts?: InstagramAccount[]; socialAccounts?: Record<string, SocialLinkAccount[]>; about: string;
   services: string[]; logo: string; cover: string; active: boolean;
   profileBackground?: string; profileAccent?: string; profileText?: string;
   logoScale?: number; logoZoom?: number; logoRotation?: number; logoX?: number; logoY?: number;

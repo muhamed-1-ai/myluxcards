@@ -10,6 +10,16 @@ import {
   type InstagramAccount,
   type ResolvedInstagramTile,
 } from "./instagram";
+import {
+  cleanSocialAccounts,
+  resolveLinkTiles,
+  resolveAllCardSocialTiles,
+  ORDERED_LINK_TYPES,
+  SOCIAL_LINK_DEFINITIONS,
+  MAX_URLS_PER_TYPE,
+  type SocialLinkAccount,
+  type ResolvedSocialTile,
+} from "./socialLinks";
 
 export function formatCountryCode(code?: string | null): string {
   if (!code) return "+";
@@ -26,7 +36,7 @@ export const CARD_FIELDS = [
   "profileMode", "enabledFeatures", "vehicleConnect", "emergencyContact", "lostAndFound",
   "defaultContactPhone", "defaultEmergencyName", "defaultEmergencyRelationship", "defaultEmergencyPhone",
   "profileFeatures", "featureOrder", "profileFormat", "modernConfig", "simpleConfig",
-  "contactNumbers", "appDownload", "profileThemePreference", "instagramAccounts",
+  "contactNumbers", "appDownload", "profileThemePreference", "instagramAccounts", "socialAccounts",
 ] as const;
 
 export interface AppDownloadSettings {
@@ -399,6 +409,7 @@ const CARD_PROFILE_DEFAULTS: Record<string, unknown> = {
   lostAndFound: { ...DEFAULT_LOST_AND_FOUND },
   appDownload: { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
   profileThemePreference: "dashboard",
+  socialAccounts: {} as Record<string, SocialLinkAccount[]>,
 };
 
 export function cleanSlug(value: unknown) {
@@ -454,6 +465,10 @@ export function cleanCardProfile(input: Record<string, unknown>) {
     } else if (field === "social" && value && typeof value === "object" && !Array.isArray(value)) {
       output.social = Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 24)
         .map(([key, url]) => [String(key).slice(0, 40), cleanUrl(url)]));
+    } else if (field === "socialAccounts") {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        output.socialAccounts = cleanSocialAccounts(value);
+      }
     } else if (field === "instagramAccounts") {
       if (Array.isArray(value)) {
         const cleanedAccounts = cleanInstagramAccounts(value);
@@ -635,26 +650,73 @@ export function cleanCardProfile(input: Record<string, unknown>) {
     }
   }
 
-  if (output.instagramAccounts === undefined) {
-    const socialObj = (output.social && typeof output.social === "object" ? output.social : {}) as Record<string, string>;
-    const legacyIg = socialObj.Instagram || socialObj.instagram;
-    if (legacyIg && typeof legacyIg === "string" && legacyIg.trim()) {
-      const handle = extractInstagramHandle(legacyIg);
-      if (handle) {
-        output.instagramAccounts = [{
-          id: "ig_legacy",
-          url: `https://instagram.com/${handle}`,
-          name: "",
-        }];
-        socialObj.Instagram = `https://instagram.com/${handle}`;
-        output.social = socialObj;
+  const socialObj = (output.social && typeof output.social === "object" ? output.social : {}) as Record<string, string>;
+  output.social = socialObj;
+
+  if (output.socialAccounts !== undefined) {
+    const accMap = output.socialAccounts as Record<string, SocialLinkAccount[]>;
+    for (const linkType of ORDERED_LINK_TYPES) {
+      if (linkType in accMap) {
+        const list = accMap[linkType] || [];
+        const firstUrl = list[0]?.url || "";
+        if (linkType === "Instagram") {
+          output.instagramAccounts = list;
+          socialObj.Instagram = firstUrl;
+        } else if (linkType === "Website") {
+          output.website = firstUrl;
+        } else {
+          socialObj[linkType] = firstUrl;
+        }
+      }
+    }
+    if (output.instagramAccounts === undefined) {
+      output.instagramAccounts = accMap.Instagram || [];
+    }
+  } else {
+    const constructedAccounts: Record<string, SocialLinkAccount[]> = {};
+
+    // Instagram
+    if (Array.isArray(output.instagramAccounts) && output.instagramAccounts.length > 0) {
+      constructedAccounts.Instagram = output.instagramAccounts as SocialLinkAccount[];
+    } else {
+      const legacyIg = socialObj.Instagram || socialObj.instagram;
+      if (legacyIg && typeof legacyIg === "string" && legacyIg.trim()) {
+        const handle = extractInstagramHandle(legacyIg);
+        if (handle) {
+          const igAcc: SocialLinkAccount = {
+            id: "ig_legacy",
+            url: `https://instagram.com/${handle}`,
+            name: "",
+          };
+          constructedAccounts.Instagram = [igAcc];
+          output.instagramAccounts = [igAcc];
+          socialObj.Instagram = `https://instagram.com/${handle}`;
+        } else {
+          output.instagramAccounts = [];
+          socialObj.Instagram = "";
+        }
       } else {
         output.instagramAccounts = [];
-        socialObj.Instagram = "";
-        output.social = socialObj;
       }
-    } else {
-      output.instagramAccounts = [];
+    }
+
+    // Website
+    if (output.website && typeof output.website === "string" && output.website.trim()) {
+      constructedAccounts.Website = [{ id: "website_legacy", url: output.website.trim(), name: "" }];
+    }
+
+    // Other social fields
+    for (const linkType of ORDERED_LINK_TYPES) {
+      if (linkType === "Instagram" || linkType === "Website") continue;
+      const legacyVal = socialObj[linkType] || (socialObj as any)[linkType.toLowerCase().replace(/[^a-z0-9]/g, "")];
+      if (legacyVal && typeof legacyVal === "string" && legacyVal.trim()) {
+        constructedAccounts[linkType] = [{ id: `${linkType.toLowerCase().replace(/[^a-z0-9]/g, "")}_legacy`, url: legacyVal.trim(), name: "" }];
+      }
+    }
+
+    output.socialAccounts = constructedAccounts;
+    if (output.instagramAccounts === undefined) {
+      output.instagramAccounts = constructedAccounts.Instagram || [];
     }
   }
 
@@ -706,6 +768,7 @@ export function completeCardProfile(input: unknown) {
     lostAndFound: { ...DEFAULT_LOST_AND_FOUND, ...(cleaned.lostAndFound as object) },
     appDownload: cleaned.appDownload && typeof cleaned.appDownload === "object" ? cleaned.appDownload : { appName: "", appStoreUrl: "", playStoreUrl: "", referralUrl: "" },
     instagramAccounts: Array.isArray(cleaned.instagramAccounts) ? cleaned.instagramAccounts : [],
+    socialAccounts: cleaned.socialAccounts && typeof cleaned.socialAccounts === "object" ? cleaned.socialAccounts : {},
   };
 }
 
@@ -773,3 +836,15 @@ export {
   type InstagramAccount,
   type ResolvedInstagramTile,
 } from "./instagram";
+export {
+  cleanSocialAccounts,
+  resolveLinkTiles,
+  resolveAllCardSocialTiles,
+  ORDERED_LINK_TYPES,
+  SOCIAL_LINK_DEFINITIONS,
+  MAX_URLS_PER_TYPE,
+  canonicalDedupeKey,
+  isValidSocialUrl,
+  type SocialLinkAccount,
+  type ResolvedSocialTile,
+} from "./socialLinks";

@@ -8,7 +8,9 @@ import {
   isValidStoreUrl,
   resolveAppDownloadTile,
   resolveInstagramTiles,
+  resolveAllCardSocialTiles,
   type InstagramAccount,
+  type SocialLinkAccount,
 } from "@/lib/cards";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { ProfileActions } from "./ProfileActions";
@@ -84,6 +86,7 @@ export interface ModernProfileLayoutProps {
     brochureData?: string;
     social?: Record<string, string>;
     instagramAccounts?: InstagramAccount[];
+    socialAccounts?: Record<string, SocialLinkAccount[]>;
     services?: string[];
     logo?: string;
     cover?: string;
@@ -259,26 +262,18 @@ export function ModernProfileLayout({
     }
   };
 
-  const igTiles = resolveInstagramTiles(card.instagramAccounts, card.social?.Instagram || card.social?.instagram);
+  const allResolvedTiles = resolveAllCardSocialTiles(card);
 
   const socialLinks = [
-    ...igTiles.map((tile) => ({
+    ...allResolvedTiles.map((tile) => ({
       key: tile.key,
       name: tile.name,
       subText: tile.subText,
       url: tile.url,
-      brand: "instagram",
+      brand: tile.brand,
       ariaLabel: tile.ariaLabel,
       isAppDownload: false,
     })),
-    { key: "website", name: "Website", url: card.website, brand: "website" },
-    { key: "linkedin", name: "LinkedIn", url: card.social?.LinkedIn || card.social?.linkedin, brand: "linkedin" },
-    { key: "youtube", name: "YouTube", url: card.social?.YouTube || card.social?.youtube, brand: "youtube" },
-    { key: "facebook", name: "Facebook", url: card.social?.Facebook || card.social?.facebook, brand: "facebook" },
-    { key: "twitter", name: "Twitter", url: card.social?.Twitter || card.social?.twitter, brand: "twitter" },
-    { key: "google-business", name: "Google Business", url: card.social?.["Google Business"] || card.social?.googlebusiness, brand: "google" },
-    { key: "google-maps", name: "Google Maps", url: card.social?.["Google Maps"] || card.social?.googlemaps || (!card.social?.["Google Business"] && !card.social?.googlebusiness ? card.social?.google : undefined), brand: "maps" },
-    { key: "google-reviews", name: "Google Reviews", url: card.social?.["Google Reviews"] || card.social?.["google-reviews"] || card.social?.["google_reviews"] || card.social?.googlereviews || card.social?.reviews, brand: "reviews" },
     ...(appTileRes.visible ? [{
       key: "app-download",
       name: appTileRes.name,
