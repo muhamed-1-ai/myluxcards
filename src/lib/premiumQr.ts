@@ -11,12 +11,12 @@ export interface PremiumQrOptions {
 
 /**
  * Builds the Admin User QR code matching the reference design:
- * - Solid white background (#FFFFFF)
- * - Bold black heading "3G ZAPPIT" centered above the frame
+ * - Solid white square background (#FFFFFF)
  * - Bold black outer frame with smoothly rounded corners
  * - Centered square QR code with circular black dots
  * - Three rounded-square black corner markers with white insets and black rounded-square centers
  * - Unobstructed white quiet zone of at least four QR modules on every side
+ * - No top heading or "3G ZAPPIT" text
  */
 export function buildAdminUserQrSvg(text: string): string {
   const qr = QRCode.create(text || "https://3gzappit.com", { errorCorrectionLevel: "H" });
@@ -26,29 +26,21 @@ export function buildAdminUserQrSvg(text: string): string {
   // Matrix dimensions
   const matrixSize = size * moduleSize;
 
-  // Frame padding around QR (54px = 5.4 modules, strictly > 4 modules quiet zone)
-  const framePadding = 54;
+  // Frame padding around QR (48px = 4.8 modules, strictly > 4 modules quiet zone)
+  const framePadding = 48;
   const frameWidth = matrixSize + framePadding * 2;
   const frameHeight = frameWidth;
 
-  // Outer canvas margins and top heading space
-  const outerMargin = 20;
-  const topPadding = 24;
-  const headingHeight = 28;
-  const headingGap = 16;
-  const frameTop = topPadding + headingHeight + headingGap;
-
+  // Outer canvas margins - uniform on all 4 sides for a clean square artwork
+  const outerMargin = 16;
   const totalWidth = frameWidth + outerMargin * 2;
-  const totalHeight = frameTop + frameHeight + outerMargin;
+  const totalHeight = totalWidth;
 
   const frameX = outerMargin;
-  const frameY = frameTop;
+  const frameY = outerMargin;
 
   const qrOriginX = frameX + framePadding;
   const qrOriginY = frameY + framePadding;
-
-  const headingX = (totalWidth / 2).toFixed(2);
-  const headingY = (topPadding + 22).toFixed(2);
 
   const isFinder = (x: number, y: number) => {
     if (x < 7 && y < 7) return true;
@@ -97,8 +89,7 @@ export function buildAdminUserQrSvg(text: string): string {
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}">\n` +
     `  <rect width="100%" height="100%" fill="#FFFFFF" />\n` +
-    `  <text x="${headingX}" y="${headingY}" fill="#000000" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="900" letter-spacing="2.5" text-anchor="middle">3G ZAPPIT</text>\n` +
-    `  <rect x="${frameX}" y="${frameY}" width="${frameWidth}" height="${frameHeight}" rx="36" fill="none" stroke="#000000" stroke-width="8" />\n` +
+    `  <rect x="${frameX}" y="${frameY}" width="${frameWidth}" height="${frameHeight}" rx="32" fill="none" stroke="#000000" stroke-width="8" />\n` +
     `  ${finders}\n` +
     `  <g>\n` +
     `    ${dots.join("\n    ")}\n` +

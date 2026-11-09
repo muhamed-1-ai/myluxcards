@@ -17,14 +17,15 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   assert.ok(!adminSvg.includes("#0066FF"), "Admin QR must NOT contain blue modules");
   assert.ok(!adminSvg.includes("#050505"), "Admin QR must NOT contain default dark background");
 
-  // 2. Centered bold heading "3G ZAPPIT" above the frame
-  assert.ok(adminSvg.includes("3G ZAPPIT"), "Admin QR must contain heading '3G ZAPPIT'");
-  assert.ok(adminSvg.includes('text-anchor="middle"'), "Heading must be centered");
-  assert.ok(adminSvg.includes('font-weight="900"'), "Heading must be bold black text");
+  // 2. No "3G ZAPPIT" heading text above the frame; artwork is a square
+  assert.ok(!adminSvg.includes("3G ZAPPIT"), "Admin QR must NOT contain heading '3G ZAPPIT'");
+  const vbMatch = adminSvg.match(/viewBox="0 0 (\d+) (\d+)"/);
+  assert.ok(vbMatch && vbMatch[1] === vbMatch[2], "Admin QR must be a square artwork");
 
   // 3. Bold black outer frame with smoothly rounded corners
   assert.ok(adminSvg.includes('stroke="#000000"'), "Outer frame must have black stroke");
-  assert.ok(adminSvg.includes('rx="36"'), "Outer frame must have smoothly rounded corners (rx=36)");
+  assert.ok(adminSvg.includes('rx="32"'), "Outer frame must have smoothly rounded corners (rx=32)");
+  assert.ok(adminSvg.includes('stroke-width="8"'), "Outer frame must have bold 8px stroke");
   assert.ok(adminSvg.includes('fill="none"'), "Outer frame must have fill none");
 
   // 4. Black circular QR dots
@@ -41,8 +42,8 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   const moduleSize = 10;
   const matrixSize = size * moduleSize;
 
-  // Frame padding is 54px; inner frame edge from matrix is (54 - 4) = 50px = 5.0 modules > 4 modules
-  assert.ok(50 >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
+  // Frame padding is 48px; inner frame edge from matrix is (48 - 4) = 44px = 4.4 modules > 4 modules
+  assert.ok(44 >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
 
   // 7. variant: "admin_framed" produces the exact same artwork
   const variantSvg = buildPremiumQrSvg(testUrl, { variant: "admin_framed" });
