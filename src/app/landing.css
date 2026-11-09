@@ -2986,15 +2986,13 @@ body.modal-open {
 
 /* Modal Overlay */
 .landing-page .modal-overlay,
-.modal-overlay {
-
-  .modal-overlay,
-  .landing-page .crm-fullsize-modal-overlay {
-    z-index: 10005 !important;
-    background: rgba(17, 24, 39, 0.45) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-  }
+.modal-overlay,
+.landing-page .crm-fullsize-modal-overlay {
+  z-index: 10005 !important;
+  background: rgba(17, 24, 39, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
 
   /* Modal Card & Login Panel */
   .landing-page .modal-card,
