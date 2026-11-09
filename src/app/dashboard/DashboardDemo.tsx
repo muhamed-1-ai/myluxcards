@@ -6326,21 +6326,28 @@ function SocialLinkTypeEditor({
     }, 50);
   };
 
+  const lastIndex = accounts.length - 1;
+  const lastAccount = accounts[lastIndex] || accounts[0];
+  const lastHasUrl = Boolean(lastAccount.url && lastAccount.url.trim());
+  const lastIsNameVisible = Boolean(lastAccount.name && lastAccount.name.trim()) || Boolean(revealedNames[lastIndex]);
+
   return (
-    <div className="zappit-link-type-editor" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+    <div className="zappit-link-group">
       {accounts.map((acc, index) => {
         const isMultiple = accounts.length > 1;
         const isNameVisible = Boolean(acc.name && acc.name.trim()) || Boolean(revealedNames[index]);
-        const isRemovable = accounts.length > 1 || Boolean(acc.url || acc.name);
+        const isRemovable = isMultiple || Boolean(acc.url || acc.name);
         const errorKey = `${linkType}_${index}`;
         const errorMsg = errors[errorKey] || (index === 0 ? errors[linkType] : undefined);
+        const hasUrl = Boolean(acc.url && acc.url.trim());
 
         return (
           <div
             key={acc.id || `${linkType}_row_${index}`}
             className="field wide"
             style={{
-              padding: isMultiple ? "14px" : "0",
+              margin: 0,
+              padding: isMultiple ? "10px 12px" : "0",
               background: isMultiple ? "rgba(255, 255, 255, 0.02)" : "transparent",
               border: isMultiple ? "1px solid rgba(255, 255, 255, 0.06)" : "none",
               borderRadius: "8px",
@@ -6405,30 +6412,8 @@ function SocialLinkTypeEditor({
               </div>
             )}
 
-            {!isNameVisible ? (
+            {isNameVisible && (
               <div style={{ marginTop: "6px" }}>
-                <button
-                  type="button"
-                  onClick={() => setRevealedNames((prev) => ({ ...prev, [index]: true }))}
-                  className="zappit-customize-name-action"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--apple-blue, #0066FF)",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    padding: "2px 0",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  <span>+ Customize name</span>
-                </button>
-              </div>
-            ) : (
-              <div style={{ marginTop: "8px" }}>
                 <label style={{ fontSize: "11.5px", color: "var(--text-muted, #94a3b8)", marginBottom: "3px", display: "block" }}>
                   Display name (optional)
                 </label>
@@ -6444,36 +6429,60 @@ function SocialLinkTypeEditor({
                 </div>
               </div>
             )}
+
+            {isMultiple && index < lastIndex && hasUrl && !isNameVisible && (
+              <div style={{ marginTop: "4px" }}>
+                <button
+                  type="button"
+                  onClick={() => setRevealedNames((prev) => ({ ...prev, [index]: true }))}
+                  className="zappit-customize-name-btn"
+                  aria-label={`Customize display name for ${def.label} ${index + 1}`}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Customize name</span>
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start", marginTop: "2px", marginBottom: "8px" }}>
-        <button
-          type="button"
-          disabled={accounts.length >= MAX_URLS_PER_TYPE}
-          onClick={addAccount}
-          style={{
-            background: accounts.length >= MAX_URLS_PER_TYPE ? "rgba(255,255,255,0.04)" : "rgba(0, 102, 255, 0.12)",
-            color: accounts.length >= MAX_URLS_PER_TYPE ? "rgba(255,255,255,0.3)" : "#0066FF",
-            border: "1px solid " + (accounts.length >= MAX_URLS_PER_TYPE ? "rgba(255,255,255,0.08)" : "rgba(0, 102, 255, 0.3)"),
-            borderRadius: "6px",
-            padding: "6px 14px",
-            fontSize: "12.5px",
-            fontWeight: 500,
-            cursor: accounts.length >= MAX_URLS_PER_TYPE ? "not-allowed" : "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            transition: "all 0.15s ease",
-          }}
-        >
-          + Add more URL
-        </button>
-        {accounts.length >= MAX_URLS_PER_TYPE && (
-          <span style={{ fontSize: "11.5px", color: "#94a3b8" }}>
-            Maximum of 3 {def.label} URLs reached. Remove a URL to add another.
+      <div className="zappit-link-actions-row">
+        {accounts.length < MAX_URLS_PER_TYPE ? (
+          <button
+            type="button"
+            onClick={addAccount}
+            className="zappit-add-url-btn"
+            aria-label={`Add another ${def.label} URL`}
+          >
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>+ Add URL</span>
+          </button>
+        ) : (
+          <span style={{ fontSize: "11.5px", color: "var(--text-muted, #94a3b8)" }}>
+            Maximum 3 URLs reached
           </span>
+        )}
+
+        {lastHasUrl && !lastIsNameVisible && (
+          <button
+            type="button"
+            onClick={() => setRevealedNames((prev) => ({ ...prev, [lastIndex]: true }))}
+            className="zappit-customize-name-btn"
+            aria-label={`Customize display name for ${def.label}`}
+          >
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>Customize name</span>
+          </button>
         )}
       </div>
     </div>

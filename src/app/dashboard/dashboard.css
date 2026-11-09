@@ -617,6 +617,72 @@
   border-radius: 0 5px 5px 0;
 }
 
+/* Compact Apps & Links Action Buttons */
+.zappit-link-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.zappit-link-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.zappit-add-url-btn,
+.zappit-customize-name-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--apple-blue, #0066FF) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  padding: 4px 2px !important;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  touch-action: manipulation;
+  box-shadow: none !important;
+}
+
+.zappit-add-url-btn:hover:not(:disabled),
+.zappit-customize-name-btn:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
+
+.zappit-add-url-btn:focus-visible,
+.zappit-customize-name-btn:focus-visible {
+  outline: 2px solid var(--apple-blue, #0066FF);
+  outline-offset: 2px;
+}
+
+.zappit-add-url-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+[data-theme="light"] .zappit-add-url-btn,
+[data-theme="light"] .zappit-customize-name-btn,
+body.light-mode .zappit-add-url-btn,
+body.light-mode .zappit-customize-name-btn {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .zappit-add-url-btn:hover:not(:disabled),
+[data-theme="light"] .zappit-customize-name-btn:hover,
+body.light-mode .zappit-add-url-btn:hover:not(:disabled),
+body.light-mode .zappit-customize-name-btn:hover {
+  color: #0052cc !important;
+}
+
 .add-service {
   display: flex;
   gap: 8px;
