@@ -22,10 +22,11 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   const vbMatch = adminSvg.match(/viewBox="0 0 (\d+) (\d+)"/);
   assert.ok(vbMatch && vbMatch[1] === vbMatch[2], "Admin QR must be a square artwork");
 
-  // 3. Bold black outer frame with smoothly rounded corners
-  assert.ok(adminSvg.includes('stroke="#000000"'), "Outer frame must have black stroke");
-  assert.ok(adminSvg.includes('rx="32"'), "Outer frame must have smoothly rounded corners (rx=32)");
-  assert.ok(adminSvg.includes('stroke-width="8"'), "Outer frame must have bold 8px stroke");
+  // 3. Subtle light-gray rounded outline replacing heavy black border
+  assert.ok(!adminSvg.includes('stroke="#000000"'), "Outer frame must NOT have heavy black stroke");
+  assert.ok(adminSvg.includes('stroke="#E2E8F0"'), "Outer frame must have subtle light-gray stroke (#E2E8F0)");
+  assert.ok(adminSvg.includes('rx="24"'), "Outer frame must have rounded corners (rx=24)");
+  assert.ok(adminSvg.includes('stroke-width="1.5"'), "Outer frame must have thin 1.5px stroke");
   assert.ok(adminSvg.includes('fill="none"'), "Outer frame must have fill none");
 
   // 4. Black circular QR dots
@@ -42,8 +43,10 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   const moduleSize = 10;
   const matrixSize = size * moduleSize;
 
-  // Frame padding is 44px; inner frame edge from matrix is (44 - 4) = 40px = 4.0 modules >= 4 modules
-  assert.ok(40 >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
+  // Inner edge of 1.5px stroke is at 1.75px; QR grid is at 42px.
+  // Gap = 42 - 1.75 = 40.25px >= 4 modules (40px)
+  const innerGap = 42 - 1.75;
+  assert.ok(innerGap >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
 
   // 7. variant: "admin_framed" produces the exact same artwork
   const variantSvg = buildPremiumQrSvg(testUrl, { variant: "admin_framed" });

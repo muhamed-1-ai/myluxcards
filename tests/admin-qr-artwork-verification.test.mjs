@@ -38,10 +38,11 @@ test("Verification: Two different users scan accurately from preview and exporte
     assert.ok(match, "ViewBox must be present");
     assert.equal(match[1], match[2], `SVG for ${user.name} must be square (${match[1]}x${match[2]})`);
 
-    // 3. Check bold black rounded border
-    assert.ok(svg.includes('stroke="#000000"'), "Outer frame must have black stroke");
-    assert.ok(svg.includes('stroke-width="8"'), "Outer frame must have 8px stroke");
-    assert.ok(svg.includes('rx="32"'), "Outer frame must have rx=32 rounded corners");
+    // 3. Check subtle light-gray outline
+    assert.ok(!svg.includes('stroke="#000000"'), "Outer frame must NOT have heavy black stroke");
+    assert.ok(svg.includes('stroke="#E2E8F0"'), "Outer frame must have subtle light-gray stroke");
+    assert.ok(svg.includes('stroke-width="1.5"'), "Outer frame must have 1.5px stroke");
+    assert.ok(svg.includes('rx="24"'), "Outer frame must have rx=24 rounded corners");
 
     // 4. Check circular dots
     assert.ok(svg.includes('<circle'), "QR modules must be circular dots");
