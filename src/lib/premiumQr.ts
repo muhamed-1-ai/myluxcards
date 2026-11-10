@@ -15,8 +15,8 @@ export interface PremiumQrOptions {
  * - Solid pure-black (#000000) rounded border (roughly 7-8px thick at 680px artwork width, scaled proportionally)
  * - Centered square QR code with circular black dots
  * - Three rounded-square black corner markers with white insets and black rounded-square centers
- * - Unobstructed white quiet zone of at least four QR modules from inside edge of the black border
- * - Tight outer canvas padding keeping the black frame cleanly visible
+ * - Exactly four QR modules (40px) of unobstructed white quiet zone from inside edge of the black border
+ * - Zero unnecessary outer canvas padding outside the black frame (flush outer boundary)
  * - No top heading or "3G ZAPPIT" text
  */
 export function buildAdminUserQrSvg(text: string): string {
@@ -27,27 +27,25 @@ export function buildAdminUserQrSvg(text: string): string {
   // Matrix dimensions
   const matrixSize = size * moduleSize;
 
-  // Proportional border thickness: roughly 7.5px at 680px artwork width (~0.01103 ratio).
-  // In native SVG coordinate space (~470-510px), strokeWidth is scaled proportionally to ~5.2px - 5.6px
-  // so that when displayed or rendered at 680px width, the border is exactly 7-8px thick.
-  const outerMargin = 7;
-  const targetStrokeRatio = 7.5 / 680;
-  const estTotalWidth = matrixSize + 86 + outerMargin * 2;
-  const strokeWidth = Number((targetStrokeRatio * estTotalWidth).toFixed(1));
+  // Strict 4-module quiet zone (40px)
+  const quietZone = 4 * moduleSize;
 
-  // Frame padding around QR ensures inner quiet zone >= 4 modules (40px) from inside edge of border
-  const framePadding = Math.ceil(40 + strokeWidth / 2);
-  const frameWidth = matrixSize + framePadding * 2;
-  const frameHeight = frameWidth;
+  // Proportional border thickness: roughly 7.5px at 680px artwork width (~0.011 ratio).
+  // Scaled proportionally for the artwork scale (~5.0px - 5.5px in SVG coords)
+  const totalContentWidth = matrixSize + quietZone * 2;
+  const strokeWidth = Number(((7.6 / 680) * totalContentWidth).toFixed(1));
 
-  const totalWidth = frameWidth + outerMargin * 2;
+  // Canvas tightly framed around QR + quiet zone + stroke (0 unnecessary outer padding)
+  const totalWidth = totalContentWidth + strokeWidth * 2;
   const totalHeight = totalWidth;
 
-  const frameX = outerMargin;
-  const frameY = outerMargin;
+  const frameX = strokeWidth / 2;
+  const frameY = frameX;
+  const frameWidth = totalWidth - strokeWidth;
+  const frameHeight = frameWidth;
 
-  const qrOriginX = frameX + framePadding;
-  const qrOriginY = frameY + framePadding;
+  const qrOriginX = strokeWidth + quietZone;
+  const qrOriginY = qrOriginX;
 
   const isFinder = (x: number, y: number) => {
     if (x < 7 && y < 7) return true;

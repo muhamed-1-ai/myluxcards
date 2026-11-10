@@ -19,7 +19,7 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
 
   // 2. No "3G ZAPPIT" heading text above the frame; artwork is a square
   assert.ok(!adminSvg.includes("3G ZAPPIT"), "Admin QR must NOT contain heading '3G ZAPPIT'");
-  const vbMatch = adminSvg.match(/viewBox="0 0 (\d+) (\d+)"/);
+  const vbMatch = adminSvg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/);
   assert.ok(vbMatch && vbMatch[1] === vbMatch[2], "Admin QR must be a square artwork");
 
   // 3. Solid pure-black rounded border
@@ -56,7 +56,11 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   assert.ok(qrOriginMatch, "Finder eye position must be present");
   const qrOriginX = parseFloat(qrOriginMatch[1]);
   const innerGap = qrOriginX - innerEdge;
-  assert.ok(innerGap >= 4 * moduleSize, `Must have quiet zone >= 4 modules (40px) on every side (got ${innerGap.toFixed(2)}px)`);
+  assert.ok(Math.abs(innerGap - 4 * moduleSize) < 0.05, `Must have quiet zone of exactly 4 modules (40px) on every side (got ${innerGap.toFixed(2)}px)`);
+
+  // Outer padding outside the frame must be 0 (flush outer border)
+  const outerPadding = frameX - strokeWidth / 2;
+  assert.ok(Math.abs(outerPadding) < 0.05, `Outer padding outside frame must be 0 (got ${outerPadding.toFixed(2)}px)`);
 
   // Scaled to 680px, stroke width must be roughly 7-8px
   const scaledStrokeAt680 = strokeWidth * (680 / totalW);

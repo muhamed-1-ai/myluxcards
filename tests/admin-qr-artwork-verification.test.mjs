@@ -34,7 +34,7 @@ test("Verification: Two different users scan accurately from preview and exporte
     assert.ok(!svg.includes("3G ZAPPIT"), `SVG for ${user.name} must not contain '3G ZAPPIT'`);
 
     // 2. Check 1:1 square aspect ratio
-    const match = svg.match(/viewBox="0 0 (\d+) (\d+)"/);
+    const match = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/);
     assert.ok(match, "ViewBox must be present");
     assert.equal(match[1], match[2], `SVG for ${user.name} must be square (${match[1]}x${match[2]})`);
 
@@ -48,6 +48,13 @@ test("Verification: Two different users scan accurately from preview and exporte
     const totalW = parseFloat(match[1]);
     const scaledAt680 = strokeWidth * (680 / totalW);
     assert.ok(scaledAt680 >= 6.8 && scaledAt680 <= 8.5, `Border thickness at 680px must be roughly 7-8px (got ${scaledAt680.toFixed(2)}px)`);
+
+    // Check 0 outer padding outside frame
+    const frameMatch = svg.match(/<rect x="([^"]+)" y="([^"]+)"/);
+    assert.ok(frameMatch, "Frame coordinates must be present");
+    const frameX = parseFloat(frameMatch[1]);
+    const outerPadding = frameX - strokeWidth / 2;
+    assert.ok(Math.abs(outerPadding) < 0.05, `Outer padding outside frame must be 0 (got ${outerPadding})`);
 
     // 4. Check circular dots
     assert.ok(svg.includes('<circle'), "QR modules must be circular dots");
