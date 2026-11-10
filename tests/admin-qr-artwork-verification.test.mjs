@@ -38,11 +38,16 @@ test("Verification: Two different users scan accurately from preview and exporte
     assert.ok(match, "ViewBox must be present");
     assert.equal(match[1], match[2], `SVG for ${user.name} must be square (${match[1]}x${match[2]})`);
 
-    // 3. Check subtle light-gray outline
-    assert.ok(!svg.includes('stroke="#000000"'), "Outer frame must NOT have heavy black stroke");
-    assert.ok(svg.includes('stroke="#E2E8F0"'), "Outer frame must have subtle light-gray stroke");
-    assert.ok(svg.includes('stroke-width="1.5"'), "Outer frame must have 1.5px stroke");
-    assert.ok(svg.includes('rx="24"'), "Outer frame must have rx=24 rounded corners");
+    // 3. Check solid pure-black rounded border
+    assert.ok(svg.includes('stroke="#000000"'), "Outer frame must have solid pure-black stroke");
+    assert.ok(!svg.includes('stroke="#E2E8F0"'), "Outer frame must NOT have faint gray stroke");
+    assert.ok(svg.includes('rx="28"'), "Outer frame must have rx=28 rounded corners");
+    const swMatch = svg.match(/stroke-width="([^"]+)"/);
+    assert.ok(swMatch, "Stroke width must be defined");
+    const strokeWidth = parseFloat(swMatch[1]);
+    const totalW = parseFloat(match[1]);
+    const scaledAt680 = strokeWidth * (680 / totalW);
+    assert.ok(scaledAt680 >= 6.8 && scaledAt680 <= 8.5, `Border thickness at 680px must be roughly 7-8px (got ${scaledAt680.toFixed(2)}px)`);
 
     // 4. Check circular dots
     assert.ok(svg.includes('<circle'), "QR modules must be circular dots");

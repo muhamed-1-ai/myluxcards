@@ -10,13 +10,14 @@ export interface PremiumQrOptions {
 }
 
 /**
- * Builds the Admin User QR code matching the refined design:
- * - Solid white square background (#FFFFFF) with rounded corners
- * - Thin, subtle light-gray rounded outline (#E2E8F0, 1.5px stroke, rx=24)
+ * Builds the Admin User QR code matching the reference design:
+ * - Solid pure-white square background (#FFFFFF)
+ * - Solid pure-black (#000000) rounded border (roughly 7-8px thick at 680px artwork width, scaled proportionally)
  * - Centered square QR code with circular black dots
  * - Three rounded-square black corner markers with white insets and black rounded-square centers
- * - At least four QR modules (>= 40px) of uninterrupted white quiet zone from inside the outline on all sides and corners
- * - Zero extra outer canvas padding
+ * - Unobstructed white quiet zone of at least four QR modules from inside edge of the black border
+ * - Tight outer canvas padding keeping the black frame cleanly visible
+ * - No top heading or "3G ZAPPIT" text
  */
 export function buildAdminUserQrSvg(text: string): string {
   const qr = QRCode.create(text || "https://3gzappit.com", { errorCorrectionLevel: "H" });
@@ -26,15 +27,27 @@ export function buildAdminUserQrSvg(text: string): string {
   // Matrix dimensions
   const matrixSize = size * moduleSize;
 
-  // Outline is inset 1px from canvas edge with stroke-width 1.5px (inner edge is at 1.75px).
-  // qrOrigin = 42px gives gap = 42 - 1.75 = 40.25px = 4.025 QR cells on straight sides,
-  // and 53.92px = 5.39 QR cells diagonally at rounded corners (rx=24).
-  const qrOrigin = 42;
-  const totalWidth = matrixSize + qrOrigin * 2;
+  // Proportional border thickness: roughly 7.5px at 680px artwork width (~0.01103 ratio).
+  // In native SVG coordinate space (~470-510px), strokeWidth is scaled proportionally to ~5.2px - 5.6px
+  // so that when displayed or rendered at 680px width, the border is exactly 7-8px thick.
+  const outerMargin = 7;
+  const targetStrokeRatio = 7.5 / 680;
+  const estTotalWidth = matrixSize + 86 + outerMargin * 2;
+  const strokeWidth = Number((targetStrokeRatio * estTotalWidth).toFixed(1));
+
+  // Frame padding around QR ensures inner quiet zone >= 4 modules (40px) from inside edge of border
+  const framePadding = Math.ceil(40 + strokeWidth / 2);
+  const frameWidth = matrixSize + framePadding * 2;
+  const frameHeight = frameWidth;
+
+  const totalWidth = frameWidth + outerMargin * 2;
   const totalHeight = totalWidth;
 
-  const qrOriginX = qrOrigin;
-  const qrOriginY = qrOrigin;
+  const frameX = outerMargin;
+  const frameY = outerMargin;
+
+  const qrOriginX = frameX + framePadding;
+  const qrOriginY = frameY + framePadding;
 
   const isFinder = (x: number, y: number) => {
     if (x < 7 && y < 7) return true;
@@ -82,8 +95,8 @@ export function buildAdminUserQrSvg(text: string): string {
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}">\n` +
-    `  <rect width="100%" height="100%" rx="24" fill="#FFFFFF" />\n` +
-    `  <rect x="1" y="1" width="${totalWidth - 2}" height="${totalHeight - 2}" rx="24" fill="none" stroke="#E2E8F0" stroke-width="1.5" />\n` +
+    `  <rect width="100%" height="100%" fill="#FFFFFF" />\n` +
+    `  <rect x="${frameX}" y="${frameY}" width="${frameWidth}" height="${frameHeight}" rx="28" fill="none" stroke="#000000" stroke-width="${strokeWidth}" />\n` +
     `  ${finders}\n` +
     `  <g>\n` +
     `    ${dots.join("\n    ")}\n` +

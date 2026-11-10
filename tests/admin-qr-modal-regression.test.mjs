@@ -22,11 +22,10 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   const vbMatch = adminSvg.match(/viewBox="0 0 (\d+) (\d+)"/);
   assert.ok(vbMatch && vbMatch[1] === vbMatch[2], "Admin QR must be a square artwork");
 
-  // 3. Subtle light-gray rounded outline replacing heavy black border
-  assert.ok(!adminSvg.includes('stroke="#000000"'), "Outer frame must NOT have heavy black stroke");
-  assert.ok(adminSvg.includes('stroke="#E2E8F0"'), "Outer frame must have subtle light-gray stroke (#E2E8F0)");
-  assert.ok(adminSvg.includes('rx="24"'), "Outer frame must have rounded corners (rx=24)");
-  assert.ok(adminSvg.includes('stroke-width="1.5"'), "Outer frame must have thin 1.5px stroke");
+  // 3. Solid pure-black rounded border
+  assert.ok(adminSvg.includes('stroke="#000000"'), "Outer frame must have solid pure-black stroke");
+  assert.ok(!adminSvg.includes('stroke="#E2E8F0"'), "Outer frame must NOT have faint gray stroke");
+  assert.ok(adminSvg.includes('rx="28"'), "Outer frame must have rounded corners (rx=28)");
   assert.ok(adminSvg.includes('fill="none"'), "Outer frame must have fill none");
 
   // 4. Black circular QR dots
@@ -43,10 +42,25 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   const moduleSize = 10;
   const matrixSize = size * moduleSize;
 
-  // Inner edge of 1.5px stroke is at 1.75px; QR grid is at 42px.
-  // Gap = 42 - 1.75 = 40.25px >= 4 modules (40px)
-  const innerGap = 42 - 1.75;
-  assert.ok(innerGap >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
+  const swMatch = adminSvg.match(/stroke-width="([^"]+)"/);
+  assert.ok(swMatch, "Stroke width must be present");
+  const strokeWidth = parseFloat(swMatch[1]);
+  const frameMatch = adminSvg.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)"/);
+  assert.ok(frameMatch, "Frame coordinates must be present");
+  const frameX = parseFloat(frameMatch[1]);
+  const totalW = parseFloat(vbMatch[1]);
+  // Outer frame inner edge is frameX + strokeWidth / 2. QR origin is frameX + framePadding.
+  // Straight edge gap = qrOrigin - innerBorderEdge >= 4 modules (40px)
+  const innerEdge = frameX + strokeWidth / 2;
+  const qrOriginMatch = adminSvg.match(/<rect x="([^"]+)" y="[^"]+" width="70"/);
+  assert.ok(qrOriginMatch, "Finder eye position must be present");
+  const qrOriginX = parseFloat(qrOriginMatch[1]);
+  const innerGap = qrOriginX - innerEdge;
+  assert.ok(innerGap >= 4 * moduleSize, `Must have quiet zone >= 4 modules (40px) on every side (got ${innerGap.toFixed(2)}px)`);
+
+  // Scaled to 680px, stroke width must be roughly 7-8px
+  const scaledStrokeAt680 = strokeWidth * (680 / totalW);
+  assert.ok(scaledStrokeAt680 >= 6.8 && scaledStrokeAt680 <= 8.5, `Border thickness at 680px must be roughly 7-8px (got ${scaledStrokeAt680.toFixed(2)}px)`);
 
   // 7. variant: "admin_framed" produces the exact same artwork
   const variantSvg = buildPremiumQrSvg(testUrl, { variant: "admin_framed" });
