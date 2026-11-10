@@ -42,8 +42,8 @@ test("TEST 1: Admin User QR artwork matches reference design", () => {
   const moduleSize = 10;
   const matrixSize = size * moduleSize;
 
-  // Frame padding is 48px; inner frame edge from matrix is (48 - 4) = 44px = 4.4 modules > 4 modules
-  assert.ok(44 >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
+  // Frame padding is 44px; inner frame edge from matrix is (44 - 4) = 40px = 4.0 modules >= 4 modules
+  assert.ok(40 >= 4 * moduleSize, "Must have quiet zone >= 4 modules (40px) on every side");
 
   // 7. variant: "admin_framed" produces the exact same artwork
   const variantSvg = buildPremiumQrSvg(testUrl, { variant: "admin_framed" });

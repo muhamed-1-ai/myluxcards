@@ -26,8 +26,11 @@ export function buildAdminUserQrSvg(text: string): string {
   // Matrix dimensions
   const matrixSize = size * moduleSize;
 
-  // Frame padding around QR (48px = 4.8 modules, strictly > 4 modules quiet zone)
-  const framePadding = 48;
+  // Frame padding around QR (44px = exactly 4.0 modules quiet zone from inner edge of 8px stroke)
+  // Inner edge of 8px stroke is at frameX + 4px; qrOrigin is at frameX + framePadding.
+  // Straight edge gap = framePadding - 4px = 44 - 4 = 40px = 4.0 QR grid cells.
+  // Corner diagonal gap = 51.6px = 5.16 QR grid cells.
+  const framePadding = 44;
   const frameWidth = matrixSize + framePadding * 2;
   const frameHeight = frameWidth;
 
