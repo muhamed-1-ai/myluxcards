@@ -227,81 +227,70 @@ export default function ChoosePlanSection({
   const activePlan = selectedPlanId ? PLAN_CATALOG[selectedPlanId] : null;
 
   return (
-    <div className={`choose-plan-root w-full max-w-5xl mx-auto px-4 py-8 md:py-12 ${isDark ? "theme-dark" : "theme-light"}`}>
+    <div className={`choose-plan-root ${isDark ? "theme-dark" : "theme-light"}`}>
       {/* Header section */}
-      <div className="text-center max-w-2xl mx-auto mb-10 md:mb-14">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3.5 bg-blue-500/10 text-blue-500 border border-blue-500/20">
+      <div className="choose-plan-header">
+        <div className="choose-plan-eyebrow">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Activate Your Access</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-3 text-[var(--plan-heading)]">
+        <h1 className="choose-plan-title">
           Choose your Zappit plan
         </h1>
-        <p className="text-sm sm:text-base leading-relaxed text-[var(--plan-subtext)]">
+        <p className="choose-plan-desc">
           Select a transparent plan below to unlock your digital card profile and workspace immediately. No hidden charges or automatic lock-in.
         </p>
       </div>
 
       {/* Plan Cards Grid: side-by-side on desktop, stacked on mobile */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-stretch max-w-4xl mx-auto">
+      <div className="choose-plan-grid grid grid-cols-1 md:grid-cols-2">
         {/* CARD 1: Lite Plan */}
         {(() => {
           const plan = PLAN_CATALOG["plan-lite"];
           return (
             <div
               key={plan.id}
-              className={`plan-card plan-card-lite relative flex flex-col justify-between rounded-2xl p-6 sm:p-8 transition-all duration-300 ${isDark
-                  ? "bg-[#0B0F19] border border-blue-500/20 hover:border-blue-400/40 text-white"
-                  : "bg-white border border-slate-200 hover:border-blue-300 text-slate-900"
-                }`}
-              style={{
-                boxShadow: isDark
-                  ? "0 18px 40px -10px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 102, 255, 0.08)"
-                  : "0 14px 34px -8px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04)",
-              }}
+              className="choose-plan-card plan-lite-card plan-card shadow-xl"
             >
               <div>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-500">
-                    {plan.kicker}
-                  </span>
+                <div className="choose-plan-badge-wrapper">
+                  <span className="choose-plan-kicker">Standard Bundle</span>
                 </div>
 
-                <h3 className="text-2xl font-bold tracking-tight mb-2">
+                <h3 className="choose-plan-name">
                   {plan.name}
                 </h3>
 
-                <p className={`text-xs sm:text-sm leading-relaxed mb-6 min-h-[38px] ${isDark ? "text-slate-400" : "text-slate-600"}`}>
-                  Physical NFC smart business card paired with complete digital identity software for instant sharing.
+                <p className="choose-plan-card-desc">
+                  Physical NFC smart business card paired with our complete digital identity software for instant contact sharing.
                 </p>
 
                 {/* Price block */}
-                <div className="py-4 border-y border-[var(--plan-divider)] mb-6">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                      ₹{plan.price.toLocaleString("en-IN")}
-                    </span>
-                    <span className="text-xs font-semibold text-[var(--plan-subtext)]">
-                      {plan.billingPeriod}
+                <div className="choose-plan-price-block">
+                  <div className="choose-plan-price-row">
+                    <span className="choose-plan-currency">₹</span>
+                    <span className="choose-plan-amount">
+                      {plan.price.toLocaleString("en-IN")}
                     </span>
                   </div>
-                  <p className="text-xs text-[var(--plan-subtext)] mt-1.5 leading-normal">
-                    {plan.renewalDetail}
+                  <div className="choose-plan-billing-type">One-time hardware purchase</div>
+                  <p className="choose-plan-billing-detail">
+                    Includes 1-year digital profile hosting. Annual renewal at ₹499/year. No app required.
                   </p>
                 </div>
 
-                {/* Features List (Always visible by default) */}
-                <div className="mb-6">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--plan-subtext)] block mb-3.5">
-                    Included with Lite
+                <div className="choose-plan-divider"></div>
+
+                {/* Features List */}
+                <div className="choose-plan-features-block">
+                  <span className="choose-plan-features-label">
+                    Included Features
                   </span>
-                  <ul className="space-y-3">
+                  <ul className="choose-plan-feature-list">
                     {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm">
-                        <div className="w-4 h-4 rounded-full bg-blue-500/15 text-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                        <span className="leading-snug text-[var(--plan-feature-text)]">{feature}</span>
+                      <li key={idx} className="choose-plan-feature-item">
+                        <Check className="choose-plan-check-icon" strokeWidth={2.5} />
+                        <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -309,89 +298,69 @@ export default function ChoosePlanSection({
               </div>
 
               {/* Action Button */}
-              <div className="pt-4 mt-auto">
+              <div className="choose-plan-card-footer">
                 <button
                   type="button"
                   onClick={() => openCheckout("plan-lite")}
-                  className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${isDark
-                      ? "bg-slate-800 hover:bg-slate-700 text-white border border-blue-500/30 hover:border-blue-400"
-                      : "bg-white hover:bg-blue-50 text-blue-600 border border-blue-600 shadow-sm"
-                    }`}
+                  className="choose-plan-pill-btn"
                 >
-                  <span>{plan.buttonLabel}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  {plan.buttonLabel}
                 </button>
               </div>
             </div>
           );
         })()}
 
-        {/* CARD 2: Pro Plan (Elevated with Full CRM Workspace Badge) */}
+        {/* CARD 2: Pro Plan */}
         {(() => {
           const plan = PLAN_CATALOG["plan-pro"];
           return (
             <div
               key={plan.id}
-              className={`plan-card plan-card-pro relative flex flex-col justify-between rounded-2xl p-6 sm:p-8 transition-all duration-300 ${isDark
-                  ? "bg-[#091122] border-2 border-blue-500 text-white shadow-blue-900/30"
-                  : "bg-white border-2 border-blue-600 text-slate-900 shadow-blue-500/15"
-                }`}
-              style={{
-                boxShadow: isDark
-                  ? "0 22px 50px -10px rgba(0, 102, 255, 0.28), 0 0 0 1px rgba(0, 102, 255, 0.4)"
-                  : "0 18px 42px -10px rgba(0, 102, 255, 0.2), 0 2px 8px rgba(0, 102, 255, 0.08)",
-              }}
+              className="choose-plan-card plan-pro-card plan-card shadow-2xl"
             >
-              {/* Highlight Badge */}
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                <span className="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-600 text-white shadow-md flex items-center gap-1.5 whitespace-nowrap">
-                  <Sparkles className="w-3 h-3" />
-                  <span>{plan.badge}</span>
-                </span>
-              </div>
-
               <div>
-                <div className="flex items-center justify-between gap-2 mb-2 mt-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                    {plan.kicker}
+                <div className="choose-plan-badge-wrapper">
+                  <span className="choose-plan-badge">
+                    {plan.badge || "Includes Full CRM Workspace"}
                   </span>
                 </div>
 
-                <h3 className="text-2xl font-bold tracking-tight mb-2">
+                <h3 className="choose-plan-name">
                   {plan.name}
                 </h3>
 
-                <p className={`text-xs sm:text-sm leading-relaxed mb-6 min-h-[38px] ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                  Everything in Lite, plus complete Lead Management CRM to capture, track, and close deals effortlessly.
+                <p className="choose-plan-card-desc">
+                  Everything in the Standard bundle, plus our complete Lead Management mini-CRM to capture, track, and close deals.
                 </p>
 
                 {/* Price block */}
-                <div className="py-4 border-y border-[var(--plan-divider)] mb-6">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-blue-500">
-                      ₹{plan.price.toLocaleString("en-IN")}
+                <div className="choose-plan-price-block">
+                  <div className="choose-plan-price-row">
+                    <span className="choose-plan-currency">₹</span>
+                    <span className="choose-plan-amount">
+                      {plan.price.toLocaleString("en-IN")}
                     </span>
-                    <span className="text-xs font-semibold text-[var(--plan-subtext)]">
-                      {plan.billingPeriod}
-                    </span>
+                    <span className="choose-plan-period">/year</span>
                   </div>
-                  <p className="text-xs text-[var(--plan-subtext)] mt-1.5 leading-normal">
-                    {plan.renewalDetail}
+                  <div className="choose-plan-billing-type">Yearly Plan · Billed Annually</div>
+                  <p className="choose-plan-billing-detail">
+                    Includes smart NFC card + 1 year of Lead Management CRM access. No app required.
                   </p>
                 </div>
 
-                {/* Features List (Always visible by default) */}
-                <div className="mb-6">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--plan-subtext)] block mb-3.5">
-                    Everything in Lite, plus:
+                <div className="choose-plan-divider"></div>
+
+                {/* Features List */}
+                <div className="choose-plan-features-block">
+                  <span className="choose-plan-features-label">
+                    Everything in the NFC Card + Software bundle, plus:
                   </span>
-                  <ul className="space-y-3">
+                  <ul className="choose-plan-feature-list">
                     {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm">
-                        <div className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                        <span className="leading-snug text-[var(--plan-feature-text)]">{feature}</span>
+                      <li key={idx} className="choose-plan-feature-item">
+                        <Check className="choose-plan-check-icon" strokeWidth={2.5} />
+                        <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -399,14 +368,13 @@ export default function ChoosePlanSection({
               </div>
 
               {/* Action Button */}
-              <div className="pt-4 mt-auto">
+              <div className="choose-plan-card-footer">
                 <button
                   type="button"
                   onClick={() => openCheckout("plan-pro")}
-                  className="w-full py-3 px-4 rounded-xl text-sm font-bold bg-[#0066FF] hover:bg-[#0052CC] text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+                  className="choose-plan-pill-btn"
                 >
-                  <span>{plan.buttonLabel}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  {plan.buttonLabel}
                 </button>
               </div>
             </div>
@@ -415,7 +383,7 @@ export default function ChoosePlanSection({
       </div>
 
       {/* Account Settings footer trigger */}
-      <div className="mt-12 text-center">
+      <div className="choose-plan-settings-footer">
         <p className="text-xs sm:text-sm text-[var(--plan-subtext)] inline-flex items-center gap-2">
           <span>Need to update password or account credentials?</span>
           <button
@@ -438,10 +406,11 @@ export default function ChoosePlanSection({
           aria-labelledby="plan-checkout-title"
         >
           <div
-            className={`w-full max-w-lg rounded-2xl p-6 sm:p-8 shadow-2xl relative border ${isDark
+            className={`w-full max-w-lg rounded-2xl p-6 sm:p-8 shadow-2xl relative border ${
+              isDark
                 ? "bg-[#0F172A] border-slate-700 text-white"
                 : "bg-white border-slate-200 text-slate-900"
-              }`}
+            }`}
           >
             {/* Close button */}
             <button
@@ -601,10 +570,11 @@ export default function ChoosePlanSection({
                       <button
                         type="button"
                         onClick={() => setPaymentMethod("UPI")}
-                        className={`h-11 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${paymentMethod === "UPI"
+                        className={`h-11 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+                          paymentMethod === "UPI"
                             ? "bg-blue-600/20 border-blue-500 text-blue-400"
                             : "bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800"
-                          }`}
+                        }`}
                       >
                         <CreditCard className="w-3.5 h-3.5" />
                         <span>UPI / Card / Net Banking</span>
@@ -612,10 +582,11 @@ export default function ChoosePlanSection({
                       <button
                         type="button"
                         onClick={() => setPaymentMethod("Cash on Delivery")}
-                        className={`h-11 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${paymentMethod === "Cash on Delivery"
+                        className={`h-11 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+                          paymentMethod === "Cash on Delivery"
                             ? "bg-blue-600/20 border-blue-500 text-blue-400"
                             : "bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800"
-                          }`}
+                        }`}
                       >
                         <span>Cash on Delivery</span>
                       </button>
