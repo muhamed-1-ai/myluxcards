@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Check, Shield, ArrowRight, Sparkles, X, Loader2, AlertCircle, CreditCard, Lock, RefreshCw, Settings } from "lucide-react";
 import { PLAN_CATALOG, PlanId, PlanDefinition } from "@/lib/billingPlans";
 
@@ -37,8 +37,19 @@ export default function ChoosePlanSection({
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "Card" | "Net Banking" | "Cash on Delivery">("UPI");
+  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "Cash on Delivery">("UPI");
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pin?: string;
+  }>({});
+
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (currentUser?.name && !customerName) setCustomerName(currentUser.name);
@@ -46,9 +57,13 @@ export default function ChoosePlanSection({
   }, [currentUser]);
 
   const openCheckout = (planId: PlanId) => {
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      lastActiveElementRef.current = document.activeElement;
+    }
     setSelectedPlanId(planId);
     setCheckoutStep("form");
     setCheckoutError(null);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -57,11 +72,105 @@ export default function ChoosePlanSection({
     setModalOpen(false);
     setCheckoutStep("form");
     setCheckoutError(null);
+    setFieldErrors({});
+    setTimeout(() => {
+      lastActiveElementRef.current?.focus();
+    }, 50);
   };
+
+  // Close on Escape key when not confirming
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && checkoutStep !== "confirming") {
+        e.preventDefault();
+        closeCheckout();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modalOpen, checkoutStep]);
+
+  // Trap focus inside modal
+  useEffect(() => {
+    if (!modalOpen || !dialogRef.current) return;
+    const dialog = dialogRef.current;
+
+    const firstInput = dialog.querySelector<HTMLElement>("input:not([disabled])");
+    if (firstInput) {
+      firstInput.focus();
+    } else {
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) focusable[0].focus();
+    }
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusableEls = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusableEls.length === 0) return;
+      const firstEl = focusableEls[0];
+      const lastEl = focusableEls[focusableEls.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleTab);
+    return () => window.removeEventListener("keydown", handleTab);
+  }, [modalOpen, checkoutStep]);
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlanId) return;
+
+    const errors: Record<string, string> = {};
+    if (!customerName.trim()) {
+      errors.name = "Please enter your full name.";
+    }
+    const phoneClean = customerPhone.trim().replace(/\D/g, "");
+    if (!customerPhone.trim()) {
+      errors.phone = "Please enter your contact phone number.";
+    } else if (phoneClean.length < 10) {
+      errors.phone = "Please enter a valid 10-digit phone number.";
+    }
+    if (!addressLine1.trim()) {
+      errors.address = "Please enter your street delivery address.";
+    }
+    if (!city.trim()) {
+      errors.city = "Please enter your city.";
+    }
+    if (!stateName.trim()) {
+      errors.state = "Please enter your state.";
+    }
+    if (!postalCode.trim()) {
+      errors.pin = "Please enter your PIN code.";
+    } else if (postalCode.trim().length < 5) {
+      errors.pin = "Please enter a valid PIN code.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     setSubmitting(true);
     setCheckoutError(null);
 
@@ -400,225 +509,338 @@ export default function ChoosePlanSection({
       {/* CHECKOUT MODAL */}
       {modalOpen && activePlan && (
         <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn"
+          className="plan-checkout-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="plan-checkout-title"
         >
           <div
-            className={`w-full max-w-lg rounded-2xl p-6 sm:p-8 shadow-2xl relative border ${
-              isDark
-                ? "bg-[#0F172A] border-slate-700 text-white"
-                : "bg-white border-slate-200 text-slate-900"
-            }`}
+            ref={dialogRef}
+            className="plan-checkout-dialog"
           >
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={closeCheckout}
-              disabled={checkoutStep === "confirming"}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors cursor-pointer disabled:opacity-40"
-              aria-label="Close checkout"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Header: Title + Close Button */}
+            <div className="plan-checkout-header">
+              <h2 id="plan-checkout-title" className="plan-checkout-title">
+                Checkout
+              </h2>
+              <button
+                type="button"
+                onClick={closeCheckout}
+                disabled={checkoutStep === "confirming"}
+                className="plan-checkout-close-btn"
+                aria-label="Close checkout"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             {/* CONFIRMING STEP */}
             {checkoutStep === "confirming" ? (
-              <div className="py-10 text-center flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center mb-5 animate-spin">
-                  <RefreshCw className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Confirming your payment…</h3>
-                <p className="text-sm text-slate-400 max-w-sm leading-relaxed mb-4">
-                  Please hold on while our server verifies your payment signature and activates your {activePlan.fullName} entitlements.
-                </p>
-                <div className="flex items-center gap-2 text-xs text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Secure cryptographic verification in progress</span>
-                </div>
-              </div>
-            ) : checkoutStep === "success" ? (
-              <div className="py-10 text-center flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-5">
-                  <Check className="w-8 h-8 stroke-[3]" />
-                </div>
-                <h3 className="text-xl font-bold mb-2 text-emerald-400">Payment Confirmed!</h3>
-                <p className="text-sm text-slate-400 max-w-sm leading-relaxed mb-6">
-                  Your {activePlan.fullName} plan has been activated successfully. Opening your dashboard…
-                </p>
-              </div>
-            ) : (
-              /* FORM & ERROR STEPS */
-              <div>
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">
-                    <Shield className="w-4 h-4" />
-                    <span>Secure Plan Activation</span>
-                  </div>
-                  <h2 id="plan-checkout-title" className="text-xl sm:text-2xl font-bold">
-                    Checkout {activePlan.fullName}
-                  </h2>
-                  <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-slate-700/50">
-                    <span className="text-xs text-slate-400">Total Due Today:</span>
-                    <span className="text-xl font-extrabold text-blue-400">
-                      ₹{activePlan.price.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                </div>
-
-                {checkoutError && (
-                  <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2.5">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 leading-relaxed">
-                      <p className="font-semibold mb-0.5">Checkout Notice</p>
-                      <p>{checkoutError}</p>
+                  <div className="plan-checkout-body plan-checkout-status-view">
+                    <div className="plan-checkout-status-spinner">
+                      <RefreshCw className="w-8 h-8 animate-spin" />
                     </div>
-                  </div>
-                )}
+                      <h3 className="plan-checkout-status-title">Confirming your payment…</h3>
+                      <p className="plan-checkout-status-desc">
+                        Please hold on while our server verifies your payment signature and activates your {activePlan.fullName} entitlements.
+                      </p>
+                        <div className="plan-checkout-status-chip">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Secure cryptographic verification in progress</span>
+                        </div>
+                      </div>
+                      ) : checkoutStep === "success" ? (
+                          <div className="plan-checkout-body plan-checkout-status-view">
+                            <div className="plan-checkout-status-success-icon">
+                              <Check className="w-8 h-8 stroke-[3]" />
+                            </div>
+                              <h3 className="plan-checkout-status-title text-emerald-400">Payment Confirmed!</h3>
+                              <p className="plan-checkout-status-desc">
+                                Your {activePlan.fullName} plan has been activated successfully. Opening your dashboard…
+                              </p>
+                          </div>
+                          ) : (
+                          /* FORM & ERROR STEPS */
+                                <form onSubmit={handleCheckoutSubmit} className="plan-checkout-form-wrap">
+                                  <div className="plan-checkout-body">
+                                    {/* Compact Order Summary */}
+                                    <div className="plan-checkout-summary">
+                                      <div className="plan-checkout-summary-row">
+                                        <div>
+                                          <h3 className="plan-checkout-summary-plan-name">
+                                            {activePlan.fullName}
+                                          </h3>
+                                          <p className="plan-checkout-summary-term">
+                                            {selectedPlanId === "plan-lite"
+                                              ? "One-time hardware purchase"
+                                              : "Yearly Plan · Billed Annually"}
+                                          </p>
+                                        </div>
+                                        <div className="plan-checkout-summary-total-col">
+                                          <div className="plan-checkout-summary-total-label">Total due today</div>
+                                          <div className="plan-checkout-summary-amount">
+                                            ₹{activePlan.price.toLocaleString("en-IN")}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {activePlan.renewalDetail && (
+                                        <div className="plan-checkout-summary-renewal">
+                                          <RefreshCw className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                          <span>{activePlan.renewalDetail}</span>
+                                        </div>
+                                      )}
+                                    </div>
 
-                <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                  {/* Customer details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Your full name"
-                        className="w-full h-10 px-3 rounded-lg text-xs bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Contact Phone *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        placeholder="e.g. 9876543210"
-                        className="w-full h-10 px-3 rounded-lg text-xs bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
+                                        {checkoutError && (
+                                          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2.5">
+                                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                            <div className="flex-1 leading-relaxed">
+                                              <p className="font-semibold mb-0.5">Checkout Notice</p>
+                                              <p>{checkoutError}</p>
+                                            </div>
+                                          </div>
+                  )}
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Registered Email
-                    </label>
-                    <input
-                      type="email"
-                      readOnly
-                      value={customerEmail}
-                      className="w-full h-10 px-3 rounded-lg text-xs bg-slate-800/40 border border-slate-800 text-slate-400 cursor-not-allowed"
-                    />
-                  </div>
+                                            {/* Section 1: Contact Details */}
+                                            <div className="plan-checkout-section">
+                                              <h4 className="plan-checkout-section-heading">
+                                                <span>Contact Details</span>
+                                              </h4>
+                                              <div className="plan-checkout-row-2">
+                                                <div>
+                                                  <label htmlFor="checkout-customer-name" className="plan-checkout-field-label">
+                                                    Full Name *
+                                                  </label>
+                                                  <input
+                                                    id="checkout-customer-name"
+                                                    type="text"
+                                                    value={customerName}
+                                                    onChange={(e) => {
+                                                      setCustomerName(e.target.value);
+                                                      if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                                                    }}
+                                                    placeholder="Your full name"
+                                                    className={`plan-checkout-input ${fieldErrors.name ? "has-error" : ""}`}
+                                                  />
+                                                  {fieldErrors.name && (
+                                                    <p className="plan-checkout-field-error">{fieldErrors.name}</p>
+                                                  )}
+                                                </div>
+                                                <div>
+                                                  <label htmlFor="checkout-customer-phone" className="plan-checkout-field-label">
+                                                    Contact Phone *
+                                                  </label>
+                                                  <input
+                                                    id="checkout-customer-phone"
+                                                    type="tel"
+                                                    value={customerPhone}
+                                                    onChange={(e) => {
+                                                      setCustomerPhone(e.target.value);
+                                                      if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                                                    }}
+                                                    placeholder="e.g. 9876543210"
+                                                    className={`plan-checkout-input ${fieldErrors.phone ? "has-error" : ""}`}
+                                                  />
+                                                  {fieldErrors.phone && (
+                                                    <p className="plan-checkout-field-error">{fieldErrors.phone}</p>
+                                                  )}
+                                                </div>
+                                              </div>
 
-                  {/* Shipping address for NFC card delivery */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Delivery Address (For Physical Smart Card) *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={addressLine1}
-                      onChange={(e) => setAddressLine1(e.target.value)}
-                      placeholder="Flat, building, street address"
-                      className="w-full h-10 px-3 rounded-lg text-xs bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:border-blue-500 mb-2"
-                    />
-                    <div className="grid grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="City"
-                        className="h-10 px-3 rounded-lg text-xs bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={stateName}
-                        onChange={(e) => setStateName(e.target.value)}
-                        placeholder="State"
-                        className="h-10 px-3 rounded-lg text-xs bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={postalCode}
-                        onChange={(e) => setPostalCode(e.target.value)}
-                        placeholder="PIN Code"
-                        className="h-10 px-3 rounded-lg text-xs bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
+                                              <div>
+                                                  <label className="plan-checkout-field-label">
+                                                    Registered Email
+                                                  </label>
+                                                  <div className="plan-checkout-account-badge">
+                                                    <div className="flex items-center gap-2">
+                                                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                                                      <span className="plan-checkout-account-email">
+                                                        {customerEmail || "No registered email"}
+                                                      </span>
+                                                    </div>
+                                                    <span className="plan-checkout-account-tag">
+                                                      Verified Account
+                                                    </span>
+                                                  </div>
+                                              </div>
+                                            </div>
 
-                  {/* Payment method */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Payment Method
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod("UPI")}
-                        className={`h-11 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${
-                          paymentMethod === "UPI"
-                            ? "bg-blue-600/20 border-blue-500 text-blue-400"
-                            : "bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800"
-                        }`}
-                      >
-                        <CreditCard className="w-3.5 h-3.5" />
-                        <span>UPI / Card / Net Banking</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod("Cash on Delivery")}
-                        className={`h-11 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${
-                          paymentMethod === "Cash on Delivery"
-                            ? "bg-blue-600/20 border-blue-500 text-blue-400"
-                            : "bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800"
-                        }`}
-                      >
-                        <span>Cash on Delivery</span>
-                      </button>
-                    </div>
-                  </div>
+                                            {/* Section 2: Delivery Address */}
+                                            <div className="plan-checkout-section">
+                                              <h4 className="plan-checkout-section-heading">
+                                                <span>Delivery Address</span>
+                                              </h4>
+                                              <p className="plan-checkout-field-helper">
+                                                Your custom physical NFC smart business card will be delivered to this address.
+                                              </p>
 
-                  {/* Submit CTA */}
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full py-3 px-4 rounded-xl text-sm font-bold bg-[#0066FF] hover:bg-[#0052CC] text-white shadow-lg shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Initiating Checkout…</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-4 h-4" />
-                          <span>Pay &amp; Activate {activePlan.name} · ₹{activePlan.price.toLocaleString("en-IN")}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                                                  <div>
+                                                    <label htmlFor="checkout-address-line1" className="plan-checkout-field-label">
+                                                      Street Address *
+                                                    </label>
+                                                    <input
+                                                      id="checkout-address-line1"
+                                                      type="text"
+                                                      value={addressLine1}
+                                                      onChange={(e) => {
+                                                        setAddressLine1(e.target.value);
+                                                        if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: undefined }));
+                                                      }}
+                                                      placeholder="Flat / house number, building, street, locality"
+                                                      className={`plan-checkout-input ${fieldErrors.address ? "has-error" : ""}`}
+                                                    />
+                                                    {fieldErrors.address && (
+                                                      <p className="plan-checkout-field-error">{fieldErrors.address}</p>
+                                                    )}
+                                                  </div>
+
+                                                  <div className="plan-checkout-row-3">
+                                                    <div>
+                                                      <label htmlFor="checkout-city" className="plan-checkout-field-label">
+                                                        City *
+                                                      </label>
+                                                      <input
+                                                        id="checkout-city"
+                                                        type="text"
+                                                        value={city}
+                                                        onChange={(e) => {
+                                                          setCity(e.target.value);
+                                                          if (fieldErrors.city) setFieldErrors((prev) => ({ ...prev, city: undefined }));
+                                                        }}
+                                                        placeholder="City"
+                                                        className={`plan-checkout-input ${fieldErrors.city ? "has-error" : ""}`}
+                                                      />
+                                                      {fieldErrors.city && (
+                                                        <p className="plan-checkout-field-error">{fieldErrors.city}</p>
+                                                      )}
+                                                    </div>
+                                                    <div>
+                                                      <label htmlFor="checkout-state" className="plan-checkout-field-label">
+                                                        State *
+                                                      </label>
+                                                      <input
+                                                        id="checkout-state"
+                                                        type="text"
+                                                        value={stateName}
+                                                        onChange={(e) => {
+                                                          setStateName(e.target.value);
+                                                          if (fieldErrors.state) setFieldErrors((prev) => ({ ...prev, state: undefined }));
+                                                        }}
+                                                        placeholder="State"
+                                                        className={`plan-checkout-input ${fieldErrors.state ? "has-error" : ""}`}
+                                                      />
+                                                      {fieldErrors.state && (
+                                                        <p className="plan-checkout-field-error">{fieldErrors.state}</p>
+                                                      )}
+                                                    </div>
+                                                    <div>
+                                                      <label htmlFor="checkout-pin" className="plan-checkout-field-label">
+                                                        PIN Code *
+                                                      </label>
+                                                      <input
+                                                        id="checkout-pin"
+                                                        type="text"
+                                                        value={postalCode}
+                                                        onChange={(e) => {
+                                                          setPostalCode(e.target.value);
+                                                          if (fieldErrors.pin) setFieldErrors((prev) => ({ ...prev, pin: undefined }));
+                                                        }}
+                                                        placeholder="PIN Code"
+                                                        className={`plan-checkout-input ${fieldErrors.pin ? "has-error" : ""}`}
+                                                      />
+                                                      {fieldErrors.pin && (
+                                                        <p className="plan-checkout-field-error">{fieldErrors.pin}</p>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                      {/* Section 3: Payment Method */}
+                  <div className="plan-checkout-section">
+                                                      <h4 className="plan-checkout-section-heading">
+                                                        <span>Payment Method</span>
+                                                      </h4>
+                                                      <div className="plan-checkout-payment-options">
+                                                        <div
+                                                          role="radio"
+                                                          aria-checked={paymentMethod === "UPI"}
+                                                          tabIndex={0}
+                                                          onClick={() => setPaymentMethod("UPI")}
+                        onKeyDown={(e) => {
+                                                            if (e.key === " " || e.key === "Enter") {
+                                                              e.preventDefault();
+                                                              setPaymentMethod("UPI");
+                                                            }
+                                                          }}
+                                                          className={`plan-checkout-payment-card ${paymentMethod === "UPI" ? "is-selected" : ""
+                                                            }`}
+                                                        >
+                        <div className="plan-checkout-radio-circle">
+                                                          {paymentMethod === "UPI" && <div className="plan-checkout-radio-dot" />}
+                                                        </div>
+                                                        <div className="plan-checkout-payment-info">
+                                                          <span className="plan-checkout-payment-name">Online Payment</span>
+                                                          <span className="plan-checkout-payment-subtext">UPI, Cards, Net Banking</span>
+                                                        </div>
+                                                      </div>
+
+                                                      <div
+                                                        role="radio"
+                                                        aria-checked={paymentMethod === "Cash on Delivery"}
+                                                        tabIndex={0}
+                                                        onClick={() => setPaymentMethod("Cash on Delivery")}
+                        onKeyDown={(e) => {
+                                                          if (e.key === " " || e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            setPaymentMethod("Cash on Delivery");
+                                                          }
+                                                        }}
+                                                        className={`plan-checkout-payment-card ${paymentMethod === "Cash on Delivery" ? "is-selected" : ""
+                                                          }`}
+                                                      >
+                                                      <div className="plan-checkout-radio-circle">
+                                                        {paymentMethod === "Cash on Delivery" && <div className="plan-checkout-radio-dot" />}
+                                                      </div>
+                                                      <div className="plan-checkout-payment-info">
+                                                        <span className="plan-checkout-payment-name">Cash on Delivery</span>
+                                                        <span className="plan-checkout-payment-subtext">Pay upon card delivery</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+
+                                          {/* Modal Distinct Footer */}
+                                          <div className="plan-checkout-footer">
+                                            <button
+                                              type="submit"
+                                              disabled={submitting}
+                                              className="plan-checkout-submit-btn"
+                                            >
+                                              {submitting ? (
+                                                <>
+                                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                                  <span>{paymentMethod === "Cash on Delivery" ? "Placing order…" : "Initiating Checkout…"}</span>
+                                                </>
+                                              ) : (
+                                                <span>
+                                                  {paymentMethod === "Cash on Delivery"
+                                                    ? "Place order"
+                                                    : `Pay ₹${activePlan.price.toLocaleString("en-IN")}`}
+                                                </span>
+                                              )}
+                                            </button>
+                                            {paymentMethod === "Cash on Delivery" && (
+                                              <p className="plan-checkout-cod-note">
+                                                Access will remain pending until payment is collected and verified upon card delivery.
+                                              </p>
+                                            )}
+                                          </div>
+                                      </form>
             )}
-          </div>
+                                    </div>
         </div>
       )}
-    </div>
-  );
+                            </div>
+                            );
 }

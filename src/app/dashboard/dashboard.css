@@ -12847,3 +12847,757 @@ body.light-mode .dash-pending-settings-wrapper {
   border-color: #E2E8F0 !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
 }
+
+/* ==========================================================================
+   ACCESS PENDING: CHECKOUT MODAL REDESIGN
+   Scoped styling matching Homepage Bundles visual language
+   ========================================================================== */
+
+.plan-checkout-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  animation: planCheckoutFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes planCheckoutFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.plan-checkout-dialog {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  max-height: calc(100vh - 32px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0B0F19 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  color: #FFFFFF !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  animation: planCheckoutPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes planCheckoutPop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Light Mode Dialog */
+[data-theme="light"] .plan-checkout-dialog,
+body.light-mode .plan-checkout-dialog,
+.choose-plan-root.theme-light .plan-checkout-dialog {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  color: #0F172A !important;
+}
+
+/* Modal Header */
+.plan-checkout-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 24px 30px 18px 30px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="light"] .plan-checkout-header,
+body.light-mode .plan-checkout-header,
+.choose-plan-root.theme-light .plan-checkout-header {
+  border-bottom-color: #E2E8F0 !important;
+}
+
+.plan-checkout-title {
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #FFFFFF !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+}
+
+[data-theme="light"] .plan-checkout-title,
+body.light-mode .plan-checkout-title,
+.choose-plan-root.theme-light .plan-checkout-title {
+  color: #0F172A !important;
+}
+
+.plan-checkout-close-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #94A3B8 !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+  padding: 0 !important;
+}
+
+.plan-checkout-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="light"] .plan-checkout-close-btn,
+body.light-mode .plan-checkout-close-btn,
+.choose-plan-root.theme-light .plan-checkout-close-btn {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #64748B !important;
+}
+
+[data-theme="light"] .plan-checkout-close-btn:hover,
+body.light-mode .plan-checkout-close-btn:hover,
+.choose-plan-root.theme-light .plan-checkout-close-btn:hover {
+  background: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+.plan-checkout-close-btn:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+/* Modal Form Container & Body */
+.plan-checkout-form-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.plan-checkout-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+  padding: 22px 30px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* Custom Scrollbar for Modal Body */
+.plan-checkout-body::-webkit-scrollbar {
+  width: 6px;
+}
+.plan-checkout-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.plan-checkout-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+[data-theme="light"] .plan-checkout-body::-webkit-scrollbar-thumb,
+body.light-mode .plan-checkout-body::-webkit-scrollbar-thumb,
+.choose-plan-root.theme-light .plan-checkout-body::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+}
+
+/* Compact Order Summary Box */
+.plan-checkout-summary {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  padding: 16px 20px !important;
+  box-sizing: border-box !important;
+}
+
+[data-theme="light"] .plan-checkout-summary,
+body.light-mode .plan-checkout-summary,
+.choose-plan-root.theme-light .plan-checkout-summary {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+.plan-checkout-summary-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.plan-checkout-summary-plan-name {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  margin: 0 0 4px 0 !important;
+}
+
+[data-theme="light"] .plan-checkout-summary-plan-name,
+body.light-mode .plan-checkout-summary-plan-name,
+.choose-plan-root.theme-light .plan-checkout-summary-plan-name {
+  color: #0F172A !important;
+}
+
+.plan-checkout-summary-term {
+  font-size: 0.825rem !important;
+  font-weight: 500 !important;
+  color: #94A3B8 !important;
+  margin: 0 !important;
+}
+
+[data-theme="light"] .plan-checkout-summary-term,
+body.light-mode .plan-checkout-summary-term,
+.choose-plan-root.theme-light .plan-checkout-summary-term {
+  color: #64748B !important;
+}
+
+.plan-checkout-summary-total-col {
+  text-align: right !important;
+  flex-shrink: 0 !important;
+}
+
+.plan-checkout-summary-total-label {
+  font-size: 0.725rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #94A3B8 !important;
+  margin-bottom: 2px !important;
+}
+
+[data-theme="light"] .plan-checkout-summary-total-label,
+body.light-mode .plan-checkout-summary-total-label,
+.choose-plan-root.theme-light .plan-checkout-summary-total-label {
+  color: #64748B !important;
+}
+
+.plan-checkout-summary-amount {
+  font-size: 1.45rem !important;
+  font-weight: 800 !important;
+  color: #0066FF !important;
+  line-height: 1.2 !important;
+}
+
+.plan-checkout-summary-renewal {
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  font-size: 0.8rem !important;
+  color: #94A3B8 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+[data-theme="light"] .plan-checkout-summary-renewal,
+body.light-mode .plan-checkout-summary-renewal,
+.choose-plan-root.theme-light .plan-checkout-summary-renewal {
+  border-top-color: #E2E8F0 !important;
+  color: #64748B !important;
+}
+
+/* Form Sections and Headings */
+.plan-checkout-section {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.plan-checkout-section-heading {
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: #0066FF !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.plan-checkout-field-helper {
+  font-size: 0.8rem !important;
+  color: #94A3B8 !important;
+  margin: 0 0 4px 0 !important;
+  line-height: 1.4 !important;
+}
+
+[data-theme="light"] .plan-checkout-field-helper,
+body.light-mode .plan-checkout-field-helper,
+.choose-plan-root.theme-light .plan-checkout-field-helper {
+  color: #64748B !important;
+}
+
+.plan-checkout-field-label {
+  display: block !important;
+  font-size: 0.825rem !important;
+  font-weight: 600 !important;
+  color: #CBD5E1 !important;
+  margin-bottom: 6px !important;
+}
+
+[data-theme="light"] .plan-checkout-field-label,
+body.light-mode .plan-checkout-field-label,
+.choose-plan-root.theme-light .plan-checkout-field-label {
+  color: #334155 !important;
+}
+
+.plan-checkout-input {
+  width: 100% !important;
+  height: 42px !important;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  box-sizing: border-box !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+  outline: none !important;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease !important;
+}
+
+.plan-checkout-input::placeholder {
+  color: #64748B !important;
+}
+
+.plan-checkout-input:focus {
+  border-color: #0066FF !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.22) !important;
+}
+
+[data-theme="light"] .plan-checkout-input,
+body.light-mode .plan-checkout-input,
+.choose-plan-root.theme-light .plan-checkout-input {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .plan-checkout-input::placeholder,
+body.light-mode .plan-checkout-input::placeholder,
+.choose-plan-root.theme-light .plan-checkout-input::placeholder {
+  color: #94A3B8 !important;
+}
+
+[data-theme="light"] .plan-checkout-input:focus,
+body.light-mode .plan-checkout-input:focus,
+.choose-plan-root.theme-light .plan-checkout-input:focus {
+  border-color: #0066FF !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.18) !important;
+}
+
+.plan-checkout-input.has-error {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+.plan-checkout-field-error {
+  font-size: 0.75rem !important;
+  color: #F87171 !important;
+  margin: 5px 0 0 0 !important;
+  line-height: 1.3 !important;
+}
+
+[data-theme="light"] .plan-checkout-field-error,
+body.light-mode .plan-checkout-field-error,
+.choose-plan-root.theme-light .plan-checkout-field-error {
+  color: #DC2626 !important;
+}
+
+/* Registered Email Read-Only Account Box */
+.plan-checkout-account-badge {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font-size: 0.85rem !important;
+  box-sizing: border-box !important;
+}
+
+[data-theme="light"] .plan-checkout-account-badge,
+body.light-mode .plan-checkout-account-badge,
+.choose-plan-root.theme-light .plan-checkout-account-badge {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+.plan-checkout-account-email {
+  font-weight: 600 !important;
+  color: #E2E8F0 !important;
+  letter-spacing: 0.01em !important;
+}
+
+[data-theme="light"] .plan-checkout-account-email,
+body.light-mode .plan-checkout-account-email,
+.choose-plan-root.theme-light .plan-checkout-account-email {
+  color: #1E293B !important;
+}
+
+.plan-checkout-account-tag {
+  font-size: 0.725rem !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 9999px !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  white-space: nowrap !important;
+}
+
+/* Grid Layouts for Fields */
+.plan-checkout-row-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+}
+
+.plan-checkout-row-3 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+/* Payment Method Selectors */
+.plan-checkout-payment-options {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+.plan-checkout-payment-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 14px 16px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: all 0.18s ease !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+}
+
+.plan-checkout-payment-card:hover {
+  border-color: rgba(0, 102, 255, 0.45) !important;
+  background: rgba(0, 102, 255, 0.04) !important;
+}
+
+.plan-checkout-payment-card.is-selected {
+  border-color: #0066FF !important;
+  background: rgba(0, 102, 255, 0.09) !important;
+  box-shadow: 0 0 0 1px #0066FF !important;
+}
+
+[data-theme="light"] .plan-checkout-payment-card,
+body.light-mode .plan-checkout-payment-card,
+.choose-plan-root.theme-light .plan-checkout-payment-card {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .plan-checkout-payment-card:hover,
+body.light-mode .plan-checkout-payment-card:hover,
+.choose-plan-root.theme-light .plan-checkout-payment-card:hover {
+  border-color: rgba(0, 102, 255, 0.5) !important;
+  background: rgba(0, 102, 255, 0.03) !important;
+}
+
+[data-theme="light"] .plan-checkout-payment-card.is-selected,
+body.light-mode .plan-checkout-payment-card.is-selected,
+.choose-plan-root.theme-light .plan-checkout-payment-card.is-selected {
+  border-color: #0066FF !important;
+  background: rgba(0, 102, 255, 0.05) !important;
+  box-shadow: 0 0 0 1px #0066FF !important;
+}
+
+.plan-checkout-radio-circle {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  transition: all 0.16s ease !important;
+  box-sizing: border-box !important;
+}
+
+.plan-checkout-payment-card.is-selected .plan-checkout-radio-circle {
+  border-color: #0066FF !important;
+}
+
+[data-theme="light"] .plan-checkout-radio-circle,
+body.light-mode .plan-checkout-radio-circle,
+.choose-plan-root.theme-light .plan-checkout-radio-circle {
+  border-color: #94A3B8 !important;
+}
+
+[data-theme="light"] .plan-checkout-payment-card.is-selected .plan-checkout-radio-circle,
+body.light-mode .plan-checkout-payment-card.is-selected .plan-checkout-radio-circle,
+.choose-plan-root.theme-light .plan-checkout-payment-card.is-selected .plan-checkout-radio-circle {
+  border-color: #0066FF !important;
+}
+
+.plan-checkout-radio-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: #0066FF !important;
+}
+
+.plan-checkout-payment-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.plan-checkout-payment-name {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .plan-checkout-payment-name,
+body.light-mode .plan-checkout-payment-name,
+.choose-plan-root.theme-light .plan-checkout-payment-name {
+  color: #0F172A !important;
+}
+
+.plan-checkout-payment-subtext {
+  font-size: 0.75rem !important;
+  color: #94A3B8 !important;
+}
+
+[data-theme="light"] .plan-checkout-payment-subtext,
+body.light-mode .plan-checkout-payment-subtext,
+.choose-plan-root.theme-light .plan-checkout-payment-subtext {
+  color: #64748B !important;
+}
+
+/* Modal Footer */
+.plan-checkout-footer {
+  padding: 18px 30px 24px 30px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  flex-shrink: 0 !important;
+  background: #0B0F19 !important;
+  box-sizing: border-box !important;
+}
+
+[data-theme="light"] .plan-checkout-footer,
+body.light-mode .plan-checkout-footer,
+.choose-plan-root.theme-light .plan-checkout-footer {
+  border-top-color: #E2E8F0 !important;
+  background: #FFFFFF !important;
+}
+
+.plan-checkout-submit-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 14px 24px !important;
+  border-radius: 9999px !important;
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  background: #0066FF !important;
+  border: 1.5px solid #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.plan-checkout-submit-btn:hover {
+  background: #0052CC !important;
+  border-color: #0052CC !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.45) !important;
+}
+
+.plan-checkout-submit-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.plan-checkout-cod-note {
+  font-size: 0.775rem !important;
+  line-height: 1.45 !important;
+  color: #94A3B8 !important;
+  text-align: center !important;
+  margin: 10px 0 0 0 !important;
+}
+
+[data-theme="light"] .plan-checkout-cod-note,
+body.light-mode .plan-checkout-cod-note,
+.choose-plan-root.theme-light .plan-checkout-cod-note {
+  color: #64748B !important;
+}
+
+/* Modal Status Views (Confirming / Success) */
+.plan-checkout-status-view {
+  padding: 40px 30px !important;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.plan-checkout-status-spinner {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 102, 255, 0.12) !important;
+  border: 1px solid rgba(0, 102, 255, 0.25) !important;
+  color: #0066FF !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 20px !important;
+}
+
+.plan-checkout-status-success-icon {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  color: #10B981 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 20px !important;
+}
+
+.plan-checkout-status-title {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  margin: 0 0 8px 0 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .plan-checkout-status-title,
+body.light-mode .plan-checkout-status-title,
+.choose-plan-root.theme-light .plan-checkout-status-title {
+  color: #0F172A !important;
+}
+
+.plan-checkout-status-desc {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  color: #94A3B8 !important;
+  max-width: 380px !important;
+  margin: 0 0 18px 0 !important;
+}
+
+[data-theme="light"] .plan-checkout-status-desc,
+body.light-mode .plan-checkout-status-desc,
+.choose-plan-root.theme-light .plan-checkout-status-desc {
+  color: #64748B !important;
+}
+
+.plan-checkout-status-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 0.775rem !important;
+  font-weight: 500 !important;
+  color: #0066FF !important;
+  background: rgba(0, 102, 255, 0.08) !important;
+  border: 1px solid rgba(0, 102, 255, 0.2) !important;
+  padding: 6px 14px !important;
+  border-radius: 9999px !important;
+}
+
+/* Responsive Overrides (Mobile <= 640px) */
+@media (max-width: 640px) {
+  .plan-checkout-dialog {
+    max-height: calc(100vh - 24px) !important;
+    border-radius: 20px !important;
+  }
+
+  .plan-checkout-header {
+    padding: 18px 18px 14px 18px !important;
+  }
+
+  .plan-checkout-title {
+    font-size: 1.2rem !important;
+  }
+
+  .plan-checkout-body {
+    padding: 16px 18px !important;
+    gap: 16px !important;
+  }
+
+  .plan-checkout-summary {
+    padding: 14px 16px !important;
+  }
+
+  .plan-checkout-summary-row {
+    gap: 10px !important;
+  }
+
+  .plan-checkout-summary-total-col {
+    min-width: max-content !important;
+    text-align: right !important;
+  }
+
+  .plan-checkout-summary-amount {
+    font-size: 1.3rem !important;
+  }
+
+  .plan-checkout-row-2 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .plan-checkout-row-3 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .plan-checkout-row-3 > div:nth-child(3) {
+    grid-column: span 2 !important;
+  }
+
+  .plan-checkout-payment-options {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .plan-checkout-footer {
+    padding: 14px 18px 20px 18px !important;
+  }
+}
