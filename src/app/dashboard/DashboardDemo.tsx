@@ -91,6 +91,10 @@ const GlobalAccountSettingsView = dynamic(
   () => import("@/components/settings/GlobalAccountSettingsView"),
   { ssr: false }
 );
+const ChoosePlanSection = dynamic(
+  () => import("@/components/dashboard/ChoosePlanSection"),
+  { ssr: false }
+);
 import {
   BusinessKpiGrid,
   DigitalCardKpiGrid,
@@ -1682,7 +1686,7 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
 
     if (!hasAnyFeatureAccess) {
       return (
-        <div className="dash-shell flex flex-col min-h-screen font-sans">
+        <div className="dash-shell dash-shell-pending flex flex-col min-h-screen font-sans">
           <DashboardBackgroundDecor />
           {/* Top Header Bar */}
           <header className="dash-main-header">
@@ -1708,6 +1712,14 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
               </div>
               <button
                 type="button"
+                onClick={() => selectTab(tab === "settings" || tab === "security" ? "dashboard" : "settings")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer flex-shrink-0 inline-flex items-center gap-1.5 dash-pending-settings-btn"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>{tab === "settings" || tab === "security" ? "View Plans" : "Account Settings"}</span>
+              </button>
+              <button
+                type="button"
                 onClick={logout}
                 className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer flex-shrink-0"
               >
@@ -1716,16 +1728,16 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
             </div>
           </header>
 
-          {/* Access Pending Card or Security Settings */}
-          <div className="flex-1 flex items-center justify-center p-6">
+          {/* Main Area: Centered Choose your Zappit plan OR Settings if tab === 'settings' */}
+          <div className="flex-1 flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 w-full relative z-10 overflow-y-auto">
             {tab === "settings" || tab === "security" ? (
-              <div className="w-full max-w-2xl bg-[#1B1C21] border border-[#343740] rounded-2xl p-6 shadow-2xl">
+              <div className="w-full max-w-3xl bg-[#1B1C21] border border-[#343740] rounded-2xl p-6 shadow-2xl dash-pending-settings-wrapper my-auto">
                 <button
                   type="button"
                   onClick={() => selectTab("dashboard")}
                   className="mb-4 text-xs font-bold text-sky-400 hover:text-sky-300 cursor-pointer inline-flex items-center gap-1"
                 >
-                  ← Back to Overview
+                  ← Back to Plans
                 </button>
                 <GlobalAccountSettingsView
                   currentUser={currentUser}
@@ -1736,29 +1748,20 @@ export default function DashboardDemo({ identity, initialTab }: { identity: Curr
                 />
               </div>
             ) : (
-              <div className="max-w-md w-full bg-[#1B1C21] border border-[#343740] rounded-2xl p-8 text-center shadow-2xl flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
-                  <Clock className="w-8 h-8" />
-                </div>
-                <h2 className="text-2xl font-bold text-[#F5F6F8] mb-2">Access pending</h2>
-                <p className="text-[#B5B8C2] text-sm leading-relaxed mb-6">
-                  Your account is active, but no features have been enabled yet. Please contact your administrator.
-                </p>
-                <div className="pt-4 border-t border-[#343740] w-full flex flex-col items-center gap-3">
-                  <div className="w-full flex items-center justify-between text-xs text-[#969CA8]">
-                    <span>Account Role: <strong className="text-[#F5F6F8]">{currentUser?.role === "CUSTOMER" ? "USER" : (currentUser?.role || "USER")}</strong></span>
-                    <span>Status: <strong className="text-emerald-400">{(currentUser as any)?.status || "ACTIVE"}</strong></span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => selectTab("settings")}
-                    className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>Account Settings</span>
-                  </button>
-                </div>
-              </div>
+              <ChoosePlanSection
+                currentUser={currentUser}
+                theme={theme}
+                onPlanActivated={(newPermissions) => {
+                  setCurrentUser((prev) => (prev ? { ...prev, featurePermissions: newPermissions } : prev));
+                  const firstPermitted = getFirstPermittedTab(newPermissions, currentUser?.role || "CUSTOMER");
+                  if (firstPermitted) {
+                    selectTab(firstPermitted as Tab);
+                  } else {
+                    window.location.reload();
+                  }
+                }}
+                onOpenSettings={() => selectTab("settings")}
+              />
             )}
           </div>
         </div>

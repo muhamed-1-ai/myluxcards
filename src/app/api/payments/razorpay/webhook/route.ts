@@ -1,6 +1,7 @@
 import { syncCommissionForTrustedOrder } from "@/lib/affiliate";
 import { verifyRazorpayWebhook } from "@/lib/razorpay";
 import { supabaseJson } from "@/lib/supabaseAuth";
+import { activatePlanEntitlementsForOrder } from "@/lib/billingEntitlements";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,10 @@ export async function POST(request: Request) {
     await supabaseJson(`/rest/v1/payments?order_id=eq.${internalOrderId}&provider=eq.RAZORPAY`, { method: "PATCH", body: JSON.stringify({ provider_transaction_id: String(entity.id), status: "SUCCEEDED", failure_reason: null }) }, true);
     await supabaseJson(`/rest/v1/orders?id=eq.${internalOrderId}`, { method: "PATCH", body: JSON.stringify({ payment_status: "SUCCEEDED", status: "CONFIRMED", updated_at: new Date().toISOString() }) }, true);
     await syncCommissionForTrustedOrder(internalOrderId).catch(() => null);
+    await activatePlanEntitlementsForOrder(internalOrderId).catch((err) => {
+      console.error("[Webhook] Plan activation error:", err);
+      return null;
+    });
   } else if (event.event === "payment.failed" && payment.data?.[0]?.status !== "SUCCEEDED") {
     await supabaseJson(`/rest/v1/payments?order_id=eq.${internalOrderId}&provider=eq.RAZORPAY`, { method: "PATCH", body: JSON.stringify({ status: "FAILED", failure_reason: String(entity?.error_description || "Payment failed").slice(0, 500) }) }, true);
     await supabaseJson(`/rest/v1/orders?id=eq.${internalOrderId}`, { method: "PATCH", body: JSON.stringify({ payment_status: "FAILED", updated_at: new Date().toISOString() }) }, true);

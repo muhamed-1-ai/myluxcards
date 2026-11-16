@@ -1,5 +1,6 @@
 import { currentIdentity } from "@/lib/adminAuth";
 import { getDashboardSummaryData, DashboardFilterOptions, DEFAULT_DASHBOARD_SUMMARY } from "@/lib/crm";
+import { isFeatureAllowed } from "@/lib/permissionsRegistry";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,10 @@ export async function GET(request: Request) {
 
   if (!identity) {
     return Response.json({ error: "UNAUTHORIZED", message: "Unauthorized account access." }, { status: 401 });
+  }
+
+  if (!isFeatureAllowed(identity.featurePermissions, "overview", identity.role) && !isFeatureAllowed(identity.featurePermissions, "all_leads", identity.role)) {
+    return Response.json({ error: "FORBIDDEN", message: "CRM Overview is not enabled for your plan." }, { status: 403 });
   }
 
   // STEP 4: Handle Missing Account Data

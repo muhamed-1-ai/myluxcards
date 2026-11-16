@@ -1233,7 +1233,7 @@ a {
 }
 
 .nfc-card-name {
-  font-family: 'Playfair Display', serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   font-size: 1.3rem;
   font-weight: 700;
   color: #0066FF;
@@ -11509,26 +11509,24 @@ a.zappit-modern-val:hover {
 /* ==========================================================================
    MASTER FIX: UNCONDITIONAL BLACK + BLUE PRODUCT CARDS IN ALL THEMES
    ========================================================================== */
-.nfc-card,
+.nfc-card:not(.nfc-hero-card),
 .nfc-card-front,
 .nfc-card-back,
 .nfc-card-face,
 .config-card,
-#tap-card,
 #config-card,
-[data-theme="light"] .nfc-card,
+[data-theme="light"] .nfc-card:not(.nfc-hero-card),
 [data-theme="light"] .nfc-card-front,
 [data-theme="light"] .nfc-card-back,
 [data-theme="light"] .nfc-card-face,
 [data-theme="light"] .config-card,
-[data-theme="light"] #tap-card,
 [data-theme="light"] #config-card,
-html.light-mode .nfc-card,
+html.light-mode .nfc-card:not(.nfc-hero-card),
 html.light-mode .nfc-card-front,
 html.light-mode .nfc-card-back,
 html.light-mode .nfc-card-face,
 html.light-mode .config-card,
-body.light-mode .nfc-card,
+body.light-mode .nfc-card:not(.nfc-hero-card),
 body.light-mode .nfc-card-front,
 body.light-mode .nfc-card-back,
 body.light-mode .nfc-card-face,

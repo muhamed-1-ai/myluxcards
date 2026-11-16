@@ -2,6 +2,7 @@ import { currentIdentity, safeError, validMutationOrigin } from "@/lib/adminAuth
 import { syncCommissionForTrustedOrder } from "@/lib/affiliate";
 import { verifyRazorpaySignature } from "@/lib/razorpay";
 import { supabaseJson } from "@/lib/supabaseAuth";
+import { activatePlanEntitlementsForOrder } from "@/lib/billingEntitlements";
 
 export const runtime = "nodejs";
 
@@ -22,11 +23,18 @@ export async function POST(request: Request) {
     if (!order.data?.[0]) return Response.json({ message: "Order not found." }, { status: 404 });
     const payment = await supabaseJson(`/rest/v1/payments?order_id=eq.${internalOrderId}&provider=eq.RAZORPAY&select=id,status,provider_transaction_id&limit=1`, {}, true);
     if (!payment.data?.[0]) return Response.json({ message: "Payment record not found." }, { status: 404 });
-    if (payment.data[0].status === "SUCCEEDED") return Response.json({ ok: true });
+    if (payment.data[0].status === "SUCCEEDED") {
+      await activatePlanEntitlementsForOrder(internalOrderId).catch(() => null);
+      return Response.json({ ok: true, alreadyConfirmed: true });
+    }
     if (payment.data[0].provider_transaction_id !== providerOrderId) return Response.json({ message: "Payment order mismatch." }, { status: 400 });
     await supabaseJson(`/rest/v1/payments?id=eq.${payment.data[0].id}`, { method: "PATCH", body: JSON.stringify({ provider_transaction_id: paymentId, status: "SUCCEEDED", failure_reason: null }) }, true);
     await supabaseJson(`/rest/v1/orders?id=eq.${internalOrderId}`, { method: "PATCH", body: JSON.stringify({ payment_status: "SUCCEEDED", status: "CONFIRMED", updated_at: new Date().toISOString() }) }, true);
     await syncCommissionForTrustedOrder(internalOrderId).catch(() => null);
-    return Response.json({ ok: true });
+    const activation = await activatePlanEntitlementsForOrder(internalOrderId).catch((err) => {
+      console.error("[Billing] Plan activation error:", err);
+      return null;
+    });
+    return Response.json({ ok: true, planActivated: activation?.planId || null });
   } catch (error) { return safeError(error); }
 }

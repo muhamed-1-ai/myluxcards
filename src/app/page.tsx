@@ -119,92 +119,47 @@ const redesignedMarkup = `
 
         <!-- Right Product Visual Column (~48%) -->
         <div class="hero-visual-col">
-          <div class="nfc-card-scene" aria-label="Zappit NFC smart cards demonstration">
-            <!-- Rear Card (Tilted slightly back-right, elevated) -->
-            <div class="nfc-card nfc-card-back" aria-hidden="true">
-              <div class="nfc-card-shine"></div>
-              <div class="nfc-card-top-row">
-                <div class="nfc-card-identity">
-                  <div class="nfc-card-name">Alex Morgan</div>
-                  <div class="nfc-card-subtitle">Apex Creative Studio</div>
-                </div>
-                <div class="nfc-nfc-icon-top">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12" stroke="#00E5FF" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M17 12C17 8.68629 14.3137 6 11 6" stroke="#00E5FF" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M14 12C14 10.3431 12.6569 9 11 9" stroke="#00E5FF" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="11" cy="12" r="1.5" fill="#00E5FF"/>
-                  </svg>
-                </div>
-              </div>
+          <div class="nfc-card-scene" aria-label="Zappit NFC smart card demonstration">
+            <!-- Oversized Low-Contrast NFC Lettering in Backdrop -->
+            <div class="nfc-backdrop-text" aria-hidden="true">NFC</div>
 
-              <!-- Stylized Matrix / QR Grid -->
-              <div class="nfc-qr-area" aria-hidden="true">
-                <div class="qr-box">
-                  <div class="qr-corner qr-tl"></div>
-                  <div class="qr-corner qr-tr"></div>
-                  <div class="qr-corner qr-bl"></div>
-                  <div class="qr-dots">
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                  </div>
-                  <div class="qr-logo-center">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" stroke-width="2.5">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Single Landscape NFC Hero Card (Almost front-facing, interactive) -->
+            <button class="nfc-card nfc-hero-card tap-card" id="tap-card" type="button" aria-label="Alex Morgan smart card preview - click to view live demo profile" title="Click to view live demo profile">
+              <!-- Animated Specular Reflection Sweep -->
+              <div class="nfc-card-reflection" aria-hidden="true"></div>
 
-            <!-- Front Card (Lower, left-shifted, interactive tap card) -->
-            <button class="nfc-card nfc-card-front tap-card" id="tap-card" type="button" aria-label="Alex Morgan smart card preview - click to view live demo profile" title="Click to view live demo profile">
-              <div class="nfc-card-shine"></div>
+              <!-- Subtle Surface Lamination Finish -->
+              <div class="nfc-card-finish" aria-hidden="true"></div>
               
-              <!-- Top Row: Zappit Brand & NFC Icon -->
+              <!-- Top Row: Zappit Brand & Tagline -->
               <div class="nfc-card-top-row">
-                <div class="nfc-card-logo-group">
+                <div class="nfc-card-brand-group">
                   <div class="nfc-card-logo">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                    <svg class="nfc-card-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                     </svg>
-                    <span>ZAPPIT</span>
+                    <span class="nfc-card-brand-name">ZAPPIT</span>
                   </div>
                   <div class="nfc-card-tagline">SMART NFC CONNECTED CARD</div>
                 </div>
-                
-                <div class="nfc-nfc-icon-top">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12" stroke="#00E5FF" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M17 12C17 8.68629 14.3137 6 11 6" stroke="#00E5FF" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M14 12C14 10.3431 12.6569 9 11 9" stroke="#00E5FF" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="11" cy="12" r="1.5" fill="#00E5FF"/>
-                  </svg>
-                </div>
               </div>
 
-              <!-- Sleek Divider -->
-              <div class="nfc-card-divider"></div>
+              <!-- Sleek Accent Divider -->
+              <div class="nfc-card-divider" aria-hidden="true"></div>
 
-              <!-- Bottom Row: Name, Title & Microchip -->
+              <!-- Bottom Row: Identity & Contactless Icon -->
               <div class="nfc-card-bottom-row">
                 <div class="nfc-card-person">
                   <div class="nfc-card-name">Alex Morgan</div>
                   <div class="nfc-card-subtitle">Founder &amp; Managing Director</div>
                 </div>
                 
-                <div class="nfc-chip-icon" aria-hidden="true">
-                  <svg width="38" height="28" viewBox="0 0 36 28" fill="none">
-                    <rect x="1" y="1" width="34" height="26" rx="5" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.85"/>
-                    <rect x="5" y="5" width="26" height="18" rx="3" stroke="#0066FF" stroke-width="1.2" stroke-opacity="0.8"/>
-                    <line x1="12" y1="1" x2="12" y2="5" stroke="#00E5FF" stroke-width="1.2"/>
-                    <line x1="18" y1="1" x2="18" y2="5" stroke="#00E5FF" stroke-width="1.2"/>
-                    <line x1="24" y1="1" x2="24" y2="5" stroke="#00E5FF" stroke-width="1.2"/>
-                    <line x1="12" y1="23" x2="12" y2="27" stroke="#00E5FF" stroke-width="1.2"/>
-                    <line x1="18" y1="23" x2="18" y2="27" stroke="#00E5FF" stroke-width="1.2"/>
-                    <line x1="24" y1="23" x2="24" y2="27" stroke="#00E5FF" stroke-width="1.2"/>
+                <div class="nfc-card-contactless" aria-hidden="true" title="Contactless NFC">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 10a2 2 0 0 1 0 4"/>
+                    <path d="M7.5 7.5a6.5 6.5 0 0 1 0 9"/>
+                    <path d="M11 5a10 10 0 0 1 0 14"/>
+                    <path d="M14.5 2.5a14 14 0 0 1 0 19"/>
                   </svg>
                 </div>
               </div>

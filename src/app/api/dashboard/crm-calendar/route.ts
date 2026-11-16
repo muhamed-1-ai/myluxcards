@@ -1,10 +1,15 @@
 import { currentIdentity } from "@/lib/adminAuth";
 import { getCrmCalendarData } from "@/lib/crm";
+import { isFeatureAllowed } from "@/lib/permissionsRegistry";
 
 export async function GET(request: Request) {
   const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ error: "UNAUTHORIZED", message: "Unauthorized account access." }, { status: 401 });
+  }
+
+  if (!isFeatureAllowed(identity.featurePermissions, "calendar", identity.role) && !isFeatureAllowed(identity.featurePermissions, "all_leads", identity.role)) {
+    return Response.json({ error: "FORBIDDEN", message: "Calendar CRM feature is not enabled for your plan." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

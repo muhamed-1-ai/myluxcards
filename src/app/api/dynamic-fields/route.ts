@@ -1,5 +1,6 @@
 import { currentIdentity } from "@/lib/adminAuth";
 import { pool } from "@/lib/db";
+import { isFeatureAllowed } from "@/lib/permissionsRegistry";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,10 @@ export async function GET(request: Request) {
   const identity = await currentIdentity(request);
   if (!identity) {
     return Response.json({ success: false, ok: false, error: "Unauthorized.", message: "Unauthorized." }, { status: 401 });
+  }
+
+  if (!isFeatureAllowed(identity.featurePermissions, "dynamic_leads", identity.role) && !isFeatureAllowed(identity.featurePermissions, "all_leads", identity.role)) {
+    return Response.json({ success: false, ok: false, error: "FORBIDDEN", message: "Dynamic fields builder is not enabled for your plan." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

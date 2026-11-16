@@ -1097,7 +1097,11 @@ body.light-mode .landing-page .loader-status-label {
   flex-wrap: wrap;
 }
 
-/* Right Product Visual Column: Two Overlapping Dark ZAPPIT Cards */
+/* ==========================================================================
+   HOMEPAGE HERO NFC CARD & BACKDROP (Refined Single-Card Architecture)
+   ========================================================================== */
+
+/* Right Product Visual Column */
 .landing-page .hero-visual-col {
   display: flex !important;
   flex-direction: column !important;
@@ -1105,172 +1109,352 @@ body.light-mode .landing-page .loader-status-label {
   justify-content: center !important;
   position: relative !important;
   width: 100% !important;
+  max-width: 100% !important;
 }
 
+/* 3D Scene Container with Perspective */
 .landing-page .nfc-card-scene {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  min-height: 380px;
-  perspective: 1200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 0;
-  user-select: none;
+  position: relative !important;
+  width: 100% !important;
+  max-width: 560px !important;
+  min-height: 390px !important;
+  perspective: 1200px !important;
+  perspective-origin: 50% 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px 0 !important;
+  user-select: none !important;
+  overflow: visible !important;
 }
 
-/* Base Physical NFC Card (Obsidian Navy Black Finish) */
-.landing-page .nfc-card {
+/* Oversized Low-Contrast "NFC" Lettering Behind the Card */
+.landing-page .nfc-backdrop-text {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+  font-size: clamp(11rem, 24vw, 18.5rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 0.8 !important;
+  text-transform: uppercase !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 1 !important;
+  transition: color 0.3s ease !important;
+  white-space: nowrap !important;
+  /* Light mode default: faint blue-gray */
+  color: rgba(15, 23, 42, 0.075) !important;
+}
+
+/* Dark Mode Backdrop Lettering: very faint deep-blue */
+[data-theme="dark"] .landing-page .nfc-backdrop-text,
+.dark .landing-page .nfc-backdrop-text,
+html.dark .landing-page .nfc-backdrop-text,
+html.dark-mode .landing-page .nfc-backdrop-text {
+  color: rgba(22, 139, 255, 0.14) !important;
+}
+
+/* Base Physical NFC Hero Card (Landscape ISO/IEC 7810 ID-1 Proportions: 1.586 : 1) */
+.landing-page .nfc-hero-card,
+.landing-page .nfc-card-scene .nfc-card.nfc-hero-card,
+.landing-page .nfc-card-scene button#tap-card {
+  position: relative !important;
   width: 100% !important;
-  max-width: 375px !important;
+  max-width: 395px !important;
   aspect-ratio: 1.586 / 1 !important;
   border-radius: 18px !important;
-  padding: 24px 26px !important;
-  background: linear-gradient(135deg, #0A111E 0%, #050912 60%, #0D192F 100%) !important;
-  background-color: #050912 !important;
-  border: 1px solid rgba(0, 102, 255, 0.4) !important;
-  box-shadow:
-    0 18px 36px -8px rgba(15, 23, 42, 0.22),
-    0 6px 16px -4px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  padding: 26px 28px !important;
   display: flex !important;
   flex-direction: column !important;
   justify-content: space-between !important;
   overflow: hidden !important;
   box-sizing: border-box !important;
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.45s ease !important;
+  cursor: pointer !important;
+  z-index: 2 !important;
+  transform-style: preserve-3d !important;
+  will-change: transform, box-shadow !important;
+  text-align: left !important;
+  appearance: none !important;
+  
+  /* Ambient slow perspective breathing tilt: nearly still with just a few degrees */
+  animation: nfcCardBreathing 7s ease-in-out infinite alternate !important;
+  transition: box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease !important;
 }
 
-/* Metallic Edge & Lighting Shine Effect */
-.landing-page .nfc-card-shine {
+/* Keyframes: Slow Ambient Perspective Breathing Tilt */
+@keyframes nfcCardBreathing {
+  0% {
+    transform: perspective(1200px) rotateY(-3.5deg) rotateX(2deg) translateY(0);
+  }
+  50% {
+    transform: perspective(1200px) rotateY(-1.8deg) rotateX(1deg) translateY(-4px);
+  }
+  100% {
+    transform: perspective(1200px) rotateY(-3.5deg) rotateX(2deg) translateY(0);
+  }
+}
+
+/* Hover Interaction: slightly responds while keeping text completely readable & front-facing */
+.landing-page .nfc-hero-card:hover,
+.landing-page .nfc-card-scene button#tap-card:hover {
+  transform: perspective(1200px) rotateY(-1deg) rotateX(0.5deg) translateY(-3px) scale(1.015) !important;
+}
+
+.landing-page .nfc-hero-card:focus-visible,
+.landing-page .nfc-card-scene button#tap-card:focus-visible {
+  outline: 2px solid #0066FF !important;
+  outline-offset: 4px !important;
+}
+
+[data-theme="dark"] .landing-page .nfc-hero-card:focus-visible,
+.dark .landing-page .nfc-hero-card:focus-visible {
+  outline-color: #00E5FF !important;
+}
+
+/* ==========================================================================
+   COLOR THEMES: Light Mode & Dark Mode Specifications
+   ========================================================================== */
+
+/* Light Mode: Matte white card, deep navy text, Zappit blue accents, thin cool-blue edge */
+.landing-page .nfc-hero-card,
+.landing-page .nfc-card-scene button#tap-card,
+[data-theme="light"] .landing-page .nfc-hero-card,
+[data-theme="light"] .landing-page button#tap-card,
+html.light .landing-page .nfc-hero-card,
+html.light-mode .landing-page .nfc-hero-card {
+  background: linear-gradient(145deg, #FFFFFF 0%, #F8FAFC 52%, #EFF4FA 100%) !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid rgba(0, 102, 255, 0.28) !important;
+  box-shadow:
+    0 20px 42px -10px rgba(15, 23, 42, 0.14),
+    0 8px 18px -4px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(0, 102, 255, 0.08) !important;
+}
+
+.landing-page .nfc-hero-card:hover,
+.landing-page .nfc-card-scene button#tap-card:hover,
+[data-theme="light"] .landing-page .nfc-hero-card:hover {
+  border-color: rgba(0, 102, 255, 0.48) !important;
+  box-shadow:
+    0 26px 52px -10px rgba(15, 23, 42, 0.18),
+    0 10px 22px -4px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(0, 102, 255, 0.14) !important;
+}
+
+/* Dark Mode: Pure black (#000000) card with subtle dark navy shading, white text, restrained blue highlights */
+[data-theme="dark"] .landing-page .nfc-hero-card,
+[data-theme="dark"] .landing-page button#tap-card,
+.dark .landing-page .nfc-hero-card,
+.dark .landing-page button#tap-card,
+html.dark .landing-page .nfc-hero-card,
+html.dark-mode .landing-page .nfc-hero-card {
+  background: linear-gradient(145deg, #070B14 0%, #000000 50%, #030712 100%) !important;
+  background-color: #000000 !important;
+  border: 1px solid rgba(0, 102, 255, 0.38) !important;
+  box-shadow:
+    0 24px 50px -12px rgba(0, 0, 0, 0.65),
+    0 8px 20px -4px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(0, 102, 255, 0.16) !important;
+}
+
+[data-theme="dark"] .landing-page .nfc-hero-card:hover,
+[data-theme="dark"] .landing-page button#tap-card:hover,
+.dark .landing-page .nfc-hero-card:hover {
+  border-color: rgba(0, 229, 255, 0.58) !important;
+  box-shadow:
+    0 28px 56px -12px rgba(0, 0, 0, 0.75),
+    0 12px 24px -4px rgba(0, 102, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px rgba(0, 229, 255, 0.24) !important;
+}
+
+/* ==========================================================================
+   REFLECTION SWEEP ANIMATION (Diagonal sheen traveling left to right)
+   ========================================================================== */
+
+/* Static Surface Specular Finish for Realistic Card Texture */
+.landing-page .nfc-card-finish {
   position: absolute !important;
   inset: 0 !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 229, 255, 0.08) 100%) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 102, 255, 0.04) 100%) !important;
   pointer-events: none !important;
   border-radius: 18px !important;
   z-index: 1 !important;
 }
 
-/* Rear Card (Slightly lighter finish, subtle edge highlight to distinguish from front card) */
-.landing-page .nfc-card-back {
-  justify-content: flex-start !important;
-  gap: 16px !important;
+/* Reflection Sweep Element */
+.landing-page .nfc-card-reflection {
   position: absolute !important;
-  top: -15px !important;
-  right: 10px !important;
-  transform: rotate(5.5deg) scale(0.96) !important;
-  opacity: 0.96 !important;
-  z-index: 1 !important;
-  background: linear-gradient(135deg, #131E33 0%, #0C1525 60%, #172744 100%) !important;
-  background-color: #0C1525 !important;
-  border: 1px solid rgba(0, 229, 255, 0.32) !important;
-  box-shadow:
-    0 14px 32px -6px rgba(15, 23, 42, 0.18),
-    0 4px 12px -2px rgba(15, 23, 42, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
-}
-
-/* Front Card (Dominating, Interactive, Soft Contact Shadow - No heavy black blur) */
-.landing-page .nfc-card-front.tap-card,
-.landing-page .nfc-card-front {
-  position: relative !important;
-  transform: rotate(-2.5deg) translateY(36px) translateX(-20px) !important;
+  top: -60% !important;
+  bottom: -60% !important;
+  left: -85% !important;
+  width: 85% !important;
+  pointer-events: none !important;
   z-index: 2 !important;
-  cursor: pointer !important;
-  border: 1px solid rgba(0, 102, 255, 0.48) !important;
-  box-shadow:
-    0 20px 42px -10px rgba(15, 23, 42, 0.24),
-    0 8px 18px -4px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  border-radius: 18px !important;
+  will-change: transform, opacity !important;
+  /* Cool white-blue diagonal gradient sweep */
+  background: linear-gradient(
+    108deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 22%,
+    rgba(255, 255, 255, 0.75) 46%,
+    rgba(255, 255, 255, 0.98) 50%,
+    rgba(186, 230, 253, 0.85) 54%,
+    rgba(0, 102, 255, 0.25) 64%,
+    rgba(255, 255, 255, 0.08) 75%,
+    rgba(255, 255, 255, 0) 90%
+  ) !important;
+  mix-blend-mode: overlay !important;
+  animation: nfcReflectionSweep 4.8s cubic-bezier(0.25, 0.1, 0.25, 1) infinite !important;
 }
 
-.landing-page .nfc-card-front.tap-card:focus-visible {
-  outline: 2px solid #00E5FF !important;
-  outline-offset: 4px !important;
+/* Dark Mode Sheen Tuning (Luminous cool blue-white specular highlight) */
+[data-theme="dark"] .landing-page .nfc-card-reflection,
+.dark .landing-page .nfc-card-reflection,
+html.dark .landing-page .nfc-card-reflection,
+html.dark-mode .landing-page .nfc-card-reflection {
+  background: linear-gradient(
+    108deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 22%,
+    rgba(255, 255, 255, 0.65) 46%,
+    rgba(255, 255, 255, 0.98) 50%,
+    rgba(0, 229, 255, 0.88) 54%,
+    rgba(0, 102, 255, 0.35) 64%,
+    rgba(255, 255, 255, 0.06) 75%,
+    rgba(255, 255, 255, 0) 90%
+  ) !important;
+  mix-blend-mode: screen !important;
 }
 
-/* Hover Response on NFC Scene */
-.landing-page .nfc-card-scene:hover .nfc-card-back {
-  transform: rotate(7.5deg) translateY(-8px) scale(0.98) !important;
-  box-shadow:
-    0 18px 38px -6px rgba(15, 23, 42, 0.22),
-    0 6px 14px -2px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+/* Keyframes: ~1.2s smooth diagonal sweep across card face, followed by rest pause */
+@keyframes nfcReflectionSweep {
+  0% {
+    transform: translateX(0) skewX(-24deg);
+    opacity: 0;
+  }
+  2% {
+    opacity: 1;
+  }
+  22% {
+    opacity: 1;
+  }
+  26% {
+    transform: translateX(330%) skewX(-24deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(330%) skewX(-24deg);
+    opacity: 0;
+  }
 }
 
-.landing-page .nfc-card-scene:hover .nfc-card-front {
-  transform: rotate(0deg) translateY(18px) translateX(-18px) scale(1.025) !important;
-  border-color: rgba(0, 229, 255, 0.65) !important;
-  box-shadow:
-    0 26px 48px -8px rgba(15, 23, 42, 0.28),
-    0 10px 22px -4px rgba(15, 23, 42, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+/* ==========================================================================
+   CARD INTERNAL TYPOGRAPHY & ELEMENTS
+   ========================================================================== */
+
+.landing-page .nfc-hero-card * {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
 }
 
-/* Internal Card Typography and Layout */
 .landing-page .nfc-card-top-row {
   display: flex !important;
   align-items: flex-start !important;
   justify-content: space-between !important;
   width: 100% !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
+  position: relative !important;
 }
 
-.landing-page .nfc-card-identity {
+.landing-page .nfc-card-brand-group {
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
-}
-
-.landing-page .nfc-card-logo-group {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2px !important;
+  gap: 3px !important;
 }
 
 .landing-page .nfc-card-logo {
   font-size: 1.15rem !important;
   font-weight: 800 !important;
-  color: #FFFFFF !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
   display: flex !important;
   align-items: center !important;
+  gap: 7px !important;
   line-height: 1 !important;
+  /* Light mode brand name: deep navy */
+  color: #0F172A !important;
+}
+
+[data-theme="dark"] .landing-page .nfc-card-logo,
+.dark .landing-page .nfc-card-logo,
+html.dark .landing-page .nfc-card-logo,
+html.dark-mode .landing-page .nfc-card-logo {
+  color: #FFFFFF !important;
+  text-shadow: none !important;
+}
+
+.landing-page .nfc-card-bolt {
+  color: #0066FF !important;
+  stroke: #0066FF !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .landing-page .nfc-card-bolt,
+.dark .landing-page .nfc-card-bolt,
+html.dark .landing-page .nfc-card-bolt,
+html.dark-mode .landing-page .nfc-card-bolt {
+  color: #00E5FF !important;
+  stroke: #00E5FF !important;
 }
 
 .landing-page .nfc-card-tagline {
   font-size: 0.65rem !important;
   font-weight: 700 !important;
-  color: #94A3B8 !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
-  margin-top: 4px !important;
+  color: #64748B !important;
+  margin-top: 2px !important;
 }
 
-.landing-page .nfc-nfc-icon-top {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  opacity: 0.95 !important;
-  z-index: 2 !important;
+[data-theme="dark"] .landing-page .nfc-card-tagline,
+.dark .landing-page .nfc-card-tagline,
+html.dark .landing-page .nfc-card-tagline,
+html.dark-mode .landing-page .nfc-card-tagline {
+  color: #94A3B8 !important;
 }
 
+/* Sleek Divider Line */
 .landing-page .nfc-card-divider {
   width: 100% !important;
   height: 1px !important;
-  background: linear-gradient(90deg, rgba(0, 102, 255, 0.55) 0%, rgba(0, 229, 255, 0.35) 60%, transparent 100%) !important;
-  margin: 10px 0 !important;
-  z-index: 2 !important;
+  margin: 12px 0 !important;
+  z-index: 3 !important;
+  position: relative !important;
+  background: linear-gradient(90deg, rgba(0, 102, 255, 0.35) 0%, rgba(0, 102, 255, 0.12) 60%, transparent 100%) !important;
 }
 
+[data-theme="dark"] .landing-page .nfc-card-divider,
+.dark .landing-page .nfc-card-divider,
+html.dark .landing-page .nfc-card-divider,
+html.dark-mode .landing-page .nfc-card-divider {
+  background: linear-gradient(90deg, rgba(0, 102, 255, 0.5) 0%, rgba(0, 229, 255, 0.3) 60%, transparent 100%) !important;
+}
+
+/* Bottom Row */
 .landing-page .nfc-card-bottom-row {
   display: flex !important;
   align-items: flex-end !important;
   justify-content: space-between !important;
   width: 100% !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
+  position: relative !important;
 }
 
 .landing-page .nfc-card-person {
@@ -1279,114 +1463,89 @@ body.light-mode .landing-page .loader-status-label {
   gap: 2px !important;
 }
 
-.landing-page .nfc-card-name {
-  font-size: 1.25rem !important;
+.landing-page .nfc-hero-card .nfc-card-name,
+.landing-page button#tap-card .nfc-card-name {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+  font-size: 1.32rem !important;
   font-weight: 700 !important;
-  color: #FFFFFF !important;
   line-height: 1.25 !important;
-  letter-spacing: -0.01em !important;
+  letter-spacing: -0.015em !important;
+  text-shadow: none !important;
+  /* Light mode: deep navy */
+  color: #0F172A !important;
+}
+
+[data-theme="dark"] .landing-page .nfc-hero-card .nfc-card-name,
+[data-theme="dark"] .landing-page button#tap-card .nfc-card-name,
+.dark .landing-page .nfc-hero-card .nfc-card-name,
+.dark .landing-page button#tap-card .nfc-card-name,
+html.dark .landing-page .nfc-hero-card .nfc-card-name,
+html.dark-mode .landing-page .nfc-hero-card .nfc-card-name {
+  color: #FFFFFF !important;
   text-shadow: none !important;
 }
 
-.landing-page .nfc-card-subtitle {
+.landing-page .nfc-hero-card .nfc-card-subtitle,
+.landing-page button#tap-card .nfc-card-subtitle {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
   font-size: 0.82rem !important;
   font-weight: 600 !important;
-  color: #00E5FF !important;
   line-height: 1.35 !important;
-  margin-top: 6px !important;
+  margin-top: 4px !important;
+  /* Light mode: Zappit blue accent */
+  color: #0066FF !important;
 }
 
-.landing-page .nfc-chip-icon {
+[data-theme="dark"] .landing-page .nfc-hero-card .nfc-card-subtitle,
+[data-theme="dark"] .landing-page button#tap-card .nfc-card-subtitle,
+.dark .landing-page .nfc-hero-card .nfc-card-subtitle,
+.dark .landing-page button#tap-card .nfc-card-subtitle,
+html.dark .landing-page .nfc-hero-card .nfc-card-subtitle,
+html.dark-mode .landing-page .nfc-hero-card .nfc-card-subtitle {
+  color: #00E5FF !important;
+}
+
+/* Contactless NFC Wave Icon (Lower Right) */
+.landing-page .nfc-card-contactless {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  z-index: 2 !important;
+  color: #0066FF !important;
+  stroke: #0066FF !important;
+  flex-shrink: 0 !important;
+  opacity: 0.9 !important;
+  transition: transform 0.2s ease, opacity 0.2s ease !important;
 }
 
-/* Back Card QR & Digital Matrix Area (Visually secondary) */
-.landing-page .nfc-qr-area {
-  margin: 0 auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-  width: 100% !important;
-  margin: 6px 0 !important;
-  z-index: 2 !important;
-  opacity: 0.85 !important;
+[data-theme="dark"] .landing-page .nfc-card-contactless,
+.dark .landing-page .nfc-card-contactless,
+html.dark .landing-page .nfc-card-contactless,
+html.dark-mode .landing-page .nfc-card-contactless {
+  color: #00E5FF !important;
+  stroke: #00E5FF !important;
 }
 
-.landing-page .qr-box {
-  position: relative !important;
-  width: 64px !important;
-  height: 64px !important;
-  background: rgba(6, 11, 20, 0.95) !important;
-  border: 1px solid rgba(0, 229, 255, 0.35) !important;
-  border-radius: 9px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+.landing-page .nfc-hero-card:hover .nfc-card-contactless,
+.landing-page button#tap-card:hover .nfc-card-contactless {
+  opacity: 1 !important;
+  transform: scale(1.06) !important;
 }
 
-.landing-page .qr-corner {
-  position: absolute !important;
-  width: 11px !important;
-  height: 11px !important;
-  border: 1.5px solid #00E5FF !important;
-  border-radius: 2px !important;
-}
-
-.landing-page .qr-tl {
-  top: 4px !important;
-  left: 4px !important;
-  border-right: none !important;
-  border-bottom: none !important;
-}
-
-.landing-page .qr-tr {
-  top: 4px !important;
-  right: 4px !important;
-  border-left: none !important;
-  border-bottom: none !important;
-}
-
-.landing-page .qr-bl {
-  bottom: 4px !important;
-  left: 4px !important;
-  border-right: none !important;
-  border-top: none !important;
-}
-
-.landing-page .qr-dots {
-  display: grid !important;
-  grid-template-columns: repeat(4, 5px) !important;
-  gap: 3px !important;
-  opacity: 0.7 !important;
-}
-
-.landing-page .qr-dots span {
-  width: 5px !important;
-  height: 5px !important;
-  background-color: #00E5FF !important;
-  border-radius: 1px !important;
-}
-
-.landing-page .qr-logo-center {
-  position: absolute !important;
-  width: 18px !important;
-  height: 18px !important;
-  background: #060B14 !important;
-  border: 1.2px solid #00E5FF !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.landing-page .qr-label {
-  display: none !important;
+/* ==========================================================================
+   REDUCED MOTION SUPPORT
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .nfc-hero-card,
+  .landing-page .nfc-card-scene .nfc-card.nfc-hero-card,
+  .landing-page .nfc-card-scene button#tap-card {
+    animation: none !important;
+    transform: perspective(1200px) rotateY(-2.5deg) rotateX(1.5deg) !important;
+    transition: none !important;
+  }
+  .landing-page .nfc-card-reflection {
+    animation: none !important;
+    display: none !important;
+  }
 }
 
 /* Centered Demo Profile Trigger Below Entire Stack */
@@ -3646,15 +3805,46 @@ body.modal-open {
       font-size: 0.58rem !important;
     }
 
-    .landing-page .nfc-card-back {
-      top: 5px !important;
-      right: 5px !important;
-      transform: rotate(5deg) scale(0.95) !important;
+    .landing-page .nfc-card-scene {
+      min-height: 280px !important;
+      max-width: 360px !important;
+      margin: 0 auto !important;
+      padding: 12px 0 !important;
     }
 
-    .landing-page .nfc-card-front.tap-card,
-    .landing-page .nfc-card-front {
-      transform: rotate(-2deg) translateY(14px) translateX(-8px) !important;
+    .landing-page .nfc-backdrop-text {
+      font-size: clamp(5.5rem, 25vw, 8.5rem) !important;
+    }
+
+    .landing-page .nfc-hero-card,
+    .landing-page .nfc-card-scene .nfc-card.nfc-hero-card,
+    .landing-page .nfc-card-scene button#tap-card {
+      max-width: 330px !important;
+      padding: 20px 22px !important;
+      border-radius: 16px !important;
+    }
+
+    .landing-page .nfc-hero-card .nfc-card-name,
+    .landing-page button#tap-card .nfc-card-name {
+      font-size: 1.15rem !important;
+    }
+
+    .landing-page .nfc-hero-card .nfc-card-subtitle,
+    .landing-page button#tap-card .nfc-card-subtitle {
+      font-size: 0.75rem !important;
+    }
+
+    .landing-page .nfc-card-logo {
+      font-size: 1rem !important;
+    }
+
+    .landing-page .nfc-card-tagline {
+      font-size: 0.58rem !important;
+    }
+
+    .landing-page .nfc-card-contactless svg {
+      width: 22px !important;
+      height: 22px !important;
     }
 
     .landing-page .hero-card-demo-wrap {
@@ -3748,13 +3938,39 @@ body.modal-open {
     }
 
     .landing-page .nfc-card-scene {
-      min-height: 260px;
-      max-width: 310px;
+      min-height: 250px !important;
+      max-width: 330px !important;
+      padding: 8px 0 !important;
     }
 
-    .landing-page .nfc-card {
-      max-width: 260px !important;
-      padding: 14px 16px !important;
+    .landing-page .nfc-backdrop-text {
+      font-size: clamp(4.5rem, 24vw, 7rem) !important;
+    }
+
+    .landing-page .nfc-hero-card,
+    .landing-page .nfc-card-scene .nfc-card.nfc-hero-card,
+    .landing-page .nfc-card-scene button#tap-card {
+      max-width: 300px !important;
+      padding: 18px 20px !important;
+      border-radius: 15px !important;
+    }
+
+    .landing-page .nfc-hero-card .nfc-card-name,
+    .landing-page button#tap-card .nfc-card-name {
+      font-size: 1.05rem !important;
+    }
+
+    .landing-page .nfc-hero-card .nfc-card-subtitle,
+    .landing-page button#tap-card .nfc-card-subtitle {
+      font-size: 0.72rem !important;
+    }
+
+    .landing-page .nfc-card-logo {
+      font-size: 0.92rem !important;
+    }
+
+    .landing-page .nfc-card-tagline {
+      font-size: 0.54rem !important;
     }
 
     .landing-page .section-title {
