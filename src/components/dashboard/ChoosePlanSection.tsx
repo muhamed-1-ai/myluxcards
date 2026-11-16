@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Check, Shield, ArrowRight, Sparkles, X, Loader2, AlertCircle, CreditCard, Lock, RefreshCw, Settings } from "lucide-react";
-import { PLAN_CATALOG, PlanId, PlanDefinition } from "@/lib/billingPlans";
+import { Check, Shield, ArrowRight, ArrowLeft, Sparkles, X, Loader2, AlertCircle, CreditCard, Lock, RefreshCw, Settings } from "lucide-react";
+import { PLAN_CATALOG, PlanId, PlanDefinition, CARD_FINISHES, CardFinishId } from "@/lib/billingPlans";
 
 interface ChoosePlanSectionProps {
   currentUser: {
@@ -23,7 +23,9 @@ export default function ChoosePlanSection({
   onPlanActivated,
   onOpenSettings,
 }: ChoosePlanSectionProps) {
-  const [selectedPlanId, setSelectedPlanId] = useState<PlanId | null>(null);
+  const [flowStep, setFlowStep] = useState<"plan" | "card">("plan");
+  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>("plan-lite");
+  const [selectedFinishId, setSelectedFinishId] = useState<CardFinishId>("black");
   const [modalOpen, setModalOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"form" | "confirming" | "success" | "error">("form");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -56,6 +58,14 @@ export default function ChoosePlanSection({
     if (currentUser?.email && !customerEmail) setCustomerEmail(currentUser.email);
   }, [currentUser]);
 
+  const handleSelectPlan = (planId: PlanId) => {
+    setSelectedPlanId(planId);
+    setFlowStep("card");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const openCheckout = (planId: PlanId) => {
     if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
       lastActiveElementRef.current = document.activeElement;
@@ -65,6 +75,13 @@ export default function ChoosePlanSection({
     setCheckoutError(null);
     setFieldErrors({});
     setModalOpen(true);
+  };
+
+  const handleChangeCard = () => {
+    setModalOpen(false);
+    setFlowStep("card");
+    setCheckoutStep("form");
+    setCheckoutError(null);
   };
 
   const closeCheckout = () => {
@@ -175,11 +192,14 @@ export default function ChoosePlanSection({
     setCheckoutError(null);
 
     const plan = PLAN_CATALOG[selectedPlanId];
+    const finish = CARD_FINISHES[selectedFinishId] || CARD_FINISHES.black;
 
     try {
-      // 1. Submit order to checkout endpoint
+      // 1. Submit order to checkout endpoint with selected plan and card finish
       const payload = {
         paymentMethod,
+        cardFinish: finish.name,
+        cardFinishId: finish.id,
         customer: {
           name: customerName.trim() || currentUser?.name || "Customer",
           email: customerEmail.trim() || currentUser?.email || "",
@@ -198,7 +218,9 @@ export default function ChoosePlanSection({
           {
             id: plan.id,
             quantity: 1,
-            details: plan.fullName,
+            details: `${plan.fullName} (${finish.name})`,
+            cardFinish: finish.name,
+            cardFinishId: finish.id,
           },
         ],
       };
@@ -249,7 +271,7 @@ export default function ChoosePlanSection({
             amount: totalMinor,
             currency: currency || "INR",
             name: "Zappit",
-            description: `${plan.fullName} Activation (Order ${orderData.orderNumber})`,
+            description: `${plan.fullName} [${finish.shortName}] (Order ${orderData.orderNumber})`,
             prefill: {
               name: customerName,
               email: customerEmail,
@@ -333,163 +355,352 @@ export default function ChoosePlanSection({
   };
 
   const isDark = theme === "dark";
-  const activePlan = selectedPlanId ? PLAN_CATALOG[selectedPlanId] : null;
+  const activePlan = PLAN_CATALOG[selectedPlanId || "plan-lite"];
+  const activeFinish = CARD_FINISHES[selectedFinishId] || CARD_FINISHES.black;
 
   return (
     <div className={`choose-plan-root ${isDark ? "theme-dark" : "theme-light"}`}>
-      {/* Header section */}
-      <div className="choose-plan-header">
-        <div className="choose-plan-eyebrow">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Activate Your Access</span>
+      {/* =========================================================================
+          STEPPER: Plan → Card → Checkout
+          ========================================================================= */}
+      <div className="purchase-stepper-wrap">
+        <div className="purchase-stepper" role="navigation" aria-label="Purchase progress">
+          {/* Step 1 */}
+          {flowStep === "card" ? (
+            <button
+              type="button"
+              onClick={() => setFlowStep("plan")}
+              className="purchase-step is-clickable is-complete"
+              title="Return to plan selection"
+            >
+              <span className="step-circle">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </span>
+              <span className="step-name step-label">1. Plan</span>
+            </button>
+          ) : (
+            <div className="purchase-step is-active">
+              <span className="step-circle">1</span>
+              <span className="step-name step-label">1. Plan</span>
+            </div>
+          )}
+
+          <span className={`step-connector ${flowStep === "card" ? "is-complete" : ""}`} />
+
+          {/* Step 2 */}
+          <div className={`purchase-step ${flowStep === "card" ? "is-active" : ""}`}>
+            <span className="step-circle">2</span>
+            <span className="step-name step-label">2. NFC Card</span>
+          </div>
+
+          <span className="step-connector" />
+
+          {/* Step 3 */}
+          <div className="purchase-step">
+            <span className="step-circle">3</span>
+            <span className="step-name step-label">3. Checkout</span>
+          </div>
         </div>
-        <h1 className="choose-plan-title">
-          Choose your Zappit plan
-        </h1>
-        <p className="choose-plan-desc">
-          Select a transparent plan below to unlock your digital card profile and workspace immediately. No hidden charges or automatic lock-in.
-        </p>
       </div>
 
-      {/* Plan Cards Grid: side-by-side on desktop, stacked on mobile */}
-      <div className="choose-plan-grid grid grid-cols-1 md:grid-cols-2">
-        {/* CARD 1: Lite Plan */}
-        {(() => {
-          const plan = PLAN_CATALOG["plan-lite"];
-          return (
-            <div
-              key={plan.id}
-              className="choose-plan-card plan-lite-card plan-card shadow-xl"
-            >
-              <div>
-                <div className="choose-plan-badge-wrapper">
-                  <span className="choose-plan-kicker">Standard Bundle</span>
-                </div>
+      {/* =========================================================================
+          VIEW 1: PLAN SELECTION STEP
+          ========================================================================= */}
+      {flowStep === "plan" && (
+        <>
+          {/* Header section */}
+          <div className="choose-plan-header">
+            <div className="choose-plan-eyebrow">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Activate Your Access</span>
+            </div>
+            <h1 className="choose-plan-title">
+              Choose your Zappit plan
+            </h1>
+            <p className="choose-plan-desc">
+              Select a transparent plan below to unlock your digital card profile and workspace immediately. No hidden charges or automatic lock-in.
+            </p>
+          </div>
 
-                <h3 className="choose-plan-name">
-                  {plan.name}
-                </h3>
+          {/* Plan Cards Grid: side-by-side on desktop, stacked on mobile */}
+          <div className="choose-plan-grid grid grid-cols-1 md:grid-cols-2">
+            {/* CARD 1: Lite Plan */}
+            {(() => {
+              const plan = PLAN_CATALOG["plan-lite"];
+              return (
+                <div
+                  key={plan.id}
+                  className="choose-plan-card plan-lite-card plan-card shadow-xl"
+                >
+                  <div>
+                    <div className="choose-plan-badge-wrapper">
+                      <span className="choose-plan-kicker">Standard Bundle</span>
+                    </div>
 
-                <p className="choose-plan-card-desc">
-                  Physical NFC smart business card paired with our complete digital identity software for instant contact sharing.
-                </p>
+                    <h3 className="choose-plan-name">
+                      {plan.name}
+                    </h3>
 
-                {/* Price block */}
-                <div className="choose-plan-price-block">
-                  <div className="choose-plan-price-row">
-                    <span className="choose-plan-currency">₹</span>
-                    <span className="choose-plan-amount">
-                      {plan.price.toLocaleString("en-IN")}
-                    </span>
+                    <p className="choose-plan-card-desc">
+                      Physical NFC smart business card paired with our complete digital identity software for instant contact sharing.
+                    </p>
+
+                    {/* Price block */}
+                    <div className="choose-plan-price-block">
+                      <div className="choose-plan-price-row">
+                        <span className="choose-plan-currency">₹</span>
+                        <span className="choose-plan-amount">
+                          {plan.price.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="choose-plan-billing-type">One-time hardware purchase</div>
+                      <p className="choose-plan-billing-detail">
+                        Includes 1-year digital profile hosting. Annual renewal at ₹499/year. No app required.
+                      </p>
+                    </div>
+
+                    <div className="choose-plan-divider"></div>
+
+                    {/* Features List */}
+                    <div className="choose-plan-features-block">
+                      <span className="choose-plan-features-label">
+                        Included Features
+                      </span>
+                      <ul className="choose-plan-feature-list">
+                        {plan.features.map((feature, idx) => (
+                          <li key={idx} className="choose-plan-feature-item">
+                            <Check className="choose-plan-check-icon" strokeWidth={2.5} />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <div className="choose-plan-billing-type">One-time hardware purchase</div>
-                  <p className="choose-plan-billing-detail">
-                    Includes 1-year digital profile hosting. Annual renewal at ₹499/year. No app required.
-                  </p>
+
+                  {/* Action Button */}
+                  <div className="choose-plan-card-footer">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPlan("plan-lite")}
+                      className="choose-plan-pill-btn"
+                    >
+                      {plan.buttonLabel}
+                    </button>
+                  </div>
                 </div>
+              );
+            })()}
 
-                <div className="choose-plan-divider"></div>
+            {/* CARD 2: Pro Plan */}
+            {(() => {
+              const plan = PLAN_CATALOG["plan-pro"];
+              return (
+                <div
+                  key={plan.id}
+                  className="choose-plan-card plan-pro-card plan-card shadow-2xl"
+                >
+                  <div>
+                    <div className="choose-plan-badge-wrapper">
+                      <span className="choose-plan-badge">
+                        {plan.badge || "Includes Full CRM Workspace"}
+                      </span>
+                    </div>
 
-                {/* Features List */}
-                <div className="choose-plan-features-block">
-                  <span className="choose-plan-features-label">
-                    Included Features
-                  </span>
-                  <ul className="choose-plan-feature-list">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="choose-plan-feature-item">
-                        <Check className="choose-plan-check-icon" strokeWidth={2.5} />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                    <h3 className="choose-plan-name">
+                      {plan.name}
+                    </h3>
+
+                    <p className="choose-plan-card-desc">
+                      Everything in the Standard bundle, plus our complete Lead Management mini-CRM to capture, track, and close deals.
+                    </p>
+
+                    {/* Price block */}
+                    <div className="choose-plan-price-block">
+                      <div className="choose-plan-price-row">
+                        <span className="choose-plan-currency">₹</span>
+                        <span className="choose-plan-amount">
+                          {plan.price.toLocaleString("en-IN")}
+                        </span>
+                        <span className="choose-plan-period">/year</span>
+                      </div>
+                      <div className="choose-plan-billing-type">Yearly Plan · Billed Annually</div>
+                      <p className="choose-plan-billing-detail">
+                        Includes smart NFC card + 1 year of Lead Management CRM access. No app required.
+                      </p>
+                    </div>
+
+                    <div className="choose-plan-divider"></div>
+
+                    {/* Features List */}
+                    <div className="choose-plan-features-block">
+                      <span className="choose-plan-features-label">
+                        Everything in the NFC Card + Software bundle, plus:
+                      </span>
+                      <ul className="choose-plan-feature-list">
+                        {plan.features.map((feature, idx) => (
+                          <li key={idx} className="choose-plan-feature-item">
+                            <Check className="choose-plan-check-icon" strokeWidth={2.5} />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="choose-plan-card-footer">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPlan("plan-pro")}
+                      className="choose-plan-pill-btn"
+                    >
+                      {plan.buttonLabel}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              );
+            })()}
+          </div>
+        </>
+      )}
 
-              {/* Action Button */}
-              <div className="choose-plan-card-footer">
+      {/* =========================================================================
+          VIEW 2: PHYSICAL NFC CARD SELECTION STEP
+          ========================================================================= */}
+      {flowStep === "card" && (
+        <div className="choose-card-finish-container">
+          {/* Header section with selected plan badge */}
+          <div className="choose-plan-header">
+            {/* Selected Plan pill banner */}
+            <div className="flex justify-center mb-3">
+              <div className="selected-plan-banner">
+                <span className="selected-plan-banner-label">Selected Plan:</span>
+                <span className="selected-plan-banner-title">{activePlan.name}</span>
+                <span className="selected-plan-banner-price">₹{activePlan.price.toLocaleString("en-IN")}</span>
                 <button
                   type="button"
-                  onClick={() => openCheckout("plan-lite")}
-                  className="choose-plan-pill-btn"
+                  onClick={() => setFlowStep("plan")}
+                  className="selected-plan-change-btn"
                 >
-                  {plan.buttonLabel}
+                  Change plan
                 </button>
               </div>
             </div>
-          );
-        })()}
 
-        {/* CARD 2: Pro Plan */}
-        {(() => {
-          const plan = PLAN_CATALOG["plan-pro"];
-          return (
-            <div
-              key={plan.id}
-              className="choose-plan-card plan-pro-card plan-card shadow-2xl"
-            >
-              <div>
-                <div className="choose-plan-badge-wrapper">
-                  <span className="choose-plan-badge">
-                    {plan.badge || "Includes Full CRM Workspace"}
-                  </span>
-                </div>
-
-                <h3 className="choose-plan-name">
-                  {plan.name}
-                </h3>
-
-                <p className="choose-plan-card-desc">
-                  Everything in the Standard bundle, plus our complete Lead Management mini-CRM to capture, track, and close deals.
-                </p>
-
-                {/* Price block */}
-                <div className="choose-plan-price-block">
-                  <div className="choose-plan-price-row">
-                    <span className="choose-plan-currency">₹</span>
-                    <span className="choose-plan-amount">
-                      {plan.price.toLocaleString("en-IN")}
-                    </span>
-                    <span className="choose-plan-period">/year</span>
-                  </div>
-                  <div className="choose-plan-billing-type">Yearly Plan · Billed Annually</div>
-                  <p className="choose-plan-billing-detail">
-                    Includes smart NFC card + 1 year of Lead Management CRM access. No app required.
-                  </p>
-                </div>
-
-                <div className="choose-plan-divider"></div>
-
-                {/* Features List */}
-                <div className="choose-plan-features-block">
-                  <span className="choose-plan-features-label">
-                    Everything in the NFC Card + Software bundle, plus:
-                  </span>
-                  <ul className="choose-plan-feature-list">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="choose-plan-feature-item">
-                        <Check className="choose-plan-check-icon" strokeWidth={2.5} />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <div className="choose-plan-card-footer">
-                <button
-                  type="button"
-                  onClick={() => openCheckout("plan-pro")}
-                  className="choose-plan-pill-btn"
-                >
-                  {plan.buttonLabel}
-                </button>
-              </div>
+            <div className="choose-plan-eyebrow">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Step 2 of 3</span>
             </div>
-          );
-        })()}
-      </div>
+            <h1 className="choose-plan-title">
+              Choose your NFC card
+            </h1>
+            <p className="choose-plan-desc">
+              Every Zappit plan includes a custom physical NFC smart business card. Select your preferred card finish below to proceed to checkout.
+            </p>
+          </div>
+
+          {/* Card Finish Grid: side-by-side on desktop, stacked on mobile */}
+          <div
+            className="card-finish-grid grid grid-cols-1 md:grid-cols-2"
+            role="radiogroup"
+            aria-label="Choose your NFC card finish"
+          >
+            {(["black", "white"] as CardFinishId[]).map((finishId) => {
+              const finish = CARD_FINISHES[finishId];
+              const isSelected = selectedFinishId === finishId;
+
+              return (
+                <div
+                  key={finish.id}
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={0}
+                  onClick={() => setSelectedFinishId(finish.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === " " || e.key === "Enter") {
+                      e.preventDefault();
+                      setSelectedFinishId(finish.id);
+                    }
+                  }}
+                  className={`card-finish-card ${isSelected ? "is-selected" : ""}`}
+                >
+                  {/* Aspect Ratio 16:10 Image Wrap */}
+                  <div className="card-finish-img-wrap">
+                    <img
+                      src={finish.image}
+                      alt={finish.alt}
+                      className="card-finish-img"
+                    />
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="card-finish-content">
+                    <div className="card-finish-meta-row">
+                      <span className="card-finish-badge">
+                        {finish.badge}
+                      </span>
+                      {isSelected && (
+                        <span className="card-finish-selected-pill">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Selected Finish</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="card-finish-title">
+                      {finish.name}
+                    </h3>
+
+                    <p className="card-finish-desc">
+                      {finish.description}
+                    </p>
+
+                    <div className="card-finish-footer">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFinishId(finish.id);
+                        }}
+                        className={`card-finish-select-btn ${isSelected ? "is-active" : ""}`}
+                      >
+                        {isSelected ? (
+                          <>
+                            <Check className="w-4 h-4 stroke-[3]" />
+                            <span>Selected</span>
+                          </>
+                        ) : (
+                          <span>Choose {finish.shortName}</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Action controls below the pair */}
+          <div className="card-finish-actions">
+            <button
+              type="button"
+              onClick={() => openCheckout(selectedPlanId)}
+              className="choose-plan-pill-btn card-finish-continue-btn"
+            >
+              <span>Continue to checkout</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setFlowStep("plan")}
+              className="card-finish-back-btn inline-flex items-center gap-1.5"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>← Back to plans</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Account Settings footer trigger */}
       <div className="choose-plan-settings-footer">
@@ -563,10 +774,40 @@ export default function ChoosePlanSection({
                           /* FORM & ERROR STEPS */
                                 <form onSubmit={handleCheckoutSubmit} className="plan-checkout-form-wrap">
                                   <div className="plan-checkout-body">
-                                    {/* Compact Order Summary */}
+                                    {/* Compact Order Summary with Card Thumbnail & Change Card action */}
                                     <div className="plan-checkout-summary">
-                                      <div className="plan-checkout-summary-row">
-                                        <div>
+                                      <div className="checkout-stepper-mini">
+                                        <span className="step-mini is-done">1. {activePlan.name}</span>
+                                        <span className="step-mini-divider">›</span>
+                                        <span className="step-mini is-done">2. {activeFinish.shortName}</span>
+                                        <span className="step-mini-divider">›</span>
+                                        <span className="step-mini is-active">3. Checkout</span>
+                                      </div>
+
+                                      <div className="plan-checkout-summary-main">
+                                        {/* Card Thumbnail */}
+                                        <div className="plan-checkout-summary-thumb-wrap">
+                                          <img
+                                            src={activeFinish.image}
+                                            alt={activeFinish.alt}
+                                            className="plan-checkout-summary-thumb"
+                                          />
+                                        </div>
+
+                                        {/* Plan & Finish Details */}
+                                        <div className="plan-checkout-summary-info">
+                                          <div className="plan-checkout-summary-finish-row">
+                                            <span className="plan-checkout-summary-finish-name">
+                                              {activeFinish.name}
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={handleChangeCard}
+                                              className="plan-checkout-change-card-btn"
+                                            >
+                                              Change card
+                                            </button>
+                                          </div>
                                           <h3 className="plan-checkout-summary-plan-name">
                                             {activePlan.fullName}
                                           </h3>
@@ -576,6 +817,8 @@ export default function ChoosePlanSection({
                                               : "Yearly Plan · Billed Annually"}
                                           </p>
                                         </div>
+
+                                        {/* Total Amount */}
                                         <div className="plan-checkout-summary-total-col">
                                           <div className="plan-checkout-summary-total-label">Total due today</div>
                                           <div className="plan-checkout-summary-amount">
@@ -583,6 +826,7 @@ export default function ChoosePlanSection({
                                           </div>
                                         </div>
                                       </div>
+
                                       {activePlan.renewalDetail && (
                                         <div className="plan-checkout-summary-renewal">
                                           <RefreshCw className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
@@ -671,7 +915,7 @@ export default function ChoosePlanSection({
                                                 <span>Delivery Address</span>
                                               </h4>
                                               <p className="plan-checkout-field-helper">
-                                                Your custom physical NFC smart business card will be delivered to this address.
+                                                Your custom physical NFC smart business card ({activeFinish.name}) will be delivered to this address.
                                               </p>
 
                                                   <div>

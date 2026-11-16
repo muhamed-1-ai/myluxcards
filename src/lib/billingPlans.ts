@@ -129,6 +129,58 @@ export const PLAN_CATALOG: Record<PlanId, PlanDefinition> = {
 };
 
 /**
+ * Physical NFC Card Finishes available for purchase with Zappit plans
+ */
+export type CardFinishId = "black" | "white";
+
+export interface CardFinishDefinition {
+  id: CardFinishId;
+  name: string;
+  shortName: string;
+  badge: string;
+  description: string;
+  image: string;
+  alt: string;
+  material: string;
+}
+
+export const CARD_FINISHES: Record<CardFinishId, CardFinishDefinition> = {
+  black: {
+    id: "black",
+    name: "Velvet Matte Black PVC",
+    shortName: "Matte Black PVC",
+    badge: "Matte Finish",
+    description:
+      "Durable matte PVC with a smooth, glare-free black finish. Water-resistant, sturdy, and embedded with a high-speed NTAG216 NFC chip and high-contrast QR backup.",
+    image: "/assets/black-pvc-card.jpg",
+    alt: "Zappit Velvet Matte Black PVC smart card",
+    material: "Matte Black PVC",
+  },
+  white: {
+    id: "white",
+    name: "Ceramic White PVC",
+    shortName: "Ceramic White PVC",
+    badge: "Matte Finish",
+    description:
+      "Durable white PVC with a smooth, glare-free matte finish. Resilient, water-resistant, and printed with crisp high-contrast typography and QR code backup.",
+    image: "/assets/white-pvc-card.jpg",
+    alt: "Zappit Ceramic White PVC smart card",
+    material: "Ceramic White PVC",
+  },
+};
+
+/**
+ * Resolves standard card finish ID from finish name, ID, or query parameter
+ */
+export function resolveCardFinishId(rawId: string | null | undefined): CardFinishId | null {
+  if (!rawId || typeof rawId !== "string") return null;
+  const s = rawId.toLowerCase().trim();
+  if (s === "black" || s.includes("black")) return "black";
+  if (s === "white" || s.includes("white")) return "white";
+  return null;
+}
+
+/**
  * Resolves standard plan keys from various catalog IDs (e.g. bundle-standard, plan-lite, lite, bundle-crm, etc.)
  */
 export function resolvePlanId(rawId: string | null | undefined): PlanId | null {

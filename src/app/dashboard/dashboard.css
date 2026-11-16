@@ -13601,3 +13601,575 @@ body.light-mode .plan-checkout-status-desc,
     padding: 14px 18px 20px 18px !important;
   }
 }
+
+/* ==========================================================================
+   ACCESS PENDING: STEPPER & PHYSICAL CARD SELECTION STEP
+   ========================================================================== */
+
+.purchase-stepper-wrap {
+  display: flex !important;
+  justify-content: center !important;
+  margin-bottom: 24px !important;
+  width: 100% !important;
+}
+
+.purchase-stepper {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 9999px !important;
+  padding: 6px 16px !important;
+}
+
+[data-theme="light"] .purchase-stepper,
+body.light-mode .purchase-stepper,
+.choose-plan-root.theme-light .purchase-stepper {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+}
+
+.purchase-step {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #94A3B8 !important;
+  cursor: default !important;
+}
+
+.purchase-step.is-clickable {
+  cursor: pointer !important;
+}
+.purchase-step.is-clickable:hover .step-name {
+  color: #38BDF8 !important;
+}
+
+.purchase-step.is-active {
+  color: #0066FF !important;
+}
+
+[data-theme="light"] .purchase-step.is-active,
+body.light-mode .purchase-step.is-active,
+.choose-plan-root.theme-light .purchase-step.is-active {
+  color: #0066FF !important;
+}
+
+.purchase-step.is-complete {
+  color: #10B981 !important;
+}
+
+.step-circle {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #94A3B8 !important;
+}
+
+.purchase-step.is-active .step-circle {
+  background: #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 12px rgba(0, 102, 255, 0.5) !important;
+}
+
+.purchase-step.is-complete .step-circle {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.step-connector {
+  width: 20px !important;
+  height: 2px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="light"] .step-connector,
+body.light-mode .step-connector,
+.choose-plan-root.theme-light .step-connector {
+  background: #CBD5E1 !important;
+}
+
+.step-connector.is-complete {
+  background: #10B981 !important;
+}
+
+/* Selected Plan Pill Banner */
+.selected-plan-banner {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  background: rgba(0, 102, 255, 0.08) !important;
+  border: 1px solid rgba(0, 102, 255, 0.25) !important;
+  border-radius: 9999px !important;
+  padding: 6px 14px !important;
+  margin-bottom: 16px !important;
+  font-size: 0.825rem !important;
+}
+
+[data-theme="light"] .selected-plan-banner,
+body.light-mode .selected-plan-banner,
+.choose-plan-root.theme-light .selected-plan-banner {
+  background: rgba(0, 102, 255, 0.06) !important;
+  border-color: rgba(0, 102, 255, 0.3) !important;
+}
+
+.selected-plan-banner-label {
+  color: #94A3B8 !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .selected-plan-banner-label,
+body.light-mode .selected-plan-banner-label,
+.choose-plan-root.theme-light .selected-plan-banner-label {
+  color: #64748B !important;
+}
+
+.selected-plan-banner-title {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .selected-plan-banner-title,
+body.light-mode .selected-plan-banner-title,
+.choose-plan-root.theme-light .selected-plan-banner-title {
+  color: #0F172A !important;
+}
+
+.selected-plan-banner-price {
+  color: #0066FF !important;
+  font-weight: 700 !important;
+}
+
+.selected-plan-change-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 9999px !important;
+  padding: 2px 10px !important;
+  font-size: 0.725rem !important;
+  font-weight: 600 !important;
+  color: #38BDF8 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.selected-plan-change-btn:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .selected-plan-change-btn,
+body.light-mode .selected-plan-change-btn,
+.choose-plan-root.theme-light .selected-plan-change-btn {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0066FF !important;
+}
+
+/* Card Finish Grid */
+.card-finish-grid {
+  display: grid !important;
+  gap: 28px !important;
+  width: 100% !important;
+  max-width: 960px !important;
+  margin: 0 auto 36px auto !important;
+}
+
+.card-finish-card {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0B0F19 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.22s ease,
+              box-shadow 0.22s ease !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+}
+
+.card-finish-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: rgba(0, 102, 255, 0.5) !important;
+  box-shadow: 0 16px 36px -10px rgba(0, 102, 255, 0.15) !important;
+}
+
+.card-finish-card.is-selected {
+  border-color: #0066FF !important;
+  box-shadow: 0 20px 45px -12px rgba(0, 102, 255, 0.35), 0 0 0 1px #0066FF !important;
+}
+
+[data-theme="light"] .card-finish-card,
+body.light-mode .card-finish-card,
+.choose-plan-root.theme-light .card-finish-card {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .card-finish-card:hover,
+body.light-mode .card-finish-card:hover,
+.choose-plan-root.theme-light .card-finish-card:hover {
+  border-color: rgba(0, 102, 255, 0.5) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 102, 255, 0.12) !important;
+}
+
+[data-theme="light"] .card-finish-card.is-selected,
+body.light-mode .card-finish-card.is-selected,
+.choose-plan-root.theme-light .card-finish-card.is-selected {
+  border-color: #0066FF !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 102, 255, 0.25), 0 0 0 1px #0066FF !important;
+}
+
+/* Card Image Display: Standard Aspect Ratio */
+.card-finish-img-wrap {
+  width: 100% !important;
+  aspect-ratio: 16 / 10 !important;
+  position: relative !important;
+  background: #000000 !important;
+  overflow: hidden !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] .card-finish-img-wrap,
+body.light-mode .card-finish-img-wrap,
+.choose-plan-root.theme-light .card-finish-img-wrap {
+  border-bottom-color: #E2E8F0 !important;
+  background: #F1F5F9 !important;
+}
+
+.card-finish-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.card-finish-card:hover .card-finish-img {
+  transform: scale(1.025) !important;
+}
+
+/* Card Body Content */
+.card-finish-content {
+  padding: 24px 28px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-grow: 1 !important;
+  box-sizing: border-box !important;
+}
+
+.card-finish-meta-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 12px !important;
+  min-height: 24px !important;
+}
+
+.card-finish-badge {
+  display: inline-block !important;
+  font-size: 0.725rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  padding: 3px 10px !important;
+  border-radius: 9999px !important;
+  background: rgba(0, 102, 255, 0.12) !important;
+  color: #0066FF !important;
+  border: 1px solid rgba(0, 102, 255, 0.25) !important;
+}
+
+.card-finish-selected-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 0.725rem !important;
+  font-weight: 700 !important;
+  padding: 3px 10px !important;
+  border-radius: 9999px !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  animation: planCheckoutPop 0.2s ease !important;
+}
+
+.card-finish-title {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.01em !important;
+}
+
+[data-theme="light"] .card-finish-title,
+body.light-mode .card-finish-title,
+.choose-plan-root.theme-light .card-finish-title {
+  color: #0F172A !important;
+}
+
+.card-finish-desc {
+  font-size: 0.875rem !important;
+  line-height: 1.55 !important;
+  color: #94A3B8 !important;
+  margin: 0 0 20px 0 !important;
+  flex-grow: 1 !important;
+}
+
+[data-theme="light"] .card-finish-desc,
+body.light-mode .card-finish-desc,
+.choose-plan-root.theme-light .card-finish-desc {
+  color: #475569 !important;
+}
+
+.card-finish-footer {
+  margin-top: auto !important;
+  width: 100% !important;
+}
+
+.card-finish-select-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 12px 20px !important;
+  border-radius: 9999px !important;
+  font-family: inherit !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  color: #E2E8F0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.card-finish-card:hover .card-finish-select-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+.card-finish-select-btn.is-active {
+  background: #0066FF !important;
+  border-color: #0066FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35) !important;
+}
+
+[data-theme="light"] .card-finish-select-btn,
+body.light-mode .card-finish-select-btn,
+.choose-plan-root.theme-light .card-finish-select-btn {
+  background: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .card-finish-card:hover .card-finish-select-btn,
+body.light-mode .card-finish-card:hover .card-finish-select-btn,
+.choose-plan-root.theme-light .card-finish-card:hover .card-finish-select-btn {
+  background: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .card-finish-select-btn.is-active,
+body.light-mode .card-finish-select-btn.is-active,
+.choose-plan-root.theme-light .card-finish-select-btn.is-active {
+  background: #0066FF !important;
+  border-color: #0066FF !important;
+  color: #FFFFFF !important;
+}
+
+/* Action controls below the pair */
+.card-finish-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 16px !important;
+  max-width: 420px !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+}
+
+.card-finish-continue-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.card-finish-back-btn {
+  background: none !important;
+  border: none !important;
+  color: #94A3B8 !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: color 0.15s ease !important;
+}
+
+.card-finish-back-btn:hover {
+  color: #38BDF8 !important;
+}
+
+[data-theme="light"] .card-finish-back-btn,
+body.light-mode .card-finish-back-btn,
+.choose-plan-root.theme-light .card-finish-back-btn {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .card-finish-back-btn:hover,
+body.light-mode .card-finish-back-btn:hover,
+.choose-plan-root.theme-light .card-finish-back-btn:hover {
+  color: #0066FF !important;
+}
+
+/* Order Summary Thumbnail & Change Card button in Checkout */
+.checkout-stepper-mini {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 0.725rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 12px !important;
+  color: #94A3B8 !important;
+}
+
+.step-mini.is-done {
+  color: #10B981 !important;
+}
+
+.step-mini.is-active {
+  color: #0066FF !important;
+  font-weight: 700 !important;
+}
+
+.step-mini-divider {
+  color: #64748B !important;
+}
+
+.plan-checkout-summary-main {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+.plan-checkout-summary-thumb-wrap {
+  width: 72px !important;
+  height: 46px !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="light"] .plan-checkout-summary-thumb-wrap,
+body.light-mode .plan-checkout-summary-thumb-wrap,
+.choose-plan-root.theme-light .plan-checkout-summary-thumb-wrap {
+  border-color: #CBD5E1 !important;
+  background: #F1F5F9 !important;
+}
+
+.plan-checkout-summary-thumb {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.plan-checkout-summary-info {
+  flex-grow: 1 !important;
+  min-width: 0 !important;
+}
+
+.plan-checkout-summary-finish-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 3px !important;
+}
+
+.plan-checkout-summary-finish-name {
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: #38BDF8 !important;
+}
+
+[data-theme="light"] .plan-checkout-summary-finish-name,
+body.light-mode .plan-checkout-summary-finish-name,
+.choose-plan-root.theme-light .plan-checkout-summary-finish-name {
+  color: #0066FF !important;
+}
+
+.plan-checkout-change-card-btn {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #94A3B8 !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  transition: color 0.15s ease !important;
+}
+
+.plan-checkout-change-card-btn:hover {
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .plan-checkout-change-card-btn,
+body.light-mode .plan-checkout-change-card-btn,
+.choose-plan-root.theme-light .plan-checkout-change-card-btn {
+  color: #64748B !important;
+}
+
+[data-theme="light"] .plan-checkout-change-card-btn:hover,
+body.light-mode .plan-checkout-change-card-btn:hover,
+.choose-plan-root.theme-light .plan-checkout-change-card-btn:hover {
+  color: #0F172A !important;
+}
+
+@media (max-width: 640px) {
+  .purchase-stepper {
+    padding: 4px 12px !important;
+    gap: 8px !important;
+  }
+  .step-connector {
+    width: 12px !important;
+  }
+  .card-finish-grid {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .card-finish-content {
+    padding: 18px 20px !important;
+  }
+  .plan-checkout-summary-main {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .plan-checkout-summary-thumb-wrap {
+    width: 100% !important;
+    height: 80px !important;
+  }
+}
