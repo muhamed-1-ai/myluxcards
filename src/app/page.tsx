@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import LegacyPage from '@/components/layout/LegacyPage';
 import RecoveryRedirect from './RecoveryRedirect';
+import InteractiveDemoModal from '@/components/demo/InteractiveDemoModal';
 
 export const metadata: Metadata = {
   title: 'Zappit | Your business card. Your digital profile. One tap.',
@@ -907,76 +908,6 @@ const redesignedMarkup = `
     </div>
   </div>
 
-  <!-- Interactive Live Sample Profile Modal -->
-  <div class="modal-overlay" id="live-demo-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="live-demo-title">
-    <div class="modal-card glass-solid" style="max-width: 480px !important; padding: 24px 20px !important;">
-      <button class="modal-close" type="button" id="close-live-demo-btn" aria-label="Close live profile demo">
-        <i data-lucide="x"></i>
-      </button>
-
-      <div style="text-align: center; margin-bottom: 16px;">
-        <span style="font-size: 0.75rem; font-weight: 700; color: var(--apple-blue); text-transform: uppercase; letter-spacing: 0.05em;">Interactive Demonstration</span>
-        <h3 id="live-demo-title" style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 4px 0;">Zappit Digital Profile Experience</h3>
-        <p style="font-size: 0.825rem; color: #64748B; margin: 0;">This is exactly what opens when someone taps your Zappit smart card.</p>
-      </div>
-
-      <div class="phone-mockup-wrapper" style="box-shadow: none; border-width: 6px; max-width: 100%;">
-        <div class="phone-mockup-speaker"></div>
-        <div class="phone-mockup-screen">
-          <!-- Profile Header -->
-          <div style="text-align: center; padding: 12px 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #0066FF, #00E5FF); margin: 0 auto 10px auto; display: grid; place-items: center; font-size: 1.5rem; font-weight: 800; color: #FFF; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.4);">
-              AM
-            </div>
-            <h4 style="font-size: 1.2rem; font-weight: 800; margin: 0 0 2px 0; color: #FFFFFF;">Alex Morgan</h4>
-            <p style="font-size: 0.825rem; color: #94A3B8; margin: 0 0 4px 0; font-weight: 500;">Founder &amp; Managing Director</p>
-            <span style="display: inline-block; font-size: 0.75rem; color: #00E5FF; font-weight: 600;">Apex Creative Studio</span>
-          </div>
-
-          <!-- Quick Action Buttons -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0;">
-            <button type="button" class="demo-phone-action" id="modal-demo-vcard" style="padding: 10px; border-radius: 10px; background: #0066FF; color: #FFF; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
-              Save Contact (.vcf)
-            </button>
-            <button type="button" class="demo-phone-action" id="modal-demo-whatsapp" style="padding: 10px; border-radius: 10px; background: #10B981; color: #FFF; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <i data-lucide="message-circle" style="width: 14px; height: 14px;"></i>
-              WhatsApp Chat
-            </button>
-          </div>
-
-          <!-- Contact Info Tiles -->
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
-            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
-              <i data-lucide="phone" style="width: 15px; height: 15px; color: #00E5FF;"></i>
-              <span>+91 98765 00123</span>
-            </div>
-            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
-              <i data-lucide="mail" style="width: 15px; height: 15px; color: #00E5FF;"></i>
-              <span>alex@apexcreativestudio.com</span>
-            </div>
-            <div style="padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 10px; font-size: 0.8rem;">
-              <i data-lucide="globe" style="width: 15px; height: 15px; color: #00E5FF;"></i>
-              <span>apexcreativestudio.com</span>
-            </div>
-          </div>
-
-          <!-- Voluntary Share Details Lead Trigger -->
-          <button type="button" class="demo-phone-action" id="modal-demo-share-details" style="width: 100%; padding: 11px; border-radius: 10px; background: rgba(0, 102, 255, 0.2); border: 1px solid rgba(0, 229, 255, 0.4); color: #00E5FF; font-size: 0.825rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <i data-lucide="send" style="width: 15px; height: 15px;"></i>
-            Exchange Contact (Share Details)
-          </button>
-        </div>
-      </div>
-
-      <div style="margin-top: 18px; text-align: center;">
-        <button type="button" class="apple-btn apple-btn-primary" onclick="document.getElementById('live-demo-modal')?.classList.remove('open'); document.querySelector('#materials')?.scrollIntoView({behavior: 'smooth'});" style="width: 100%;">
-          Choose Your Card Now
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- CRM Dashboard Full-Size Lightbox Modal -->
   <div class="modal-overlay crm-fullsize-modal-overlay" id="crm-fullsize-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="crm-fullsize-title">
     <div class="crm-fullsize-modal-container">
@@ -1176,6 +1107,7 @@ export default function Page() {
     <>
       <RecoveryRedirect />
       <LegacyPage markup={redesignedMarkup} inlineScript="/js/inline/index.js" />
+      <InteractiveDemoModal />
     </>
   );
 }

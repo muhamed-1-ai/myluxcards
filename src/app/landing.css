@@ -1183,7 +1183,7 @@ html.dark-mode .landing-page .hero-card-ground-shadow {
   aspect-ratio: 1.586 / 1 !important;
   transform-style: preserve-3d !important;
   transform-origin: 50% 50% !important;
-  animation: nfcCardContinuousSpin 7s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  animation: nfcCardContinuousSpin 7s cubic-bezier(0.42, 0, 0.58, 1) infinite !important;
   will-change: transform !important;
   z-index: 2 !important;
 }
@@ -1193,12 +1193,15 @@ html.dark-mode .landing-page .hero-card-ground-shadow {
   0% {
     transform: rotateY(0deg);
   }
+
   14% {
     transform: rotateY(0deg);
   }
+
   86% {
     transform: rotateY(360deg);
   }
+
   100% {
     transform: rotateY(360deg);
   }
@@ -1222,10 +1225,10 @@ html.dark-mode .landing-page .hero-card-ground-shadow {
   transform-style: preserve-3d !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
-  
+
   /* Velvet Matte Black PVC finish */
   background: linear-gradient(140deg, #1C1E23 0%, #111215 50%, #08090B 100%) !important;
-  
+
   /* Thin visible metallic/matte gold edge */
   border: 1px solid rgba(212, 175, 55, 0.35) !important;
   box-shadow:
@@ -4125,4 +4128,280 @@ body.dark-mode .zappit-login-footer {
   color: #64748B;
   line-height: 1.45;
   margin-bottom: 16px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INTERACTIVE DEMONSTRATION MODAL (REAL DIGITAL PROFILE EXPERIENCE)
+   Replaces outdated mockup with production ModernProfileLayout renderer
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.landing-page .zappit-demo-modal-card,
+.modal-overlay .zappit-demo-modal-card,
+.zappit-demo-modal-card {
+  max-width: 520px !important;
+  width: 100% !important;
+  max-height: 92vh !important;
+  max-height: 92dvh !important;
+  padding: 24px 20px 20px 20px !important;
+  border-radius: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark .landing-page .zappit-demo-modal-card,
+body.dark-mode .landing-page .zappit-demo-modal-card,
+html.dark .modal-overlay .zappit-demo-modal-card,
+body.dark-mode .modal-overlay .zappit-demo-modal-card,
+html.dark .zappit-demo-modal-card,
+body.dark-mode .zappit-demo-modal-card {
+  background: #111827 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Modal Header Typography & Contrast */
+.zappit-demo-modal-header {
+  text-align: center;
+  margin-bottom: 14px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.zappit-demo-modal-eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--apple-blue, #0066FF);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.zappit-demo-modal-title {
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  margin: 0 0 4px 0 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.01em !important;
+  color: #0F172A !important;
+}
+
+html.dark .zappit-demo-modal-title,
+body.dark-mode .zappit-demo-modal-title {
+  color: #F8FAFC !important;
+}
+
+.zappit-demo-modal-subtitle {
+  font-size: 0.825rem !important;
+  line-height: 1.4 !important;
+  color: #64748B !important;
+  margin: 0 !important;
+}
+
+html.dark .zappit-demo-modal-subtitle,
+body.dark-mode .zappit-demo-modal-subtitle {
+  color: #94A3B8 !important;
+}
+
+/* Close Button positioning */
+.zappit-demo-modal-close {
+  position: absolute !important;
+  top: 18px !important;
+  right: 18px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  cursor: pointer !important;
+  z-index: 20 !important;
+}
+
+html.dark .zappit-demo-modal-close,
+body.dark-mode .zappit-demo-modal-close {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #F1F5F9 !important;
+}
+
+/* Scrollable Preview Frame */
+.zappit-demo-preview-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 18px;
+  box-sizing: border-box;
+  padding: 2px;
+  background: #080F1E;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.zappit-demo-preview-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.zappit-demo-preview-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.zappit-demo-preview-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+.zappit-demo-preview-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Always display compact theme switcher trigger inside demo modal on desktop & mobile */
+.zappit-demo-modal-card .pts-compact-wrap {
+  display: block !important;
+}
+
+/* Footer CTA */
+.zappit-demo-modal-footer {
+  margin-top: 14px;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.zappit-demo-cta-btn {
+  width: 100% !important;
+  padding: 13px 20px !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--apple-blue, #0066FF) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.35) !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.zappit-demo-cta-btn:hover {
+  background: #0052CC !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(0, 102, 255, 0.45) !important;
+}
+
+/* Lead Exchange Notice Banner */
+.zappit-demo-lead-notice {
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.2s ease forwards;
+  flex-shrink: 0;
+  color: #0369A1;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.zappit-demo-lead-notice-body {
+  color: #334155;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+html.dark .zappit-demo-lead-notice,
+body.dark-mode .zappit-demo-lead-notice {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38BDF8;
+}
+
+html.dark .zappit-demo-lead-notice-body,
+body.dark-mode .zappit-demo-lead-notice-body {
+  color: #E2E8F0;
+}
+
+/* Inline Floating Toast */
+.zappit-demo-inline-toast {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 60;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+  white-space: normal;
+  text-align: center;
+  pointer-events: none;
+  animation: ptsToastSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes ptsToastSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* Responsive Polish for Narrow / Mobile Viewports */
+@media (max-width: 640px) {
+  .landing-page .zappit-demo-modal-card,
+  .modal-overlay .zappit-demo-modal-card,
+  .zappit-demo-modal-card {
+    padding: 18px 12px 14px 12px !important;
+    margin: 8px !important;
+    border-radius: 20px !important;
+    max-height: 94dvh !important;
+  }
+
+  .zappit-demo-modal-header {
+    margin-bottom: 10px;
+  }
+
+  .zappit-demo-modal-title {
+    font-size: 1.15rem !important;
+  }
+
+  .zappit-demo-preview-scroll {
+    max-height: 58dvh;
+    border-radius: 14px;
+  }
+
+  .zappit-demo-inline-toast {
+    bottom: 68px;
+    font-size: 0.72rem;
+    padding: 6px 12px;
+  }
 }

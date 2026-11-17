@@ -218,6 +218,7 @@
     const closeBtn = document.getElementById('close-live-demo-btn');
 
     const openDemoModal = () => {
+      window.dispatchEvent(new CustomEvent('zappit:open-demo'));
       if (!demoModal) return;
       demoModal.classList.add('open');
       demoModal.setAttribute('aria-hidden', 'false');
@@ -226,6 +227,7 @@
     };
 
     const closeDemoModal = () => {
+      window.dispatchEvent(new CustomEvent('zappit:close-demo'));
       if (!demoModal) return;
       demoModal.classList.remove('open');
       demoModal.setAttribute('aria-hidden', 'true');
@@ -240,64 +242,6 @@
 
     demoModal?.addEventListener('click', (e) => {
       if (e.target === demoModal) closeDemoModal();
-    });
-
-    // Helper: simulate vCard download (.vcf file)
-    const downloadSampleVCard = () => {
-      const vcardData = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        'FN:Alex Morgan',
-        'N:Morgan;Alex;;;',
-        'ORG:Apex Creative Studio',
-        'TITLE:Founder & Managing Director',
-        'TEL;TYPE=WORK,VOICE:+919876500123',
-        'EMAIL;TYPE=WORK,INTERNET:alex@apexcreativestudio.com',
-        'URL:https://apexcreativestudio.com',
-        'NOTE:Saved via Zappit Smart NFC Business Card',
-        'END:VCARD'
-      ].join('\r\n');
-
-      const blob = new Blob([vcardData], { type: 'text/vcard;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'alex-morgan-apex.vcf');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      if (window.app && typeof window.app.showToast === 'function') {
-        window.app.showToast('Downloaded sample vCard: alex-morgan-apex.vcf', 'success');
-      }
-    };
-
-    // Helper: simulate WhatsApp chat
-    const simulateWhatsApp = () => {
-      if (window.app && typeof window.app.showToast === 'function') {
-        window.app.showToast('Simulating WhatsApp Chat to +91 98765 00123: "Hi Alex, I tapped your Zappit card!"', 'success');
-      }
-    };
-
-    // Helper: simulate voluntary lead exchange
-    const simulateLeadExchange = () => {
-      if (window.app && typeof window.app.showToast === 'function') {
-        window.app.showToast('Lead Exchange: In live profiles, this opens a contact form sending your details directly to the card owner\'s CRM.', 'info');
-      }
-    };
-
-    // Wire actions in mockup screen (on page) and in modal
-    ['demo-save-vcard-btn', 'modal-demo-vcard'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', downloadSampleVCard);
-    });
-
-    ['demo-whatsapp-btn', 'modal-demo-whatsapp'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', simulateWhatsApp);
-    });
-
-    ['demo-share-details-btn', 'modal-demo-share-details'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', simulateLeadExchange);
     });
   };
 
@@ -444,6 +388,7 @@
   const initGlobalEscape = () => {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        window.dispatchEvent(new CustomEvent('zappit:close-demo'));
         const demoModal = document.getElementById('live-demo-modal');
         if (demoModal?.classList.contains('open')) {
           demoModal.classList.remove('open');
