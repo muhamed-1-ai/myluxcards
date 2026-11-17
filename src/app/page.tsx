@@ -119,59 +119,68 @@ const redesignedMarkup = `
 
         <!-- Right Product Visual Column (~48%) -->
         <div class="hero-visual-col">
-          <div class="nfc-card-scene" aria-label="Zappit NFC smart card demonstration">
-            <!-- Oversized Low-Contrast NFC Lettering in Backdrop -->
-            <div class="nfc-backdrop-text" aria-hidden="true">NFC</div>
+          <div class="hero-card-showcase" id="hero-card-showcase" aria-label="Zappit Velvet Matte Black NFC card showcase">
+            <!-- 3D Perspective Stage directly on the white hero page (No rectangular box) -->
+            <div class="hero-card-stage" id="hero-card-stage">
+              <!-- 3D Rotating Velvet Matte Black NFC Card -->
+              <div class="nfc-spin-card" id="nfc-spin-card" role="img" aria-label="360-degree rotating Velvet Matte Black NFC smart card with gold script lettering and contactless mark">
+                <!-- Front Face (0deg, Readable) -->
+                <div class="nfc-card-face nfc-card-face--front" aria-hidden="false">
+                  <div class="nfc-card-surface-texture" aria-hidden="true"></div>
+                  <div class="nfc-card-specular-sheen" aria-hidden="true"></div>
 
-            <!-- Single Landscape NFC Hero Card (Almost front-facing, interactive) -->
-            <button class="nfc-card nfc-hero-card tap-card" id="tap-card" type="button" aria-label="Alex Morgan smart card preview - click to view live demo profile" title="Click to view live demo profile">
-              <!-- Animated Specular Reflection Sweep -->
-              <div class="nfc-card-reflection" aria-hidden="true"></div>
-
-              <!-- Subtle Surface Lamination Finish -->
-              <div class="nfc-card-finish" aria-hidden="true"></div>
-              
-              <!-- Top Row: Zappit Brand & Tagline -->
-              <div class="nfc-card-top-row">
-                <div class="nfc-card-brand-group">
-                  <div class="nfc-card-logo">
-                    <svg class="nfc-card-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  <!-- Top Right: Gold Contactless Icon -->
+                  <div class="nfc-card-contactless-mark" aria-hidden="true">
+                    <svg class="gold-nfc-wave-svg" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M7 10C8.8 11.8 8.8 16.2 7 18" stroke="#E5C158" stroke-width="2.2" stroke-linecap="round"/>
+                      <path d="M11 7C14.5 10.5 14.5 17.5 11 21" stroke="#E5C158" stroke-width="2.2" stroke-linecap="round"/>
+                      <path d="M15 4C20 9 20 19 15 24" stroke="#E5C158" stroke-width="2.2" stroke-linecap="round"/>
                     </svg>
-                    <span class="nfc-card-brand-name">ZAPPIT</span>
                   </div>
-                  <div class="nfc-card-tagline">SMART NFC CONNECTED CARD</div>
+
+                  <!-- Center / Lower Left: Gold Script Lettering & Title -->
+                  <div class="nfc-card-identity-block">
+                    <div class="nfc-card-script-name">Adhil Mohammed</div>
+                    <div class="nfc-card-role-title">Co-Founder</div>
+                  </div>
                 </div>
+
+                <!-- Back Face (180deg, Plain Matte Black Back) -->
+                <div class="nfc-card-face nfc-card-face--back" aria-hidden="true">
+                  <div class="nfc-card-surface-texture" aria-hidden="true"></div>
+                  <div class="nfc-card-specular-sheen" aria-hidden="true"></div>
+
+                  <!-- Plain Matte Black with Centered Elegant Gold Zappit Mark -->
+                  <div class="nfc-card-back-brand-centered">
+                    <svg class="nfc-card-back-bolt-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="#E5C158" stroke="#E5C158" stroke-width="1.2" stroke-linejoin="round"/>
+                    </svg>
+                    <span class="nfc-card-back-wordmark">ZAPPIT</span>
+                  </div>
+                </div>
+
+                <!-- Interactive Card Click Hit Area (Preserves Live Demo Profile Destination) -->
+                <button
+                  class="nfc-card-click-overlay tap-card"
+                  id="tap-card"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-label="Velvet Matte Black smart card preview - click to view interactive live demo profile"
+                  title="Click to view live demo profile"
+                ></button>
               </div>
 
-              <!-- Sleek Accent Divider -->
-              <div class="nfc-card-divider" aria-hidden="true"></div>
+              <!-- Stationary Ground Shadow Directly Beneath Card (Placed on White Page) -->
+              <div class="hero-card-ground-shadow" aria-hidden="true"></div>
+            </div>
 
-              <!-- Bottom Row: Identity & Contactless Icon -->
-              <div class="nfc-card-bottom-row">
-                <div class="nfc-card-person">
-                  <div class="nfc-card-name">Alex Morgan</div>
-                  <div class="nfc-card-subtitle">Founder &amp; Managing Director</div>
-                </div>
-                
-                <div class="nfc-card-contactless" aria-hidden="true" title="Contactless NFC">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 10a2 2 0 0 1 0 4"/>
-                    <path d="M7.5 7.5a6.5 6.5 0 0 1 0 9"/>
-                    <path d="M11 5a10 10 0 0 1 0 14"/>
-                    <path d="M14.5 2.5a14 14 0 0 1 0 19"/>
-                  </svg>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          <!-- Centered Demo Profile Trigger Below Entire Stack -->
-          <div class="hero-card-demo-wrap">
-            <button class="hero-card-demo-btn" id="hero-demo-profile-trigger" type="button" aria-haspopup="dialog" aria-label="View interactive demo profile">
-              <span>View demo profile</span>
-              <span class="hero-demo-arrow" aria-hidden="true">↗</span>
-            </button>
+            <!-- Stationary Demo Profile Trigger Directly Below Card -->
+            <div class="hero-card-demo-wrap">
+              <button class="hero-card-demo-btn" id="hero-demo-profile-trigger" type="button" aria-haspopup="dialog" aria-label="View interactive demo profile">
+                <span>View demo profile</span>
+                <span class="hero-demo-arrow" aria-hidden="true">↗</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
