@@ -1755,7 +1755,8 @@ td small {
 }
 
 .social-preview-icon.facebook {
-  background: #24529a;
+  background: transparent;
+  box-shadow: none;
 }
 
 .social-preview-icon.instagram {

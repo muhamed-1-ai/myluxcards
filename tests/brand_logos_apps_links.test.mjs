@@ -39,7 +39,7 @@ test("Apps & Links: local SVG brand assets exist and contain authentic colors", 
 
   // Check Facebook official blue
   const fbContent = fs.readFileSync(path.join(brandIconsDir, "facebook.svg"), "utf-8");
-  assert.ok(fbContent.includes("#1877F2"), "Facebook must use official Meta blue #1877F2");
+  assert.ok(fbContent.includes("#0866FF") || fbContent.includes("#1877F2"), "Facebook must use official Meta blue (#0866FF or #1877F2)");
 
   // Check YouTube official red
   const ytContent = fs.readFileSync(path.join(brandIconsDir, "youtube.svg"), "utf-8");

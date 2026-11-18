@@ -828,6 +828,12 @@ h1.zappit-simple-name {
   background: transparent;
 }
 
+.zappit-simple-social-icon.facebook {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
 .zappit-simple-social-name {
   overflow: hidden;
   text-overflow: ellipsis;

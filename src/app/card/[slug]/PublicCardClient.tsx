@@ -867,7 +867,7 @@ export default function PublicCardClient({ slug }: { slug: string }) {
 
   /* Social platform metadata */
   const SOCIAL: Record<string, { subtitle: string; icon: React.ReactNode; iconBg: string }> = {
-    Facebook: { subtitle: "Follow me", icon: <FacebookIcon />, iconBg: "#1877f2" },
+    Facebook: { subtitle: "Follow me", icon: <FacebookIcon />, iconBg: "transparent" },
     Instagram: { subtitle: "Follow us on Instagram", icon: <InstagramIcon />, iconBg: "radial-gradient(circle at 30% 107%,#fdf497 0%,#fd5949 45%,#d6249f 60%,#285aeb 90%)" },
     LinkedIn: { subtitle: "Follow me", icon: <LinkedInIcon />, iconBg: "#0a66c2" },
     Twitter: { subtitle: "Follow me", icon: <TwitterXIcon />, iconBg: "#000" },
@@ -1523,8 +1523,24 @@ function InstagramIcon() {
 
 function FacebookIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    <svg viewBox="0 0 666.667 666.667" aria-hidden style={{ width: "100%", height: "100%", display: "block" }}>
+      <defs>
+        <clipPath id="pc-fb-clip" clipPathUnits="userSpaceOnUse">
+          <path d="M0 700h700V0H0Z" />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#pc-fb-clip)" transform="matrix(1.3333333 0 0 -1.3333333 -133.33333 800)">
+        <path
+          d="M0 0c0 138.071-111.929 250-250 250S-500 138.071-500 0c0-117.245 80.715-215.622 189.606-242.638v166.242h-51.552V0h51.552v32.919c0 85.092 38.508 124.532 122.048 124.532 15.838 0 43.167-3.105 54.347-6.211V81.986c-5.901.621-16.149.932-28.882.932-40.993 0-56.832-15.528-56.832-55.9V0h81.659l-14.028-76.396h-67.631v-171.773C-95.927-233.218 0-127.818 0 0"
+          fill="#0866FF"
+          transform="translate(600 350)"
+        />
+        <path
+          d="m0 0 14.029 76.396H-67.63v27.019c0 40.372 15.838 55.899 56.831 55.899 12.733 0 22.981-.31 28.882-.931v69.253c-11.18 3.106-38.509 6.212-54.347 6.212-83.539 0-122.048-39.441-122.048-124.533V76.396h-51.552V0h51.552v-166.242a250.559 250.559 0 0 1 60.394-7.362c10.254 0 20.358.632 30.288 1.831V0Z"
+          fill="#FFFFFF"
+          transform="translate(447.918 273.604)"
+        />
+      </g>
     </svg>
   );
 }

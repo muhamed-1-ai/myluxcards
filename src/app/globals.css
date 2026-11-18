@@ -10283,6 +10283,12 @@ a.zappit-modern-val:hover {
   flex-shrink: 0;
 }
 
+.zappit-modern-app-icon.facebook {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
 .zappit-modern-app-tile:hover .zappit-modern-app-icon {
   transform: scale(1.08);
 }
