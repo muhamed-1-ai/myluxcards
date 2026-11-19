@@ -1,6 +1,7 @@
 import "server-only";
 
 import { currentIdentity, AdminIdentity } from "./adminAuth";
+import { isSessionMfaVerified } from "./auth/adminMfa";
 import { pool } from "./db";
 import { normalizeEmail } from "./repositories/users";
 
@@ -119,6 +120,18 @@ export async function requireAuthoritativeOwner(req?: Request): Promise<
       success: false,
       response: Response.json(
         { message: "Forbidden: Only the primary owner account (muhammedfebincholayil@gmail.com) can manage administrators." },
+        { status: 403 }
+      ),
+    };
+  }
+
+  // Enforce MFA session verification
+  const mfaVerified = await isSessionMfaVerified(identity, req);
+  if (!mfaVerified) {
+    return {
+      success: false,
+      response: Response.json(
+        { message: "Forbidden: MFA verification required." },
         { status: 403 }
       ),
     };

@@ -198,6 +198,13 @@ export async function linkGoogleIdentity(input: { providerAccountId: string; ema
   }
 }
 
+export const LOGIN_RATE_LIMITS = {
+  ACCOUNT_MAX: 5,          // 5 login attempts per account per window
+  ACCOUNT_WINDOW_SEC: 900, // 15 minutes
+  IP_MAX: 30,              // 30 login attempts per IP per window
+  IP_WINDOW_SEC: 900,      // 15 minutes
+} as const;
+
 export async function checkRateLimit(action: string, subject: string, limit: number, windowSeconds: number) {
   const key = createHash("sha256").update(subject).digest("hex"),
     window = new Date(Math.floor(Date.now() / (windowSeconds * 1000)) * windowSeconds * 1000);
@@ -209,4 +216,40 @@ export async function checkRateLimit(action: string, subject: string, limit: num
     [action, key, window, windowSeconds]
   );
   return result.rows[0].request_count <= limit;
+}
+
+export async function enforceLoginRateLimit(input: {
+  email: string;
+  clientIp?: string | null;
+}): Promise<{ allowed: boolean; reason?: "ACCOUNT" | "IP" }> {
+  const normalized = normalizeEmail(input.email);
+  const ip = input.clientIp ? input.clientIp.trim() : "unknown";
+
+  // 1. Independent account limit
+  if (normalized) {
+    const accountAllowed = await checkRateLimit(
+      "LOGIN_ACCOUNT",
+      normalized,
+      LOGIN_RATE_LIMITS.ACCOUNT_MAX,
+      LOGIN_RATE_LIMITS.ACCOUNT_WINDOW_SEC
+    );
+    if (!accountAllowed) {
+      return { allowed: false, reason: "ACCOUNT" };
+    }
+  }
+
+  // 2. Independent client IP limit
+  if (ip && ip !== "unknown") {
+    const ipAllowed = await checkRateLimit(
+      "LOGIN_IP",
+      ip,
+      LOGIN_RATE_LIMITS.IP_MAX,
+      LOGIN_RATE_LIMITS.IP_WINDOW_SEC
+    );
+    if (!ipAllowed) {
+      return { allowed: false, reason: "IP" };
+    }
+  }
+
+  return { allowed: true };
 }

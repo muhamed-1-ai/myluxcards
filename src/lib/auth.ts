@@ -1,8 +1,9 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { authenticateCredentials, linkGoogleIdentity } from "./authService";
-import { findUserById } from "./repositories/users";
+import { authenticateCredentials, enforceLoginRateLimit, linkGoogleIdentity } from "./authService";
+import { findUserById, normalizeEmail } from "./repositories/users";
+import { getTrustedClientIp } from "./rateLimit";
 
 if (process.env.NODE_ENV === "production") {
   const canonical = "https://3gzappit.com";
@@ -64,21 +65,31 @@ export const authOptions: NextAuthOptions = {
       console.warn("[OAuth][WARN]", code);
     },
   },
-  session: { strategy:"jwt", maxAge: 60 * 60 * 24 * 30 },
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   providers: [
     CredentialsProvider({
       name: "Email and password",
       credentials: { email: { type: "email" }, password: { type: "password" } },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) return null;
-        try {
-          const user = await authenticateCredentials(credentials.email, credentials.password);
-          return user ? { id: user.id, email: user.email, name: user.name, role: user.role, sessionVersion: user.sessionVersion } : null;
-        } catch (error) {
-          console.error("[Auth] Credentials authorization error:", error);
-          return null;
-        }
-      },
+      async authorize(credentials, req) {
+          if (!credentials?.email || !credentials.password) return null;
+          const email = normalizeEmail(credentials.email);
+          const clientIp = getTrustedClientIp(req);
+
+          // Enforce independent account and IP rate limiting across NextAuth credentials login
+          const rateCheck = await enforceLoginRateLimit({ email, clientIp });
+          if (!rateCheck.allowed) {
+            console.warn("[Auth] Credentials authorization rate limited:", { email, clientIp, reason: rateCheck.reason });
+            return null;
+          }
+
+          try {
+            const user = await authenticateCredentials(email, credentials.password);
+            return user ? { id: user.id, email: user.email, name: user.name, role: user.role, sessionVersion: user.sessionVersion } : null;
+          } catch (error) {
+            console.error("[Auth] Credentials authorization error:", error);
+            return null;
+          }
+        },
     }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || "",

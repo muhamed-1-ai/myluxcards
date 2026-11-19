@@ -19,6 +19,7 @@ export type AuthIdentity = {
   createdByAdminId?: string | null;
   featurePermissions: FeaturePermissions;
   accountId: string; // Account/tenant identifier for multi-tenant isolation
+  sessionVersion?: number;
 };
 
 /**
@@ -110,6 +111,7 @@ export async function currentIdentity(req?: Request): Promise<AuthIdentity | nul
       createdByAdminId: profile.created_by_admin_id,
       featurePermissions,
       accountId: profile.id, // Primary tenant/account isolation ID
+      sessionVersion: profile.session_version,
     };
 
     logAuthDebug({
