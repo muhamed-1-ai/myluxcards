@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       userId: identity.id,
       role: identity.role,
       sessionVersion: identity.sessionVersion,
+      sessionId: identity.sessionId,
       sessionToken: sessionToken || undefined,
     });
 

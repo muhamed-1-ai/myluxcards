@@ -97,3 +97,65 @@ test("IP 6: Fallback to loopback when no valid IP can be extracted", () => {
   assert.equal(getTrustedClientIp({ headers: {} }, { trustProxy: true }), "127.0.0.1");
   assert.equal(getTrustedClientIp({ headers: { "x-forwarded-for": "garbage-string" } }, { trustProxy: true }), "127.0.0.1");
 });
+
+test("IP 7: Explicit CIDR matching verifies Coolify/Docker proxy subnets", async () => {
+  const { ipMatchesCidr, isTrustedProxy } = await import("../src/lib/rateLimit.ts");
+
+  // Traefik Docker bridge (172.16.0.0/12)
+  assert.equal(ipMatchesCidr("172.18.0.2", "172.16.0.0/12"), true);
+  assert.equal(ipMatchesCidr("172.31.255.254", "172.16.0.0/12"), true);
+  assert.equal(ipMatchesCidr("172.32.0.1", "172.16.0.0/12"), false);
+
+  // Coolify private container network (10.0.0.0/8)
+  assert.equal(ipMatchesCidr("10.0.1.5", "10.0.0.0/8"), true);
+  assert.equal(ipMatchesCidr("11.0.0.1", "10.0.0.0/8"), false);
+
+  // Local loopback
+  assert.equal(ipMatchesCidr("127.0.0.1", "127.0.0.1/8"), true);
+  assert.equal(ipMatchesCidr("::1", "::1/128"), true);
+
+  // Default trusted proxy ranges recognize Traefik container
+  assert.equal(isTrustedProxy("172.18.0.2"), true);
+  assert.equal(isTrustedProxy("10.0.0.1"), true);
+  assert.equal(isTrustedProxy("127.0.0.1"), true);
+  assert.equal(isTrustedProxy("203.0.113.195"), false);
+});
+
+test("IP 8: Direct origin connection from untrusted socket IP strictly rejects forwarded headers", () => {
+  // Scenario: Attacker connects directly to port 3000 bypassing Traefik.
+  // Socket remote address is public IP 203.0.113.50 (NOT in trusted proxy ranges).
+  // Attacker attempts to spoof XFF as "1.1.1.1".
+  const req = {
+    headers: {
+      "x-forwarded-for": "1.1.1.1",
+      "x-real-ip": "8.8.8.8",
+    },
+    socket: {
+      remoteAddress: "203.0.113.50",
+    },
+  };
+
+  // Even with default settings, because the connecting socket is NOT a trusted proxy,
+  // the forwarded headers are ignored and the socket IP is returned.
+  const resolved = getTrustedClientIp(req);
+  assert.equal(resolved, "203.0.113.50", "Must return direct socket IP and ignore spoofed headers");
+});
+
+test("IP 9: Legitimate private client through trusted Traefik socket is correctly preserved", () => {
+  // Scenario: Internal admin on 192.168.1.55 connects through Traefik (172.18.0.2).
+  // Socket remoteAddress is 172.18.0.2 (trusted proxy).
+  // Traefik sets X-Forwarded-For: 192.168.1.55.
+  const req = {
+    headers: {
+      "x-forwarded-for": "192.168.1.55",
+    },
+    socket: {
+      remoteAddress: "172.18.0.2",
+    },
+  };
+
+  // Because private IP detection is separate from proxy trust, 192.168.1.55 is correctly
+  // identified as the client IP, rather than being discarded.
+  const resolved = getTrustedClientIp(req);
+  assert.equal(resolved, "192.168.1.55", "Private client IP through trusted proxy must be preserved");
+});

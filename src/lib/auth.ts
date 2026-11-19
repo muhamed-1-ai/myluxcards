@@ -1,4 +1,5 @@
 import type { NextAuthOptions } from "next-auth";
+import { randomUUID } from "node:crypto";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { authenticateCredentials, enforceLoginRateLimit, linkGoogleIdentity } from "./authService";
@@ -71,25 +72,25 @@ export const authOptions: NextAuthOptions = {
       name: "Email and password",
       credentials: { email: { type: "email" }, password: { type: "password" } },
       async authorize(credentials, req) {
-          if (!credentials?.email || !credentials.password) return null;
-          const email = normalizeEmail(credentials.email);
-          const clientIp = getTrustedClientIp(req);
+        if (!credentials?.email || !credentials.password) return null;
+        const email = normalizeEmail(credentials.email);
+        const clientIp = getTrustedClientIp(req);
 
-          // Enforce independent account and IP rate limiting across NextAuth credentials login
-          const rateCheck = await enforceLoginRateLimit({ email, clientIp });
-          if (!rateCheck.allowed) {
-            console.warn("[Auth] Credentials authorization rate limited:", { email, clientIp, reason: rateCheck.reason });
-            return null;
-          }
+        // Enforce independent account and IP rate limiting across NextAuth credentials login
+        const rateCheck = await enforceLoginRateLimit({ email, clientIp });
+        if (!rateCheck.allowed) {
+          console.warn("[Auth] Credentials authorization rate limited:", { email, clientIp, reason: rateCheck.reason });
+          return null;
+        }
 
-          try {
-            const user = await authenticateCredentials(email, credentials.password);
-            return user ? { id: user.id, email: user.email, name: user.name, role: user.role, sessionVersion: user.sessionVersion } : null;
-          } catch (error) {
-            console.error("[Auth] Credentials authorization error:", error);
-            return null;
-          }
-        },
+        try {
+          const user = await authenticateCredentials(email, credentials.password);
+          return user ? { id: user.id, email: user.email, name: user.name, role: user.role, sessionVersion: user.sessionVersion } : null;
+        } catch (error) {
+          console.error("[Auth] Credentials authorization error:", error);
+          return null;
+        }
+      },
     }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID || "",
@@ -155,6 +156,8 @@ export const authOptions: NextAuthOptions = {
         token.userId = user.id;
         token.role = (user as any)?.role || token.role;
         token.sessionVersion = (user as typeof user & { sessionVersion?: number }).sessionVersion;
+        // Generate a stable unique identifier for this authenticated login session
+        token.sessionId = (token.sessionId as string) || randomUUID();
       }
       if (token.userId && !token.role) {
         const dbUser = await findUserById(token.userId as string);
@@ -173,12 +176,23 @@ export const authOptions: NextAuthOptions = {
           console.error("[Auth] Error fetching DB user in jwt callback:", err);
         }
       }
+      // Ensure sessionId persists across token updates/refreshes
+      if (!token.sessionId) {
+        token.sessionId = randomUUID();
+      }
       console.log("[OAuth][TRACE][JWT_SUCCESS]", { userIdExists: Boolean(token.userId), role: token.role });
       return token;
     },
     async session({ session, token }) {
       console.log("[OAuth][TRACE][SESSION_ENTER]", { userIdExists: Boolean(token.userId) });
-      if (session.user) Object.assign(session.user, { id: token.userId, role: token.role, sessionVersion: token.sessionVersion });
+      if (session.user) {
+        Object.assign(session.user, {
+          id: token.userId,
+          role: token.role,
+          sessionVersion: token.sessionVersion,
+          sessionId: token.sessionId,
+        });
+      }
       console.log("[OAuth][TRACE][SESSION_SUCCESS]", { userIdExists: Boolean(session.user?.id), role: session.user?.role });
       return session;
     },

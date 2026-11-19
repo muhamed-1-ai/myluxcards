@@ -366,16 +366,16 @@ export async function verifyAdminMfaCodeOrRecovery(
       }
     }
 
-      // 2. Try atomic recovery code consumption
-      const normalizedRecovery = normalizeRecoveryCode(clean);
-      if (normalizedRecovery.length >= 8) {
-        const inputHash = createHash("sha256").update(normalizedRecovery).digest("hex");
-        const codes = Array.isArray(row.recovery_codes) ? [...row.recovery_codes] : [];
-        const matchIdx = codes.findIndex((c) => !c.used && c.hash === inputHash);
+    // 2. Try atomic recovery code consumption
+    const normalizedRecovery = normalizeRecoveryCode(clean);
+    if (normalizedRecovery.length >= 8) {
+      const inputHash = createHash("sha256").update(normalizedRecovery).digest("hex");
+      const codes = Array.isArray(row.recovery_codes) ? [...row.recovery_codes] : [];
+      const matchIdx = codes.findIndex((c) => !c.used && c.hash === inputHash);
 
-          if (matchIdx !== -1) {
-            codes[matchIdx].used = true;
-            codes[matchIdx].used_at = new Date().toISOString();
+      if (matchIdx !== -1) {
+        codes[matchIdx].used = true;
+        codes[matchIdx].used_at = new Date().toISOString();
 
         await db.query(
           "UPDATE admin_mfa SET recovery_codes = $1::jsonb, last_used_at = now(), updated_at = now() WHERE user_id = $2",
@@ -385,8 +385,8 @@ export async function verifyAdminMfaCodeOrRecovery(
       }
     }
 
-  return { success: false, message: "Invalid verification code or recovery code. Please try again." };
-}, "serializable");
+    return { success: false, message: "Invalid verification code or recovery code. Please try again." };
+  }, "serializable");
 }
 
 /**
@@ -394,12 +394,14 @@ export async function verifyAdminMfaCodeOrRecovery(
  * - userId
  * - role
  * - sessionVersion (revokes when password is reset or sessions bumped)
- * - sessionTokenHash (binds strictly to the individual authenticated login session)
+ * - sessionId (stable login session identifier, immune to raw cookie re-encryption on session refresh)
+ * - sessionToken (fallback hash binding)
  */
 export function signAdminMfaToken(payload: {
   userId: string;
   role: string;
   sessionVersion?: number;
+  sessionId?: string;
   sessionToken?: string;
 }): string {
   const secret = getAuthSecret();
@@ -411,7 +413,12 @@ export function signAdminMfaToken(payload: {
           exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12, // 12-hour MFA session
   };
 
-if (payload.sessionToken) {
+// Bind to the stable login session identifier from NextAuth JWT.
+// This avoids spurious MFA drops during normal session refresh / cookie rotation
+// while strictly ensuring the token invalidates on fresh logins, logouts, and password resets.
+if (payload.sessionId) {
+  data.sid = payload.sessionId;
+} else if (payload.sessionToken) {
   data.sth = hashSessionToken(payload.sessionToken);
 }
 
@@ -423,12 +430,14 @@ return `${raw}.${signature}`;
 /**
  * Validates a signed MFA verification cookie token.
  * Verifies cryptographic HMAC signature, user ID, session version, expiry,
- * and individual session token hash binding.
+ * and individual session binding.
+ * Accepts either sessionId or sessionToken in the 4th/5th argument position.
  */
   export function verifyAdminMfaToken(
     token: string,
     userId: string,
     sessionVersion?: number,
+    sessionIdOrToken?: string | null,
     currentSessionToken?: string | null
   ): boolean {
     if (!token || typeof token !== "string" || !token.includes(".")) return false;
@@ -444,70 +453,77 @@ return `${raw}.${signature}`;
       return false;
     }
 
-    try {
-      const data = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
-      if (data.uid !== userId) return false;
-      if (sessionVersion !== undefined && data.sv !== sessionVersion) return false;
-      if (typeof data.exp === "number" && data.exp <= Math.floor(Date.now() / 1000)) return false;
-
-      // Individual session binding:
-      // If the MFA token was bound to a specific login session, verify the current session token matches
-      if (data.sth) {
-        if (!currentSessionToken) return false;
-        const expectedSth = hashSessionToken(currentSessionToken);
-        if (data.sth !== expectedSth) return false;
-      }
-
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Checks whether the current request session has completed admin MFA verification.
-   */
-  export async function isSessionMfaVerified(
-    identity: AdminIdentity,
-    req?: Request | Headers
-  ): Promise<boolean> {
-    // If user is not an administrator, MFA is not enforced
-    if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
-      return true;
-    }
-
-    let cookieVal: string | undefined = undefined;
-
-    if (req) {
-      if (typeof (req as any).get === "function") {
-        const cookieHeader = (req as Headers).get("cookie") || "";
-        const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${ADMIN_MFA_COOKIE_NAME}=([^;]+)`));
-        cookieVal = match ? decodeURIComponent(match[1]) : undefined;
-      } else if ("headers" in req && req.headers) {
-        const h = req.headers as any;
-        const cookieHeader = (typeof h?.get === "function" ? h.get("cookie") : h?.cookie) || "";
-        const match = typeof cookieHeader === "string" ? cookieHeader.match(new RegExp(`(?:^|;\\s*)${ADMIN_MFA_COOKIE_NAME}=([^;]+)`)) : null;
-        cookieVal = match ? decodeURIComponent(match[1]) : undefined;
-      }
-    }
-
-    if (!cookieVal) {
       try {
-        const cookieStore = await cookies();
-        cookieVal = cookieStore.get(ADMIN_MFA_COOKIE_NAME)?.value;
+        const data = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
+        if (data.uid !== userId) return false;
+        if (sessionVersion !== undefined && data.sv !== sessionVersion) return false;
+        if (typeof data.exp === "number" && data.exp <= Math.floor(Date.now() / 1000)) return false;
+
+        // 1. Stable session identifier check (resilient to session refresh and cookie rotation)
+        if (data.sid) {
+          if (!sessionIdOrToken) return false;
+          if (data.sid !== sessionIdOrToken) return false;
+        }
+
+        // 2. Cookie token hash check
+        if (data.sth) {
+          const candidateToken = currentSessionToken || sessionIdOrToken;
+          if (!candidateToken) return false;
+          const expectedSth = hashSessionToken(candidateToken);
+          if (data.sth !== expectedSth) return false;
+        }
+
+        return true;
       } catch {
-        // Out of cookie context
+        return false;
       }
     }
 
-    if (!cookieVal) return false;
+      /**
+       * Checks whether the current request session has completed admin MFA verification.
+       */
+      export async function isSessionMfaVerified(
+        identity: AdminIdentity,
+        req?: Request | Headers
+      ): Promise<boolean> {
+        // If user is not an administrator, MFA is not enforced
+        if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
+          return true;
+        }
 
-    const currentSessionToken = await getRequestSessionToken(req);
+        let cookieVal: string | undefined = undefined;
 
-    return verifyAdminMfaToken(
-      cookieVal,
-      identity.id,
-      identity.sessionVersion,
-      currentSessionToken
-    );
-  }
+          if (req) {
+            if (typeof (req as any).get === "function") {
+              const cookieHeader = (req as Headers).get("cookie") || "";
+              const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${ADMIN_MFA_COOKIE_NAME}=([^;]+)`));
+              cookieVal = match ? decodeURIComponent(match[1]) : undefined;
+            } else if ("headers" in req && req.headers) {
+              const h = req.headers as any;
+              const cookieHeader = (typeof h?.get === "function" ? h.get("cookie") : h?.cookie) || "";
+              const match = typeof cookieHeader === "string" ? cookieHeader.match(new RegExp(`(?:^|;\\s*)${ADMIN_MFA_COOKIE_NAME}=([^;]+)`)) : null;
+              cookieVal = match ? decodeURIComponent(match[1]) : undefined;
+            }
+          }
+
+            if (!cookieVal) {
+              try {
+                const cookieStore = await cookies();
+                cookieVal = cookieStore.get(ADMIN_MFA_COOKIE_NAME)?.value;
+              } catch {
+                // Out of cookie context
+              }
+            }
+
+            if (!cookieVal) return false;
+
+            const currentSessionToken = await getRequestSessionToken(req);
+
+          return verifyAdminMfaToken(
+            cookieVal,
+            identity.id,
+            identity.sessionVersion,
+            identity.sessionId,
+            currentSessionToken
+          );
+        }

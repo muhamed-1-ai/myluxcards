@@ -77,7 +77,72 @@ export function getClientIp(request: Request): string {
 }
 
 /**
- * Checks whether an IP address belongs to private, loopback, or internal networks.
+ * Default trusted reverse proxy address ranges matching Coolify/Traefik Docker architecture.
+ * - 127.0.0.1/8: Local host reverse proxies
+ * - ::1/128: IPv6 loopback
+ * - 172.16.0.0/12: Docker default bridge and user-defined bridge networks
+ * - 10.0.0.0/8: Docker overlay / Coolify container networks
+ */
+export const DEFAULT_TRUSTED_PROXY_RANGES = [
+  "127.0.0.1/8",
+  "::1",
+  "::1/128",
+  "172.16.0.0/12",
+  "10.0.0.0/8",
+];
+
+/**
+ * Checks whether an IPv4 address matches a given CIDR subnet or exact IP.
+ */
+function ipv4ToInt(ip: string): number {
+  return ip.split(".").reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+}
+
+export function ipMatchesCidr(ip: string, cidr: string): boolean {
+  if (!ip || !cidr) return false;
+  const cleanIp = ip.trim();
+  const cleanCidr = cidr.trim();
+
+  // Handle exact IPv6 loopback
+  if (cleanIp === "::1" && (cleanCidr === "::1" || cleanCidr === "::1/128")) {
+    return true;
+  }
+
+  // Handle IPv4 CIDR matching
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(cleanIp)) {
+    if (cleanCidr.includes("/")) {
+      const [range, bitsStr] = cleanCidr.split("/");
+      const bits = parseInt(bitsStr, 10);
+      if (isNaN(bits) || bits < 0 || bits > 32) return false;
+      if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(range)) return false;
+
+      const mask = bits === 0 ? 0 : (~((1 << (32 - bits)) - 1)) >>> 0;
+      return (ipv4ToInt(cleanIp) & mask) === (ipv4ToInt(range) & mask);
+    }
+    return cleanIp === cleanCidr;
+  }
+
+  return cleanIp.toLowerCase() === cleanCidr.toLowerCase();
+}
+
+/**
+ * Verifies whether an incoming socket address is a recognized trusted reverse proxy.
+ * Checks against TRUSTED_PROXIES env var or DEFAULT_TRUSTED_PROXY_RANGES.
+ */
+export function isTrustedProxy(ip: string | null | undefined, customList?: string[]): boolean {
+  if (!ip) return false;
+  const rawList =
+    customList ||
+    (process.env.TRUSTED_PROXIES
+      ? process.env.TRUSTED_PROXIES.split(",").map((s) => s.trim()).filter(Boolean)
+      : DEFAULT_TRUSTED_PROXY_RANGES);
+
+  return rawList.some((range) => ipMatchesCidr(ip, range));
+}
+
+/**
+ * Address classifier: Checks whether an IP address belongs to private or loopback ranges.
+ * Kept strictly separate from proxy trust validation.
  */
 export function isPrivateOrLoopbackIp(ip: string): boolean {
   if (ip === "127.0.0.1" || ip === "::1" || ip === "localhost") return true;
@@ -94,28 +159,39 @@ export function isPrivateOrLoopbackIp(ip: string): boolean {
 }
 
 /**
- * Resolves the client IP address according to the reverse proxy architecture.
+ * Resolves the authentic client IP address according to our Coolify/Traefik reverse proxy architecture.
  *
  * Security Guarantees:
- * 1. Do not blindly trust arbitrary or leftmost forwarded headers, as an attacker can spoof them.
- * 2. In reverse-proxy environments (Coolify / Traefik / Nginx), the proxy appends the caller's IP.
- *    By traversing right-to-left past internal/private infrastructure hops, the true client IP is extracted.
- * 3. Direct origin requests without a trusted proxy (trustProxy=false) do not trust forwarded headers.
- * 4. Strictly validates IP format (IPv4 / IPv6) to reject header injections and malformed strings.
+ * 1. Explicit proxy trust: Direct connections from untrusted socket addresses reject forwarded headers.
+ * 2. Traefik single-hop verification: Traefik appends the real caller IP to the end of X-Forwarded-For.
+ *    Using verified trusted hops (default 1), the client IP is extracted from (parts.length - trustedHops).
+ * 3. Leftmost spoofed IPs injected by malicious callers are safely ignored.
+ * 4. Private IP detection is treated as an address classifier, not an automatic proxy trust bypass.
  */
 export function getTrustedClientIp(
   req?: Request | { headers?: any; socket?: any } | Headers | null,
-  options?: { trustProxy?: boolean; trustedHops?: number; trustCloudflare?: boolean }
+  options?: {
+    trustProxy?: boolean;
+    trustedHops?: number;
+    trustedProxies?: string[];
+    trustCloudflare?: boolean;
+  }
 ): string {
   if (!req) return "127.0.0.1";
 
-  // Check if proxy trust is active
   const isProd = process.env.NODE_ENV === "production";
   const trustProxy =
     options?.trustProxy ??
     (process.env.TRUST_PROXY !== "false");
 
-  const explicitHops = options?.trustedHops ?? (process.env.TRUSTED_PROXY_HOPS ? parseInt(process.env.TRUSTED_PROXY_HOPS, 10) : undefined);
+  const trustedHops = Math.max(
+    1,
+    options?.trustedHops ??
+    (process.env.TRUSTED_PROXY_HOPS
+      ? parseInt(process.env.TRUSTED_PROXY_HOPS, 10)
+      : 1)
+  );
+
   const trustCloudflare =
     options?.trustCloudflare ?? (process.env.TRUST_CLOUDFLARE === "true");
 
@@ -124,74 +200,77 @@ export function getTrustedClientIp(
     directSocketIp = sanitizeIpAddress(req.socket.remoteAddress);
   }
 
-    // If proxy trust is disabled (direct-origin requests), do not trust forwarded headers
-    if (!trustProxy) {
-      return directSocketIp || "127.0.0.1";
+    // If the direct socket connection IP is known, verify that the caller is an authentic trusted proxy.
+    // If the connection arrived directly from an untrusted peer (bypassing Traefik), reject all forwarded headers.
+    if (directSocketIp) {
+      const isSocketTrusted = isTrustedProxy(directSocketIp, options?.trustedProxies);
+      if (!isSocketTrusted) {
+        return directSocketIp;
+      }
+    } else if (!trustProxy) {
+      return "127.0.0.1";
     }
 
-      let xff: string | null = null;
-      let realIp: string | null = null;
-      let cfIp: string | null = null;
+    let xff: string | null = null;
+    let realIp: string | null = null;
+    let cfIp: string | null = null;
 
-      if (typeof (req as any).get === "function") {
-        const h = req as Headers;
+    if (typeof (req as any).get === "function") {
+      const h = req as Headers;
+      xff = h.get("x-forwarded-for");
+      realIp = h.get("x-real-ip");
+      cfIp = h.get("cf-connecting-ip");
+    } else if ("headers" in req && req.headers) {
+      const h = req.headers;
+      if (typeof h.get === "function") {
         xff = h.get("x-forwarded-for");
         realIp = h.get("x-real-ip");
         cfIp = h.get("cf-connecting-ip");
-      } else if ("headers" in req && req.headers) {
-        const h = req.headers;
-        if (typeof h.get === "function") {
-          xff = h.get("x-forwarded-for");
-          realIp = h.get("x-real-ip");
-          cfIp = h.get("cf-connecting-ip");
-        } else {
-          xff = h["x-forwarded-for"] || h["X-Forwarded-For"] || null;
-          realIp = h["x-real-ip"] || h["X-Real-IP"] || null;
-          cfIp = h["cf-connecting-ip"] || h["CF-Connecting-IP"] || null;
-        }
+      } else {
+        xff = h["x-forwarded-for"] || h["X-Forwarded-For"] || null;
+        realIp = h["x-real-ip"] || h["X-Real-IP"] || null;
+        cfIp = h["cf-connecting-ip"] || h["CF-Connecting-IP"] || null;
       }
+    }
 
-        // 1. Cloudflare connecting IP (when explicitly enabled or present in CF environment)
-        if (cfIp) {
-          const cleanCf = sanitizeIpAddress(cfIp);
-          if (cleanCf && (trustCloudflare || options?.trustCloudflare !== false)) {
-            return cleanCf;
-          }
-        }
+    // 1. Cloudflare connecting IP (when Cloudflare is trusted or present without explicit disable)
+    if (cfIp) {
+      const cleanCf = sanitizeIpAddress(cfIp);
+      if (cleanCf && (trustCloudflare || options?.trustCloudflare !== false)) {
+        return cleanCf;
+      }
+    }
 
-        // 2. X-Forwarded-For header resolution
-        if (xff && typeof xff === "string") {
-          const parts = xff
-            .split(",")
-            .map((part) => sanitizeIpAddress(part))
-            .filter((ip): ip is string => Boolean(ip));
+      // 2. X-Forwarded-For resolution matching Traefik proxy hops
+      if (xff && typeof xff === "string") {
+        const parts = xff
+          .split(",")
+          .map((part) => sanitizeIpAddress(part))
+          .filter((ip): ip is string => Boolean(ip));
 
           if (parts.length > 0) {
-            if (explicitHops !== undefined && explicitHops > 0) {
-              const targetIndex = Math.max(0, parts.length - explicitHops);
+            if (options?.trustedHops !== undefined) {
+              const targetIndex = Math.max(0, parts.length - options.trustedHops);
               return parts[targetIndex];
             }
 
-            // If no explicit hop count is given, inspect from right (closest proxy) to left.
-            // Strip internal private infrastructure hops (e.g. Docker 10.x, 172.x).
-            // The first external/public IP from the right is the true client IP.
-            for (let i = parts.length - 1; i >= 0; i--) {
-              if (!isPrivateOrLoopbackIp(parts[i])) {
-                return parts[i];
-              }
+          // Walk right-to-left past trusted reverse proxy hops (e.g. Traefik / Docker bridge)
+          for (let i = parts.length - 1; i >= 0; i--) {
+            if (!isTrustedProxy(parts[i], options?.trustedProxies)) {
+              return parts[i];
             }
-
-            // If all IPs are internal/private, return the rightmost valid IP
-            return parts[parts.length - 1];
           }
-        }
 
-        // 3. X-Real-IP set by trusted upstream reverse proxy
-        if (realIp && typeof realIp === "string") {
-          const cleanReal = sanitizeIpAddress(realIp);
-          if (cleanReal) return cleanReal;
+          return parts[parts.length - 1];
         }
-
-        // 4. Fallback to direct socket IP or loopback
-        return directSocketIp || "127.0.0.1";
       }
+
+    // 3. X-Real-IP set by trusted upstream reverse proxy
+    if (realIp && typeof realIp === "string") {
+      const cleanReal = sanitizeIpAddress(realIp);
+      if (cleanReal) return cleanReal;
+    }
+
+    // 4. Fallback to direct socket IP or loopback
+    return directSocketIp || "127.0.0.1";
+  }

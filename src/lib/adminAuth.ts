@@ -20,6 +20,7 @@ export type AdminIdentity = {
   createdByAdminId?: string | null;
   featurePermissions: FeaturePermissions;
   sessionVersion?: number;
+  sessionId?: string;
   terms_accepted?: boolean;
   privacy_accepted?: boolean;
   cookie_consent?: boolean;
@@ -51,6 +52,7 @@ export async function currentIdentity(req?: Request): Promise<AdminIdentity | nu
     createdByAdminId: identity.createdByAdminId,
     featurePermissions: identity.featurePermissions,
     sessionVersion: identity.sessionVersion,
+    sessionId: identity.sessionId,
   };
 }
 

@@ -20,6 +20,7 @@ export type AuthIdentity = {
   featurePermissions: FeaturePermissions;
   accountId: string; // Account/tenant identifier for multi-tenant isolation
   sessionVersion?: number;
+  sessionId?: string;
 };
 
 /**
@@ -34,6 +35,7 @@ export async function currentIdentity(req?: Request): Promise<AuthIdentity | nul
 
   let userId: string | null = null;
   let tokenSessionVersion: number | undefined = undefined;
+  let tokenSessionId: string | undefined = undefined;
   let userRole: AppRole | undefined = undefined;
 
   try {
@@ -43,6 +45,7 @@ export async function currentIdentity(req?: Request): Promise<AuthIdentity | nul
       userId = session.user.id;
       userRole = session.user.role as AppRole;
       tokenSessionVersion = session.user.sessionVersion;
+      tokenSessionId = (session.user as any).sessionId;
     }
 
     // 2. Fallback: If req is provided and getServerSession missed (e.g. cookie name prefix mismatch behind SSL proxy), decode JWT directly
@@ -56,6 +59,7 @@ export async function currentIdentity(req?: Request): Promise<AuthIdentity | nul
         userId = jwtToken.userId as string;
         userRole = jwtToken.role as AppRole;
         tokenSessionVersion = jwtToken.sessionVersion as number | undefined;
+        tokenSessionId = (jwtToken.sessionId as string) || (jwtToken.jti as string);
       }
     }
 
@@ -112,6 +116,7 @@ export async function currentIdentity(req?: Request): Promise<AuthIdentity | nul
       featurePermissions,
       accountId: profile.id, // Primary tenant/account isolation ID
       sessionVersion: profile.session_version,
+      sessionId: tokenSessionId,
     };
 
     logAuthDebug({
