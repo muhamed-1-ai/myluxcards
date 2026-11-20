@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
@@ -38,8 +38,31 @@ const sectionLabels: Record<Section, string> = {
   settings: "Platform Settings",
 };
 
-export default function SuperAdminApp({ identity }: { identity: AdminIdentity }) {
-  const [section, setSection] = useState<Section>("overview");
+export default function SuperAdminApp({
+  identity,
+  initialSection,
+  initialMode,
+  initialOrderId,
+}: {
+  identity: AdminIdentity;
+  initialSection?: Section;
+  initialMode?: "all" | "packing" | "shipping";
+  initialOrderId?: string;
+}) {
+  const [section, setSection] = useState<Section>(() => {
+    if (initialSection) return initialSection;
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const s = p.get("section") || p.get("tab");
+      if (s === "fulfillment" || s === "shipping" || s === "courier_shipping" || p.get("mode") || p.get("orderId") || p.get("shipOrderId")) {
+        return "fulfillment";
+      }
+      if (s === "users" || s === "audit" || s === "settings") {
+        return s;
+      }
+    }
+    return "overview";
+  });
   const [mobile, setMobile] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [activeRailTip, setActiveRailTip] = useState<{ text: string; top: number } | null>(null);
@@ -115,8 +138,26 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
   // Fulfillment State
   const [fulfillmentData, setFulfillmentData] = useState<any | null>(null);
   const [fulfillmentLoading, setFulfillmentLoading] = useState(false);
-  const [selectedOrderIdForShip, setSelectedOrderIdForShip] = useState<string | null>(null);
-  const [fulfillmentMode, setFulfillmentMode] = useState<"all" | "packing" | "shipping">("all");
+  const [selectedOrderIdForShip, setSelectedOrderIdForShip] = useState<string | null>(() => {
+    if (initialOrderId) return initialOrderId;
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const o = p.get("orderId") || p.get("shipOrderId");
+      if (o) return o;
+    }
+    return null;
+  });
+  const [fulfillmentMode, setFulfillmentMode] = useState<"all" | "packing" | "shipping">(() => {
+    if (initialMode) return initialMode;
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const m = p.get("mode");
+      if (m === "shipping" || m === "packing" || m === "all") return m;
+      const s = p.get("section") || p.get("tab");
+      if (s === "shipping" || s === "courier_shipping") return "shipping";
+    }
+    return "all";
+  });
   const [pipelineFilter, setPipelineFilter] = useState<string>("ALL");
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -399,6 +440,26 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
 
   const userInitials = identity.name ? identity.name.charAt(0).toUpperCase() : "S";
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const s = p.get("section") || p.get("tab");
+      const m = p.get("mode");
+      const o = p.get("orderId") || p.get("shipOrderId");
+      if (s === "fulfillment" || s === "shipping" || s === "courier_shipping" || m || o) {
+        setSection("fulfillment");
+        if (m === "shipping" || s === "shipping" || s === "courier_shipping") {
+          setFulfillmentMode("shipping");
+        } else if (m === "packing") {
+          setFulfillmentMode("packing");
+        }
+        if (o) {
+          setSelectedOrderIdForShip(o);
+        }
+      }
+    }
+  }, []);
+
   const renderNavBtn = (key: Section, label: string, Icon: any) => {
     const isActive = section === key;
     return (
@@ -406,7 +467,22 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
         key={key}
         type="button"
         className={`side-nav-item ${isActive ? "active" : ""}`}
-        onClick={() => setSection(key)}
+        onClick={() => {
+          setSection(key);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (key === "overview") {
+              url.searchParams.delete("section");
+              url.searchParams.delete("tab");
+              url.searchParams.delete("mode");
+              url.searchParams.delete("orderId");
+              url.searchParams.delete("shipOrderId");
+            } else {
+              url.searchParams.set("section", key);
+            }
+            window.history.replaceState(null, "", url);
+          }
+        }}
         onMouseEnter={(e) => {
           if (desktopCollapsed && window.innerWidth > 900) {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -664,613 +740,613 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
           </div>
         )}
 
-          {/* SECTION 2: USERS & QR DIRECTORY */}
-          {section === "users" && (
-            <div>
-              <div className="admin-heading">
-                <div>
-                  <p className="admin-heading-eyebrow">USER MANAGEMENT</p>
-                  <h1>User &amp; QR Code Directory</h1>
-                  <span>Manage users, inspect QR destination URLs, and download production PNG/SVG files directly.</span>
-                </div>
-
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {selectedUserIds.length > 0 && (
-                    <button onClick={exportSelectedQrsZip} className="admin-btn-primary">
-                      <Download style={{ width: 14, height: 14 }} />
-                      <span>Download Selected QRs ({selectedUserIds.length} ZIP)</span>
-                    </button>
-                  )}
-                </div>
+        {/* SECTION 2: USERS & QR DIRECTORY */}
+        {section === "users" && (
+          <div>
+            <div className="admin-heading">
+              <div>
+                <p className="admin-heading-eyebrow">USER MANAGEMENT</p>
+                <h1>User &amp; QR Code Directory</h1>
+                <span>Manage users, inspect QR destination URLs, and download production PNG/SVG files directly.</span>
               </div>
 
-              {/* Filters & Search */}
-              <div className="admin-panel" style={{ marginTop: 0, marginBottom: "20px", padding: "16px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
-                <input
-                  type="text"
-                  placeholder="Search name, email, phone, card slug, ID..."
-                  value={userSearch}
-                  onChange={(e) => {
-                    setUserSearch(e.target.value);
-                    setUserPagination((prev) => ({ ...prev, page: 1 }));
-                  }}
-                  className="admin-input"
-                  style={{ flex: 1, minWidth: "240px" }}
-                />
-
-                <select
-                  value={userRoleFilter}
-                  onChange={(e) => {
-                    setUserRoleFilter(e.target.value);
-                    setUserPagination((prev) => ({ ...prev, page: 1 }));
-                  }}
-                  style={selectStyle}
-                >
-                  <option value="ALL">All Roles</option>
-                  <option value="USER">USER</option>
-                  <option value="ADMIN">ADMIN</option>
-                  <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-                </select>
-
-                <select
-                  value={userStatusFilter}
-                  onChange={(e) => {
-                    setUserStatusFilter(e.target.value);
-                    setUserPagination((prev) => ({ ...prev, page: 1 }));
-                  }}
-                  style={selectStyle}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="SUSPENDED">SUSPENDED</option>
-                  <option value="DISABLED">DISABLED</option>
-                </select>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                {selectedUserIds.length > 0 && (
+                  <button onClick={exportSelectedQrsZip} className="admin-btn-primary">
+                    <Download style={{ width: 14, height: 14 }} />
+                    <span>Download Selected QRs ({selectedUserIds.length} ZIP)</span>
+                  </button>
+                )}
               </div>
-
-              {/* Users Table */}
-              {usersLoading ? (
-                <p>Loading user directory...</p>
-              ) : users.length === 0 ? (
-                <div style={{ padding: "40px", textAlign: "center", color: "#888", background: "#111", borderRadius: "8px" }}>No users match the criteria.</div>
-              ) : (
-                <div style={{ overflowX: "auto", background: "#111", borderRadius: "8px", border: "1px solid #222" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #222", color: "#888", background: "#0a0a0a" }}>
-                        <th style={{ padding: "12px" }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedUserIds.length === users.length && users.length > 0}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUserIds(users.map((u) => u.id));
-                              } else {
-                                setSelectedUserIds([]);
-                              }
-                            }}
-                          />
-                        </th>
-                        <th style={{ padding: "12px" }}>User / Contact</th>
-                        <th style={{ padding: "12px" }}>Role</th>
-                        <th style={{ padding: "12px" }}>Status</th>
-                        <th style={{ padding: "12px" }}>Card / Slug</th>
-                        <th style={{ padding: "12px" }}>QR Code Direct Actions</th>
-                        <th style={{ padding: "12px" }}>CRM / Orders</th>
-                        <th style={{ padding: "12px" }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((u) => {
-                        const isSelected = selectedUserIds.includes(u.id);
-                        return (
-                          <tr key={u.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
-                            <td style={{ padding: "12px" }}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedUserIds((prev) => [...prev, u.id]);
-                                  } else {
-                                    setSelectedUserIds((prev) => prev.filter((id) => id !== u.id));
-                                  }
-                                }}
-                              />
-                            </td>
-                            <td style={{ padding: "12px" }}>
-                              <strong style={{ color: "#fff", display: "block" }}>{u.name}</strong>
-                              <span style={{ color: "#888", fontSize: "12px" }}>{u.email}</span>
-                              {u.phone && <div style={{ color: "#666", fontSize: "11px" }}>📞 {u.phone}</div>}
-                            </td>
-                            <td style={{ padding: "12px" }}>
-                              <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: u.role === "SUPER_ADMIN" ? "#722ed1" : u.role === "ADMIN" ? "#0066FF" : "#333", color: "#fff" }}>
-                                {u.role}
-                              </span>
-                            </td>
-                            <td style={{ padding: "12px" }}>
-                              <span style={{ color: u.status === "ACTIVE" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{u.status}</span>
-                            </td>
-                            <td style={{ padding: "12px" }}>
-                              {u.digitalCard ? (
-                                <span style={{ color: "#0066FF", fontFamily: "monospace", fontSize: "12px" }}>/{u.digitalCard.slug}</span>
-                              ) : (
-                                <span style={{ color: "#555" }}>Unassigned</span>
-                              )}
-                            </td>
-                            <td style={{ padding: "12px" }}>
-                              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                                <button onClick={() => setQrModalUser(u)} style={tableActionBtnStyle}>
-                                  🔍 View QR
-                                </button>
-                                <button onClick={() => downloadUserQr(u, "png")} style={tableActionBtnStyle}>
-                                  PNG
-                                </button>
-                                <button onClick={() => downloadUserQr(u, "svg")} style={tableActionBtnStyle}>
-                                  SVG
-                                </button>
-                                <button onClick={() => copyToClipboard(u.qrUrl, "QR URL")} style={tableActionBtnStyle}>
-                                  Copy URL
-                                </button>
-                              </div>
-                            </td>
-                            <td style={{ padding: "12px", color: "#aaa" }}>
-                              <div>Leads: {u.leadCount}</div>
-                              <div>Orders: {u.orderCount}</div>
-                            </td>
-                            <td style={{ padding: "12px" }}>
-                              <div style={{ display: "flex", gap: "6px" }}>
-                                <button onClick={() => openUserDetails(u.id)} style={{ ...tableActionBtnStyle, background: "#0066FF", color: "#fff" }}>
-                                  Inspect
-                                </button>
-                                {u.role !== "SUPER_ADMIN" && (
-                                  <button onClick={() => setRoleModalUser(u)} style={tableActionBtnStyle}>
-                                    Role
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-
-                  {/* Pagination Controls */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: "1px solid #222", color: "#888" }}>
-                    <span>
-                      Showing {users.length} of {userPagination.total} users (Page {userPagination.page} of {userPagination.totalPages})
-                    </span>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        disabled={userPagination.page <= 1}
-                        onClick={() => setUserPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
-                        style={paginationBtnStyle(userPagination.page <= 1)}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        disabled={userPagination.page >= userPagination.totalPages}
-                        onClick={() => setUserPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
-                        style={paginationBtnStyle(userPagination.page >= userPagination.totalPages)}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-          )}
 
-          {/* SECTION 3: ORDER FULFILLMENT COMMAND CENTER */}
-          {section === "fulfillment" && (
-            <div>
-              {selectedOrderIdForShip ? (
-                <ShipOrderWorkspace
-                  orderId={selectedOrderIdForShip}
-                  onBack={() => setSelectedOrderIdForShip(null)}
-                  onViewCustomer={(userId) => {
-                    setSelectedOrderIdForShip(null);
-                    setSection("users");
-                    openUserDetails(userId);
-                  }}
-                  onOpenPacking={(id) => {
-                    setSelectedOrderIdForShip(null);
-                    setFulfillmentMode("packing");
-                  }}
-                  onOpenShipping={(id) => {
-                    setSelectedOrderIdForShip(null);
-                    setFulfillmentMode("shipping");
-                  }}
-                />
-              ) : fulfillmentMode === "packing" ? (
-                <PackingMode
-                  onExit={() => setFulfillmentMode("all")}
-                  onOpenWorkspace={(id) => {
-                    setFulfillmentMode("all");
-                    setSelectedOrderIdForShip(id);
-                  }}
-                />
-              ) : fulfillmentMode === "shipping" ? (
-                <ShippingMode
-                  onExit={() => setFulfillmentMode("all")}
-                  onOpenWorkspace={(id) => {
-                    setFulfillmentMode("all");
-                    setSelectedOrderIdForShip(id);
-                  }}
-                />
-              ) : (
-                <div>
-                  {/* Header & Operational Mode Switcher */}
-                  <div className="admin-heading">
-                    <div>
-                      <p className="admin-heading-eyebrow">OPERATIONS</p>
-                      <h1>Fulfillment Command Center</h1>
-                      <span>Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.</span>
-                    </div>
+            {/* Filters & Search */}
+            <div className="admin-panel" style={{ marginTop: 0, marginBottom: "20px", padding: "16px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+              <input
+                type="text"
+                placeholder="Search name, email, phone, card slug, ID..."
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  setUserPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+                className="admin-input"
+                style={{ flex: 1, minWidth: "240px" }}
+              />
 
-                    {/* Operational Mode Switcher */}
-                    <div style={{ display: "flex", gap: 6, background: "var(--admin-panel-elevated)", padding: 4, borderRadius: 10, border: "1px solid var(--admin-border)" }}>
-                      <button
-                        onClick={() => setFulfillmentMode("all")}
-                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "var(--admin-cyan)", color: "#fff" }}
-                      >
-                        ALL ORDERS
-                      </button>
-                      <button
-                        onClick={() => setFulfillmentMode("packing")}
-                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "transparent", color: "var(--admin-muted)" }}
-                      >
-                        PACKING MODE
-                      </button>
-                      <button
-                        onClick={() => setFulfillmentMode("shipping")}
-                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "transparent", color: "var(--admin-muted)" }}
-                      >
-                        SHIPPING MODE
-                      </button>
-                    </div>
-                  </div>
+              <select
+                value={userRoleFilter}
+                onChange={(e) => {
+                  setUserRoleFilter(e.target.value);
+                  setUserPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+                style={selectStyle}
+              >
+                <option value="ALL">All Roles</option>
+                <option value="USER">USER</option>
+                <option value="ADMIN">ADMIN</option>
+                <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+              </select>
 
-                  {/* TODAY STATS METRICS BAR (CLICKABLE OPERATIONAL CARDS) */}
-                  {fulfillmentData?.today && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
-                      <div style={statBoxStyle}>
-                        <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>TODAY&apos;S ORDERS</span>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "var(--admin-text)" }}>{fulfillmentData.today.todayOrders}</h3>
-                      </div>
-                      <div style={statBoxStyle}>
-                        <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>TODAY&apos;S SALES</span>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#10B981" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
-                      </div>
-                      <div
-                        onClick={() => setFulfillmentMode("packing")}
-                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid rgba(245, 158, 11, 0.4)", transition: "all 0.2s ease" }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 800 }}>ORDERS TO PACK ➔</span>
-                        </div>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#F59E0B" }}>{fulfillmentData.today.ordersToFulfill}</h3>
-                      </div>
-                      <div
-                        onClick={() => setFulfillmentMode("shipping")}
-                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid rgba(0, 102, 255, 0.4)", transition: "all 0.2s ease" }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 11, color: "var(--admin-cyan)", fontWeight: 800 }}>READY TO SHIP ➔</span>
-                        </div>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "var(--admin-cyan)" }}>{fulfillmentData.today.readyToShip}</h3>
-                      </div>
-                      <div style={statBoxStyle}>
-                        <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>SHIPPED TODAY</span>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#10B981" }}>{fulfillmentData.today.shippedToday}</h3>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SAVED OPERATIONAL FILTER PILLS */}
-                  <div className="super-pipeline-pills">
-                    <button
-                      onClick={() => setPipelineFilter("ALL")}
-                      className={`super-pipeline-pill ${pipelineFilter === "ALL" ? "active" : ""}`}
-                    >
-                      Needs Attention
-                    </button>
-                    <button
-                      onClick={() => setPipelineFilter("PACKAGING")}
-                      className={`super-pipeline-pill ${pipelineFilter === "PACKAGING" ? "active" : ""}`}
-                    >
-                      To Pack
-                    </button>
-                    <button
-                      onClick={() => setPipelineFilter("READY_TO_SHIP")}
-                      className={`super-pipeline-pill ${pipelineFilter === "READY_TO_SHIP" ? "active" : ""}`}
-                    >
-                      Ready to Ship
-                    </button>
-                    <button
-                      onClick={() => setPipelineFilter("NEW")}
-                      className={`super-pipeline-pill ${pipelineFilter === "NEW" ? "active" : ""}`}
-                    >
-                      Payment Pending
-                    </button>
-                  </div>
-
-                  {/* FULFILLMENT PIPELINE COUNTER STAGES */}
-                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 20 }}>
-                    {PIPELINE_STAGES.map((st) => {
-                      const count = st.key === "ALL" ? (fulfillmentData?.needingAttention?.length || 0) : (fulfillmentData?.counts?.[st.key] || 0);
-                      const active = pipelineFilter === st.key;
-
-                      return (
-                        <button
-                          key={st.key}
-                          type="button"
-                          onClick={() => setPipelineFilter(st.key)}
-                          style={{
-                            background: active ? "rgba(0, 102, 255, 0.14)" : "var(--admin-panel)",
-                            border: active ? "1px solid var(--admin-cyan)" : "1px solid var(--admin-border)",
-                            color: active ? "var(--admin-text)" : "var(--admin-muted)",
-                            padding: "8px 14px",
-                            borderRadius: 10,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          <span>{st.label}</span>
-                          <span style={{ background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", padding: "2px 7px", borderRadius: 12, fontSize: 11 }}>
-                            {count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* MULTI-IDENTIFIER SEARCH & BATCH ACTION BAR */}
-                  <div style={{ background: "#111", border: "1px solid #222", borderRadius: 10, padding: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                    <div style={{ position: "relative", minWidth: 280, flex: 1 }}>
-                      <input
-                        type="text"
-                        placeholder="Search Order #, Name, Phone, Email, Slug..."
-                        value={orderSearchQuery}
-                        onChange={(e) => setOrderSearchQuery(e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px 8px 32px", background: "#050505", border: "1px solid #333", color: "#fff", borderRadius: 8, fontSize: 13 }}
-                      />
-                      <span style={{ position: "absolute", left: 10, top: 9, opacity: 0.5 }}>🔍</span>
-                    </div>
-
-                    {selectedOrderIds.length > 0 && (
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#00E5FF" }}>
-                          {selectedOrderIds.length} Selected
-                        </span>
-                        <button
-                          disabled={batchActionLoading}
-                          onClick={() => handleBatchOperation("qr_zip")}
-                          style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                        >
-                          📦 Download QR ZIP
-                        </button>
-                        <button
-                          disabled={batchActionLoading}
-                          onClick={() => handleBatchOperation("export_csv")}
-                          style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                        >
-                          📊 Export Shipping CSV
-                        </button>
-                        <button
-                          disabled={batchActionLoading}
-                          onClick={() => handleBatchOperation("bulk_status", "PACKED")}
-                          style={{ padding: "6px 12px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                        >
-                          ✓ Mark Packed
-                        </button>
-                        <button
-                          disabled={batchActionLoading}
-                          onClick={() => handleBatchOperation("bulk_status", "READY_TO_SHIP")}
-                          style={{ padding: "6px 12px", background: "#52c41a", color: "#000", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}
-                        >
-                          🚀 Mark Ready to Ship
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ORDERS TABLE WITH MULTI-SELECT, NEXT ACTION & QUICK ACTIONS */}
-                  {fulfillmentLoading ? (
-                    <p>Loading fulfillment overview...</p>
-                  ) : !fulfillmentData ? (
-                    <p>No fulfillment data available.</p>
-                  ) : (
-                    <div style={{ background: "#111", borderRadius: 10, border: "1px solid #222", padding: 20 }}>
-                      <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>
-                        ⚠️ Orders Needing Operational Attention ({filteredAttentionOrders.length})
-                      </h3>
-
-                      {filteredAttentionOrders.length === 0 ? (
-                        <p style={{ color: "#52c41a" }}>✓ All orders are processed and up to date!</p>
-                      ) : (
-                        <div style={{ overflowX: "auto" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-                            <thead>
-                              <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
-                                <th style={{ padding: "10px" }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedOrderIds.length === filteredAttentionOrders.length && filteredAttentionOrders.length > 0}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedOrderIds(filteredAttentionOrders.map((o: any) => o.id));
-                                      } else {
-                                        setSelectedOrderIds([]);
-                                      }
-                                    }}
-                                  />
-                                </th>
-                                <th style={{ padding: "10px" }}>Order #</th>
-                                <th style={{ padding: "10px" }}>Customer</th>
-                                <th style={{ padding: "10px" }}>Amount</th>
-                                <th style={{ padding: "10px" }}>Payment</th>
-                                <th style={{ padding: "10px" }}>Status</th>
-                                <th style={{ padding: "10px" }}>NEXT ACTION</th>
-                                <th style={{ padding: "10px" }}>Pending Requirements</th>
-                                <th style={{ padding: "10px" }}>Quick Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredAttentionOrders.map((o: any) => {
-                                const isSelected = selectedOrderIds.includes(o.id);
-                                const na = o.nextAction;
-
-                                return (
-                                  <tr key={o.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
-                                    <td style={{ padding: "10px" }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setSelectedOrderIds((prev) => [...prev, o.id]);
-                                          } else {
-                                            setSelectedOrderIds((prev) => prev.filter((id) => id !== o.id));
-                                          }
-                                        }}
-                                      />
-                                    </td>
-                                    <td style={{ padding: "10px", fontWeight: 700, color: "#fff" }}>#{o.orderNumber}</td>
-                                    <td style={{ padding: "10px" }}>
-                                      <div>{o.customerName}</div>
-                                      <small style={{ color: "#777" }}>{o.customerEmail}</small>
-                                    </td>
-                                    <td style={{ padding: "10px", fontWeight: 700 }}>₹{(o.totalMinor / 100).toFixed(2)}</td>
-                                    <td style={{ padding: "10px" }}>
-                                      <span style={{ color: o.paymentStatus === "PAID" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{o.paymentStatus}</span>
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                      <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#222", fontSize: "11px" }}>{o.status}</span>
-                                    </td>
-
-                                    {/* CALCULATED NEXT ACTION COLUMN */}
-                                    <td style={{ padding: "10px" }}>
-                                      {na ? (
-                                        <button
-                                          onClick={() => {
-                                            if (na.targetTab === "packing") {
-                                              setFulfillmentMode("packing");
-                                            } else if (na.targetTab === "shipping") {
-                                              setFulfillmentMode("shipping");
-                                            } else {
-                                              setSelectedOrderIdForShip(o.id);
-                                            }
-                                          }}
-                                          style={{
-                                            background: `${na.color}22`,
-                                            color: na.color,
-                                            border: `1px solid ${na.color}`,
-                                            padding: "3px 8px",
-                                            borderRadius: "4px",
-                                            fontWeight: 800,
-                                            fontSize: "11px",
-                                            cursor: "pointer",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: "4px",
-                                          }}
-                                        >
-                                          <span>{na.label}</span>
-                                          <span>➔</span>
-                                        </button>
-                                      ) : (
-                                        <span style={{ color: "#888" }}>—</span>
-                                      )}
-                                    </td>
-
-                                    <td style={{ padding: "10px" }}>
-                                      {o.missingFields?.length > 0 ? (
-                                        <span style={{ color: o.severity === "CRITICAL" ? "#ff4d4f" : "#f39c12", fontSize: "12px" }}>
-                                          ⚠️ {o.missingFields.join(", ")}
-                                        </span>
-                                      ) : (
-                                        <span style={{ color: "#52c41a", fontSize: "12px" }}>✓ Verified &amp; Ready</span>
-                                      )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                        <button
-                                          onClick={() => setSelectedOrderIdForShip(o.id)}
-                                          style={{ padding: "5px 10px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "4px", cursor: "pointer", fontSize: 11.5 }}
-                                        >
-                                          VIEW / SHIP
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              <select
+                value={userStatusFilter}
+                onChange={(e) => {
+                  setUserStatusFilter(e.target.value);
+                  setUserPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+                style={selectStyle}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="SUSPENDED">SUSPENDED</option>
+                <option value="DISABLED">DISABLED</option>
+              </select>
             </div>
-          )}
 
-          {/* SECTION 4: AUDIT LOGS */}
-          {section === "audit" && (
-            <div>
-              <h1 style={{ fontSize: "24px", margin: "0 0 20px" }}>System Audit Logs</h1>
+            {/* Users Table */}
+            {usersLoading ? (
+              <p>Loading user directory...</p>
+            ) : users.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "#888", background: "#111", borderRadius: "8px" }}>No users match the criteria.</div>
+            ) : (
               <div style={{ overflowX: "auto", background: "#111", borderRadius: "8px", border: "1px solid #222" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
-                      <th style={{ padding: "12px" }}>Timestamp</th>
-                      <th style={{ padding: "12px" }}>Actor Role</th>
-                      <th style={{ padding: "12px" }}>Action</th>
-                      <th style={{ padding: "12px" }}>Entity Target</th>
-                      <th style={{ padding: "12px" }}>IP Address</th>
+                    <tr style={{ borderBottom: "1px solid #222", color: "#888", background: "#0a0a0a" }}>
+                      <th style={{ padding: "12px" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.length === users.length && users.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedUserIds(users.map((u) => u.id));
+                            } else {
+                              setSelectedUserIds([]);
+                            }
+                          }}
+                        />
+                      </th>
+                      <th style={{ padding: "12px" }}>User / Contact</th>
+                      <th style={{ padding: "12px" }}>Role</th>
+                      <th style={{ padding: "12px" }}>Status</th>
+                      <th style={{ padding: "12px" }}>Card / Slug</th>
+                      <th style={{ padding: "12px" }}>QR Code Direct Actions</th>
+                      <th style={{ padding: "12px" }}>CRM / Orders</th>
+                      <th style={{ padding: "12px" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
-                        <td style={{ padding: "12px", color: "#888" }}>{new Date(log.created_at).toLocaleString()}</td>
-                        <td style={{ padding: "12px" }}>
-                          <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#222", fontSize: "11px" }}>{log.actor_role || "SYSTEM"}</span>
-                        </td>
-                        <td style={{ padding: "12px", fontWeight: 600, color: "#fff" }}>{log.action}</td>
-                        <td style={{ padding: "12px", color: "#aaa" }}>
-                          {log.entity_type} {log.entity_id ? `(${log.entity_id})` : ""}
-                        </td>
-                        <td style={{ padding: "12px", color: "#888" }}>{log.ip_address || "—"}</td>
-                      </tr>
-                    ))}
+                    {users.map((u) => {
+                      const isSelected = selectedUserIds.includes(u.id);
+                      return (
+                        <tr key={u.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
+                          <td style={{ padding: "12px" }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUserIds((prev) => [...prev, u.id]);
+                                } else {
+                                  setSelectedUserIds((prev) => prev.filter((id) => id !== u.id));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <strong style={{ color: "#fff", display: "block" }}>{u.name}</strong>
+                            <span style={{ color: "#888", fontSize: "12px" }}>{u.email}</span>
+                            {u.phone && <div style={{ color: "#666", fontSize: "11px" }}>📞 {u.phone}</div>}
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: u.role === "SUPER_ADMIN" ? "#722ed1" : u.role === "ADMIN" ? "#0066FF" : "#333", color: "#fff" }}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <span style={{ color: u.status === "ACTIVE" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{u.status}</span>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            {u.digitalCard ? (
+                              <span style={{ color: "#0066FF", fontFamily: "monospace", fontSize: "12px" }}>/{u.digitalCard.slug}</span>
+                            ) : (
+                              <span style={{ color: "#555" }}>Unassigned</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                              <button onClick={() => setQrModalUser(u)} style={tableActionBtnStyle}>
+                                🔍 View QR
+                              </button>
+                              <button onClick={() => downloadUserQr(u, "png")} style={tableActionBtnStyle}>
+                                PNG
+                              </button>
+                              <button onClick={() => downloadUserQr(u, "svg")} style={tableActionBtnStyle}>
+                                SVG
+                              </button>
+                              <button onClick={() => copyToClipboard(u.qrUrl, "QR URL")} style={tableActionBtnStyle}>
+                                Copy URL
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px", color: "#aaa" }}>
+                            <div>Leads: {u.leadCount}</div>
+                            <div>Orders: {u.orderCount}</div>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button onClick={() => openUserDetails(u.id)} style={{ ...tableActionBtnStyle, background: "#0066FF", color: "#fff" }}>
+                                Inspect
+                              </button>
+                              {u.role !== "SUPER_ADMIN" && (
+                                <button onClick={() => setRoleModalUser(u)} style={tableActionBtnStyle}>
+                                  Role
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
 
-          {/* SECTION 5: SETTINGS */}
-          {section === "settings" && (
-            <div className="admin-panel" style={{ maxWidth: "680px" }}>
-              <div className="admin-panel-header">
-                <h2>Platform System Configuration</h2>
+                {/* Pagination Controls */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: "1px solid #222", color: "#888" }}>
+                  <span>
+                    Showing {users.length} of {userPagination.total} users (Page {userPagination.page} of {userPagination.totalPages})
+                  </span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      disabled={userPagination.page <= 1}
+                      onClick={() => setUserPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                      style={paginationBtnStyle(userPagination.page <= 1)}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      disabled={userPagination.page >= userPagination.totalPages}
+                      onClick={() => setUserPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                      style={paginationBtnStyle(userPagination.page >= userPagination.totalPages)}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
-              <p style={{ color: "var(--admin-muted)", fontSize: "14px", lineHeight: "1.6" }}>
-                Super Admin features and Google OAuth allowlist settings are active. To grant ADMIN role to specific Google accounts upon sign in, specify their emails in the <code>ADMIN_GOOGLE_EMAILS</code> environment variable.
-              </p>
+            )}
+          </div>
+        )}
+
+        {/* SECTION 3: ORDER FULFILLMENT COMMAND CENTER */}
+        {section === "fulfillment" && (
+          <div>
+            {selectedOrderIdForShip ? (
+              <ShipOrderWorkspace
+                orderId={selectedOrderIdForShip}
+                onBack={() => setSelectedOrderIdForShip(null)}
+                onViewCustomer={(userId) => {
+                  setSelectedOrderIdForShip(null);
+                  setSection("users");
+                  openUserDetails(userId);
+                }}
+                onOpenPacking={(id) => {
+                  setSelectedOrderIdForShip(null);
+                  setFulfillmentMode("packing");
+                }}
+                onOpenShipping={(id) => {
+                  setSelectedOrderIdForShip(null);
+                  setFulfillmentMode("shipping");
+                }}
+              />
+            ) : fulfillmentMode === "packing" ? (
+              <PackingMode
+                onExit={() => setFulfillmentMode("all")}
+                onOpenWorkspace={(id) => {
+                  setFulfillmentMode("all");
+                  setSelectedOrderIdForShip(id);
+                }}
+              />
+            ) : fulfillmentMode === "shipping" ? (
+              <ShippingMode
+                onExit={() => setFulfillmentMode("all")}
+                onOpenWorkspace={(id) => {
+                  setFulfillmentMode("all");
+                  setSelectedOrderIdForShip(id);
+                }}
+              />
+            ) : (
+              <div>
+                {/* Header & Operational Mode Switcher */}
+                <div className="admin-heading">
+                  <div>
+                    <p className="admin-heading-eyebrow">OPERATIONS</p>
+                    <h1>Fulfillment Command Center</h1>
+                    <span>Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.</span>
+                  </div>
+
+                  {/* Operational Mode Switcher */}
+                  <div style={{ display: "flex", gap: 6, background: "var(--admin-panel-elevated)", padding: 4, borderRadius: 10, border: "1px solid var(--admin-border)" }}>
+                    <button
+                      onClick={() => setFulfillmentMode("all")}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: (fulfillmentMode as string) === "all" ? "var(--admin-cyan)" : "transparent", color: (fulfillmentMode as string) === "all" ? "#fff" : "var(--admin-muted)" }}
+                    >
+                      ALL ORDERS
+                    </button>
+                    <button
+                      onClick={() => setFulfillmentMode("packing")}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: (fulfillmentMode as string) === "packing" ? "var(--admin-cyan)" : "transparent", color: (fulfillmentMode as string) === "packing" ? "#fff" : "var(--admin-muted)" }}
+                    >
+                      PACKING MODE
+                    </button>
+                    <button
+                      onClick={() => setFulfillmentMode("shipping")}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: (fulfillmentMode as string) === "shipping" ? "var(--admin-cyan)" : "transparent", color: (fulfillmentMode as string) === "shipping" ? "#fff" : "var(--admin-muted)" }}
+                    >
+                      SHIPPING MODE
+                    </button>
+                  </div>
+                </div>
+
+                {/* TODAY STATS METRICS BAR (CLICKABLE OPERATIONAL CARDS) */}
+                {fulfillmentData?.today && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+                    <div style={statBoxStyle}>
+                      <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>TODAY&apos;S ORDERS</span>
+                      <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "var(--admin-text)" }}>{fulfillmentData.today.todayOrders}</h3>
+                    </div>
+                    <div style={statBoxStyle}>
+                      <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>TODAY&apos;S SALES</span>
+                      <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#10B981" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
+                    </div>
+                    <div
+                      onClick={() => setFulfillmentMode("packing")}
+                      style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid rgba(245, 158, 11, 0.4)", transition: "all 0.2s ease" }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 800 }}>ORDERS TO PACK ➔</span>
+                      </div>
+                      <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#F59E0B" }}>{fulfillmentData.today.ordersToFulfill}</h3>
+                    </div>
+                    <div
+                      onClick={() => setFulfillmentMode("shipping")}
+                      style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid rgba(0, 102, 255, 0.4)", transition: "all 0.2s ease" }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: "var(--admin-cyan)", fontWeight: 800 }}>READY TO SHIP ➔</span>
+                      </div>
+                      <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "var(--admin-cyan)" }}>{fulfillmentData.today.readyToShip}</h3>
+                    </div>
+                    <div style={statBoxStyle}>
+                      <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>SHIPPED TODAY</span>
+                      <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#10B981" }}>{fulfillmentData.today.shippedToday}</h3>
+                    </div>
+                  </div>
+                )}
+
+                {/* SAVED OPERATIONAL FILTER PILLS */}
+                <div className="super-pipeline-pills">
+                  <button
+                    onClick={() => setPipelineFilter("ALL")}
+                    className={`super-pipeline-pill ${pipelineFilter === "ALL" ? "active" : ""}`}
+                  >
+                    Needs Attention
+                  </button>
+                  <button
+                    onClick={() => setPipelineFilter("PACKAGING")}
+                    className={`super-pipeline-pill ${pipelineFilter === "PACKAGING" ? "active" : ""}`}
+                  >
+                    To Pack
+                  </button>
+                  <button
+                    onClick={() => setPipelineFilter("READY_TO_SHIP")}
+                    className={`super-pipeline-pill ${pipelineFilter === "READY_TO_SHIP" ? "active" : ""}`}
+                  >
+                    Ready to Ship
+                  </button>
+                  <button
+                    onClick={() => setPipelineFilter("NEW")}
+                    className={`super-pipeline-pill ${pipelineFilter === "NEW" ? "active" : ""}`}
+                  >
+                    Payment Pending
+                  </button>
+                </div>
+
+                {/* FULFILLMENT PIPELINE COUNTER STAGES */}
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 20 }}>
+                  {PIPELINE_STAGES.map((st) => {
+                    const count = st.key === "ALL" ? (fulfillmentData?.needingAttention?.length || 0) : (fulfillmentData?.counts?.[st.key] || 0);
+                    const active = pipelineFilter === st.key;
+
+                    return (
+                      <button
+                        key={st.key}
+                        type="button"
+                        onClick={() => setPipelineFilter(st.key)}
+                        style={{
+                          background: active ? "rgba(0, 102, 255, 0.14)" : "var(--admin-panel)",
+                          border: active ? "1px solid var(--admin-cyan)" : "1px solid var(--admin-border)",
+                          color: active ? "var(--admin-text)" : "var(--admin-muted)",
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span>{st.label}</span>
+                        <span style={{ background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)", padding: "2px 7px", borderRadius: 12, fontSize: 11 }}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* MULTI-IDENTIFIER SEARCH & BATCH ACTION BAR */}
+                <div style={{ background: "#111", border: "1px solid #222", borderRadius: 10, padding: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                  <div style={{ position: "relative", minWidth: 280, flex: 1 }}>
+                    <input
+                      type="text"
+                      placeholder="Search Order #, Name, Phone, Email, Slug..."
+                      value={orderSearchQuery}
+                      onChange={(e) => setOrderSearchQuery(e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px 8px 32px", background: "#050505", border: "1px solid #333", color: "#fff", borderRadius: 8, fontSize: 13 }}
+                    />
+                    <span style={{ position: "absolute", left: 10, top: 9, opacity: 0.5 }}>🔍</span>
+                  </div>
+
+                  {selectedOrderIds.length > 0 && (
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#00E5FF" }}>
+                        {selectedOrderIds.length} Selected
+                      </span>
+                      <button
+                        disabled={batchActionLoading}
+                        onClick={() => handleBatchOperation("qr_zip")}
+                        style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        📦 Download QR ZIP
+                      </button>
+                      <button
+                        disabled={batchActionLoading}
+                        onClick={() => handleBatchOperation("export_csv")}
+                        style={{ padding: "6px 12px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        📊 Export Shipping CSV
+                      </button>
+                      <button
+                        disabled={batchActionLoading}
+                        onClick={() => handleBatchOperation("bulk_status", "PACKED")}
+                        style={{ padding: "6px 12px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        ✓ Mark Packed
+                      </button>
+                      <button
+                        disabled={batchActionLoading}
+                        onClick={() => handleBatchOperation("bulk_status", "READY_TO_SHIP")}
+                        style={{ padding: "6px 12px", background: "#52c41a", color: "#000", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                      >
+                        🚀 Mark Ready to Ship
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ORDERS TABLE WITH MULTI-SELECT, NEXT ACTION & QUICK ACTIONS */}
+                {fulfillmentLoading ? (
+                  <p>Loading fulfillment overview...</p>
+                ) : !fulfillmentData ? (
+                  <p>No fulfillment data available.</p>
+                ) : (
+                  <div style={{ background: "#111", borderRadius: 10, border: "1px solid #222", padding: 20 }}>
+                    <h3 style={{ margin: "0 0 16px", fontSize: 16 }}>
+                      ⚠️ Orders Needing Operational Attention ({filteredAttentionOrders.length})
+                    </h3>
+
+                    {filteredAttentionOrders.length === 0 ? (
+                      <p style={{ color: "#52c41a" }}>✓ All orders are processed and up to date!</p>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
+                              <th style={{ padding: "10px" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedOrderIds.length === filteredAttentionOrders.length && filteredAttentionOrders.length > 0}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedOrderIds(filteredAttentionOrders.map((o: any) => o.id));
+                                    } else {
+                                      setSelectedOrderIds([]);
+                                    }
+                                  }}
+                                />
+                              </th>
+                              <th style={{ padding: "10px" }}>Order #</th>
+                              <th style={{ padding: "10px" }}>Customer</th>
+                              <th style={{ padding: "10px" }}>Amount</th>
+                              <th style={{ padding: "10px" }}>Payment</th>
+                              <th style={{ padding: "10px" }}>Status</th>
+                              <th style={{ padding: "10px" }}>NEXT ACTION</th>
+                              <th style={{ padding: "10px" }}>Pending Requirements</th>
+                              <th style={{ padding: "10px" }}>Quick Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredAttentionOrders.map((o: any) => {
+                              const isSelected = selectedOrderIds.includes(o.id);
+                              const na = o.nextAction;
+
+                              return (
+                                <tr key={o.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
+                                  <td style={{ padding: "10px" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedOrderIds((prev) => [...prev, o.id]);
+                                        } else {
+                                          setSelectedOrderIds((prev) => prev.filter((id) => id !== o.id));
+                                        }
+                                      }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "10px", fontWeight: 700, color: "#fff" }}>#{o.orderNumber}</td>
+                                  <td style={{ padding: "10px" }}>
+                                    <div>{o.customerName}</div>
+                                    <small style={{ color: "#777" }}>{o.customerEmail}</small>
+                                  </td>
+                                  <td style={{ padding: "10px", fontWeight: 700 }}>₹{(o.totalMinor / 100).toFixed(2)}</td>
+                                  <td style={{ padding: "10px" }}>
+                                    <span style={{ color: o.paymentStatus === "PAID" ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>{o.paymentStatus}</span>
+                                  </td>
+                                  <td style={{ padding: "10px" }}>
+                                    <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#222", fontSize: "11px" }}>{o.status}</span>
+                                  </td>
+
+                                  {/* CALCULATED NEXT ACTION COLUMN */}
+                                  <td style={{ padding: "10px" }}>
+                                    {na ? (
+                                      <button
+                                        onClick={() => {
+                                          if (na.targetTab === "packing") {
+                                            setFulfillmentMode("packing");
+                                          } else if (na.targetTab === "shipping") {
+                                            setFulfillmentMode("shipping");
+                                          } else {
+                                            setSelectedOrderIdForShip(o.id);
+                                          }
+                                        }}
+                                        style={{
+                                          background: `${na.color}22`,
+                                          color: na.color,
+                                          border: `1px solid ${na.color}`,
+                                          padding: "3px 8px",
+                                          borderRadius: "4px",
+                                          fontWeight: 800,
+                                          fontSize: "11px",
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                        }}
+                                      >
+                                        <span>{na.label}</span>
+                                        <span>➔</span>
+                                      </button>
+                                    ) : (
+                                      <span style={{ color: "#888" }}>—</span>
+                                    )}
+                                  </td>
+
+                                  <td style={{ padding: "10px" }}>
+                                    {o.missingFields?.length > 0 ? (
+                                      <span style={{ color: o.severity === "CRITICAL" ? "#ff4d4f" : "#f39c12", fontSize: "12px" }}>
+                                        ⚠️ {o.missingFields.join(", ")}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: "#52c41a", fontSize: "12px" }}>✓ Verified &amp; Ready</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: "10px" }}>
+                                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                      <button
+                                        onClick={() => setSelectedOrderIdForShip(o.id)}
+                                        style={{ padding: "5px 10px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "4px", cursor: "pointer", fontSize: 11.5 }}
+                                      >
+                                        VIEW / SHIP
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTION 4: AUDIT LOGS */}
+        {section === "audit" && (
+          <div>
+            <h1 style={{ fontSize: "24px", margin: "0 0 20px" }}>System Audit Logs</h1>
+            <div style={{ overflowX: "auto", background: "#111", borderRadius: "8px", border: "1px solid #222" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #222", color: "#888" }}>
+                    <th style={{ padding: "12px" }}>Timestamp</th>
+                    <th style={{ padding: "12px" }}>Actor Role</th>
+                    <th style={{ padding: "12px" }}>Action</th>
+                    <th style={{ padding: "12px" }}>Entity Target</th>
+                    <th style={{ padding: "12px" }}>IP Address</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map((log) => (
+                    <tr key={log.id} style={{ borderBottom: "1px solid #1c1c1c" }}>
+                      <td style={{ padding: "12px", color: "#888" }}>{new Date(log.created_at).toLocaleString()}</td>
+                      <td style={{ padding: "12px" }}>
+                        <span style={{ padding: "2px 6px", borderRadius: "4px", background: "#222", fontSize: "11px" }}>{log.actor_role || "SYSTEM"}</span>
+                      </td>
+                      <td style={{ padding: "12px", fontWeight: 600, color: "#fff" }}>{log.action}</td>
+                      <td style={{ padding: "12px", color: "#aaa" }}>
+                        {log.entity_type} {log.entity_id ? `(${log.entity_id})` : ""}
+                      </td>
+                      <td style={{ padding: "12px", color: "#888" }}>{log.ip_address || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </main>
+          </div>
+        )}
+
+        {/* SECTION 5: SETTINGS */}
+        {section === "settings" && (
+          <div className="admin-panel" style={{ maxWidth: "680px" }}>
+            <div className="admin-panel-header">
+              <h2>Platform System Configuration</h2>
+            </div>
+            <p style={{ color: "var(--admin-muted)", fontSize: "14px", lineHeight: "1.6" }}>
+              Super Admin features and Google OAuth allowlist settings are active. To grant ADMIN role to specific Google accounts upon sign in, specify their emails in the <code>ADMIN_GOOGLE_EMAILS</code> environment variable.
+            </p>
+          </div>
+        )}
+      </main>
 
       {/* QR PREVIEW MODAL */}
       {qrModalUser && (

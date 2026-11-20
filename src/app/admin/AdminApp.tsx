@@ -1,12 +1,13 @@
 "use client";
-import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import FormattedMoneyInput from "@/components/ui/FormattedMoneyInput";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
 import { buildPremiumQrSvg, buildAdminUserQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { FEATURE_CATALOGUE, FeatureKey, FeatureGroup, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
+import ShippingMode from "@/components/super-admin/ShippingMode";
 import { DashboardBackgroundDecor } from "@/components/dashboard/DashboardBackgroundDecor";
 import {
   LayoutDashboard,
@@ -40,9 +41,9 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 
-type Section = "overview"|"managed_users"|"team_calendar"|"team_leads"|"team_analytics"|"team_lob_reasons"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
+type Section = "overview"|"managed_users"|"team_calendar"|"team_leads"|"team_analytics"|"team_lob_reasons"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"courier_shipping"|"audit"|"settings";
 type Row = Record<string, any>;
-const labels: Record<Section,string> = {
+const labels: Record<Section, string> = {
   overview: "Overview",
   managed_users: "Users",
   team_calendar: "Team Calendar",
@@ -57,21 +58,39 @@ const labels: Record<Section,string> = {
   support: "Support tickets",
   notifications: "Notifications",
   admins: "Admin management",
+  courier_shipping: "Courier & Shipping",
   audit: "Audit logs",
   settings: "Settings",
 };
-const money = (minor=0,currency="INR") => new Intl.NumberFormat("en-IN",{style:"currency",currency}).format(minor/100);
+const money = (minor = 0, currency = "INR") => new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(minor / 100);
 
 export default function AdminApp({
   identity,
   initialSection,
+  initialShipOrderId,
   mockData,
 }: {
   identity: AdminIdentity;
   initialSection?: Section;
+  initialShipOrderId?: string;
   mockData?: any;
 }) {
-  const [section, setSection] = useState<Section>(initialSection || "overview");
+  const [section, setSection] = useState<Section>(() => {
+    if (initialSection) {
+      if (initialSection === "courier_shipping" && identity.role !== "SUPER_ADMIN") return "overview";
+      return initialSection;
+    }
+    if (typeof window !== "undefined") {
+      const requested = new URLSearchParams(window.location.search).get("section") as Section | null;
+      if (requested && Object.hasOwn(labels, requested)) {
+        if (requested === "courier_shipping" && identity.role !== "SUPER_ADMIN") {
+          return "overview";
+        }
+        return requested;
+      }
+    }
+    return "overview";
+  });
   const [mobile, setMobile] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [activeRailTip, setActiveRailTip] = useState<{ text: string; top: number } | null>(null);
@@ -81,7 +100,14 @@ export default function AdminApp({
   const [loading, setLoading] = useState(!mockData);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [shipOrderId, setShipOrderId] = useState<string | null>(null);
+  const [shipOrderId, setShipOrderId] = useState<string | null>(() => {
+    if (initialShipOrderId && identity.role === "SUPER_ADMIN") return initialShipOrderId;
+    if (typeof window !== "undefined" && identity.role === "SUPER_ADMIN") {
+      const orderParam = new URLSearchParams(window.location.search).get("shipOrderId") || new URLSearchParams(window.location.search).get("orderId");
+      if (orderParam) return orderParam;
+    }
+    return null;
+  });
   const loadVersion = useRef(0);
 
   // Sync theme with existing dashboard localStorage & system preference
@@ -137,6 +163,10 @@ export default function AdminApp({
 
   const load = useCallback(async () => {
     if (mockData) return;
+    if (section === "courier_shipping") {
+      setLoading(false);
+      return;
+    }
     const version = ++loadVersion.current;
     setLoading(true);
     setError("");
@@ -148,10 +178,9 @@ export default function AdminApp({
 
     try {
       const response = await fetch(
-        `/api/admin/${path}${
-          search && ["orders", "customers", "managed_users", "team_leads"].includes(section)
-            ? `?search=${encodeURIComponent(search)}`
-            : ""
+        `/api/admin/${path}${search && ["orders", "customers", "managed_users", "team_leads"].includes(section)
+          ? `?search=${encodeURIComponent(search)}`
+          : ""
         }`,
         { cache: "no-store" }
       );
@@ -174,8 +203,14 @@ export default function AdminApp({
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("section") as Section | null;
-    if (requested && Object.hasOwn(labels, requested)) setSection(requested);
-  }, []);
+    if (requested && Object.hasOwn(labels, requested)) {
+      if (requested === "courier_shipping" && identity.role !== "SUPER_ADMIN") {
+        setSection("overview");
+      } else {
+        setSection(requested);
+      }
+    }
+  }, [identity.role]);
 
   useEffect(() => {
     load();
@@ -382,6 +417,7 @@ export default function AdminApp({
             <>
               <span className="side-group-title">Platform Control</span>
               {renderNavBtn("admins", "Admin Management", UserCog)}
+              {renderNavBtn("courier_shipping", "Courier & Shipping", Truck)}
               {renderNavBtn("audit", "Audit Logs", ShieldAlert)}
               {renderNavBtn("settings", "Platform Settings", SettingsIcon)}
             </>
@@ -485,6 +521,49 @@ function Content({section,payload,identity,mutate,navigate,reload,openShipOrder}
   if(section==="support") return <SupportTickets rows={rows} mutate={mutate}/>;
   if(section==="notifications") return <Notifications rows={rows} mutate={mutate} navigate={navigate}/>;
   if(section==="admins") return <Admins rows={rows} identity={identity} mutate={mutate} navigate={navigate}/>;
+  if(section==="courier_shipping") {
+    if(identity.role !== "SUPER_ADMIN") {
+      return (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--admin-muted)" }}>
+          <h3 style={{ color: "#EF4444", marginBottom: 8 }}>Access Denied</h3>
+          <p>Super Admin privileges are required to access Courier & Shipping.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="admin-shipping-wrapper">
+        <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--admin-muted)" }}>
+            Zappit website order shipping and courier fulfillment queue.
+          </p>
+          <a
+            href="/super-admin?section=fulfillment&mode=shipping"
+            className="admin-link-btn"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--admin-cyan)",
+              textDecoration: "none",
+              padding: "6px 12px",
+              borderRadius: 6,
+              border: "1px solid rgba(0, 102, 255, 0.3)",
+              background: "rgba(0, 102, 255, 0.08)"
+            }}
+          >
+            <span>Open in Super Admin Fulfillment Center</span>
+            <span>↗</span>
+          </a>
+        </div>
+        <ShippingMode
+          onExit={() => navigate("overview")}
+          onOpenWorkspace={(id) => openShipOrder(id)}
+        />
+      </div>
+    );
+  }
   if(section==="audit") return <Table heads={["When","Actor role","Action","Entity","IP"]} rows={rows.map(r=>[new Date(r.created_at).toLocaleString(),r.actor_role,r.action,`${r.entity_type} ${r.entity_id||""}`,r.ip_address||"—"])}/>;
   if(section==="settings") return <Settings value={payload?.data||{}} mutate={mutate}/>;
   return null;
@@ -587,33 +666,32 @@ function Overview({ data }: { data: any }) {
     </>
   );
 }
-
-function Orders({rows,mutate}:{rows:Row[],mutate:any}) {
-  if(!rows.length)return <Empty title="No matching orders" text="Adjust your search or wait for verified checkout data."/>;
-  return <Table heads={["Order","Customer","Products","Delivery","Pricing","Payment","Status","Action"]} rows={rows.map(r=>[<><b>{r.order_number}</b><small>{new Date(r.created_at).toLocaleString()}</small></>,<><b>{r.customer_name}</b><small>{r.customer_email}</small><small>{r.customer_phone||"No phone"}</small></>,<>{r.order_items?.map((item:Row)=><span key={item.id}><b>{item.product_name} × {item.quantity}</b><small>{item.sku||item.product_type} · {money(item.unit_price_minor,r.currency)}</small>{item.variant?.details&&<small>{item.variant.details}</small>}</span>)||"—"}</>,<><b>{[r.shipping_address?.line1,r.shipping_address?.line2].filter(Boolean).join(", ")}</b><small>{[r.shipping_address?.city,r.shipping_address?.state,r.shipping_address?.postalCode,r.shipping_address?.country].filter(Boolean).join(", ")}</small></>,<><b>Total: {money(r.total_minor,r.currency)}</b><small>Subtotal {money(r.subtotal_minor,r.currency)} · Discount {money(r.discount_minor,r.currency)}</small><small>Tax {money(r.tax_minor,r.currency)} · Shipping {money(r.shipping_minor,r.currency)}</small></>,<><b>{r.payment_status}</b><small>{r.payments?.[0]?.provider?.replaceAll("_"," ")||"Not recorded"}</small></>,<span className={`pill ${r.status.toLowerCase()}`}>{r.status}</span>,<select aria-label={`Status for ${r.order_number}`} value={r.status} onChange={e=>confirm(`Change ${r.order_number} to ${e.target.value}?`)&&mutate("orders","PATCH",{id:r.id,status:e.target.value})}>{["PENDING","CONFIRMED","PROCESSING","SHIPPED","DELIVERED","CANCELLED","REFUNDED"].map(x=><option key={x}>{x}</option>)}</select>])}/>;
+function Orders({ rows, mutate }: { rows: Row[], mutate: any }) {
+  if (!rows.length) return <Empty title="No matching orders" text="Adjust your search or wait for verified checkout data." />;
+  return <Table heads={["Order", "Customer", "Products", "Delivery", "Pricing", "Payment", "Status", "Action"]} rows={rows.map(r => [<><b>{r.order_number}</b><small>{new Date(r.created_at).toLocaleString()}</small></>, <><b>{r.customer_name}</b><small>{r.customer_email}</small><small>{r.customer_phone || "No phone"}</small></>, <>{r.order_items?.map((item: Row) => <span key={item.id}><b>{item.product_name} × {item.quantity}</b><small>{item.sku || item.product_type} · {money(item.unit_price_minor, r.currency)}</small>{item.variant?.details && <small>{item.variant.details}</small>}</span>) || "—"}</>, <><b>{[r.shipping_address?.line1, r.shipping_address?.line2].filter(Boolean).join(", ")}</b><small>{[r.shipping_address?.city, r.shipping_address?.state, r.shipping_address?.postalCode, r.shipping_address?.country].filter(Boolean).join(", ")}</small></>, <><b>Total: {money(r.total_minor, r.currency)}</b><small>Subtotal {money(r.subtotal_minor, r.currency)} · Discount {money(r.discount_minor, r.currency)}</small><small>Tax {money(r.tax_minor, r.currency)} · Shipping {money(r.shipping_minor, r.currency)}</small></>, <><b>{r.payment_status}</b><small>{r.payments?.[0]?.provider?.replaceAll("_", " ") || "Not recorded"}</small></>, <span className={`pill ${r.status.toLowerCase()}`}>{r.status}</span>, <select aria-label={`Status for ${r.order_number}`} value={r.status} onChange={e => confirm(`Change ${r.order_number} to ${e.target.value}?`) && mutate("orders", "PATCH", { id: r.id, status: e.target.value })}>{["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"].map(x => <option key={x}>{x}</option>)}</select>])} />;
 }
-function SupportTickets({rows,mutate}:{rows:Row[],mutate:any}) {
-  const [selected,setSelected]=useState<Row|null>(null),[replyText,setReplyText]=useState(""),[busy,setBusy]=useState(false);
-  if(!rows.length)return <Empty title="No support tickets" text="Customer messages submitted through Support will appear here."/>;
-  const update=(row:Row,status:string)=>mutate("support","PATCH",{id:row.id,status});
-  const statusLabels:Record<string,string>={OPEN:"New problem",IN_PROGRESS:"In progress",WAITING_CUSTOMER:"Waiting for customer",RESOLVED:"Solved",CLOSED:"Not solved"};
-  const sendReply=async()=>{if(!selected||replyText.trim().length<2)return;setBusy(true);try{const result=await mutate("support","PATCH",{id:selected.id,reply:replyText.trim(),status:"WAITING_CUSTOMER"});setReplyText("");setSelected(null);if(result.emailDelivered===false)alert("Reply saved in the ticket. Configure RESEND_API_KEY and EMAIL_FROM to email customers automatically.")}catch(error){alert(error instanceof Error?error.message:"Reply could not be saved.")}finally{setBusy(false)}};
-  return <><div className="support-summary"><article><small>NEW PROBLEMS</small><strong>{rows.filter(row=>row.status==="OPEN").length}</strong></article><article><small>BEING HANDLED</small><strong>{rows.filter(row=>["IN_PROGRESS","WAITING_CUSTOMER"].includes(row.status)).length}</strong></article><article><small>SOLVED</small><strong>{rows.filter(row=>row.status==="RESOLVED").length}</strong></article><article><small>NOT SOLVED</small><strong>{rows.filter(row=>row.status==="CLOSED").length}</strong></article></div><Table heads={["Problem","Customer","Details","Resolution status","Actions"]} rows={rows.map(row=>[<><b>{row.reference}</b><small>{row.topic}</small><small>{new Date(row.created_at).toLocaleString()}</small></>,<><b>{row.customer_name}</b><small>{row.customer_email}</small><small>{row.contact_time||"No preferred contact time"}</small></>,<><span className="ticket-message-preview">{row.message}</span><small>{row.support_ticket_replies?.length||0} admin replies</small></>,<select aria-label={`Resolution status for ${row.reference}`} value={row.status} onChange={event=>update(row,event.target.value)}>{Object.entries(statusLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>,<div className="row-actions"><button className="small gold" onClick={()=>setSelected(row)}>View problem</button><button className="small" onClick={()=>mutate("support","PATCH",{id:row.id,assignToMe:true})}>Assign to me</button></div>])}/>{selected&&<div className="admin-modal-back" onMouseDown={event=>{if(event.target===event.currentTarget)setSelected(null)}}><section className="ticket-detail" role="dialog" aria-modal="true" aria-labelledby="ticket-title"><header><div><small>SUPPORT PROBLEM · {selected.reference}</small><h2 id="ticket-title">{selected.topic}</h2><p>Submitted {new Date(selected.created_at).toLocaleString()}</p></div><button onClick={()=>setSelected(null)} aria-label="Close problem">×</button></header><div className="ticket-customer"><div><small>CUSTOMER</small><strong>{selected.customer_name}</strong></div><div><small>EMAIL</small><a href={`mailto:${selected.customer_email}`}>{selected.customer_email}</a></div><div><small>BEST CONTACT TIME</small><strong>{selected.contact_time||"Not specified"}</strong></div><div><small>STATUS</small><strong>{statusLabels[selected.status]||selected.status}</strong></div></div><div className="ticket-problem"><small>CUSTOMER&apos;S PROBLEM</small><p>{selected.message}</p></div>{selected.support_ticket_replies?.length>0&&<div className="ticket-history"><h3>Reply history</h3>{selected.support_ticket_replies.map((item:Row)=><article key={item.id}><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString()} · {item.emailed_at?"Email sent":"Not emailed"}</small></article>)}</div>}<label className="ticket-reply">Reply to customer<textarea value={replyText} onChange={event=>setReplyText(event.target.value)} maxLength={4000} rows={5} placeholder="Explain what you checked and what the customer should do next…"/></label><div className="ticket-actions"><select value={selected.status} onChange={event=>{update(selected,event.target.value);setSelected({...selected,status:event.target.value})}}>{Object.entries(statusLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><button disabled={busy||replyText.trim().length<2} onClick={sendReply}>{busy?"Sending…":"Send reply"}</button></div></section></div>}</>;
+function SupportTickets({ rows, mutate }: { rows: Row[], mutate: any }) {
+  const [selected, setSelected] = useState<Row | null>(null), [replyText, setReplyText] = useState(""), [busy, setBusy] = useState(false);
+  if (!rows.length) return <Empty title="No support tickets" text="Customer messages submitted through Support will appear here." />;
+  const update = (row: Row, status: string) => mutate("support", "PATCH", { id: row.id, status });
+  const statusLabels: Record<string, string> = { OPEN: "New problem", IN_PROGRESS: "In progress", WAITING_CUSTOMER: "Waiting for customer", RESOLVED: "Solved", CLOSED: "Not solved" };
+  const sendReply = async () => { if (!selected || replyText.trim().length < 2) return; setBusy(true); try { const result = await mutate("support", "PATCH", { id: selected.id, reply: replyText.trim(), status: "WAITING_CUSTOMER" }); setReplyText(""); setSelected(null); if (result.emailDelivered === false) alert("Reply saved in the ticket. Configure RESEND_API_KEY and EMAIL_FROM to email customers automatically.") } catch (error) { alert(error instanceof Error ? error.message : "Reply could not be saved.") } finally { setBusy(false) } };
+  return <><div className="support-summary"><article><small>NEW PROBLEMS</small><strong>{rows.filter(row => row.status === "OPEN").length}</strong></article><article><small>BEING HANDLED</small><strong>{rows.filter(row => ["IN_PROGRESS", "WAITING_CUSTOMER"].includes(row.status)).length}</strong></article><article><small>SOLVED</small><strong>{rows.filter(row => row.status === "RESOLVED").length}</strong></article><article><small>NOT SOLVED</small><strong>{rows.filter(row => row.status === "CLOSED").length}</strong></article></div><Table heads={["Problem", "Customer", "Details", "Resolution status", "Actions"]} rows={rows.map(row => [<><b>{row.reference}</b><small>{row.topic}</small><small>{new Date(row.created_at).toLocaleString()}</small></>, <><b>{row.customer_name}</b><small>{row.customer_email}</small><small>{row.contact_time || "No preferred contact time"}</small></>, <><span className="ticket-message-preview">{row.message}</span><small>{row.support_ticket_replies?.length || 0} admin replies</small></>, <select aria-label={`Resolution status for ${row.reference}`} value={row.status} onChange={event => update(row, event.target.value)}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>, <div className="row-actions"><button className="small gold" onClick={() => setSelected(row)}>View problem</button><button className="small" onClick={() => mutate("support", "PATCH", { id: row.id, assignToMe: true })}>Assign to me</button></div>])} />{selected && <div className="admin-modal-back" onMouseDown={event => { if (event.target === event.currentTarget) setSelected(null) }}><section className="ticket-detail" role="dialog" aria-modal="true" aria-labelledby="ticket-title"><header><div><small>SUPPORT PROBLEM · {selected.reference}</small><h2 id="ticket-title">{selected.topic}</h2><p>Submitted {new Date(selected.created_at).toLocaleString()}</p></div><button onClick={() => setSelected(null)} aria-label="Close problem">×</button></header><div className="ticket-customer"><div><small>CUSTOMER</small><strong>{selected.customer_name}</strong></div><div><small>EMAIL</small><a href={`mailto:${selected.customer_email}`}>{selected.customer_email}</a></div><div><small>BEST CONTACT TIME</small><strong>{selected.contact_time || "Not specified"}</strong></div><div><small>STATUS</small><strong>{statusLabels[selected.status] || selected.status}</strong></div></div><div className="ticket-problem"><small>CUSTOMER&apos;S PROBLEM</small><p>{selected.message}</p></div>{selected.support_ticket_replies?.length > 0 && <div className="ticket-history"><h3>Reply history</h3>{selected.support_ticket_replies.map((item: Row) => <article key={item.id}><p>{item.message}</p><small>{new Date(item.created_at).toLocaleString()} · {item.emailed_at ? "Email sent" : "Not emailed"}</small></article>)}</div>}<label className="ticket-reply">Reply to customer<textarea value={replyText} onChange={event => setReplyText(event.target.value)} maxLength={4000} rows={5} placeholder="Explain what you checked and what the customer should do next…" /></label><div className="ticket-actions"><select value={selected.status} onChange={event => { update(selected, event.target.value); setSelected({ ...selected, status: event.target.value }) }}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><button disabled={busy || replyText.trim().length < 2} onClick={sendReply}>{busy ? "Sending…" : "Send reply"}</button></div></section></div>}</>;
 }
-function Notifications({rows,mutate,navigate}:{rows:Row[],mutate:any,navigate:(section:Section)=>void}){
-  if(!rows.length)return <Empty title="No notifications" text="New orders, support problems, and important business events will appear here."/>;
-  const open=async(row:Row)=>{if(!row.read_at)await mutate("notifications","PATCH",{id:row.id,read:true});navigate(row.type==="SUPPORT_TICKET"?"support":row.order_id?"orders":"overview")};
-  return <Table heads={["When","Type","What happened","Delivery","Action"]} rows={rows.map(row=>[new Date(row.created_at).toLocaleString(),String(row.type||"GENERAL").replaceAll("_"," "),<><b>{row.title}</b><small>{row.message}</small></>,row.emailed_at?"Email sent":row.email_recipient?"Email pending or failed":"Dashboard only",<button className="small gold" onClick={()=>open(row)}>{row.type==="SUPPORT_TICKET"?"Manage problem":"View details"}</button>])}/>;
+function Notifications({ rows, mutate, navigate }: { rows: Row[], mutate: any, navigate: (section: Section) => void }) {
+  if (!rows.length) return <Empty title="No notifications" text="New orders, support problems, and important business events will appear here." />;
+  const open = async (row: Row) => { if (!row.read_at) await mutate("notifications", "PATCH", { id: row.id, read: true }); navigate(row.type === "SUPPORT_TICKET" ? "support" : row.order_id ? "orders" : "overview") };
+  return <Table heads={["When", "Type", "What happened", "Delivery", "Action"]} rows={rows.map(row => [new Date(row.created_at).toLocaleString(), String(row.type || "GENERAL").replaceAll("_", " "), <><b>{row.title}</b><small>{row.message}</small></>, row.emailed_at ? "Email sent" : row.email_recipient ? "Email pending or failed" : "Dashboard only", <button className="small gold" onClick={() => open(row)}>{row.type === "SUPPORT_TICKET" ? "Manage problem" : "View details"}</button>])} />;
 }
-function Customers({rows,identity,mutate}:{rows:Row[],identity:AdminIdentity,mutate:any}) {
-  const [detail,setDetail]=useState<any>(null),[loadingDetail,setLoadingDetail]=useState(false),[detailError,setDetailError]=useState("");
-  const open=async(row:Row)=>{setLoadingDetail(true);setDetailError("");setDetail({customer:row,cards:[],orders:[],support:[],affiliate:null});try{const response=await fetch(`/api/admin/customers/${row.id}`,{cache:"no-store"});const payload=await response.json();if(!response.ok)throw new Error(payload.message||"Customer details could not be loaded.");setDetail(payload)}catch(error){setDetailError(error instanceof Error?error.message:"Customer details could not be loaded.")}finally{setLoadingDetail(false)}};
-  if(!rows.length)return <Empty title="No customers found" text="Customer profiles are created from Supabase Auth registrations."/>;
-  const sendReset=async(row:Row)=>{if(!confirm(`Send a password-reset email to ${row.email}?`))return;try{const result=await mutate("customers/reset","POST",{id:row.id});alert(result.message||"Password-reset email sent.")}catch(error){alert(error instanceof Error?error.message:"Password-reset email could not be sent.")}};
-  const requireChange=async(row:Row)=>{if(!confirm(`Require ${row.email} to change their password at next sign-in?`))return;try{const result=await mutate("customers","PATCH",{id:row.id,forcePasswordReset:true});alert(result.message||"Password change required.")}catch(error){alert(error instanceof Error?error.message:"Password policy could not be updated.")}};
-  return <><Table heads={["Customer","Phone","Registered","Status","Action"]} rows={rows.map(r=>[<><b>{r.name||"Unnamed"}</b><small>{r.email}</small></>,r.phone||"—",new Date(r.created_at).toLocaleDateString(),r.disabled?"Disabled":"Active",<div className="row-actions"><button className="small gold" onClick={()=>open(r)}>View details</button><button className="small" onClick={()=>sendReset(r)}>Send reset</button><button className="small" onClick={()=>requireChange(r)}>Require password change</button><button className={r.disabled?"small gold":"small danger"} onClick={()=>confirm(`${r.disabled?"Reactivate":"Disable"} ${r.email}?`)&&mutate("customers","PATCH",{id:r.id,disabled:!r.disabled})}>{r.disabled?"Reactivate":"Disable"}</button>{identity.role==="SUPER_ADMIN"&&<button className="small" onClick={()=>confirm(`Promote ${r.email} to ADMIN?`)&&mutate("admins","PATCH",{id:r.id,role:"ADMIN"})}>Make admin</button>}</div>])}/>{detail&&<CustomerDetail data={detail} loading={loadingDetail} error={detailError} close={()=>setDetail(null)}/>}</>;
+function Customers({ rows, identity, mutate }: { rows: Row[], identity: AdminIdentity, mutate: any }) {
+  const [detail, setDetail] = useState<any>(null), [loadingDetail, setLoadingDetail] = useState(false), [detailError, setDetailError] = useState("");
+  const open = async (row: Row) => { setLoadingDetail(true); setDetailError(""); setDetail({ customer: row, cards: [], orders: [], support: [], affiliate: null }); try { const response = await fetch(`/api/admin/customers/${row.id}`, { cache: "no-store" }); const payload = await response.json(); if (!response.ok) throw new Error(payload.message || "Customer details could not be loaded."); setDetail(payload) } catch (error) { setDetailError(error instanceof Error ? error.message : "Customer details could not be loaded.") } finally { setLoadingDetail(false) } };
+  if (!rows.length) return <Empty title="No customers found" text="Customer profiles are created from Supabase Auth registrations." />;
+  const sendReset = async (row: Row) => { if (!confirm(`Send a password-reset email to ${row.email}?`)) return; try { const result = await mutate("customers/reset", "POST", { id: row.id }); alert(result.message || "Password-reset email sent.") } catch (error) { alert(error instanceof Error ? error.message : "Password-reset email could not be sent.") } };
+  const requireChange = async (row: Row) => { if (!confirm(`Require ${row.email} to change their password at next sign-in?`)) return; try { const result = await mutate("customers", "PATCH", { id: row.id, forcePasswordReset: true }); alert(result.message || "Password change required.") } catch (error) { alert(error instanceof Error ? error.message : "Password policy could not be updated.") } };
+  return <><Table heads={["Customer", "Phone", "Registered", "Status", "Action"]} rows={rows.map(r => [<><b>{r.name || "Unnamed"}</b><small>{r.email}</small></>, r.phone || "—", new Date(r.created_at).toLocaleDateString(), r.disabled ? "Disabled" : "Active", <div className="row-actions"><button className="small gold" onClick={() => open(r)}>View details</button><button className="small" onClick={() => sendReset(r)}>Send reset</button><button className="small" onClick={() => requireChange(r)}>Require password change</button><button className={r.disabled ? "small gold" : "small danger"} onClick={() => confirm(`${r.disabled ? "Reactivate" : "Disable"} ${r.email}?`) && mutate("customers", "PATCH", { id: r.id, disabled: !r.disabled })}>{r.disabled ? "Reactivate" : "Disable"}</button>{identity.role === "SUPER_ADMIN" && <button className="small" onClick={() => confirm(`Promote ${r.email} to ADMIN?`) && mutate("admins", "PATCH", { id: r.id, role: "ADMIN" })}>Make admin</button>}</div>])} />{detail && <CustomerDetail data={detail} loading={loadingDetail} error={detailError} close={() => setDetail(null)} />}</>;
 }
-function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,error:string,close:()=>void}) {
+function CustomerDetail({ data, loading, error, close }: { data: any, loading: boolean, error: string, close: () => void }) {
   const customer = data.customer || {};
   const [qrSlug, setQrSlug] = useState<string | null>(null);
   const [qrTitle, setQrTitle] = useState<string>("");
@@ -752,31 +830,31 @@ function CustomerDetail({data,loading,error,close}:{data:any,loading:boolean,err
     </div>
   );
 }
-function Activations({rows}:{rows:Row[]}) {
-  const [assigned,setAssigned]=useState<{slug:string;email:string}|null>(null);
-  const [busy,setBusy]=useState("");
-  const [issued,setIssued]=useState<string[]>([]);
-  const generate=async(customer:Row)=>{
-    if(!confirm(`Provision and assign physical card for ${customer.email}?`))return;
-    setBusy(customer.id);setAssigned(null);
-    try{
-      const response=await fetch("/api/admin/cards/activation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ownerId:customer.id})});
-      const result=await response.json();if(!response.ok)throw new Error(result.message||"Could not assign card.");
-      setAssigned({slug:result.slug,email:customer.email||"Customer account"});
-      setIssued(current=>current.includes(customer.id)?current:[...current,customer.id]);
-    }catch(error){alert(error instanceof Error?error.message:"Could not assign card.")}finally{setBusy("")}
+function Activations({ rows }: { rows: Row[] }) {
+  const [assigned, setAssigned] = useState<{ slug: string; email: string } | null>(null);
+  const [busy, setBusy] = useState("");
+  const [issued, setIssued] = useState<string[]>([]);
+  const generate = async (customer: Row) => {
+    if (!confirm(`Provision and assign physical card for ${customer.email}?`)) return;
+    setBusy(customer.id); setAssigned(null);
+    try {
+      const response = await fetch("/api/admin/cards/activation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ownerId: customer.id }) });
+      const result = await response.json(); if (!response.ok) throw new Error(result.message || "Could not assign card.");
+      setAssigned({ slug: result.slug, email: customer.email || "Customer account" });
+      setIssued(current => current.includes(customer.id) ? current : [...current, customer.id]);
+    } catch (error) { alert(error instanceof Error ? error.message : "Could not assign card.") } finally { setBusy("") }
   };
-  if(!rows.length)return <Empty title="No customers yet" text="Customer accounts will appear here after registration."/>;
+  if (!rows.length) return <Empty title="No customers yet" text="Customer accounts will appear here after registration." />;
   return <>
-    <section className="activation-guide"><div><span>FULFILLMENT WORKFLOW</span><h2>Provision &amp; assign customer card</h2><p>Assign a physical NFC / QR card directly to the customer account. The card is instantly linked to their digital profile and ready to ship.</p></div>{assigned&&<div className="activation-result" role="status"><small>CARD READY FOR SHIPPING</small><strong>/{assigned.slug}</strong><span>Assigned holder: {assigned.email}</span><span>Status: ASSIGNED &amp; READY</span><p>This card is linked to the customer account and ready to deliver.</p></div>}</section>
-    <div className="table-wrap activation-table"><table><thead><tr><th>Customer</th><th>Account</th><th>Fulfillment Status</th><th>Action</th></tr></thead><tbody>{rows.map(customer=>{const codeIssued=issued.includes(customer.id);return <tr key={customer.id}><td data-label="Customer"><b>{customer.name||"Unnamed customer"}</b><small>{customer.email}</small></td><td data-label="Account"><b>{customer.disabled?"Account disabled":"Customer account"}</b><small>Digital card linked and ready</small></td><td data-label="Status"><span className="pill">{customer.disabled?"Disabled":codeIssued?"Card assigned":"Ready for card"}</span></td><td data-label="Action"><button className="small gold" disabled={Boolean(busy)||customer.disabled} onClick={()=>generate(customer)}>{busy===customer.id?"Assigning…":"Provision & assign card"}</button></td></tr>})}</tbody></table></div>
+    <section className="activation-guide"><div><span>FULFILLMENT WORKFLOW</span><h2>Provision &amp; assign customer card</h2><p>Assign a physical NFC / QR card directly to the customer account. The card is instantly linked to their digital profile and ready to ship.</p></div>{assigned && <div className="activation-result" role="status"><small>CARD READY FOR SHIPPING</small><strong>/{assigned.slug}</strong><span>Assigned holder: {assigned.email}</span><span>Status: ASSIGNED &amp; READY</span><p>This card is linked to the customer account and ready to deliver.</p></div>}</section>
+    <div className="table-wrap activation-table"><table><thead><tr><th>Customer</th><th>Account</th><th>Fulfillment Status</th><th>Action</th></tr></thead><tbody>{rows.map(customer => { const codeIssued = issued.includes(customer.id); return <tr key={customer.id}><td data-label="Customer"><b>{customer.name || "Unnamed customer"}</b><small>{customer.email}</small></td><td data-label="Account"><b>{customer.disabled ? "Account disabled" : "Customer account"}</b><small>Digital card linked and ready</small></td><td data-label="Status"><span className="pill">{customer.disabled ? "Disabled" : codeIssued ? "Card assigned" : "Ready for card"}</span></td><td data-label="Action"><button className="small gold" disabled={Boolean(busy) || customer.disabled} onClick={() => generate(customer)}>{busy === customer.id ? "Assigning…" : "Provision & assign card"}</button></td></tr> })}</tbody></table></div>
   </>;
 }
-function Products({rows,mutate}:{rows:Row[],mutate:any}) {
-  const create=async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=new FormData(e.currentTarget);await mutate("products","POST",{name:f.get("name"),productType:f.get("type"),priceMinor:Math.round(Number(f.get("price"))*100),stock:Number(f.get("stock"))});e.currentTarget.reset()};
-  return <><form className="quick-form" onSubmit={create}><h2>Add product</h2><input name="name" required placeholder="Product name"/><select name="type"><option value="NFC_CARD">NFC card</option><option value="QR_LOST_FOUND">QR lost & found</option><option value="ACCESSORY">Accessory</option><option value="OTHER">Other</option></select><FormattedMoneyInput name="price" required placeholder="Price"/><input name="stock" required type="number" min="0" placeholder="Stock"/><button>Add product</button></form>{rows.length?<Table heads={["Product","Type","SKU","Price","Stock","Status","Action"]} rows={rows.map(r=>[r.name,r.product_type,r.sku||"—",money(r.price_minor,r.currency),r.stock,r.archived_at?"Archived":r.active?"Active":"Inactive",<button className="small" onClick={()=>mutate("products","PATCH",{id:r.id,archived:!r.archived_at})}>{r.archived_at?"Restore":"Archive"}</button>])}/>:<Empty title="No products" text="Create your first database-backed product above."/>}</>;
+function Products({ rows, mutate }: { rows: Row[], mutate: any }) {
+  const create = async (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const f = new FormData(e.currentTarget); await mutate("products", "POST", { name: f.get("name"), productType: f.get("type"), priceMinor: Math.round(Number(f.get("price")) * 100), stock: Number(f.get("stock")) }); e.currentTarget.reset() };
+  return <><form className="quick-form" onSubmit={create}><h2>Add product</h2><input name="name" required placeholder="Product name" /><select name="type"><option value="NFC_CARD">NFC card</option><option value="QR_LOST_FOUND">QR lost & found</option><option value="ACCESSORY">Accessory</option><option value="OTHER">Other</option></select><FormattedMoneyInput name="price" required placeholder="Price" /><input name="stock" required type="number" min="0" placeholder="Stock" /><button>Add product</button></form>{rows.length ? <Table heads={["Product", "Type", "SKU", "Price", "Stock", "Status", "Action"]} rows={rows.map(r => [r.name, r.product_type, r.sku || "—", money(r.price_minor, r.currency), r.stock, r.archived_at ? "Archived" : r.active ? "Active" : "Inactive", <button className="small" onClick={() => mutate("products", "PATCH", { id: r.id, archived: !r.archived_at })}>{r.archived_at ? "Restore" : "Archive"}</button>])} /> : <Empty title="No products" text="Create your first database-backed product above." />}</>;
 }
-function Admins({rows,identity,mutate,navigate}:{rows:Row[],identity:AdminIdentity,mutate:any,navigate?:(s:Section)=>void}) {
+function Admins({ rows, identity, mutate, navigate }: { rows: Row[], identity: AdminIdentity, mutate: any, navigate?: (s: Section) => void }) {
   const OWNER_EMAIL = "muhammedfebincholayil@gmail.com";
   const OWNER_USER_ID = "b8c2491d-3769-4850-86d9-1ff17eef2257";
   const isActorOwner = identity.id === OWNER_USER_ID && identity.email?.toLowerCase() === OWNER_EMAIL;
@@ -860,7 +938,7 @@ function Admins({rows,identity,mutate,navigate}:{rows:Row[],identity:AdminIdenti
     />
   </>;
 }
-function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],identity:AdminIdentity,mutate:any,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
+function ManagedUsers({ rows, identity, mutate, reload, openShipOrder }: { rows: Row[], identity: AdminIdentity, mutate: any, reload: () => Promise<void>, openShipOrder: (id: string) => void }) {
   const OWNER_EMAIL = "muhammedfebincholayil@gmail.com";
   const OWNER_USER_ID = "b8c2491d-3769-4850-86d9-1ff17eef2257";
   const isActorOwner = identity.id === OWNER_USER_ID && identity.email?.toLowerCase() === OWNER_EMAIL;
@@ -968,19 +1046,19 @@ function ManagedUsers({rows,identity,mutate,reload,openShipOrder}:{rows:Row[],id
     }
   };
 
-  const [showCreate,setShowCreate]=useState(false);
-  const [permissionUser,setPermissionUser]=useState<Row|null>(null);
-  const [suspendModal,setSuspendModal]=useState<{user: Row; action: "SUSPEND" | "REACTIVATE"} | null>(null);
-  const [deleteModalUser,setDeleteModalUser]=useState<Row|null>(null);
-  const [qrModalUser,setQrModalUser]=useState<Row|null>(null);
-  const [detailsData,setDetailsData]=useState<any|null>(null);
-  const [detailsLoading,setDetailsLoading]=useState(false);
-  const [ordersModalData,setOrdersModalData]=useState<any|null>(null);
-  const [ordersLoading,setOrdersLoading]=useState(false);
-  const [creating,setCreating]=useState(false);
-  const [copyNotice,setCopyNotice]=useState("");
-  const [statusFilter,setStatusFilter]=useState<string>("ALL");
-  const [searchFilter,setSearchFilter]=useState<string>("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [permissionUser, setPermissionUser] = useState<Row | null>(null);
+  const [suspendModal, setSuspendModal] = useState<{ user: Row; action: "SUSPEND" | "REACTIVATE" } | null>(null);
+  const [deleteModalUser, setDeleteModalUser] = useState<Row | null>(null);
+  const [qrModalUser, setQrModalUser] = useState<Row | null>(null);
+  const [detailsData, setDetailsData] = useState<any | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [ordersModalData, setOrdersModalData] = useState<any | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [copyNotice, setCopyNotice] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [searchFilter, setSearchFilter] = useState<string>("");
 
   const filteredUsers = rows.filter((user) => {
     const isDeleted = user.status === "DELETED";
@@ -2028,8 +2106,8 @@ function TeamCalendar({ data }: { data: any }) {
   const teamLeadCounts: Row[] = data?.teamLeadCounts || [];
   const [filterUser, setFilterUser] = useState<string>("ALL");
 
-  const filteredFollowUps = filterUser === "ALL" 
-    ? followUps 
+  const filteredFollowUps = filterUser === "ALL"
+    ? followUps
     : followUps.filter((f) => f.user_id === filterUser);
 
   return (
@@ -2257,9 +2335,9 @@ function TeamLobReasons({ rows }: { rows: Row[] }) {
   );
 }
 
-function Settings({value,mutate}:{value:Row,mutate:any}) { const save=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));return mutate("settings","PATCH",{...f,low_stock_threshold:Number(f.low_stock_threshold)})}; return <form className="settings-form" onSubmit={save}>{[["business_name","Business name"],["support_email","Support email"],["support_phone","Support phone"],["order_notification_email","Order notification email"],["currency","Currency"],["low_stock_threshold","Low-stock threshold"],["terms_url","Terms URL"],["privacy_url","Privacy URL"],["maintenance_message","Maintenance message"]].map(([name,label])=><label key={name}>{label}<input name={name} defaultValue={value[name]??""}/></label>)}<button>Save settings</button><p>Secrets and environment variables are intentionally never displayed here.</p></form> }
-function Table({heads,rows}:{heads:string[],rows:any[][]}) { return <div className="table-wrap"><table><thead><tr>{heads.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((c,j)=><td key={j}>{c}</td>)}</tr>)}</tbody></table></div> }
-function Empty({title,text,action}:{title:string,text:string,action?:()=>void}) { return <section className="empty"><strong>{title}</strong><p>{text}</p>{action&&<button onClick={action}>Try again</button>}</section> }
-function Skeleton(){return <div className="skeleton">{[1,2,3,4,5,6].map(x=><i key={x}/>)}</div>}
+function Settings({ value, mutate }: { value: Row, mutate: any }) { const save = (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.currentTarget)); return mutate("settings", "PATCH", { ...f, low_stock_threshold: Number(f.low_stock_threshold) }) }; return <form className="settings-form" onSubmit={save}>{[["business_name", "Business name"], ["support_email", "Support email"], ["support_phone", "Support phone"], ["order_notification_email", "Order notification email"], ["currency", "Currency"], ["low_stock_threshold", "Low-stock threshold"], ["terms_url", "Terms URL"], ["privacy_url", "Privacy URL"], ["maintenance_message", "Maintenance message"]].map(([name, label]) => <label key={name}>{label}<input name={name} defaultValue={value[name] ?? ""} /></label>)}<button>Save settings</button><p>Secrets and environment variables are intentionally never displayed here.</p></form> }
+function Table({ heads, rows }: { heads: string[], rows: any[][] }) { return <div className="table-wrap"><table><thead><tr>{heads.map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div> }
+function Empty({ title, text, action }: { title: string, text: string, action?: () => void }) { return <section className="empty"><strong>{title}</strong><p>{text}</p>{action && <button onClick={action}>Try again</button>}</section> }
+function Skeleton() { return <div className="skeleton">{[1, 2, 3, 4, 5, 6].map(x => <i key={x} />)}</div> }
 
 
