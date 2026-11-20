@@ -31,7 +31,6 @@ export type AdminIdentity = {
 };
 
 import { currentIdentity as currentIdentityCore } from "@/lib/auth/currentIdentity";
-import { getAdminMfaStatus, isSessionMfaVerified } from "./auth/adminMfa";
 
 export async function currentIdentity(): Promise<AdminIdentity | null>;
 export async function currentIdentity(req?: Request): Promise<AdminIdentity | null>;
@@ -78,10 +77,6 @@ export async function requireAdmin(
   if (!identity) return null;
   const allowSuper = typeof options === "boolean" ? options : options?.allowSuper ?? true;
   if (identity.role === "ADMIN" || (allowSuper && identity.role === "SUPER_ADMIN")) {
-    const mfaVerified = await isSessionMfaVerified(identity, req);
-    if (!mfaVerified) {
-      return null;
-    }
     return identity;
   }
   return null;
@@ -90,10 +85,6 @@ export async function requireAdmin(
 export async function requireSuperAdmin(req?: Request) {
   const identity = await currentIdentity(req);
   if (!identity || identity.role !== "SUPER_ADMIN") {
-    return null;
-  }
-  const mfaVerified = await isSessionMfaVerified(identity, req);
-  if (!mfaVerified) {
     return null;
   }
   return identity;
@@ -219,17 +210,6 @@ export interface LeadAccessFilter {
     if (!identity) redirect("/?login=1&next=%2Fadmin");
     if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") redirect("/forbidden");
     if (identity.mustChangePassword) redirect("/reset-password?required=1");
-
-    const mfaStatus = await getAdminMfaStatus(identity.id);
-    if (!mfaStatus.enrolled) {
-      redirect("/admin/mfa/enroll?next=%2Fadmin");
-    }
-
-    const mfaVerified = await isSessionMfaVerified(identity);
-    if (!mfaVerified) {
-      redirect("/admin/mfa/verify?next=%2Fadmin");
-    }
-
     return identity;
   }
 
@@ -238,17 +218,6 @@ export interface LeadAccessFilter {
     if (!identity) redirect("/?login=1&next=%2Fsuper-admin");
     if (identity.role !== "SUPER_ADMIN") redirect("/forbidden");
     if (identity.mustChangePassword) redirect("/reset-password?required=1");
-
-    const mfaStatus = await getAdminMfaStatus(identity.id);
-    if (!mfaStatus.enrolled) {
-      redirect("/admin/mfa/enroll?next=%2Fsuper-admin");
-    }
-
-    const mfaVerified = await isSessionMfaVerified(identity);
-    if (!mfaVerified) {
-      redirect("/admin/mfa/verify?next=%2Fsuper-admin");
-    }
-
     return identity;
   }
 

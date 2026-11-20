@@ -1,104 +1,67 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import {
-  signAdminMfaToken,
-  verifyAdminMfaToken,
-  hashSessionToken,
-  encryptMfaSecret,
-  decryptMfaSecret,
-  ADMIN_MFA_COOKIE_NAME,
-} from "../src/lib/auth/adminMfa.ts";
 
-test("Routes 1: Static route architecture guarantees in MFA endpoints", () => {
+test("Routes 1: Admin and Super Admin guards operate directly without MFA", () => {
+  const adminAuthCode = readFileSync("src/lib/adminAuth.ts", "utf8");
+  const ownerAuthCode = readFileSync("src/lib/ownerAuth.ts", "utf8");
+
+  // MFA check must be completely removed from requireAdmin
+  assert.equal(adminAuthCode.includes("isSessionMfaVerified"), false, "isSessionMfaVerified must not be present in adminAuth.ts");
+  assert.equal(adminAuthCode.includes("getAdminMfaStatus"), false, "getAdminMfaStatus must not be present in adminAuth.ts");
+
+  // requireAdminPage and requireSuperAdminPage must not redirect to /admin/mfa
+  assert.equal(adminAuthCode.includes("/admin/mfa/enroll"), false, "requireAdminPage must not redirect to /admin/mfa/enroll");
+  assert.equal(adminAuthCode.includes("/admin/mfa/verify"), false, "requireAdminPage must not redirect to /admin/mfa/verify");
+
+  // requireAuthoritativeOwner must not check MFA
+  assert.equal(ownerAuthCode.includes("isSessionMfaVerified"), false, "isSessionMfaVerified must not be in ownerAuth.ts");
+  assert.equal(ownerAuthCode.includes("MFA verification required"), false, "MFA error must not be in ownerAuth.ts");
+});
+
+test("Routes 2: Old MFA APIs are retired and return 410 Gone", () => {
   const setupRoute = readFileSync("src/app/api/admin/mfa/setup/route.ts", "utf8");
   const confirmRoute = readFileSync("src/app/api/admin/mfa/confirm/route.ts", "utf8");
   const verifyRoute = readFileSync("src/app/api/admin/mfa/verify/route.ts", "utf8");
   const statusRoute = readFileSync("src/app/api/admin/mfa/status/route.ts", "utf8");
 
-  // All endpoints require validMutationOrigin or authentication
-  assert.match(setupRoute, /validMutationOrigin/);
-  assert.match(confirmRoute, /validMutationOrigin/);
-  assert.match(verifyRoute, /validMutationOrigin/);
+  // All 4 retired routes must return status 410
+  assert.match(setupRoute, /status:\s*410/);
+  assert.match(confirmRoute, /status:\s*410/);
+  assert.match(verifyRoute, /status:\s*410/);
+  assert.match(statusRoute, /status:\s*410/);
 
-  // Setup and confirm enforce re-enrollment guards
-  assert.match(setupRoute, /currentStatus\.enrolled/);
-  assert.match(setupRoute, /isSessionMfaVerified/);
-  assert.match(confirmRoute, /currentStatus\.enrolled/);
-  assert.match(confirmRoute, /isSessionMfaVerified/);
+  // All 4 routes clear the legacy zappit_admin_mfa cookie
+  assert.match(setupRoute, /zappit_admin_mfa/);
+  assert.match(confirmRoute, /zappit_admin_mfa/);
+  assert.match(verifyRoute, /zappit_admin_mfa/);
+  assert.match(statusRoute, /zappit_admin_mfa/);
 
-  // Verify enforces user & IP rate limits
-  assert.match(verifyRoute, /checkRateLimit\("MFA_VERIFY_USER"/);
-  assert.match(verifyRoute, /checkRateLimit\("MFA_VERIFY_IP"/);
-
-  // Cookie setting enforces HttpOnly, SameSite, and 12-hour maxAge
-  assert.match(confirmRoute, /httpOnly:\s*true/);
-  assert.match(confirmRoute, /sameSite:\s*"lax"/);
-  assert.match(confirmRoute, /maxAge:\s*maxAgeSeconds/);
-
-  assert.match(verifyRoute, /httpOnly:\s*true/);
-  assert.match(verifyRoute, /sameSite:\s*"lax"/);
-  assert.match(verifyRoute, /maxAge:\s*maxAgeSeconds/);
+  // Must not contain secret generation or TOTP confirmation
+  assert.equal(setupRoute.includes("generateMfaEnrollmentSetup"), false);
+  assert.equal(confirmRoute.includes("confirmMfaEnrollment"), false);
+  assert.equal(verifyRoute.includes("verifyAdminMfaCodeOrRecovery"), false);
 });
 
-test("Routes 2: Session-bound MFA tokens strictly enforce cookie security flags", () => {
-  process.env.AUTH_SECRET = "production-auth-secret-32-chars-long!";
-  const userId = "c1a11111-2222-3333-4444-555555555555";
-  const sessionToken = "session_cookie_alpha_99999";
+test("Routes 3: Old MFA pages safely redirect authorized admins to dashboards", () => {
+  const enrollPage = readFileSync("src/app/admin/mfa/enroll/page.tsx", "utf8");
+  const verifyPage = readFileSync("src/app/admin/mfa/verify/page.tsx", "utf8");
 
-  const token = signAdminMfaToken({
-    userId,
-    role: "ADMIN",
-    sessionVersion: 1,
-    sessionToken,
-  });
+  // Pages must use server-side redirect, not client-side QR forms
+  assert.match(enrollPage, /redirect\(/);
+  assert.match(verifyPage, /redirect\(/);
 
-  // Verify token has cryptographic HMAC signature
-  const parts = token.split(".");
-  assert.equal(parts.length, 2);
+  // Must enforce authentication and role checks before redirect
+  assert.match(enrollPage, /currentIdentity/);
+  assert.match(verifyPage, /currentIdentity/);
 
-  const payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
-  assert.equal(payload.uid, userId);
-  assert.equal(payload.role, "ADMIN");
-  assert.equal(payload.sv, 1);
-  assert.equal(payload.sth, hashSessionToken(sessionToken));
-  assert.equal(typeof payload.exp, "number");
-  assert.equal(payload.exp > Math.floor(Date.now() / 1000), true);
-
-  // Verification succeeds with matching session
-  assert.equal(verifyAdminMfaToken(token, userId, 1, sessionToken), true);
-
-  // Rejection scenarios:
-  // 1. Stolen MFA cookie presented with wrong session token
-  assert.equal(verifyAdminMfaToken(token, userId, 1, "attacker_different_session"), false);
-
-  // 2. Old MFA cookie presented after logout (no active session token)
-  assert.equal(verifyAdminMfaToken(token, userId, 1, null), false);
-
-  // 3. Old MFA cookie presented after password reset (session version bumped to 2)
-  assert.equal(verifyAdminMfaToken(token, userId, 2, sessionToken), false);
-
-  // 4. Old MFA cookie presented for a different user ID
-  assert.equal(verifyAdminMfaToken(token, "different-user-id", 1, sessionToken), false);
+  // Must prevent redirect loops back to /admin/mfa
+  assert.match(enrollPage, /!trimmed\.startsWith\("\/admin\/mfa"\)/);
+  assert.match(verifyPage, /!trimmed\.startsWith\("\/admin\/mfa"\)/);
 });
 
-test("Routes 3: AES-256-GCM encryption at rest handles decryption and tampering", () => {
-  const secret = "MZXW633PN5XW6MZXW633PN5XW6MZXW63";
-  const encrypted = encryptMfaSecret(secret);
-
-  assert.equal(encrypted.startsWith("enc:v1:"), true);
-  assert.notEqual(encrypted, secret);
-
-  // Successful decryption
-  const decrypted = decryptMfaSecret(encrypted);
-  assert.equal(decrypted, secret);
-
-  // Tampered ciphertext fails decryption
-  const parts = encrypted.split(":");
-  const tamperedCiphertext = parts[4].slice(0, -2) + (parts[4].endsWith("0") ? "1" : "0");
-  const tampered = `${parts[0]}:${parts[1]}:${parts[2]}:${parts[3]}:${tamperedCiphertext}`;
-
-  assert.throws(() => {
-    decryptMfaSecret(tampered);
-  });
+test("Routes 4: Forward migration removes admin_mfa table without CASCADE", () => {
+  const migration0056 = readFileSync("db/migrations/0056_remove_admin_mfa.sql", "utf8");
+  assert.match(migration0056, /DROP TABLE IF EXISTS admin_mfa;/);
+  assert.equal(/DROP TABLE[^\n;]+CASCADE/i.test(migration0056), false, "Migration 0056 must not use DROP TABLE ... CASCADE");
 });

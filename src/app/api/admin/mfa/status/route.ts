@@ -1,28 +1,18 @@
 import { NextResponse } from "next/server";
-import { currentIdentity } from "@/lib/adminAuth";
-import { getAdminMfaStatus, isSessionMfaVerified } from "@/lib/auth/adminMfa";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const identity = await currentIdentity(request);
-  if (!identity) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+function retiredResponse() {
+  const response = NextResponse.json({ message: "Admin MFA feature has been retired." }, { status: 410 });
+  response.cookies.set("zappit_admin_mfa", "", { httpOnly: true, secure: false, path: "/", maxAge: 0, expires: new Date(0) });
+  response.cookies.set("__Secure-zappit_admin_mfa", "", { httpOnly: true, secure: true, path: "/", maxAge: 0, expires: new Date(0) });
+  return response;
+}
 
-  if (identity.role !== "ADMIN" && identity.role !== "SUPER_ADMIN") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
+export async function GET() {
+  return retiredResponse();
+}
 
-  const mfaStatus = await getAdminMfaStatus(identity.id);
-  const isVerified = await isSessionMfaVerified(identity, request);
-
-  return NextResponse.json({
-    enrolled: mfaStatus.enrolled,
-    enrolledAt: mfaStatus.enrolledAt,
-    recoveryCodesRemaining: mfaStatus.recoveryCodesRemaining,
-    verified: isVerified,
-    role: identity.role,
-    email: identity.email,
-  });
+export async function POST() {
+  return retiredResponse();
 }

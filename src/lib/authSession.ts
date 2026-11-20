@@ -36,5 +36,11 @@ export async function authenticatedResponse(
   if (secure) {
     response.cookies.set("__Secure-next-auth.session-token", token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge });
   }
+
+  // Clear legacy admin MFA cookies on fresh authenticated session
+  response.cookies.set("zappit_admin_mfa", "", { httpOnly: true, secure: false, sameSite: "lax", path: "/", maxAge: 0, expires: new Date(0) });
+  if (secure) {
+    response.cookies.set("__Secure-zappit_admin_mfa", "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0, expires: new Date(0) });
+  }
   return response;
 }

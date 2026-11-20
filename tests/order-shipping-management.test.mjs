@@ -244,11 +244,10 @@ test("Optimistic Concurrency Control: Prevents silent overwrite when order has n
   assert.equal(checkConcurrency(currentDbTime, "2026-11-20T10:15:00.000Z"), false);
 });
 
-test("RBAC & MFA Access Control Guardrails for Super Admin Shipping", () => {
+test("RBAC Access Control Guardrails for Super Admin Shipping", () => {
   function checkShippingPermission(user) {
     if (!user) return { status: 401, authorized: false };
     if (user.role !== "SUPER_ADMIN") return { status: 403, authorized: false };
-    if (!user.mfaVerified) return { status: 403, authorized: false };
     return { status: 200, authorized: true };
   }
 
@@ -256,16 +255,13 @@ test("RBAC & MFA Access Control Guardrails for Super Admin Shipping", () => {
   assert.equal(checkShippingPermission(null).status, 401);
 
   // Regular CUSTOMER
-  assert.equal(checkShippingPermission({ role: "CUSTOMER", mfaVerified: false }).status, 403);
+  assert.equal(checkShippingPermission({ role: "CUSTOMER" }).status, 403);
 
-  // Regular ADMIN (even with MFA) cannot manage Super Admin order shipping
-  assert.equal(checkShippingPermission({ role: "ADMIN", mfaVerified: true }).status, 403);
+  // Regular ADMIN cannot manage Super Admin order shipping
+  assert.equal(checkShippingPermission({ role: "ADMIN" }).status, 403);
 
-  // SUPER_ADMIN without MFA verified cannot mutate shipping
-  assert.equal(checkShippingPermission({ role: "SUPER_ADMIN", mfaVerified: false }).status, 403);
-
-  // SUPER_ADMIN with verified MFA is authorized
-  const superAdmin = checkShippingPermission({ role: "SUPER_ADMIN", mfaVerified: true });
+  // SUPER_ADMIN is authorized directly without MFA
+  const superAdmin = checkShippingPermission({ role: "SUPER_ADMIN" });
   assert.equal(superAdmin.status, 200);
   assert.equal(superAdmin.authorized, true);
 });

@@ -7,6 +7,8 @@ function clearSessionCookies(response: NextResponse) {
     "__Secure-next-auth.session-token",
     "authjs.session-token",
     "__Secure-authjs.session-token",
+    "zappit_admin_mfa",
+    "__Secure-zappit_admin_mfa",
   ];
   for (const name of cookieNames) {
     response.cookies.set(name, "", {
