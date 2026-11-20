@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import { calculateNextAction } from "@/lib/nextActionEngine";
+import {
+  VALID_SHIPPING_STATUSES,
+  COMMON_COURIERS,
+  ShippingStatus,
+  normalizeShippingStatus,
+  isValidHttpsTrackingUrl,
+} from "@/lib/shipping";
 
 interface ShipOrderWorkspaceProps {
   orderId: string;
@@ -22,23 +29,46 @@ const OPERATIONAL_LABELS = [
   "INTERNATIONAL",
 ];
 
-export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, onOpenPacking, onOpenShipping }: ShipOrderWorkspaceProps) {
+const SHIPPING_STATUS_COLORS: Record<ShippingStatus, { bg: string; color: string; border: string }> = {
+  "Preparing": { bg: "rgba(0, 102, 255, 0.15)", color: "#00E5FF", border: "#0066FF" },
+  "Shipped": { bg: "rgba(14, 165, 233, 0.15)", color: "#38bdf8", border: "#0ea5e9" },
+  "Out for Delivery": { bg: "rgba(168, 85, 247, 0.15)", color: "#c084fc", border: "#a855f7" },
+  "Delivered": { bg: "rgba(34, 197, 94, 0.15)", color: "#4ade80", border: "#22c55e" },
+  "Delivery Failed": { bg: "rgba(239, 68, 68, 0.15)", color: "#f87171", border: "#ef4444" },
+  "Return in Transit": { bg: "rgba(249, 115, 22, 0.15)", color: "#fb923c", border: "#f97316" },
+  "Returned": { bg: "rgba(156, 163, 175, 0.15)", color: "#9ca3af", border: "#6b7280" },
+};
+
+export default function ShipOrderWorkspace({
+  orderId,
+  onBack,
+  onViewCustomer,
+  onOpenPacking,
+  onOpenShipping,
+}: ShipOrderWorkspaceProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [showPrintPack, setShowPrintPack] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
 
-  // Shipping form fields
-  const [courier, setCourier] = useState("Standard Courier");
+  // Dedicated Shipping Form State
+  const [shippingStatus, setShippingStatus] = useState<ShippingStatus>("Preparing");
+  const [courier, setCourier] = useState<string>("BlueDart");
+  const [courierOther, setCourierOther] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
+  const [dispatchedAt, setDispatchedAt] = useState("");
+  const [estimatedDeliveryAt, setEstimatedDeliveryAt] = useState("");
+  const [actualDeliveryAt, setActualDeliveryAt] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
   const [weightKg, setWeightKg] = useState("0.25");
   const [dimensionsCm, setDimensionsCm] = useState("15 x 10 x 2");
-  const [status, setStatus] = useState("PENDING");
   const [activeLabels, setActiveLabels] = useState<string[]>([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Checklists
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
@@ -58,14 +88,31 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
       const json = await res.json();
       setData(json);
 
-      // Populate states
+      // Populate shipping states
       const ful = json.fulfillment || {};
-      setCourier(json.order?.courier || ful.courier || "Standard Courier");
+      const statusValue = normalizeShippingStatus(ful.shippingStatus || json.order?.status);
+      setShippingStatus(statusValue);
+
+      const rawCourier = json.order?.courier || ful.courier || "BlueDart";
+      if ((COMMON_COURIERS as readonly string[]).includes(rawCourier)) {
+        setCourier(rawCourier);
+        setCourierOther("");
+      } else if (rawCourier) {
+        setCourier("Other");
+        setCourierOther(rawCourier);
+      } else {
+        setCourier("BlueDart");
+        setCourierOther("");
+      }
+
       setTrackingNumber(json.order?.trackingNumber || ful.trackingNumber || "");
       setTrackingUrl(ful.trackingUrl || "");
+      setDispatchedAt(ful.dispatchedAt ? ful.dispatchedAt.slice(0, 10) : "");
+      setEstimatedDeliveryAt(ful.estimatedDeliveryAt ? ful.estimatedDeliveryAt.slice(0, 10) : "");
+      setActualDeliveryAt(ful.actualDeliveryAt ? ful.actualDeliveryAt.slice(0, 10) : "");
+      setInternalNotes(json.order?.internalNotes || ful.internalNotes || "");
       setWeightKg(ful.weightKg || "0.25");
       setDimensionsCm(ful.dimensionsCm || "15 x 10 x 2");
-      setStatus(json.order?.status || "PENDING");
       setActiveLabels(ful.labels || []);
       setChecklist(ful.checklist || {});
       setQrVerified(Boolean(ful.checklist?.qrVerified));
@@ -81,14 +128,57 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
     loadOrderDetails();
   }, [loadOrderDetails]);
 
+  // Client validation before saving
+  const validateForm = (targetStatus: ShippingStatus, targetCourier: string, targetCourierOther: string, targetTracking: string, targetUrl: string) => {
+    const errors: string[] = [];
+    const effectiveCourier = targetCourier === "Other" ? targetCourierOther.trim() : targetCourier.trim();
+
+    if (["Shipped", "Out for Delivery", "Delivered"].includes(targetStatus)) {
+      if (!effectiveCourier) {
+        errors.push("Courier partner name is required when status is Shipped or Delivered.");
+      }
+      if (!targetTracking.trim()) {
+        errors.push("Tracking / AWB number is required when status is Shipped or Delivered.");
+      }
+    }
+
+    if (targetUrl && !isValidHttpsTrackingUrl(targetUrl)) {
+      errors.push("Tracking link must be a valid HTTPS URL (starting with https://).");
+    }
+
+    return errors;
+  };
+
   const saveFulfillment = async (overrides: Partial<any> = {}) => {
     setSaving(true);
+    setError("");
+    setSaveSuccess("");
+    setValidationErrors([]);
+
+    const targetStatus = overrides.shippingStatus || shippingStatus;
+    const targetCourier = overrides.courier || courier;
+    const targetCourierOther = overrides.courierOther !== undefined ? overrides.courierOther : courierOther;
+    const targetTracking = overrides.trackingNumber !== undefined ? overrides.trackingNumber : trackingNumber;
+    const targetUrl = overrides.trackingUrl !== undefined ? overrides.trackingUrl : trackingUrl;
+
+    const errors = validateForm(targetStatus, targetCourier, targetCourierOther, targetTracking, targetUrl);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setSaving(false);
+      return;
+    }
+
     try {
       const payload = {
-        status: overrides.status || status,
-        courier: overrides.courier || courier,
-        trackingNumber: overrides.trackingNumber || trackingNumber,
-        trackingUrl: overrides.trackingUrl || trackingUrl,
+        shippingStatus: targetStatus,
+        courier: targetCourier,
+        courierOther: targetCourierOther,
+        trackingNumber: targetTracking,
+        trackingUrl: targetUrl,
+        dispatchedAt: overrides.dispatchedAt !== undefined ? overrides.dispatchedAt : dispatchedAt,
+        estimatedDeliveryAt: overrides.estimatedDeliveryAt !== undefined ? overrides.estimatedDeliveryAt : estimatedDeliveryAt,
+        actualDeliveryAt: overrides.actualDeliveryAt !== undefined ? overrides.actualDeliveryAt : actualDeliveryAt,
+        internalNotes: overrides.internalNotes !== undefined ? overrides.internalNotes : internalNotes,
         weightKg: overrides.weightKg || weightKg,
         dimensionsCm: overrides.dimensionsCm || dimensionsCm,
         labels: overrides.labels || activeLabels,
@@ -100,7 +190,7 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
           qrVerified: overrides.qrVerified !== undefined ? overrides.qrVerified : qrVerified,
           cardVerified: overrides.cardVerified !== undefined ? overrides.cardVerified : cardVerified,
         },
-        timelineEvent: overrides.timelineEvent,
+        expectedUpdatedAt: data?.fulfillment?.updatedAt || data?.order?.updatedAt,
       };
 
       const res = await fetch(`/api/super-admin/orders/${orderId}/ship`, {
@@ -109,41 +199,32 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
         body: JSON.stringify(payload),
       });
 
+      const json = await res.json();
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Failed to save fulfillment");
+        throw new Error(json.message || "Failed to save shipping details");
       }
 
+      setSaveSuccess("Shipping details and history updated successfully.");
       await loadOrderDetails();
     } catch (e: any) {
-      alert(e.message || "Save failed");
+      setError(e.message || "Failed to update shipping details.");
     } finally {
       setSaving(false);
     }
   };
 
-  const toggleLabel = (label: string) => {
-    const nextLabels = activeLabels.includes(label)
-      ? activeLabels.filter((l) => l !== label)
-      : [...activeLabels, label];
-    setActiveLabels(nextLabels);
-    void saveFulfillment({ labels: nextLabels });
-  };
-
   const copyToClipboard = (text: string, label: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
-    setCopyFeedback(`Copied ${label}!`);
-    setTimeout(() => setCopyFeedback(""), 2000);
+    setCopyFeedback(`${label} copied to clipboard!`);
+    setTimeout(() => setCopyFeedback(""), 2500);
   };
 
   const downloadQr = async (format: "png" | "svg") => {
-    if (!data?.qr?.url) return;
-    const svgString = buildPremiumQrSvg(data.qr.url, { label: "3G ZAPPIT" });
-    const filename = `zappit-qr-${data.order?.orderNumber || "order"}.${format}`;
-
+    if (!qrSvgString) return;
+    const filename = `ZAPPIT-QR-${order.orderNumber}.${format}`;
     if (format === "svg") {
-      const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const blob = new Blob([qrSvgString], { type: "image/svg+xml" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -151,7 +232,7 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
       a.click();
       URL.revokeObjectURL(url);
     } else {
-      const blob = await svgToHighResPngBlob(svgString, 1500);
+      const blob = await svgToHighResPngBlob(qrSvgString, 1500);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -162,16 +243,21 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
   };
 
   if (loading) {
-    return <div style={{ color: "#fff", padding: "40px", textAlign: "center" }}>Loading Order Workspace...</div>;
+    return (
+      <div style={{ color: "#fff", padding: "60px 20px", textAlign: "center", background: "#050505", minHeight: "100vh" }}>
+        <div style={{ fontSize: "24px", marginBottom: "12px" }}>⏳</div>
+        <p style={{ fontSize: "16px", color: "#aaa" }}>Loading Order Workspace...</p>
+      </div>
+    );
   }
 
-  if (error || !data) {
+  if (error && !data) {
     return (
-      <div style={{ color: "#ff4d4f", padding: "40px", textAlign: "center" }}>
+      <div style={{ color: "#ff4d4f", padding: "60px 20px", textAlign: "center", background: "#050505", minHeight: "100vh" }}>
         <h3>Error Loading Order</h3>
         <p>{error || "Order not found."}</p>
-        <button onClick={onBack} style={{ padding: "8px 16px", background: "#333", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-          Back to List
+        <button onClick={onBack} style={{ padding: "8px 18px", background: "#333", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}>
+          ← Back to Orders List
         </button>
       </div>
     );
@@ -181,6 +267,7 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
   const isPaymentVerified = payment?.isVerifiedServerSide;
   const readiness = fulfillment?.shippingReadiness || { percentage: 0, isReadyToShip: false, missingRequirements: [] };
   const qrSvgString = qr?.url ? buildPremiumQrSvg(qr.url, { label: "3G ZAPPIT" }) : "";
+  const currentStatusStyle = SHIPPING_STATUS_COLORS[shippingStatus] || SHIPPING_STATUS_COLORS["Preparing"];
 
   const nextAction = calculateNextAction({
     status: order.status,
@@ -189,8 +276,8 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
     shipping_address: shippingAddress,
     customerName: customer.name,
     customerMobile: customer.phone,
-    trackingNumber: order.trackingNumber,
-    courier: order.courier,
+    trackingNumber: trackingNumber || order.trackingNumber,
+    courier: courier === "Other" ? courierOther : courier,
   });
 
   const fullAddressString = [
@@ -209,180 +296,344 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
     .join("\n");
 
   return (
-    <div style={{ background: "var(--admin-bg, #050505)", color: "var(--admin-text, #fff)", minHeight: "100vh", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ background: "var(--admin-bg, #050505)", color: "var(--admin-text, #fff)", minHeight: "100vh", padding: "24px", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       {/* Top Header */}
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "16px" }}>
         <div>
-          <button onClick={onBack} style={{ background: "transparent", color: "#00E5FF", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: "700", marginBottom: "6px", display: "inline-block" }}>
+          <button
+            onClick={onBack}
+            style={{ background: "transparent", color: "#00E5FF", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: "700", marginBottom: "6px", display: "inline-flex", alignItems: "center", gap: "4px", padding: 0 }}
+          >
             ← Back to Orders List
           </button>
-          <h1 style={{ fontSize: "24px", margin: 0, display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            Ship Order #{order.orderNumber}
-            <span style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "20px", background: order.status === "SHIPPED" || order.status === "DELIVERED" ? "#52c41a22" : "#0066FF22", color: order.status === "SHIPPED" || order.status === "DELIVERED" ? "#52c41a" : "#00E5FF", border: `1px solid ${order.status === "SHIPPED" || order.status === "DELIVERED" ? "#52c41a" : "#0066FF"}` }}>
-              {order.status}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <h1 style={{ fontSize: "26px", margin: 0, fontWeight: 800, letterSpacing: "-0.02em" }}>
+              Order #{order.orderNumber}
+            </h1>
+            <span
+              style={{
+                fontSize: "12px",
+                fontWeight: 800,
+                padding: "4px 12px",
+                borderRadius: "20px",
+                background: currentStatusStyle.bg,
+                color: currentStatusStyle.color,
+                border: `1px solid ${currentStatusStyle.border}`,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: currentStatusStyle.color }} />
+              {shippingStatus}
             </span>
-          </h1>
+          </div>
+          <p style={{ margin: "4px 0 0", color: "#888", fontSize: "13px" }}>
+            Customer: <strong style={{ color: "#fff" }}>{customer.name}</strong> ({customer.email})
+          </p>
         </div>
 
-        {/* Quick Action Bar */}
+        {/* Action Controls */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {order.userId && onViewCustomer && (
-            <button onClick={() => onViewCustomer(order.userId)} style={{ ...quickBtnStyle, background: "rgba(0, 102, 255, 0.2)", color: "#00E5FF", border: "1px solid rgba(0, 229, 255, 0.4)" }}>
-              👤 View Customer
+            <button onClick={() => onViewCustomer(order.userId)} style={quickBtnStyle}>
+              👤 Customer Profile
             </button>
           )}
           {qr?.url && (
-            <a href={qr.url} target="_blank" rel="noreferrer" style={{ ...quickBtnStyle, background: "rgba(46, 204, 113, 0.15)", color: "#2ecc71", border: "1px solid rgba(46, 204, 113, 0.4)", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-              🌐 Open Profile ↗
+            <a href={qr.url} target="_blank" rel="noopener noreferrer" style={{ ...quickBtnStyle, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              🌐 Live Card ↗
             </a>
           )}
           <button onClick={() => copyToClipboard(fullAddressString, "Full Address")} style={quickBtnStyle}>
             📋 Copy Address
           </button>
-          <button onClick={() => copyToClipboard(shippingAddress.phone, "Phone Number")} style={quickBtnStyle}>
-            📞 Copy Phone
-          </button>
-          <button onClick={() => setShowQrModal(true)} style={quickBtnStyle}>
-            🔍 View QR
-          </button>
-          <button onClick={() => downloadQr("png")} style={quickBtnStyle}>
-            ⬇️ Download QR
-          </button>
           <button onClick={() => setShowLabelModal(true)} style={quickBtnStyle}>
-            🏷️ Generate Label
+            🏷️ Shipping Label
           </button>
-          <button onClick={() => setShowPrintPack(true)} style={{ ...quickBtnStyle, background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800 }}>
-            🖨️ Print Shipping Pack
+          <button onClick={() => setShowPrintPack(true)} style={{ ...quickBtnStyle, background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none" }}>
+            🖨️ Packing Slip
           </button>
         </div>
       </div>
 
-      {/* CALCULATED NEXT ACTION BANNER */}
-      {nextAction && (
-        <div style={{ background: "#0b1324", border: `1px solid ${nextAction.color}`, borderRadius: 10, padding: 14, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <span style={{ fontSize: 10, color: "#888", fontWeight: 800, letterSpacing: 0.5, display: "block", marginBottom: 2 }}>
-              CALCULATED NEXT ACTION
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ background: nextAction.color, color: "#000", fontWeight: 900, fontSize: 12, padding: "3px 9px", borderRadius: 4 }}>
-                {nextAction.label}
-              </span>
-              <span style={{ fontSize: 13, color: "#eee" }}>{nextAction.subtext}</span>
-            </div>
-          </div>
+      {/* Feedback Messages */}
+      {saveSuccess && (
+        <div style={{ background: "#135200", border: "1px solid #52c41a", color: "#d9f7be", padding: "12px 16px", borderRadius: "8px", fontWeight: 700, marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>✓ {saveSuccess}</span>
+          <button onClick={() => setSaveSuccess("")} style={{ background: "transparent", border: "none", color: "#d9f7be", cursor: "pointer", fontWeight: "bold" }}>✕</button>
+        </div>
+      )}
 
-          <div style={{ display: "flex", gap: 8 }}>
-            {nextAction.targetTab === "packing" && onOpenPacking && (
-              <button onClick={() => onOpenPacking(order.id)} style={{ padding: "8px 14px", background: nextAction.color, color: "#000", fontWeight: 900, border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
-                📦 Open in Packing Mode ➔
-              </button>
-            )}
-            {nextAction.targetTab === "shipping" && onOpenShipping && (
-              <button onClick={() => onOpenShipping(order.id)} style={{ padding: "8px 14px", background: nextAction.color, color: "#000", fontWeight: 900, border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
-                🚚 Open in Shipping Mode ➔
-              </button>
-            )}
-          </div>
+      {error && (
+        <div style={{ background: "#431418", border: "1px solid #ff4d4f", color: "#ffccc7", padding: "12px 16px", borderRadius: "8px", fontWeight: 700, marginBottom: "20px" }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {validationErrors.length > 0 && (
+        <div style={{ background: "#431418", border: "1px solid #ff4d4f", color: "#ffccc7", padding: "14px 18px", borderRadius: "8px", marginBottom: "20px" }}>
+          <strong style={{ display: "block", marginBottom: "6px" }}>⚠️ Please correct the following errors before saving:</strong>
+          <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px" }}>
+            {validationErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
         </div>
       )}
 
       {copyFeedback && (
-        <div style={{ background: "#52c41a", color: "#000", padding: "8px 16px", borderRadius: "6px", fontWeight: 700, marginBottom: "16px" }}>
+        <div style={{ background: "rgba(0, 229, 255, 0.2)", border: "1px solid #00E5FF", color: "#00E5FF", padding: "10px 16px", borderRadius: "6px", fontWeight: 700, marginBottom: "16px" }}>
           ✓ {copyFeedback}
         </div>
       )}
 
-      {/* Internal Operational Labels Selector */}
-      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
-        <div style={{ fontSize: "12px", fontWeight: 800, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
-          🏷️ Internal Operational Labels
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-          {OPERATIONAL_LABELS.map((lbl) => {
-            const active = activeLabels.includes(lbl);
-            return (
-              <button
-                key={lbl}
-                type="button"
-                onClick={() => toggleLabel(lbl)}
-                style={{
-                  background: active ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "rgba(255,255,255,0.06)",
-                  color: active ? "#fff" : "rgba(255,255,255,0.6)",
-                  border: active ? "1px solid #00E5FF" : "1px solid rgba(255,255,255,0.15)",
-                  borderRadius: "6px",
-                  padding: "4px 10px",
-                  fontSize: "11.5px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {active ? "✓ " : "+ "}{lbl}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Shipping Readiness Indicator Banner */}
-      <div style={{ background: readiness.isReadyToShip ? "#13520022" : "#5c220022", border: `1px solid ${readiness.isReadyToShip ? "#52c41a" : "#fa8c16"}`, padding: "16px 20px", borderRadius: "10px", marginBottom: "24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "28px" }}>{readiness.isReadyToShip ? "🟢" : "🟠"}</span>
+      {/* Main Grid: Shipping Management + Order Context */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "20px" }}>
+        
+        {/* ========================================================
+            CARD 1: COURIER & SHIPPING MANAGEMENT (Primary Edit Form)
+           ======================================================== */}
+        <div style={{ ...cardBoxStyle, gridColumn: "1 / -1", border: "1px solid #0066FF66", background: "linear-gradient(180deg, rgba(0, 102, 255, 0.04) 0%, rgba(0,0,0,0.5) 100%)" }}>
+          <div style={cardHeaderStyle}>
             <div>
-              <strong style={{ fontSize: "16px", color: readiness.isReadyToShip ? "#52c41a" : "#fa8c16" }}>
-                {readiness.isReadyToShip ? "READY TO SHIP (100%)" : `ACTION REQUIRED (${readiness.percentage}%)`}
-              </strong>
-              <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#aaa" }}>
-                {readiness.isReadyToShip ? "All operational & verification requirements complete." : "Resolve pending items below to allow shipment creation."}
+              <h3 style={{ margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+                🚚 Manage Shipping &amp; Courier Dispatch
+              </h3>
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#aaa" }}>
+                Update shipping status, courier details, tracking numbers, and delivery dates. Payment status remains unaffected.
               </p>
             </div>
+            <span style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "6px", background: currentStatusStyle.bg, color: currentStatusStyle.color, border: `1px solid ${currentStatusStyle.border}`, fontWeight: 800 }}>
+              {shippingStatus}
+            </span>
           </div>
-          <button
-            disabled={saving || !readiness.isReadyToShip}
-            onClick={() => saveFulfillment({ status: "SHIPPED", timelineEvent: { status: "SHIPPED", note: `Marked Shipped via ${courier} AWB ${trackingNumber}` } })}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "6px",
-              background: readiness.isReadyToShip ? "#52c41a" : "#333",
-              color: readiness.isReadyToShip ? "#000" : "#777",
-              border: "none",
-              fontWeight: 700,
-              cursor: readiness.isReadyToShip ? "pointer" : "not-allowed",
-            }}
-          >
-            {saving ? "Saving..." : "🚀 Mark Shipped"}
-          </button>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "16px" }}>
+            
+            {/* Field: Shipping Status */}
+            <div>
+              <label style={fieldLabelStyle}>
+                Shipping Status <span style={{ color: "#ff4d4f" }}>*</span>
+              </label>
+              <select
+                value={shippingStatus}
+                onChange={(e) => {
+                  const newStat = e.target.value as ShippingStatus;
+                  setShippingStatus(newStat);
+                  // Auto-populate dates on status transition if empty
+                  if (newStat === "Shipped" && !dispatchedAt) {
+                    setDispatchedAt(new Date().toISOString().slice(0, 10));
+                  }
+                  if (newStat === "Delivered" && !actualDeliveryAt) {
+                    setActualDeliveryAt(new Date().toISOString().slice(0, 10));
+                  }
+                }}
+                style={inputStyle}
+              >
+                {VALID_SHIPPING_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+              <small style={{ color: "#888", display: "block", marginTop: "4px", fontSize: "11px" }}>
+                Separate from payment status. Customer sees real-time updates.
+              </small>
+            </div>
+
+            {/* Field: Courier Partner */}
+            <div>
+              <label style={fieldLabelStyle}>
+                Courier Partner <span style={{ color: "#ff4d4f" }}>*</span>
+              </label>
+              <select
+                value={courier}
+                onChange={(e) => setCourier(e.target.value)}
+                style={inputStyle}
+              >
+                {COMMON_COURIERS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              {courier === "Other" && (
+                <div style={{ marginTop: "8px" }}>
+                  <input
+                    type="text"
+                    value={courierOther}
+                    onChange={(e) => setCourierOther(e.target.value)}
+                    placeholder="Enter Custom Courier Name"
+                    style={{ ...inputStyle, borderColor: "#00E5FF" }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Field: Tracking / AWB Number */}
+            <div>
+              <label style={fieldLabelStyle}>
+                Tracking / AWB Number {["Shipped", "Out for Delivery", "Delivered"].includes(shippingStatus) && <span style={{ color: "#ff4d4f" }}>*</span>}
+              </label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                  type="text"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="e.g. 1294829104"
+                  style={inputStyle}
+                />
+                {trackingNumber && (
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(trackingNumber, "Tracking #")}
+                    style={{ ...miniBtnStyle, whiteSpace: "nowrap" }}
+                  >
+                    Copy
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Field: HTTPS Tracking Link */}
+            <div>
+              <label style={fieldLabelStyle}>
+                Tracking Link (Optional HTTPS)
+              </label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                  type="url"
+                  value={trackingUrl}
+                  onChange={(e) => setTrackingUrl(e.target.value)}
+                  placeholder="https://track.provider.com/..."
+                  style={{
+                    ...inputStyle,
+                    borderColor: trackingUrl && !isValidHttpsTrackingUrl(trackingUrl) ? "#ff4d4f" : undefined,
+                  }}
+                />
+                {trackingUrl && isValidHttpsTrackingUrl(trackingUrl) && (
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...miniBtnStyle,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      textDecoration: "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Test ↗
+                  </a>
+                )}
+              </div>
+              <small style={{ color: trackingUrl && !isValidHttpsTrackingUrl(trackingUrl) ? "#ff4d4f" : "#888", display: "block", marginTop: "4px", fontSize: "11px" }}>
+                {trackingUrl && !isValidHttpsTrackingUrl(trackingUrl) ? "Must start with https://" : "Customer will see a direct 'Track Package' button"}
+              </small>
+            </div>
+          </div>
+
+          {/* Dates Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "16px", padding: "14px", background: "rgba(0,0,0,0.3)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div>
+              <label style={fieldLabelStyle}>Dispatch Date</label>
+              <input
+                type="date"
+                value={dispatchedAt}
+                onChange={(e) => setDispatchedAt(e.target.value)}
+                style={inputStyle}
+              />
+              <small style={{ color: "#888", fontSize: "11px" }}>Date package left fulfillment center</small>
+            </div>
+
+            <div>
+              <label style={fieldLabelStyle}>Estimated Delivery Date</label>
+              <input
+                type="date"
+                value={estimatedDeliveryAt}
+                onChange={(e) => setEstimatedDeliveryAt(e.target.value)}
+                style={inputStyle}
+              />
+              <small style={{ color: "#888", fontSize: "11px" }}>Shared with customer as estimated date</small>
+            </div>
+
+            <div>
+              <label style={fieldLabelStyle}>Actual Delivery Date</label>
+              <input
+                type="date"
+                value={actualDeliveryAt}
+                onChange={(e) => setActualDeliveryAt(e.target.value)}
+                style={inputStyle}
+              />
+              <small style={{ color: "#888", fontSize: "11px" }}>Auto-recorded when marked Delivered</small>
+            </div>
+          </div>
+
+          {/* Internal Notes (Hidden from customer) */}
+          <div style={{ marginBottom: "20px" }}>
+            <label style={{ ...fieldLabelStyle, display: "flex", justifyContent: "space-between" }}>
+              <span>🔒 Internal Shipping Notes (Staff Only)</span>
+              <span style={{ color: "#fa8c16", fontWeight: "normal", fontSize: "11px" }}>Strictly hidden from customers</span>
+            </label>
+            <textarea
+              value={internalNotes}
+              onChange={(e) => setInternalNotes(e.target.value)}
+              placeholder="Add internal dispatch logs, courier pickup notes, package handover details, or exception records..."
+              rows={3}
+              style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
+            />
+          </div>
+
+          {/* Action Row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: "12px", color: "#888" }}>
+              Last updated: {order.updatedAt ? new Date(order.updatedAt).toLocaleString() : "N/A"}
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={loadOrderDetails}
+                disabled={saving}
+                style={secondaryBtnStyle}
+              >
+                Reset Changes
+              </button>
+              <button
+                type="button"
+                onClick={() => saveFulfillment()}
+                disabled={saving}
+                style={{
+                  ...primaryBtnStyle,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 24px",
+                  fontSize: "14px",
+                }}
+              >
+                {saving ? "Saving Changes..." : "💾 Save Shipping Details"}
+              </button>
+            </div>
+          </div>
         </div>
 
-        {readiness.missingRequirements.length > 0 && (
-          <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px stroke #fa8c1633" }}>
-            <span style={{ fontSize: "12px", color: "#fa8c16", fontWeight: 700 }}>Pending Action Items:</span>
-            <ul style={{ margin: "4px 0 0 20px", padding: 0, fontSize: "13px", color: "#ffccc7" }}>
-              {readiness.missingRequirements.map((req: string, idx: number) => (
-                <li key={idx}>{req}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* Main Command Center Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "20px" }}>
-        {/* 1. Customer & Complete Shipping Information */}
+        {/* ========================================================
+            CARD 2: RECIPIENT & DELIVERY ADDRESS
+           ======================================================== */}
         <div style={cardBoxStyle}>
           <div style={cardHeaderStyle}>
-            <h3>📍 Customer & Shipping Information</h3>
+            <h3>📍 Delivery Address &amp; Contact</h3>
             <div style={{ display: "flex", gap: "6px" }}>
               <button onClick={() => copyToClipboard(shippingAddress.phone, "Phone")} style={miniBtnStyle}>Copy Phone</button>
-              <button onClick={() => copyToClipboard(shippingAddress.pinCode, "PIN")} style={miniBtnStyle}>Copy PIN</button>
-              <button onClick={() => copyToClipboard(fullAddressString, "Address")} style={miniBtnStyle}>Copy Address</button>
+              <button onClick={() => copyToClipboard(fullAddressString, "Address")} style={miniBtnStyle}>Copy Full Address</button>
             </div>
           </div>
 
           {missingShippingFields.length > 0 && (
             <div style={{ background: "#2a1215", border: "1px solid #ff4d4f", padding: "10px", borderRadius: "6px", marginBottom: "14px", color: "#ff4d4f", fontSize: "12px" }}>
-              <strong>⚠️ SHIPPING INFORMATION INCOMPLETE</strong>
+              <strong>⚠️ INCOMPLETE DELIVERY ADDRESS:</strong>
               <br />
               Missing: {missingShippingFields.join(", ")}
             </div>
@@ -398,10 +649,17 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
             <p style={{ margin: "0 0 6px" }}>
               <strong style={{ color: "#aaa" }}>Email:</strong> {customer.email}
             </p>
-            <div style={{ background: "#111", border: "1px solid #222", padding: "10px", borderRadius: "6px", marginTop: "8px" }}>
-              <strong style={{ color: "#aaa", fontSize: "11px", letterSpacing: "0.5px" }}>DELIVERY ADDRESS:</strong>
+
+            <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)", padding: "12px", borderRadius: "6px", marginTop: "10px" }}>
+              <strong style={{ color: "#00E5FF", fontSize: "11px", letterSpacing: "0.5px" }}>DELIVERY ADDRESS:</strong>
               <p style={{ margin: "4px 0 0", color: "#fff", whiteSpace: "pre-line" }}>
-                {[shippingAddress.house, shippingAddress.street, shippingAddress.locality, `${shippingAddress.city} ${shippingAddress.state} ${shippingAddress.pinCode}`, shippingAddress.country]
+                {[
+                  shippingAddress.house,
+                  shippingAddress.street,
+                  shippingAddress.locality,
+                  `${shippingAddress.city} ${shippingAddress.state} ${shippingAddress.pinCode}`,
+                  shippingAddress.country,
+                ]
                   .filter(Boolean)
                   .join(", ")}
               </p>
@@ -414,255 +672,162 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
           </div>
         </div>
 
-        {/* 2. Order & Verified Payment Section */}
+        {/* ========================================================
+            CARD 3: PURCHASED CARDS & SELECTED FINISHES
+           ======================================================== */}
         <div style={cardBoxStyle}>
           <div style={cardHeaderStyle}>
-            <h3>💳 Payment & Order Details</h3>
-            <span style={{ fontSize: "12px", color: "#888" }}>{new Date(order.createdAt).toLocaleDateString()}</span>
-          </div>
-
-          <div style={{ background: isPaymentVerified ? "#13520022" : "#2a1215", border: `1px solid ${isPaymentVerified ? "#52c41a" : "#ff4d4f"}`, padding: "12px", borderRadius: "6px", marginBottom: "14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong style={{ color: isPaymentVerified ? "#52c41a" : "#ff4d4f" }}>
-                {isPaymentVerified ? "🟢 PAYMENT VERIFIED (SERVER-SIDE)" : "🔴 DO NOT SHIP — UNPAID / UNVERIFIED"}
-              </strong>
-              <span style={{ fontSize: "14px", fontWeight: 800 }}>₹{(order.totalMinor / 100).toFixed(2)}</span>
-            </div>
-            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#aaa" }}>
-              Payment Status: {order.paymentStatus} | Currency: {order.currency}
-            </p>
-          </div>
-
-          <div style={{ fontSize: "13px", lineHeight: "1.6" }}>
-            <p style={{ margin: "0 0 6px" }}><strong style={{ color: "#aaa" }}>Order ID:</strong> {order.id}</p>
-            <p style={{ margin: "0 0 6px" }}><strong style={{ color: "#aaa" }}>Order Number:</strong> {order.orderNumber}</p>
-            <p style={{ margin: "0 0 6px" }}><strong style={{ color: "#aaa" }}>Subtotal:</strong> ₹{(order.subtotalMinor / 100).toFixed(2)}</p>
-            <p style={{ margin: "0 0 6px" }}><strong style={{ color: "#aaa" }}>Shipping Fee:</strong> ₹{(order.shippingMinor / 100).toFixed(2)}</p>
-          </div>
-        </div>
-
-        {/* 3. Product Package Contents */}
-        <div style={cardBoxStyle}>
-          <div style={cardHeaderStyle}>
-            <h3>📦 Product Package Contents</h3>
+            <h3>💳 Purchased Cards &amp; Finishes</h3>
             <span style={{ fontSize: "12px", color: "#888" }}>{items.length} items</span>
           </div>
 
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {items.map((it: any) => (
-              <li key={it.id} style={{ background: "#111", border: "1px solid #222", padding: "10px", borderRadius: "6px", marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
-                <div>
-                  <strong style={{ color: "#fff", fontSize: "13px" }}>{it.productName}</strong>
-                  <div style={{ color: "#888", fontSize: "12px" }}>Qty: {it.quantity} {it.sku ? `| SKU: ${it.sku}` : ""}</div>
-                </div>
-                <div style={{ fontWeight: 700, color: "#00E5FF" }}>
-                  ₹{(it.totalMinor / 100).toFixed(2)}
-                </div>
-              </li>
-            ))}
+            {items.map((it: any) => {
+              const custom = it.customization || {};
+              const finish = custom.finish || custom.material || custom.cardFinish || custom.color || null;
+              const printedName = custom.printedName || custom.name || custom.fullName || null;
+              const title = custom.title || custom.designation || null;
+              const company = custom.company || custom.organization || null;
+
+              return (
+                <li
+                  key={it.id}
+                  style={{
+                    background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                    <div>
+                      <strong style={{ color: "#fff", fontSize: "14px" }}>{it.productName}</strong>
+                      <div style={{ color: "#888", fontSize: "12px" }}>
+                        Qty: <strong style={{ color: "#fff" }}>{it.quantity}</strong> {it.sku ? `| SKU: ${it.sku}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 800, color: "#00E5FF", fontSize: "14px" }}>
+                      ₹{(it.totalMinor / 100).toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Selected Finishes & Customization Details */}
+                  <div style={{ background: "rgba(255,255,255,0.03)", padding: "8px 10px", borderRadius: "6px", fontSize: "12px", color: "#bbb", marginTop: "6px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "6px" }}>
+                      {finish && (
+                        <div>
+                          <span style={{ color: "#888", fontSize: "11px" }}>Finish / Material: </span>
+                          <strong style={{ color: "#00E5FF" }}>{finish}</strong>
+                        </div>
+                      )}
+                      {printedName && (
+                        <div>
+                          <span style={{ color: "#888", fontSize: "11px" }}>Name to Print: </span>
+                          <strong style={{ color: "#fff" }}>{printedName}</strong>
+                        </div>
+                      )}
+                      {title && (
+                        <div>
+                          <span style={{ color: "#888", fontSize: "11px" }}>Title: </span>
+                          <strong style={{ color: "#ccc" }}>{title}</strong>
+                        </div>
+                      )}
+                      {company && (
+                        <div>
+                          <span style={{ color: "#888", fontSize: "11px" }}>Company: </span>
+                          <strong style={{ color: "#ccc" }}>{company}</strong>
+                        </div>
+                      )}
+                    </div>
+                    {custom.notes && (
+                      <div style={{ marginTop: "4px", fontSize: "11px", color: "#fa8c16" }}>
+                        Custom Note: {custom.notes}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
 
-          <div style={{ borderTop: "1px solid #222", paddingTop: "10px", marginTop: "10px", fontSize: "12px", color: "#aaa" }}>
-            <strong>Standard Included Extras:</strong>
-            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-              <li>Premium NFC Card × {items.reduce((s: number, i: any) => s + (i.quantity || 1), 0)}</li>
-              <li>Owner Contact QR Sticker × 2</li>
-              <li>ZAPPIT Executive Packaging Box × 1</li>
-            </ul>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "10px", marginTop: "12px", fontSize: "12px", color: "#aaa" }}>
+            <strong>Payment Status: </strong>
+            <span style={{ color: isPaymentVerified ? "#52c41a" : "#ff4d4f", fontWeight: 700 }}>
+              {order.paymentStatus}
+            </span>
+            <span style={{ margin: "0 8px" }}>•</span>
+            <strong>Total: </strong>₹{(order.totalMinor / 100).toFixed(2)}
           </div>
         </div>
 
-        {/* 4. QR Code & Card / NFC Verification */}
-        <div style={cardBoxStyle}>
+        {/* ========================================================
+            CARD 4: SHIPPING AUDIT & TIMELINE HISTORY
+           ======================================================== */}
+        <div style={{ ...cardBoxStyle, gridColumn: "1 / -1" }}>
           <div style={cardHeaderStyle}>
-            <h3>🔲 QR Code & Card Verification</h3>
-            <span style={{ fontSize: "12px", color: "#888" }}>{qr.status}</span>
+            <h3>📜 Shipping History &amp; Audit Trail</h3>
+            <span style={{ fontSize: "12px", color: "#888" }}>
+              {(fulfillment?.shippingHistory || []).length} recorded update events
+            </span>
           </div>
 
-          <div style={{ display: "flex", gap: "16px", alignItems: "center", marginBottom: "14px" }}>
-            {qrSvgString ? (
-              <div
-                dangerouslySetInnerHTML={{ __html: qrSvgString }}
-                style={{ width: "110px", height: "110px", background: "#050505", border: "1px solid #333", borderRadius: "8px", padding: "4px" }}
-              />
-            ) : (
-              <div style={{ width: "110px", height: "110px", background: "#111", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "#555" }}>
-                No QR
-              </div>
-            )}
+          {(!fulfillment?.shippingHistory || fulfillment.shippingHistory.length === 0) ? (
+            <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>
+              No shipping status modifications recorded yet. Updates made above will be appended here.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {fulfillment.shippingHistory.map((hist: any, idx: number) => {
+                const prevStyle = SHIPPING_STATUS_COLORS[normalizeShippingStatus(hist.previousStatus)];
+                const newStyle = SHIPPING_STATUS_COLORS[normalizeShippingStatus(hist.newStatus)];
 
-            <div style={{ flex: 1, fontSize: "12px" }}>
-              <strong style={{ color: "#fff", display: "block", marginBottom: "4px" }}>Destination URL:</strong>
-              <a href={qr.url} target="_blank" rel="noreferrer" style={{ color: "#0066FF", wordBreak: "break-all", fontSize: "11px" }}>
-                {qr.url}
-              </a>
-              <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-                <button onClick={() => copyToClipboard(qr.url, "QR URL")} style={miniBtnStyle}>Copy URL</button>
-                <button onClick={() => downloadQr("png")} style={miniBtnStyle}>PNG</button>
-                <button onClick={() => downloadQr("svg")} style={miniBtnStyle}>SVG</button>
-              </div>
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "10px 14px",
+                      borderRadius: "6px",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      fontSize: "12.5px",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <span style={{ padding: "2px 8px", borderRadius: "4px", background: prevStyle.bg, color: prevStyle.color, fontSize: "11px", fontWeight: 700 }}>
+                          {hist.previousStatus}
+                        </span>
+                        <span style={{ color: "#888" }}>➔</span>
+                        <span style={{ padding: "2px 8px", borderRadius: "4px", background: newStyle.bg, color: newStyle.color, fontSize: "11px", fontWeight: 700 }}>
+                          {hist.newStatus}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, color: "#ddd" }}>{hist.details}</p>
+                    </div>
+
+                    <div style={{ textAlign: "right", fontSize: "11.5px", color: "#888", minWidth: "160px" }}>
+                      <div>{new Date(hist.timestamp).toLocaleString()}</div>
+                      {hist.actor && <div style={{ color: "#00E5FF", marginTop: "2px" }}>By: {hist.actor}</div>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-
-          {/* Verification Toggles */}
-          <div style={{ background: "#111", padding: "12px", borderRadius: "6px", border: "1px solid #222" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <span style={{ fontSize: "13px" }}>QR Destination Verification:</span>
-              <button
-                onClick={() => {
-                  const next = !qrVerified;
-                  setQrVerified(next);
-                  saveFulfillment({ qrVerified: next, timelineEvent: { status: "QR_VERIFIED", note: next ? "QR Verified by Admin" : "QR Verification revoked" } });
-                }}
-                style={{ padding: "6px 12px", borderRadius: "4px", background: qrVerified ? "#52c41a22" : "#ff4d4f22", color: qrVerified ? "#52c41a" : "#ff4d4f", border: `1px solid ${qrVerified ? "#52c41a" : "#ff4d4f"}`, cursor: "pointer", fontWeight: 700 }}
-              >
-                {qrVerified ? "🟢 QR VERIFIED" : "🔴 QR NOT VERIFIED"}
-              </button>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "13px" }}>Card / NFC Verification:</span>
-              <button
-                onClick={() => {
-                  const next = !cardVerified;
-                  setCardVerified(next);
-                  saveFulfillment({ cardVerified: next, timelineEvent: { status: "CARD_VERIFIED", note: next ? "NFC Card Verified by Admin" : "Card Verification revoked" } });
-                }}
-                style={{ padding: "6px 12px", borderRadius: "4px", background: cardVerified ? "#52c41a22" : "#ff4d4f22", color: cardVerified ? "#52c41a" : "#ff4d4f", border: `1px solid ${cardVerified ? "#52c41a" : "#ff4d4f"}`, cursor: "pointer", fontWeight: 700 }}
-              >
-                {cardVerified ? "🟢 CARD VERIFIED" : "🔴 CARD NOT VERIFIED"}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Pre-Shipping Physical Checklist */}
-        <div style={cardBoxStyle}>
-          <div style={cardHeaderStyle}>
-            <h3>☑️ Pre-Shipping Fulfillment Checklist</h3>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12px" }}>
-            {[
-              { key: "paymentVerified", label: "Payment Verified", disabled: true, checked: isPaymentVerified },
-              { key: "customerVerified", label: "Customer Info Verified" },
-              { key: "shippingAddressVerified", label: "Address Verified" },
-              { key: "productVerified", label: "Product Items Verified" },
-              { key: "qrGenerated", label: "QR Generated" },
-              { key: "qrVerified", label: "QR Scanned & Tested", checked: qrVerified },
-              { key: "nfcVerified", label: "NFC Chip Scanned", checked: cardVerified },
-              { key: "cardProduced", label: "Card Produced" },
-              { key: "cardQualityChecked", label: "Quality Inspected" },
-              { key: "stickersIncluded", label: "Stickers Included" },
-              { key: "packagingIncluded", label: "Box Packaged" },
-              { key: "labelGenerated", label: "Shipping Label Created" },
-            ].map((chk) => (
-              <label key={chk.key} style={{ display: "flex", alignItems: "center", gap: "6px", background: "#111", padding: "6px 8px", borderRadius: "4px", border: "1px solid #222", cursor: chk.disabled ? "not-allowed" : "pointer" }}>
-                <input
-                  type="checkbox"
-                  disabled={chk.disabled}
-                  checked={chk.checked !== undefined ? chk.checked : Boolean(checklist[chk.key])}
-                  onChange={(e) => {
-                    const nextChecklist = { ...checklist, [chk.key]: e.target.checked };
-                    setChecklist(nextChecklist);
-                    saveFulfillment({ checklist: nextChecklist });
-                  }}
-                />
-                <span style={{ color: (chk.checked !== undefined ? chk.checked : checklist[chk.key]) ? "#52c41a" : "#aaa" }}>{chk.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* 6. Shipping & Courier Management */}
-        <div style={cardBoxStyle}>
-          <div style={cardHeaderStyle}>
-            <h3>🚚 Shipping & Courier Details</h3>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px" }}>
-            <div>
-              <label style={{ display: "block", color: "#aaa", marginBottom: "4px" }}>Courier Partner</label>
-              <select value={courier} onChange={(e) => setCourier(e.target.value)} style={inputStyle}>
-                <option value="Standard Courier">Standard Courier</option>
-                <option value="BlueDart">BlueDart</option>
-                <option value="Delhivery">Delhivery</option>
-                <option value="DTDC">DTDC</option>
-                <option value="India Post">India Post</option>
-                <option value="FedEx">FedEx</option>
-                <option value="DHL">DHL</option>
-              </select>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              <div>
-                <label style={{ display: "block", color: "#aaa", marginBottom: "4px" }}>AWB / Tracking #</label>
-                <input type="text" value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} placeholder="Tracking number" style={inputStyle} />
-              </div>
-              <div>
-                <label style={{ display: "block", color: "#aaa", marginBottom: "4px" }}>Order Status</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} style={inputStyle}>
-                  <option value="NEW">NEW</option>
-                  <option value="PAYMENT_VERIFIED">PAYMENT VERIFIED</option>
-                  <option value="CUSTOMIZATION">CUSTOMIZATION</option>
-                  <option value="QR_READY">QR READY</option>
-                  <option value="CARD_PRODUCTION">CARD PRODUCTION</option>
-                  <option value="PACKAGING">PACKAGING</option>
-                  <option value="PACKED">PACKED</option>
-                  <option value="READY_TO_SHIP">READY TO SHIP</option>
-                  <option value="SHIPPED">SHIPPED</option>
-                  <option value="IN_TRANSIT">IN TRANSIT</option>
-                  <option value="DELIVERED">DELIVERED</option>
-                  <option value="RTO">RTO (Returned)</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              <div>
-                <label style={{ display: "block", color: "#aaa", marginBottom: "4px" }}>Weight (kg)</label>
-                <input type="text" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} style={inputStyle} />
-              </div>
-              <div>
-                <label style={{ display: "block", color: "#aaa", marginBottom: "4px" }}>Dimensions (cm)</label>
-                <input type="text" value={dimensionsCm} onChange={(e) => setDimensionsCm(e.target.value)} style={inputStyle} />
-              </div>
-            </div>
-
-            <button disabled={saving} onClick={() => saveFulfillment()} style={{ padding: "8px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", fontWeight: 800, border: "none", borderRadius: "6px", cursor: "pointer", marginTop: "6px" }}>
-              {saving ? "Saving Updates..." : "Save Shipping Details"}
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Timeline Section */}
-      <div style={{ ...cardBoxStyle, marginTop: "20px" }}>
-        <div style={cardHeaderStyle}>
-          <h3>📜 Order Audit & Fulfillment Timeline</h3>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {(fulfillment?.timeline || []).map((t: any, idx: number) => (
-            <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#111", padding: "8px 12px", borderRadius: "6px", border: "1px solid #222", fontSize: "12px" }}>
-              <div>
-                <strong style={{ color: "#00E5FF" }}>{t.status}</strong>
-                <p style={{ margin: "2px 0 0", color: "#ccc" }}>{t.note}</p>
-              </div>
-              <div style={{ color: "#888", textAlign: "right" }}>
-                <div>{new Date(t.timestamp).toLocaleString()}</div>
-                {t.actor && <small style={{ color: "#666" }}>By: {t.actor}</small>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Label Modal */}
+      {/* Shipping Label Modal */}
       {showLabelModal && (
         <div style={modalOverlayStyle}>
           <div style={{ ...modalContentStyle, maxWidth: "500px" }}>
-            <h3>🏷️ Shipping Label Preview</h3>
+            <h3 style={{ margin: "0 0 12px" }}>🏷️ Shipping Label Preview</h3>
             <div style={{ background: "#fff", color: "#000", padding: "20px", borderRadius: "6px", fontFamily: "monospace", fontSize: "12px", lineHeight: "1.5", margin: "16px 0" }}>
               <div style={{ borderBottom: "2px solid #000", paddingBottom: "8px", marginBottom: "8px", fontWeight: "bold" }}>
                 3G ZAPPIT FULFILLMENT CENTER
@@ -674,8 +839,10 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
               <div>{shippingAddress.city}, {shippingAddress.state} - {shippingAddress.pinCode}</div>
               <div style={{ marginTop: "12px", borderTop: "1px dashed #000", paddingTop: "8px" }}>
                 <div>ORDER #: {order.orderNumber}</div>
-                <div>COURIER: {courier}</div>
+                <div>COURIER: {courier === "Other" ? courierOther : courier}</div>
                 <div>AWB #: {trackingNumber || "PENDING"}</div>
+                {dispatchedAt && <div>DISPATCH DATE: {dispatchedAt}</div>}
+                {estimatedDeliveryAt && <div>EST. DELIVERY: {estimatedDeliveryAt}</div>}
               </div>
             </div>
             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
@@ -686,20 +853,22 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
         </div>
       )}
 
-      {/* Print Shipping Pack Modal */}
+      {/* Packing Slip Modal */}
       {showPrintPack && (
         <div style={modalOverlayStyle}>
-          <div style={{ ...modalContentStyle, maxWidth: "600px" }}>
-            <h3>🖨️ Shipping Pack & Packing Slip</h3>
-            <div style={{ background: "#fff", color: "#000", padding: "24px", borderRadius: "6px", fontSize: "13px", lineHeight: "1.6", margin: "16px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #000", paddingBottom: "10px", marginBottom: "12px" }}>
+          <div style={{ ...modalContentStyle, maxWidth: "560px" }}>
+            <h3 style={{ margin: "0 0 12px" }}>🖨️ Packing Slip</h3>
+            <div style={{ background: "#fff", color: "#000", padding: "20px", borderRadius: "6px", fontSize: "12px", lineHeight: "1.6", margin: "16px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #000", paddingBottom: "10px", marginBottom: "10px" }}>
                 <div>
-                  <strong style={{ fontSize: "18px" }}>3G ZAPPIT PACKING SLIP</strong>
-                  <div>Order #: {order.orderNumber}</div>
+                  <strong style={{ fontSize: "16px" }}>3G ZAPPIT</strong>
+                  <div>Order #{order.orderNumber}</div>
                 </div>
                 <div style={{ textAlign: "right", fontSize: "11px" }}>
                   <div>Date: {new Date().toLocaleDateString()}</div>
                   <div>Payment: {order.paymentStatus}</div>
+                  <div>Courier: {courier === "Other" ? courierOther : courier}</div>
+                  <div>Status: {shippingStatus}</div>
                 </div>
               </div>
 
@@ -726,13 +895,13 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
               </table>
 
               <div style={{ borderTop: "1px solid #000", paddingTop: "8px", fontSize: "11px" }}>
-                <div>QR Destination: {qr.url}</div>
+                <div>Tracking AWB: {trackingNumber || "Pending"}</div>
                 <div>Card ID: {card?.digitalCardId || "N/A"}</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
               <button onClick={() => setShowPrintPack(false)} style={secondaryBtnStyle}>Close</button>
-              <button onClick={() => window.print()} style={primaryBtnStyle}>Print Packing Pack</button>
+              <button onClick={() => window.print()} style={primaryBtnStyle}>Print Packing Slip</button>
             </div>
           </div>
         </div>
@@ -742,7 +911,7 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
       {showQrModal && (
         <div style={modalOverlayStyle}>
           <div style={{ ...modalContentStyle, maxWidth: "420px", textAlign: "center" }}>
-            <h3>Customer QR Code</h3>
+            <h3 style={{ margin: "0 0 8px" }}>Customer QR Code</h3>
             <p style={{ color: "#aaa", fontSize: "12px", margin: "0 0 16px" }}>{customer.name} ({customer.email})</p>
             {qrSvgString && (
               <div
@@ -765,10 +934,10 @@ export default function ShipOrderWorkspace({ orderId, onBack, onViewCustomer, on
 
 // Styling helpers
 const cardBoxStyle: React.CSSProperties = {
-  background: "var(--admin-panel, #141414)",
-  border: "1px solid var(--admin-border, #262626)",
-  padding: "20px",
-  borderRadius: "10px",
+  background: "var(--admin-panel, #11141a)",
+  border: "1px solid var(--admin-border, #1f2937)",
+  padding: "22px",
+  borderRadius: "12px",
   color: "var(--admin-text, #fff)",
 };
 
@@ -776,46 +945,59 @@ const cardHeaderStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  marginBottom: "14px",
-  borderBottom: "1px solid var(--admin-border, #222)",
-  paddingBottom: "8px",
+  marginBottom: "16px",
+  borderBottom: "1px solid var(--admin-border, rgba(255,255,255,0.08))",
+  paddingBottom: "10px",
+};
+
+const fieldLabelStyle: React.CSSProperties = {
+  display: "block",
+  color: "#cbd5e1",
+  fontSize: "12.5px",
+  fontWeight: 700,
+  marginBottom: "6px",
 };
 
 const quickBtnStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  background: "var(--bg-secondary, #222)",
+  padding: "8px 14px",
+  background: "rgba(255, 255, 255, 0.05)",
   color: "var(--admin-text, #fff)",
-  border: "1px solid var(--admin-border, #444)",
+  border: "1px solid rgba(255, 255, 255, 0.15)",
+  borderRadius: "8px",
+  fontSize: "12.5px",
+  cursor: "pointer",
+  fontWeight: 600,
+  transition: "all 0.2s ease",
+};
+
+const miniBtnStyle: React.CSSProperties = {
+  padding: "4px 10px",
+  background: "rgba(255, 255, 255, 0.08)",
+  color: "var(--admin-text, #fff)",
+  border: "1px solid rgba(255, 255, 255, 0.15)",
   borderRadius: "6px",
-  fontSize: "12px",
+  fontSize: "11px",
   cursor: "pointer",
   fontWeight: 600,
 };
 
-const miniBtnStyle: React.CSSProperties = {
-  padding: "4px 8px",
-  background: "var(--bg-secondary, #333)",
-  color: "var(--admin-text, #fff)",
-  border: "1px solid var(--admin-border, #444)",
-  borderRadius: "4px",
-  fontSize: "11px",
-  cursor: "pointer",
-};
-
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "8px",
-  background: "var(--admin-bg, #111)",
+  padding: "10px 12px",
+  background: "var(--admin-bg, #090d14)",
   color: "var(--admin-text, #fff)",
-  border: "1px solid var(--admin-border, #333)",
-  borderRadius: "6px",
-  fontSize: "12px",
+  border: "1px solid var(--admin-border, #2d3748)",
+  borderRadius: "8px",
+  fontSize: "13px",
+  outline: "none",
+  boxSizing: "border-box",
 };
 
 const modalOverlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.5)",
+  background: "rgba(0,0,0,0.75)",
+  backdropFilter: "blur(4px)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -824,29 +1006,32 @@ const modalOverlayStyle: React.CSSProperties = {
 };
 
 const modalContentStyle: React.CSSProperties = {
-  background: "var(--admin-panel, #1a1a1a)",
-  border: "1px solid var(--admin-border, #333)",
-  borderRadius: "10px",
+  background: "var(--admin-panel, #11141a)",
+  border: "1px solid var(--admin-border, #2d3748)",
+  borderRadius: "14px",
   padding: "24px",
   width: "100%",
   color: "var(--admin-text, #fff)",
+  boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
 };
 
 const primaryBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
+  padding: "8px 18px",
   background: "linear-gradient(135deg, #0066FF, #00E5FF)",
   color: "#fff",
   fontWeight: 800,
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "8px",
   cursor: "pointer",
+  transition: "opacity 0.2s ease",
 };
 
 const secondaryBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
+  padding: "8px 18px",
   background: "transparent",
-  color: "var(--admin-text, #ccc)",
-  border: "1px solid var(--admin-border, #444)",
-  borderRadius: "6px",
+  color: "var(--admin-text, #cbd5e1)",
+  border: "1px solid var(--admin-border, #475569)",
+  borderRadius: "8px",
   cursor: "pointer",
+  fontWeight: 600,
 };

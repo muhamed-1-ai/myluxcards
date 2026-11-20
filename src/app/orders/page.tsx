@@ -3,6 +3,8 @@ import { currentIdentity } from "@/lib/adminAuth";
 import OrdersClient from "./OrdersClient";
 import "./orders.css";
 
+export const dynamic = "force-dynamic";
+
 export default async function OrdersPage() {
   const identity = await currentIdentity();
   if (!identity) redirect("/?login=1&next=%2Forders");

@@ -1,13 +1,57 @@
 "use client";
+
 import { useCallback, useEffect, useState } from "react";
 
 const money = (minor: number, currency: string) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: currency || "INR" }).format((minor || 0) / 100);
 
+function formatDate(isoString?: string | null): string {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function formatDateTime(isoString?: string | null): string {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+const SHIPPING_STATUS_CLASS_MAP: Record<string, string> = {
+  "Preparing": "shipping-badge-preparing",
+  "Shipped": "shipping-badge-shipped",
+  "Out for Delivery": "shipping-badge-out",
+  "Delivered": "shipping-badge-delivered",
+  "Delivery Failed": "shipping-badge-failed",
+  "Return in Transit": "shipping-badge-transit",
+  "Returned": "shipping-badge-returned",
+};
+
 export default function OrdersClient() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -36,6 +80,13 @@ export default function OrdersClient() {
     void fetchOrders();
   }, [fetchOrders]);
 
+  const handleCopyAwb = (awb: string) => {
+    if (!awb || typeof navigator === "undefined" || !navigator.clipboard) return;
+    navigator.clipboard.writeText(awb).catch(() => {});
+    setCopiedAwb(awb);
+    setTimeout(() => setCopiedAwb(null), 2000);
+  };
+
   return (
     <main className="orders-page">
       <header>
@@ -45,7 +96,7 @@ export default function OrdersClient() {
       <section className="orders-hero">
         <p>YOUR ACCOUNT</p>
         <h1>My orders</h1>
-        <span>Track purchases, payments, delivery, and invoices.</span>
+        <span>Track purchases, payments, shipping, delivery, and invoices.</span>
       </section>
       {loading ? (
         <div className="orders-state">Loading your orders…</div>
@@ -80,45 +131,194 @@ export default function OrdersClient() {
         </section>
       ) : (
         <section className="orders-list">
-          {orders.map((order) => (
-            <article key={order.id}>
-              <div className="order-top">
-                <div>
-                  <small>ORDER</small>
-                  <h2>{order.order_number}</h2>
-                  <p>{new Date(order.created_at).toLocaleString()}</p>
+          {orders.map((order) => {
+            const shipping = order.shipping || {};
+            const shippingStatus = shipping.shippingStatus || "Preparing";
+            const isPreparing = shipping.isPreparing ?? (shippingStatus === "Preparing");
+            const badgeClass = SHIPPING_STATUS_CLASS_MAP[shippingStatus] || "shipping-badge-preparing";
+            const timeline = Array.isArray(shipping.timeline) ? shipping.timeline : [];
+
+            return (
+              <article key={order.id} className="order-card">
+                <div className="order-top">
+                  <div>
+                    <small>ORDER</small>
+                    <h2>{order.order_number}</h2>
+                    <p>{new Date(order.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="badges">
+                    <b className={`shipping-status-pill ${badgeClass}`}>
+                      <span className="dot" aria-hidden="true" />
+                      {shippingStatus}
+                    </b>
+                    <b className="order-status-badge">{order.status}</b>
+                    <b className={`payment ${order.payment_status?.toLowerCase()}`}>{order.payment_status}</b>
+                  </div>
                 </div>
-                <div className="badges">
-                  <b>{order.status}</b>
-                  <b className={`payment ${order.payment_status?.toLowerCase()}`}>{order.payment_status}</b>
+
+                {/* Items Section */}
+                <div className="order-items">
+                  {order.order_items?.map((item: any) => {
+                    const cust = item.customization || {};
+                    const finish = cust.cardFinish || cust.finish || cust.material;
+                    const printedName = cust.nameOnCard || cust.printedName || cust.fullName;
+                    const company = cust.companyName || cust.company;
+
+                    return (
+                      <div key={item.id} className="order-item-row">
+                        <div className="item-main">
+                          <p className="item-name">
+                            {item.product_name} <span className="item-qty">× {item.quantity}</span>
+                          </p>
+                          {(finish || printedName || company) && (
+                            <div className="item-customization-tags">
+                              {finish && <span className="custom-tag">Finish: {finish}</span>}
+                              {printedName && <span className="custom-tag">Name: {printedName}</span>}
+                              {company && <span className="custom-tag">{company}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <strong className="item-price">{money(item.total_minor, order.currency)}</strong>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-              <div className="order-items">
-                {order.order_items?.map((item: any) => (
-                  <p key={item.id}>
-                    <span>
-                      {item.product_name} × {item.quantity}
-                    </span>
-                    <strong>{money(item.total_minor, order.currency)}</strong>
-                  </p>
-                ))}
-              </div>
-              <div className="order-bottom">
-                <div>
-                  <small>TOTAL</small>
-                  <strong>{money(order.total_minor, order.currency)}</strong>
-                  {order.tracking_number && (
-                    <span>
-                      {order.courier || "Courier"}: {order.tracking_number}
-                    </span>
+
+                {/* Dedicated Courier & Shipping Section */}
+                <div className="order-shipping-section">
+                  <div className="shipping-section-header">
+                    <div className="shipping-title-row">
+                      <span className="shipping-icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="1" y="3" width="15" height="13" rx="2" />
+                          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                          <circle cx="5.5" cy="18.5" r="2.5" />
+                          <circle cx="18.5" cy="18.5" r="2.5" />
+                        </svg>
+                      </span>
+                      <h3>Delivery & Shipment</h3>
+                    </div>
+                    {shipping.trackingUrl && (
+                      <a
+                        href={shipping.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="track-package-btn"
+                      >
+                        Track Package ↗
+                      </a>
+                    )}
+                  </div>
+
+                  {isPreparing ? (
+                    <div className="shipping-preparing-card">
+                      <div className="prep-icon-pulse">
+                        <span className="prep-pulse-dot" />
+                      </div>
+                      <div className="prep-copy">
+                        <h4>Your card is being prepared.</h4>
+                        <p>
+                          Our production team is crafting, programming, and quality-testing your custom NFC card.
+                          Tracking and courier details will be published here as soon as your package is dispatched.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="shipping-details-grid">
+                      <div className="shipping-detail-cell">
+                        <span className="cell-label">Courier</span>
+                        <span className="cell-value courier-name">{shipping.courier || "Assigned Partner"}</span>
+                      </div>
+
+                      <div className="shipping-detail-cell">
+                        <span className="cell-label">Tracking / AWB</span>
+                        <div className="awb-row">
+                          <code className="awb-code">{shipping.trackingNumber || "In Transit"}</code>
+                          {shipping.trackingNumber && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyAwb(shipping.trackingNumber)}
+                              className="copy-awb-button"
+                              title="Copy Tracking Number"
+                            >
+                              {copiedAwb === shipping.trackingNumber ? "Copied!" : "Copy"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {shipping.dispatchedAt && (
+                        <div className="shipping-detail-cell">
+                          <span className="cell-label">Dispatched On</span>
+                          <span className="cell-value">{formatDate(shipping.dispatchedAt)}</span>
+                        </div>
+                      )}
+
+                      {shipping.actualDeliveryAt ? (
+                        <div className="shipping-detail-cell highlight-delivered">
+                          <span className="cell-label">Delivered On</span>
+                          <span className="cell-value">{formatDate(shipping.actualDeliveryAt)}</span>
+                        </div>
+                      ) : shipping.estimatedDeliveryAt ? (
+                        <div className="shipping-detail-cell">
+                          <span className="cell-label">Estimated Delivery Date</span>
+                          <span className="cell-value highlight-estimate">
+                            {formatDate(shipping.estimatedDeliveryAt)}
+                          </span>
+                          <small className="estimate-sub">Courier estimate</small>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* Simple, Clear Shipment Timeline */}
+                  {timeline.length > 0 && (
+                    <div className="shipping-timeline-container">
+                      <h5 className="timeline-heading">Shipment Timeline</h5>
+                      <div className="shipping-timeline">
+                        {timeline.map((event: any, idx: number) => {
+                          const isLatest = idx === timeline.length - 1;
+                          return (
+                            <div key={idx} className={`timeline-step ${isLatest ? "step-active" : "step-done"}`}>
+                              <div className="step-marker">
+                                <span className="marker-dot" />
+                                {idx < timeline.length - 1 && <span className="marker-line" />}
+                              </div>
+                              <div className="step-content">
+                                <div className="step-header">
+                                  <strong className="step-label">{event.label || event.status}</strong>
+                                  <span className="step-time">{formatDateTime(event.timestamp)}</span>
+                                </div>
+                                {event.note && <p className="step-note">{event.note}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
-                <a href={`/api/orders/${order.id}/invoice`} target="_blank" rel="noreferrer">
-                  View invoice
-                </a>
-              </div>
-            </article>
-          ))}
+
+                {/* Bottom Row */}
+                <div className="order-bottom">
+                  <div>
+                    <small>TOTAL</small>
+                    <strong>{money(order.total_minor, order.currency)}</strong>
+                  </div>
+                  <div className="order-actions">
+                    <a
+                      href={`/api/orders/${order.id}/invoice`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="invoice-link-btn"
+                    >
+                      View Invoice
+                    </a>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </section>
       )}
     </main>
