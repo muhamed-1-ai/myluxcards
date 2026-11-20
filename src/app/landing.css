@@ -543,6 +543,36 @@ body.light-mode .landing-page .loader-status-label {
   transform: scaleX(1);
 }
 
+/* Mobile Nav Backdrop Overlay */
+.landing-page .nav-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 9998 !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s ease !important;
+}
+
+.landing-page .nav-backdrop.is-open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+body.mobile-nav-open {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
 /* Main Floating Pill Capsule */
 .landing-page .navbar {
   pointer-events: auto;
@@ -554,15 +584,15 @@ body.light-mode .landing-page .loader-status-label {
   height: 60px !important;
   min-height: 60px !important;
   border-radius: 9999px !important;
-  background: rgba(255, 255, 255, 0.92) !important;
+  background: rgba(8, 9, 11, 0.92) !important;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(229, 234, 242, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow:
-    0 10px 30px -4px rgba(0, 0, 0, 0.06),
-    0 4px 12px rgba(0, 0, 0, 0.02),
-    0 0 20px 2px rgba(0, 102, 255, 0.06),
-    inset 0 1px 1px #FFFFFF !important;
+    0 10px 30px -4px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px 2px rgba(0, 102, 255, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
   padding: 0 8px !important;
   display: flex !important;
   align-items: center !important;
@@ -570,7 +600,31 @@ body.light-mode .landing-page .loader-status-label {
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s ease !important;
 }
 
+[data-theme="light"] .landing-page .navbar,
+html.light .landing-page .navbar,
+body.light-mode .landing-page .navbar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(229, 234, 242, 0.95) !important;
+  box-shadow:
+    0 10px 30px -4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.02),
+    0 0 20px 2px rgba(0, 102, 255, 0.06),
+    inset 0 1px 1px #FFFFFF !important;
+}
+
 .landing-page .navbar.navbar-scrolled {
+  background: rgba(8, 9, 11, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    0 14px 38px -4px rgba(0, 0, 0, 0.7),
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    0 0 24px 3px rgba(0, 102, 255, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="light"] .landing-page .navbar.navbar-scrolled,
+html.light .landing-page .navbar.navbar-scrolled,
+body.light-mode .landing-page .navbar.navbar-scrolled {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: #CBD5E1 !important;
   box-shadow:
@@ -753,54 +807,129 @@ body.light-mode .landing-page .loader-status-label {
   flex-shrink: 0 !important;
 }
 
-/* Action Buttons (Wishlist & Cart) */
+/* Action Buttons (Cart, Account, Hamburger) */
+.landing-page .btn-icon,
+.landing-page .account-button,
+.landing-page .hamburger {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Extended 44x44px minimum practical touch targets for mobile accessibility */
+.landing-page .btn-icon::after,
+.landing-page .account-button::after,
+.landing-page .hamburger::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -4px !important;
+  left: -4px !important;
+  right: -4px !important;
+  bottom: -4px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  pointer-events: auto !important;
+}
+
+/* Dark mode styling (default sleek black Zappit aesthetic) */
+.landing-page .btn-icon,
+.landing-page .account-button,
+.landing-page .hamburger {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #F1F5F9 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.landing-page .btn-icon:hover,
+.landing-page .account-button:hover,
+.landing-page .hamburger:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(0, 102, 255, 0.5) !important;
+  color: #38BDF8 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25) !important;
+}
+
+.landing-page .btn-icon:active,
+.landing-page .account-button:active,
+.landing-page .hamburger:active {
+  transform: translateY(0);
+}
+
+/* Light mode overrides */
+[data-theme="light"] .landing-page .btn-icon,
+[data-theme="light"] .landing-page .account-button,
+[data-theme="light"] .landing-page .hamburger,
+html.light .landing-page .btn-icon,
+html.light .landing-page .account-button,
+html.light .landing-page .hamburger,
+body.light-mode .landing-page .btn-icon,
+body.light-mode .landing-page .account-button,
+body.light-mode .landing-page .hamburger {
+  background: #FFFFFF !important;
+  border: 1px solid #E5EAF2 !important;
+  color: #111827 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .landing-page .btn-icon:hover,
+[data-theme="light"] .landing-page .account-button:hover,
+[data-theme="light"] .landing-page .hamburger:hover,
+html.light .landing-page .btn-icon:hover,
+html.light .landing-page .account-button:hover,
+html.light .landing-page .hamburger:hover,
+body.light-mode .landing-page .btn-icon:hover,
+body.light-mode .landing-page .account-button:hover,
+body.light-mode .landing-page .hamburger:hover {
+  background: #F0F6FF !important;
+  border-color: #93C5FD !important;
+  color: var(--apple-blue) !important;
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15) !important;
+}
+
 .landing-page .btn-icon {
   width: 38px !important;
   height: 38px !important;
   min-width: 38px !important;
   border-radius: 50% !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: #FFFFFF !important;
-  border: 1px solid #E5EAF2 !important;
-  color: #111827 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-  cursor: pointer !important;
-  position: relative !important;
   padding: 0 !important;
-  transition: all 0.2s ease !important;
-}
-
-.landing-page .btn-icon:hover {
-  background: #F0F6FF !important;
-  border-color: #93C5FD !important;
-  color: var(--apple-blue) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15) !important;
-}
-
-.landing-page .btn-icon:active {
-  transform: translateY(0);
 }
 
 .landing-page .badge-count {
   position: absolute !important;
-  top: -3px !important;
-  right: -3px !important;
-  width: 18px !important;
+  top: -4px !important;
+  right: -4px !important;
+  min-width: 18px !important;
   height: 18px !important;
-  border-radius: 50% !important;
-  background: var(--apple-blue) !important;
+  padding: 0 4px !important;
+  border-radius: 9999px !important;
+  background: var(--apple-blue, #0066FF) !important;
   color: #FFFFFF !important;
   font-size: 10px !important;
   font-weight: 700 !important;
+  font-family: var(--apple-font), -apple-system, sans-serif !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: 2px solid #FFFFFF !important;
-  box-shadow: 0 1px 4px rgba(0, 102, 255, 0.35) !important;
-  padding: 0 !important;
+  border: 2px solid #08090B !important;
+  box-shadow: 0 2px 6px rgba(0, 102, 255, 0.5) !important;
+  z-index: 3 !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
+}
+
+[data-theme="light"] .landing-page .badge-count,
+html.light .landing-page .badge-count,
+body.light-mode .landing-page .badge-count {
+  border-color: #FFFFFF !important;
 }
 
 /* Account Dropdown & Button */
@@ -809,39 +938,19 @@ body.light-mode .landing-page .loader-status-label {
 }
 
 .landing-page .account-button {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 7px !important;
-  padding: 0 12px !important;
   height: 38px !important;
+  padding: 0 12px !important;
   border-radius: 9999px !important;
-  background: #FFFFFF !important;
-  border: 1px solid #E5EAF2 !important;
-  color: #111827 !important;
   font-size: 13px !important;
   font-weight: 600 !important;
-  cursor: pointer !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-  transition: all 0.2s ease !important;
-}
-
-.landing-page .account-button:hover {
-  background: #F0F6FF !important;
-  border-color: #93C5FD !important;
-  color: var(--apple-blue) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.15) !important;
-}
-
-.landing-page .account-button:active {
-  transform: translateY(0);
+  gap: 7px !important;
 }
 
 .landing-page .account-avatar-badge {
   width: 22px !important;
   height: 22px !important;
   border-radius: 50% !important;
-  background: var(--apple-blue) !important;
+  background: var(--apple-blue, #0066FF) !important;
   color: #FFFFFF !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -853,45 +962,76 @@ body.light-mode .landing-page .loader-status-label {
 .landing-page .account-label {
   font-size: 13px !important;
   font-weight: 600 !important;
-  color: #111827 !important;
+  color: inherit !important;
 }
 
 .landing-page .account-dropdown {
   position: absolute !important;
-  top: calc(100% + 8px) !important;
+  top: calc(100% + 10px) !important;
   right: 0 !important;
   min-width: 170px !important;
-  background: #FFFFFF !important;
-  border: 1px solid #E5EAF2 !important;
-  border-radius: 14px !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1) !important;
+  max-width: calc(100vw - 24px) !important;
+  background: rgba(10, 12, 16, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6) !important;
   padding: 6px !important;
   z-index: 10020 !important;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-sizing: border-box !important;
+}
+
+[data-theme="light"] .landing-page .account-dropdown,
+html.light .landing-page .account-dropdown,
+body.light-mode .landing-page .account-dropdown {
+  background: #FFFFFF !important;
+  border: 1px solid #E5EAF2 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1) !important;
 }
 
 .landing-page .account-dropdown a,
 .landing-page .account-dropdown button {
   display: block !important;
   width: 100% !important;
-  padding: 8px 12px !important;
-  border-radius: 8px !important;
+  padding: 9px 12px !important;
+  border-radius: 10px !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  color: #111827 !important;
+  color: #E2E8F0 !important;
   text-decoration: none !important;
   text-align: left !important;
   background: none !important;
   border: none !important;
   cursor: pointer !important;
   transition: background-color 0.18s ease, color 0.18s ease !important;
+  box-sizing: border-box !important;
 }
 
 .landing-page .account-dropdown a:hover,
 .landing-page .account-dropdown button:hover {
+  background: rgba(0, 102, 255, 0.14) !important;
+  color: #38BDF8 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .landing-page .account-dropdown a,
+[data-theme="light"] .landing-page .account-dropdown button,
+html.light .landing-page .account-dropdown a,
+html.light .landing-page .account-dropdown button,
+body.light-mode .landing-page .account-dropdown a,
+body.light-mode .landing-page .account-dropdown button {
+  color: #111827 !important;
+}
+
+[data-theme="light"] .landing-page .account-dropdown a:hover,
+[data-theme="light"] .landing-page .account-dropdown button:hover,
+html.light .landing-page .account-dropdown a:hover,
+html.light .landing-page .account-dropdown button:hover,
+body.light-mode .landing-page .account-dropdown a:hover,
+body.light-mode .landing-page .account-dropdown button:hover {
   background: #F0F6FF !important;
   color: var(--apple-blue) !important;
-  font-weight: 600 !important;
 }
 
 /* Primary Blue CTA Pill */
@@ -902,7 +1042,7 @@ body.light-mode .landing-page .loader-status-label {
   gap: 6px !important;
   height: 42px !important;
   padding: 0 20px !important;
-  background: var(--apple-blue) !important;
+  background: var(--apple-blue, #0066FF) !important;
   color: #FFFFFF !important;
   font-size: 13.5px !important;
   font-weight: 600 !important;
@@ -916,7 +1056,7 @@ body.light-mode .landing-page .loader-status-label {
 }
 
 .landing-page .nav-design-cta:hover {
-  background: var(--apple-blue-hover) !important;
+  background: var(--apple-blue-hover, #0052CC) !important;
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(0, 102, 255, 0.45) !important;
 }
@@ -928,28 +1068,31 @@ body.light-mode .landing-page .loader-status-label {
 /* Mobile Hamburger Button */
 .landing-page .hamburger {
   display: none;
-  width: 38px;
-  height: 38px;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
   border-radius: 50% !important;
-  background: #FFFFFF !important;
-  border: 1px solid #E5EAF2 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 4px;
-  cursor: pointer;
-  padding: 0;
-  transition: all 0.2s ease;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 0 !important;
+  z-index: 10002 !important;
 }
 
 .landing-page .hamburger span {
-  display: block;
-  width: 16px;
-  height: 1.5px;
-  background: #111827;
-  border-radius: 2px;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  display: block !important;
+  width: 17px !important;
+  height: 1.75px !important;
+  background: #F1F5F9 !important;
+  border-radius: 2px !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, background-color 0.2s ease !important;
+  transform-origin: center !important;
+}
+
+[data-theme="light"] .landing-page .hamburger span,
+html.light .landing-page .hamburger span,
+body.light-mode .landing-page .hamburger span {
+  background: #111827 !important;
 }
 
 /* ==========================================================================
@@ -3390,13 +3533,18 @@ body.dark-mode .zappit-login-footer {
 @media (max-width: 960px) {
   .landing-page .navbar-wrapper {
     top: 10px !important;
+    padding-left: max(12px, env(safe-area-inset-left)) !important;
+    padding-right: max(12px, env(safe-area-inset-right)) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .landing-page .navbar {
-    width: calc(100% - 20px) !important;
+    width: 100% !important;
+    max-width: 100% !important;
     height: 56px !important;
     min-height: 56px !important;
-    padding: 0 6px !important;
+    padding: 0 8px 0 12px !important;
     overflow: visible !important;
     border-radius: 9999px !important;
   }
@@ -3404,6 +3552,8 @@ body.dark-mode .zappit-login-footer {
   .landing-page .navbar-container {
     position: static !important;
     overflow: visible !important;
+    padding: 0 !important;
+    gap: 8px !important;
   }
 
   .landing-page .logo-capsule {
@@ -3413,7 +3563,8 @@ body.dark-mode .zappit-login-footer {
   }
 
   .landing-page .logo.logo-img-link {
-    padding: 0 0 0 8px !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
   }
 
   .landing-page .logo .brand-logo,
@@ -3428,39 +3579,41 @@ body.dark-mode .zappit-login-footer {
     display: block !important;
   }
 
+  .landing-page .nav-actions {
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
   .landing-page .nav-design-cta {
     display: none !important;
   }
 
-  .landing-page .hamburger {
-    display: inline-flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 4.5px !important;
+  .landing-page .account-button {
     width: 38px !important;
     height: 38px !important;
-    background: #FFFFFF !important;
-    border: 1px solid #E5EAF2 !important;
-    border-radius: 50% !important;
-    cursor: pointer !important;
+    min-width: 38px !important;
     padding: 0 !important;
-    z-index: 10002 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
   }
 
-  .landing-page .hamburger span {
-    display: block !important;
-    width: 16px !important;
-    height: 1.5px !important;
-    background: #111827 !important;
-    border-radius: 2px !important;
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
+  .landing-page .account-label {
+    display: none !important;
+  }
+
+  .landing-page .account-avatar-badge {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 11px !important;
+  }
+
+  .landing-page .hamburger {
+    display: inline-flex !important;
   }
 
   .landing-page .hamburger[aria-expanded="true"] span:nth-child(1) {
-    transform: translateY(6px) rotate(45deg) !important;
+    transform: translateY(5.75px) rotate(45deg) !important;
+    background: #38BDF8 !important;
   }
 
   .landing-page .hamburger[aria-expanded="true"] span:nth-child(2) {
@@ -3469,11 +3622,12 @@ body.dark-mode .zappit-login-footer {
   }
 
   .landing-page .hamburger[aria-expanded="true"] span:nth-child(3) {
-    transform: translateY(-6px) rotate(-45deg) !important;
+    transform: translateY(-5.75px) rotate(-45deg) !important;
+    background: #38BDF8 !important;
   }
 
   .landing-page .nav-menu {
-    display: none !important;
+    display: flex !important;
     position: absolute !important;
     top: calc(100% + 10px) !important;
     left: 0 !important;
@@ -3481,35 +3635,54 @@ body.dark-mode .zappit-login-footer {
     width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
-    max-height: calc(100vh - 90px) !important;
+    max-height: calc(100vh - 84px) !important;
     overflow-y: auto !important;
-    background: rgba(255, 255, 255, 0.98) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border: 1px solid #E5EAF2 !important;
-    border-radius: 24px !important;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), 0 0 20px 2px rgba(0, 102, 255, 0.06) !important;
-    padding: 16px 20px !important;
+    -webkit-overflow-scrolling: touch !important;
+    background: rgba(10, 12, 16, 0.96) !important;
+    backdrop-filter: blur(28px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 24px rgba(0, 102, 255, 0.1) !important;
+    padding: 12px 14px 16px !important;
     flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 2px !important;
+    align-items: stretch !important;
+    gap: 3px !important;
     z-index: 10050 !important;
+    box-sizing: border-box !important;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.98);
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s ease !important;
+    pointer-events: none;
   }
 
-  .landing-page .nav-menu:not(.is-open) {
-    display: none !important;
+  [data-theme="light"] .landing-page .nav-menu,
+  html.light .landing-page .nav-menu,
+  body.light-mode .landing-page .nav-menu {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid #E5EAF2 !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), 0 0 20px 2px rgba(0, 102, 255, 0.06) !important;
   }
 
   .landing-page .nav-menu.is-open {
-    display: flex !important;
-    height: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) scale(1) !important;
+    pointer-events: auto !important;
   }
 
   .landing-page .nav-menu li {
     width: 100% !important;
     list-style: none !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
     padding: 0 !important;
+  }
+
+  [data-theme="light"] .landing-page .nav-menu li,
+  html.light .landing-page .nav-menu li,
+  body.light-mode .landing-page .nav-menu li {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
   }
 
   .landing-page .nav-menu li:last-child {
@@ -3520,24 +3693,55 @@ body.dark-mode .zappit-login-footer {
   .landing-page .mobile-account-actions .nav-link {
     font-size: 15px !important;
     font-weight: 500 !important;
-    color: #111827 !important;
-    padding: 12px 6px !important;
+    color: #E2E8F0 !important;
+    padding: 11px 14px !important;
     width: 100% !important;
     display: flex !important;
     align-items: center !important;
+    justify-content: space-between !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
     background: none !important;
     border: none !important;
     cursor: pointer !important;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease !important;
+  }
+
+  [data-theme="light"] .landing-page .nav-link,
+  [data-theme="light"] .landing-page .mobile-account-actions .nav-link,
+  html.light .landing-page .nav-link,
+  html.light .landing-page .mobile-account-actions .nav-link,
+  body.light-mode .landing-page .nav-link,
+  body.light-mode .landing-page .mobile-account-actions .nav-link {
+    color: #111827 !important;
   }
 
   .landing-page .nav-link:hover,
+  .landing-page .nav-link.active,
   .landing-page .mobile-account-actions .nav-link:hover {
+    color: #38BDF8 !important;
+    background: rgba(0, 102, 255, 0.12) !important;
+    font-weight: 600 !important;
+  }
+
+  [data-theme="light"] .landing-page .nav-link:hover,
+  [data-theme="light"] .landing-page .nav-link.active,
+  [data-theme="light"] .landing-page .mobile-account-actions .nav-link:hover,
+  html.light .landing-page .nav-link:hover,
+  html.light .landing-page .nav-link.active,
+  html.light .landing-page .mobile-account-actions .nav-link:hover,
+  body.light-mode .landing-page .nav-link:hover,
+  body.light-mode .landing-page .nav-link.active,
+  body.light-mode .landing-page .mobile-account-actions .nav-link:hover {
     color: var(--apple-blue) !important;
+    background: #F0F6FF !important;
   }
 
   .landing-page .nav-menu li.nav-dashboard-link,
+  .landing-page .nav-menu li.mobile-cta-item,
   .landing-page .nav-menu li.mobile-account-actions,
   .landing-page .nav-dashboard-link,
+  .landing-page .mobile-cta-item,
   .landing-page .mobile-account-actions {
     display: flex !important;
     flex-direction: column !important;
@@ -3547,7 +3751,7 @@ body.dark-mode .zappit-login-footer {
   }
 
   .landing-page .mobile-design-cta {
-    background: var(--apple-blue) !important;
+    background: var(--apple-blue, #0066FF) !important;
     color: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     border-radius: var(--apple-radius-full) !important;
@@ -3556,7 +3760,12 @@ body.dark-mode .zappit-login-footer {
     font-weight: 600 !important;
     letter-spacing: -0.01em !important;
     box-shadow: 0 10px 25px rgba(0, 102, 255, 0.35) !important;
-    min-height: 48px !important;
+    min-height: 46px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    margin-top: 4px !important;
   }
 
   .landing-page .apple-hero {
@@ -3786,6 +3995,41 @@ body.dark-mode .zappit-login-footer {
 
   .landing-page .bundle-custom-price {
     font-size: 1.55rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .landing-page .navbar-wrapper {
+    padding-left: max(6px, env(safe-area-inset-left)) !important;
+    padding-right: max(6px, env(safe-area-inset-right)) !important;
+  }
+
+  .landing-page .navbar {
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 0 6px !important;
+  }
+
+  .landing-page .logo .brand-logo,
+  .landing-page .logo .zappit-logo-img,
+  .landing-page .logo img {
+    width: 86px !important;
+    max-width: 90px !important;
+    height: 35px !important;
+    max-height: 35px !important;
+  }
+
+  .landing-page .nav-actions {
+    gap: 6px !important;
+  }
+
+  .landing-page .btn-icon,
+  .landing-page .account-button,
+  .landing-page .hamburger {
+    width: 35px !important;
+    height: 35px !important;
+    min-width: 35px !important;
+    min-height: 35px !important;
   }
 }
 

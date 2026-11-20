@@ -1587,6 +1587,60 @@ class LuxApp {
       const cartDrawer = document.getElementById('cart-drawer');
       const wishlistDrawer = document.getElementById('wishlist-drawer');
       const supportTrigger = document.getElementById('support-trigger');
+      const mobileMenu = document.getElementById('nav-menu');
+      const hamburger = document.getElementById('hamburger');
+      const navBackdrop = document.getElementById('nav-backdrop');
+      const accountButton = document.getElementById('login-trigger');
+      const accountMenu = document.getElementById('account-menu');
+      const accountDropdown = document.getElementById('account-dropdown');
+
+      const closeAccountMenu = () => {
+        if (accountDropdown) accountDropdown.hidden = true;
+        accountButton?.setAttribute('aria-expanded', 'false');
+      };
+
+      const closeMobileMenu = () => {
+        if (!mobileMenu) return;
+        mobileMenu.classList.remove('is-open');
+        mobileMenu.style.display = '';
+        if (hamburger) {
+          hamburger.setAttribute('aria-expanded', 'false');
+          hamburger.setAttribute('aria-label', 'Open navigation menu');
+        }
+        if (navBackdrop) {
+          navBackdrop.classList.remove('is-open');
+        }
+        document.body.classList.remove('mobile-nav-open');
+        document.body.style.overflow = '';
+      };
+
+      const openMobileMenu = () => {
+        if (!mobileMenu || !hamburger) return;
+        closeAccountMenu();
+        mobileMenu.classList.add('is-open');
+        mobileMenu.style.display = '';
+        hamburger.setAttribute('aria-expanded', 'true');
+        hamburger.setAttribute('aria-label', 'Close navigation menu');
+        if (navBackdrop) {
+          navBackdrop.classList.add('is-open');
+        }
+        document.body.classList.add('mobile-nav-open');
+        document.body.style.overflow = 'hidden';
+      };
+
+      const toggleMobileMenu = () => {
+        const isOpen = mobileMenu && (mobileMenu.classList.contains('is-open') || hamburger?.getAttribute('aria-expanded') === 'true');
+        if (isOpen) {
+          closeMobileMenu();
+        } else {
+          openMobileMenu();
+        }
+      };
+
+      this.closeMobileNav = closeMobileMenu;
+      this.openMobileNav = openMobileMenu;
+      this.toggleMobileNav = toggleMobileMenu;
+      this.closeAccountMenu = closeAccountMenu;
 
       supportTrigger?.addEventListener('click', () => this.openSupportModal());
 
@@ -1625,6 +1679,8 @@ class LuxApp {
       }
 
       const openDrawer = (drawer) => {
+        closeMobileMenu();
+        closeAccountMenu();
         if (drawer === cartDrawer) {
           this.openCartDrawer(document.activeElement);
           return;
@@ -1663,7 +1719,12 @@ class LuxApp {
         }
       };
 
-      document.getElementById('cart-trigger')?.addEventListener('click', () => openDrawer(cartDrawer));
+      document.getElementById('cart-trigger')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeMobileMenu();
+        closeAccountMenu();
+        openDrawer(cartDrawer);
+      });
       document.getElementById('wishlist-trigger')?.addEventListener('click', () => openDrawer(wishlistDrawer));
       document.querySelectorAll('.buy-featured-product').forEach(button => {
         if (['nfc-keytag', 'qr-tag', 'lost-found-tag'].includes(button.dataset.productId)) {
@@ -1708,55 +1769,56 @@ class LuxApp {
       this.setPaymentMethod(document.querySelector('input[name="payment-method"]:checked')?.value || 'UPI');
 
       // 4. Hamburger Mobile Menu Toggle
-      const mobileMenu = document.getElementById('nav-menu');
-      const hamburger = document.getElementById('hamburger');
-      const closeMobileMenu = () => {
-        if (!mobileMenu || !hamburger) return;
-        mobileMenu.classList.remove('is-open');
-        mobileMenu.style.display = 'none';
+      if (hamburger && !hamburger.dataset.navBound) {
+        hamburger.dataset.navBound = 'true';
         hamburger.setAttribute('aria-expanded', 'false');
-        hamburger.setAttribute('aria-label', 'Open menu');
-      };
+        hamburger.setAttribute('aria-controls', 'nav-menu');
+        hamburger.setAttribute('aria-label', 'Open navigation menu');
+        hamburger.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleMobileMenu();
+        });
+      }
 
-      hamburger?.setAttribute('aria-expanded', 'false');
-      hamburger?.setAttribute('aria-controls', 'nav-menu');
-      hamburger?.setAttribute('aria-label', 'Open menu');
-      hamburger?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!mobileMenu) return;
-        const isOpen = mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex';
-        if (isOpen) {
-          closeMobileMenu();
-        } else {
-          mobileMenu.classList.add('is-open');
-          mobileMenu.style.display = 'flex';
-          mobileMenu.style.flexDirection = 'column';
-          hamburger.setAttribute('aria-expanded', 'true');
-          hamburger.setAttribute('aria-label', 'Close menu');
-        }
+      navBackdrop?.addEventListener('click', () => {
+        closeMobileMenu();
       });
 
       mobileMenu?.querySelectorAll('a, button').forEach((link) => {
-        link.addEventListener('click', closeMobileMenu);
+        link.addEventListener('click', () => {
+          closeMobileMenu();
+        });
       });
 
       document.addEventListener('click', (e) => {
-        if (mobileMenu && (mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex')) {
-          if (!mobileMenu.contains(e.target) && !hamburger?.contains(e.target)) {
+        if (mobileMenu && mobileMenu.classList.contains('is-open')) {
+          if (!mobileMenu.contains(e.target) && !hamburger?.contains(e.target) && !navBackdrop?.contains(e.target)) {
             closeMobileMenu();
+          }
+        }
+        if (accountDropdown && !accountDropdown.hidden) {
+          if (!accountMenu?.contains(e.target)) {
+            closeAccountMenu();
           }
         }
       });
 
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && mobileMenu && (mobileMenu.classList.contains('is-open') || mobileMenu.style.display === 'flex')) {
-          closeMobileMenu();
-          hamburger?.focus();
+        if (e.key === 'Escape') {
+          if (mobileMenu && mobileMenu.classList.contains('is-open')) {
+            closeMobileMenu();
+            hamburger?.focus();
+          }
+          if (accountDropdown && !accountDropdown.hidden) {
+            closeAccountMenu();
+            accountButton?.focus();
+          }
         }
       });
 
       window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) {
+        if (window.innerWidth > 960) {
           closeMobileMenu();
           mobileMenu?.removeAttribute('style');
         }
@@ -1851,14 +1913,9 @@ class LuxApp {
       });
 
       // Trigger login modal
-      const accountButton = document.getElementById('login-trigger');
-      const accountMenu = document.getElementById('account-menu');
-      const accountDropdown = document.getElementById('account-dropdown');
-      const closeAccountMenu = () => {
-        if (accountDropdown) accountDropdown.hidden = true;
-        accountButton?.setAttribute('aria-expanded', 'false');
-      };
-      accountButton?.addEventListener('click', () => {
+      accountButton?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMobileMenu();
         const currentUser = JSON.parse(localStorage.getItem('myluxcards_current_user') || 'null');
         if (currentUser) {
           const opening = accountDropdown?.hidden !== false;
@@ -1869,6 +1926,7 @@ class LuxApp {
         const modal = document.getElementById('login-modal');
         if (modal) {
           modal.classList.add('open');
+          modal.setAttribute('aria-hidden', 'false');
         } else {
           window.location.assign('/login');
         }

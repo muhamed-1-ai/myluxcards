@@ -42,6 +42,7 @@ const redesignedMarkup = `
   <!-- Floating Glass Navbar -->
   <header class="navbar-wrapper" id="navbar-wrapper">
     <div class="navbar-glow-indicator" id="navbar-scroll-indicator" aria-hidden="true"></div>
+    <div class="nav-backdrop" id="nav-backdrop" aria-hidden="true"></div>
     <nav class="navbar" id="main-navbar" aria-label="Main Navigation">
       <div class="navbar-container">
         <!-- Logo on Left -->
@@ -58,7 +59,8 @@ const redesignedMarkup = `
           <li><a href="#how-it-works" class="nav-link" id="nav-steps-link">How It Works</a></li>
           <li><a href="#bundles" class="nav-link" id="nav-bundles-link">Bundles</a></li>
           <li><a href="#faq" class="nav-link" id="nav-faq-link">FAQ</a></li>
-          <li class="nav-dashboard-link"><a href="/dashboard" class="nav-link">Dashboard</a></li>
+          <li class="nav-dashboard-link"><a href="/dashboard" class="nav-link" id="nav-mobile-dashboard-link">Dashboard</a></li>
+          <li class="mobile-cta-item"><a href="#materials" class="nav-link mobile-design-cta">Choose Your Card</a></li>
         </ul>
         
         <!-- Controls on Right -->
@@ -71,7 +73,7 @@ const redesignedMarkup = `
           
           <!-- Authenticated User Avatar and Name Dropdown Trigger -->
           <div class="account-menu" id="account-menu">
-            <button class="account-button" id="login-trigger" type="button" aria-haspopup="menu" aria-controls="account-dropdown" aria-expanded="false">
+            <button class="account-button" id="login-trigger" type="button" aria-haspopup="menu" aria-controls="account-dropdown" aria-expanded="false" aria-label="Login or account menu">
               <i data-lucide="user" style="width: 15px; height: 15px;"></i>
               <span class="account-label">Login</span>
             </button>

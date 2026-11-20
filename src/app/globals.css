@@ -11711,7 +11711,7 @@ label,
 
 /* 5. Mobile Header & Hamburger Menu */
 @media (max-width: 768px) {
-  .navbar {
+  .navbar:not(.landing-page .navbar) {
     background: var(--nav-bg) !important;
     border-bottom: 1px solid var(--border-color) !important;
   }
@@ -11720,7 +11720,7 @@ label,
     background-color: var(--text-main) !important;
   }
 
-  .account-button {
+  .account-button:not(.landing-page .account-button) {
     background: var(--surface-soft) !important;
     border: 1px solid var(--border-color) !important;
     color: var(--text-main) !important;
