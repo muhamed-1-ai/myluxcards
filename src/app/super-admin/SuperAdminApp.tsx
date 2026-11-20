@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { buildPremiumQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
@@ -8,11 +8,93 @@ import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
 import PackingMode from "@/components/super-admin/PackingMode";
 import ShippingMode from "@/components/super-admin/ShippingMode";
 import JSZip from "jszip";
+import { DashboardBackgroundDecor } from "@/components/dashboard/DashboardBackgroundDecor";
+import {
+  LayoutDashboard,
+  Users,
+  Truck,
+  ShieldAlert,
+  ShieldCheck,
+  Settings as SettingsIcon,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  TrendingUp,
+  RefreshCw,
+  Search,
+  Download,
+  PackageCheck,
+  ClipboardList,
+  CheckCircle,
+} from "lucide-react";
 
 type Section = "overview" | "users" | "fulfillment" | "audit" | "settings";
 
+const sectionLabels: Record<Section, string> = {
+  overview: "Platform Overview",
+  users: "Users & QR Directory",
+  fulfillment: "Fulfillment Command Center",
+  audit: "Audit Logs",
+  settings: "Platform Settings",
+};
+
 export default function SuperAdminApp({ identity }: { identity: AdminIdentity }) {
   const [section, setSection] = useState<Section>("overview");
+  const [mobile, setMobile] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [activeRailTip, setActiveRailTip] = useState<{ text: string; top: number } | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [isReloading, setIsReloading] = useState(false);
+
+  // Sync theme with existing dashboard localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("zappit_theme") as "dark" | "light" | null;
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      if (savedTheme === "light") {
+        document.body.classList.add("light-mode");
+        document.body.classList.remove("dark-mode");
+      } else {
+        document.body.classList.add("dark-mode");
+        document.body.classList.remove("light-mode");
+      }
+    }
+    const savedSidebar = localStorage.getItem("zappit_sidebar_collapsed");
+    if (savedSidebar === "true") setDesktopCollapsed(true);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    localStorage.setItem("zappit_theme", next);
+    document.documentElement.setAttribute("data-theme", next);
+    if (next === "light") {
+      document.body.classList.add("light-mode");
+      document.body.classList.remove("dark-mode");
+    } else {
+      document.body.classList.add("dark-mode");
+      document.body.classList.remove("light-mode");
+    }
+  };
+
+  const toggleDesktopSidebar = () => {
+    setDesktopCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("zappit_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobile) {
+        setMobile(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobile]);
 
   // Users State (Server-side paginated)
   const [users, setUsers] = useState<any[]>([]);
@@ -315,99 +397,295 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
     return matchesPipeline && matchesSearch;
   });
 
+  const userInitials = identity.name ? identity.name.charAt(0).toUpperCase() : "S";
+
+  const renderNavBtn = (key: Section, label: string, Icon: any) => {
+    const isActive = section === key;
+    return (
+      <button
+        key={key}
+        type="button"
+        className={`side-nav-item ${isActive ? "active" : ""}`}
+        onClick={() => setSection(key)}
+        onMouseEnter={(e) => {
+          if (desktopCollapsed && window.innerWidth > 900) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setActiveRailTip({ text: label, top: rect.top + rect.height / 2 });
+          }
+        }}
+        onMouseLeave={() => setActiveRailTip(null)}
+        title={desktopCollapsed ? label : undefined}
+        aria-current={isActive ? "page" : undefined}
+      >
+        <Icon className="nav-icon" />
+        <span className="nav-label">{label}</span>
+      </button>
+    );
+  };
+
   return (
-    <div className="admin-shell" style={{ background: "var(--admin-bg)", minHeight: "100vh", color: "var(--admin-text)", fontFamily: "system-ui, sans-serif" }}>
-      {/* Top Bar */}
-      <header className="admin-top" style={{ background: "var(--admin-panel)", borderBottom: "1px solid var(--admin-border)", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <a href="/" className="admin-logo" style={{ display: "inline-flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
-          <BrandLogo size="sm" />
-          <span style={{ color: "#0066FF", fontSize: "12px", background: "rgba(0, 102, 255, 0.12)", padding: "2px 8px", borderRadius: "4px", fontWeight: 700 }}>SUPER ADMIN</span>
-        </a>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <strong style={{ fontSize: "14px" }}>{identity.name}</strong>
-          <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "4px", background: "#0066FF", color: "#fff", fontWeight: 700 }}>SUPER ADMIN</span>
+    <div className={`admin-shell ${desktopCollapsed ? "is-collapsed" : ""}`}>
+      {/* Background Decor */}
+      <DashboardBackgroundDecor />
+
+      {/* Top Header Bar */}
+      <header className="admin-top">
+        <div className="admin-top-left">
+          <button
+            type="button"
+            className="admin-menu-toggle"
+            onClick={() => setMobile(true)}
+            aria-label="Open navigation menu"
+          >
+            ☰
+          </button>
+          <div className="dash-breadcrumbs">
+            <span className="crumb-brand">Zappit</span>
+            <span className="crumb-slash">/</span>
+            <span className="crumb-target">Super Admin · {sectionLabels[section]}</span>
+          </div>
+          <span className="admin-mode-pill">SUPER ADMIN</span>
+        </div>
+
+        <div className="admin-top-right">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="dash-theme-btn"
+            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            aria-label="Toggle theme"
+          >
+            <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+            <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="admin-icon-btn"
+            onClick={async () => {
+              setIsReloading(true);
+              await loadOverviewAndAudit();
+              if (section === "users") await loadUsers();
+              else if (section === "fulfillment") await loadFulfillment();
+              setTimeout(() => setIsReloading(false), 500);
+            }}
+            title="Refresh data"
+            aria-label="Refresh data"
+          >
+            <RefreshCw style={{ width: 16, height: 16 }} className={isReloading ? "animate-spin text-blue-500" : ""} />
+          </button>
+
+          <div className="admin-user-badge">
+            <div className="admin-avatar-circle">{userInitials}</div>
+            <div className="admin-user-info">
+              <strong>{identity.name}</strong>
+              <small>SUPER ADMIN</small>
+            </div>
+          </div>
         </div>
       </header>
 
       {copyNotice && (
-        <div style={{ position: "fixed", top: "20px", right: "20px", background: "#52c41a", color: "#000", padding: "10px 20px", borderRadius: "6px", fontWeight: 700, zIndex: 9999 }}>
+        <div className="admin-toast-notice success">
           ✓ {copyNotice}
         </div>
       )}
 
-      <div style={{ display: "flex", flex: 1 }}>
-        {/* Navigation Sidebar */}
-        <aside style={{ width: "240px", padding: "20px", background: "var(--admin-panel)", borderRight: "1px solid var(--admin-border)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-          <div>
-            <p style={{ fontSize: "11px", color: "var(--admin-muted)", fontWeight: 700, letterSpacing: "1px", marginBottom: "16px" }}>COMMAND CENTER</p>
-            <nav style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <button className={section === "overview" ? "active" : ""} onClick={() => setSection("overview")} style={navBtnStyle(section === "overview")}>
-                📊 Overview
-              </button>
-              <button className={section === "users" ? "active" : ""} onClick={() => setSection("users")} style={navBtnStyle(section === "users")}>
-                👥 Users & QR Directory
-              </button>
-              <button className={section === "fulfillment" ? "active" : ""} onClick={() => setSection("fulfillment")} style={navBtnStyle(section === "fulfillment")}>
-                🚚 Fulfillment Center
-              </button>
-              <button className={section === "audit" ? "active" : ""} onClick={() => setSection("audit")} style={navBtnStyle(section === "audit")}>
-                🛡️ Audit Logs
-              </button>
-              <button className={section === "settings" ? "active" : ""} onClick={() => setSection("settings")} style={navBtnStyle(section === "settings")}>
-                ⚙️ Platform Settings
-              </button>
-            </nav>
-          </div>
-          <button className="admin-logout" onClick={logout} style={{ width: "100%", padding: "10px", background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}>
-            Log out
-          </button>
-        </aside>
+      {/* Backdrop scrim on mobile */}
+      {mobile && (
+        <button
+          type="button"
+          className="admin-scrim"
+          onClick={() => setMobile(false)}
+          aria-label="Close navigation"
+        />
+      )}
 
-        {/* Main Content View */}
-        <main style={{ flex: 1, padding: "28px", background: "var(--admin-bg)", overflowX: "hidden" }}>
-          {/* SECTION 1: OVERVIEW */}
-          {section === "overview" && (
-            <div>
-              <h1 style={{ fontSize: "24px", margin: "0 0 20px" }}>Platform Overview</h1>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
-                <div style={statBoxStyle}>
-                  <span style={{ color: "#888", fontSize: "12px" }}>Total Platform Users</span>
-                  <h2 style={{ fontSize: "36px", margin: "8px 0" }}>{overviewStats.totalAccounts}</h2>
-                </div>
-                <div style={statBoxStyle}>
-                  <span style={{ color: "#888", fontSize: "12px" }}>Active Standard Users</span>
-                  <h2 style={{ fontSize: "36px", margin: "8px 0", color: "#52c41a" }}>{overviewStats.activeUsers}</h2>
-                </div>
-                <div style={statBoxStyle}>
-                  <span style={{ color: "#888", fontSize: "12px" }}>Platform Admins</span>
-                  <h2 style={{ fontSize: "36px", margin: "8px 0", color: "#00E5FF" }}>{overviewStats.admins}</h2>
-                </div>
+      {/* Sidebar Navigation */}
+      <aside className={`admin-sidebar ${mobile ? "open" : ""} ${desktopCollapsed ? "is-rail" : ""}`}>
+        <div className="side-logo-wrap">
+          <a href="/" className="side-brand" title="Zappit Homepage" aria-label="Zappit">
+            <BrandLogo size="sm" />
+            <span className="side-brand-tag">SUPER ADMIN</span>
+          </a>
+
+          <button
+            type="button"
+            className="side-collapse-btn"
+            onClick={toggleDesktopSidebar}
+            aria-label={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {desktopCollapsed ? (
+              <PanelLeftOpen style={{ width: 18, height: 18 }} />
+            ) : (
+              <PanelLeftClose style={{ width: 18, height: 18 }} />
+            )}
+          </button>
+
+          <button
+            type="button"
+            className="side-close-btn"
+            onClick={() => setMobile(false)}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        <nav className="side-nav-scroll">
+          <span className="side-group-title">Command Center</span>
+          {renderNavBtn("overview", "Overview", LayoutDashboard)}
+          {renderNavBtn("users", "Users & QR Directory", Users)}
+          {renderNavBtn("fulfillment", "Fulfillment Center", Truck)}
+          {renderNavBtn("audit", "Audit Logs", ShieldAlert)}
+          {renderNavBtn("settings", "Platform Settings", SettingsIcon)}
+        </nav>
+
+        <div className="side-footer">
+          <button
+            type="button"
+            className="side-logout-btn"
+            onClick={logout}
+            onMouseEnter={(e) => {
+              if (desktopCollapsed && window.innerWidth > 900) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setActiveRailTip({ text: "Log out", top: rect.top + rect.height / 2 });
+              }
+            }}
+            onMouseLeave={() => setActiveRailTip(null)}
+          >
+            <LogOut style={{ width: 16, height: 16 }} />
+            <span>Log out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Floating Rail Tooltip when collapsed */}
+      {activeRailTip && desktopCollapsed && (
+        <div
+          className="rail-floating-tooltip"
+          style={{ top: `${activeRailTip.top}px` }}
+          role="tooltip"
+        >
+          {activeRailTip.text}
+        </div>
+      )}
+
+      {/* Main Content View */}
+      <main className="admin-main">
+        {/* SECTION 1: OVERVIEW */}
+        {section === "overview" && (
+          <div>
+            <div className="admin-heading">
+              <div>
+                <p className="admin-heading-eyebrow">COMMAND CENTER</p>
+                <h1>Platform Overview</h1>
+                <span>Comprehensive health and scale metrics for Zappit.</span>
               </div>
             </div>
-          )}
+
+            <div className="stat-grid">
+              <article className="crm-kpi-card" style={{ "--entrance-delay": "0ms" } as React.CSSProperties}>
+                <div className="crm-kpi-top">
+                  <span className="crm-kpi-label">TOTAL PLATFORM USERS</span>
+                  <div className="crm-kpi-badge">
+                    <Users style={{ width: 18, height: 18 }} />
+                  </div>
+                </div>
+                <div className="crm-kpi-value">{overviewStats.totalAccounts}</div>
+                <div className="crm-kpi-sub-link">
+                  <TrendingUp style={{ width: 13, height: 13, color: "var(--admin-cyan)" }} />
+                  <span>All registered accounts</span>
+                </div>
+              </article>
+
+              <article className="crm-kpi-card" style={{ "--entrance-delay": "30ms" } as React.CSSProperties}>
+                <div className="crm-kpi-top">
+                  <span className="crm-kpi-label">ACTIVE STANDARD USERS</span>
+                  <div className="crm-kpi-badge">
+                    <TrendingUp style={{ width: 18, height: 18 }} />
+                  </div>
+                </div>
+                <div className="crm-kpi-value" style={{ color: "#10B981" }}>{overviewStats.activeUsers}</div>
+                <div className="crm-kpi-sub-link">
+                  <TrendingUp style={{ width: 13, height: 13, color: "#10B981" }} />
+                  <span>Active user profiles</span>
+                </div>
+              </article>
+
+              <article className="crm-kpi-card" style={{ "--entrance-delay": "60ms" } as React.CSSProperties}>
+                <div className="crm-kpi-top">
+                  <span className="crm-kpi-label">PLATFORM ADMINS</span>
+                  <div className="crm-kpi-badge">
+                    <ShieldCheck style={{ width: 18, height: 18 }} />
+                  </div>
+                </div>
+                <div className="crm-kpi-value" style={{ color: "var(--admin-blue)" }}>{overviewStats.admins}</div>
+                <div className="crm-kpi-sub-link">
+                  <TrendingUp style={{ width: 13, height: 13, color: "var(--admin-blue)" }} />
+                  <span>Admins &amp; Super Admins</span>
+                </div>
+              </article>
+            </div>
+
+            <div className="admin-panel">
+              <div className="admin-panel-header">
+                <h2>Operational Quick Actions</h2>
+                <span style={{ fontSize: "12px", color: "var(--admin-muted)" }}>Platform shortcuts</span>
+              </div>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "12px" }}>
+                <button
+                  type="button"
+                  className="admin-btn-primary"
+                  onClick={() => setSection("fulfillment")}
+                >
+                  <Truck style={{ width: 16, height: 16 }} />
+                  <span>Open Fulfillment Center</span>
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn-secondary"
+                  onClick={() => setSection("users")}
+                >
+                  <Users style={{ width: 16, height: 16 }} />
+                  <span>Inspect User Directory</span>
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn-secondary"
+                  onClick={() => setSection("audit")}
+                >
+                  <ShieldAlert style={{ width: 16, height: 16 }} />
+                  <span>View Audit Logs</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
           {/* SECTION 2: USERS & QR DIRECTORY */}
           {section === "users" && (
             <div>
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px" }}>
+              <div className="admin-heading">
                 <div>
-                  <h1 style={{ fontSize: "24px", margin: 0 }}>User & QR Code Directory</h1>
-                  <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0" }}>
-                    Manage users, inspect QR destination URLs, and download production PNG/SVG files directly.
-                  </p>
+                  <p className="admin-heading-eyebrow">USER MANAGEMENT</p>
+                  <h1>User &amp; QR Code Directory</h1>
+                  <span>Manage users, inspect QR destination URLs, and download production PNG/SVG files directly.</span>
                 </div>
 
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   {selectedUserIds.length > 0 && (
-                    <button onClick={exportSelectedQrsZip} style={{ padding: "8px 14px", background: "linear-gradient(135deg, #0066FF, #00E5FF)", color: "#fff", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>
-                      📦 Download Selected QRs ({selectedUserIds.length} ZIP)
+                    <button onClick={exportSelectedQrsZip} className="admin-btn-primary">
+                      <Download style={{ width: 14, height: 14 }} />
+                      <span>Download Selected QRs ({selectedUserIds.length} ZIP)</span>
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Filters & Search */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", background: "#111", padding: "16px", borderRadius: "8px", border: "1px solid #222", marginBottom: "20px" }}>
+              <div className="admin-panel" style={{ marginTop: 0, marginBottom: "20px", padding: "16px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
                 <input
                   type="text"
                   placeholder="Search name, email, phone, card slug, ID..."
@@ -416,7 +694,8 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                     setUserSearch(e.target.value);
                     setUserPagination((prev) => ({ ...prev, page: 1 }));
                   }}
-                  style={{ flex: 1, minWidth: "240px", padding: "8px 12px", background: "#050505", border: "1px solid #333", color: "#fff", borderRadius: "6px" }}
+                  className="admin-input"
+                  style={{ flex: 1, minWidth: "240px" }}
                 />
 
                 <select
@@ -623,33 +902,32 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
               ) : (
                 <div>
                   {/* Header & Operational Mode Switcher */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: 12 }}>
+                  <div className="admin-heading">
                     <div>
-                      <h1 style={{ fontSize: "24px", margin: 0 }}>Fulfillment Command Center</h1>
-                      <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0" }}>
-                        Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.
-                      </p>
+                      <p className="admin-heading-eyebrow">OPERATIONS</p>
+                      <h1>Fulfillment Command Center</h1>
+                      <span>Operational order workspace: payment, customer, shipping, canonical QR &amp; packing slips in one place.</span>
                     </div>
 
                     {/* Operational Mode Switcher */}
-                    <div style={{ display: "flex", gap: 6, background: "#0c1017", padding: 4, borderRadius: 8, border: "1px solid #1c2638" }}>
+                    <div style={{ display: "flex", gap: 6, background: "var(--admin-panel-elevated)", padding: 4, borderRadius: 10, border: "1px solid var(--admin-border)" }}>
                       <button
                         onClick={() => setFulfillmentMode("all")}
-                        style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer", background: "#1e293b", color: "#fff" }}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "var(--admin-cyan)", color: "#fff" }}
                       >
-                        📊 ALL ORDERS
+                        ALL ORDERS
                       </button>
                       <button
                         onClick={() => setFulfillmentMode("packing")}
-                        style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer", background: "transparent", color: "#94a3b8" }}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "transparent", color: "var(--admin-muted)" }}
                       >
-                        📦 PACKING MODE
+                        PACKING MODE
                       </button>
                       <button
                         onClick={() => setFulfillmentMode("shipping")}
-                        style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer", background: "transparent", color: "#94a3b8" }}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "transparent", color: "var(--admin-muted)" }}
                       >
-                        🚚 SHIPPING MODE
+                        SHIPPING MODE
                       </button>
                     </div>
                   </div>
@@ -658,63 +936,63 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                   {fulfillmentData?.today && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
                       <div style={statBoxStyle}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S ORDERS</span>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#fff" }}>{fulfillmentData.today.todayOrders}</h3>
+                        <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>TODAY&apos;S ORDERS</span>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "var(--admin-text)" }}>{fulfillmentData.today.todayOrders}</h3>
                       </div>
                       <div style={statBoxStyle}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>TODAY'S SALES</span>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#2ecc71" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
+                        <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>TODAY&apos;S SALES</span>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#10B981" }}>₹{(fulfillmentData.today.todaySalesMinor / 100).toFixed(2)}</h3>
                       </div>
                       <div
                         onClick={() => setFulfillmentMode("packing")}
-                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid #f39c1255", transition: "all 0.2s ease" }}
+                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid rgba(245, 158, 11, 0.4)", transition: "all 0.2s ease" }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 11, color: "#f39c12", fontWeight: 800 }}>ORDERS TO PACK ➔</span>
+                          <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 800 }}>ORDERS TO PACK ➔</span>
                         </div>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#f39c12" }}>{fulfillmentData.today.ordersToFulfill}</h3>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#F59E0B" }}>{fulfillmentData.today.ordersToFulfill}</h3>
                       </div>
                       <div
                         onClick={() => setFulfillmentMode("shipping")}
-                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid #00E5FF55", transition: "all 0.2s ease" }}
+                        style={{ ...statBoxStyle, cursor: "pointer", border: "1px solid rgba(0, 102, 255, 0.4)", transition: "all 0.2s ease" }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 11, color: "#00E5FF", fontWeight: 800 }}>READY TO SHIP ➔</span>
+                          <span style={{ fontSize: 11, color: "var(--admin-cyan)", fontWeight: 800 }}>READY TO SHIP ➔</span>
                         </div>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#00E5FF" }}>{fulfillmentData.today.readyToShip}</h3>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "var(--admin-cyan)" }}>{fulfillmentData.today.readyToShip}</h3>
                       </div>
                       <div style={statBoxStyle}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>SHIPPED TODAY</span>
-                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#52c41a" }}>{fulfillmentData.today.shippedToday}</h3>
+                        <span style={{ fontSize: 11, color: "var(--admin-muted)", fontWeight: 700 }}>SHIPPED TODAY</span>
+                        <h3 style={{ fontSize: 24, margin: "4px 0 0", color: "#10B981" }}>{fulfillmentData.today.shippedToday}</h3>
                       </div>
                     </div>
                   )}
 
                   {/* SAVED OPERATIONAL FILTER PILLS */}
-                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 12 }}>
+                  <div className="super-pipeline-pills">
                     <button
                       onClick={() => setPipelineFilter("ALL")}
-                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #333", background: pipelineFilter === "ALL" ? "#333" : "#111", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      className={`super-pipeline-pill ${pipelineFilter === "ALL" ? "active" : ""}`}
                     >
-                      🔴 Needs Attention
+                      Needs Attention
                     </button>
                     <button
                       onClick={() => setPipelineFilter("PACKAGING")}
-                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #eab30844", background: pipelineFilter === "PACKAGING" ? "#eab308" : "#111", color: pipelineFilter === "PACKAGING" ? "#000" : "#eab308", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      className={`super-pipeline-pill ${pipelineFilter === "PACKAGING" ? "active" : ""}`}
                     >
-                      📦 To Pack
+                      To Pack
                     </button>
                     <button
                       onClick={() => setPipelineFilter("READY_TO_SHIP")}
-                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #00E5FF44", background: pipelineFilter === "READY_TO_SHIP" ? "#00E5FF" : "#111", color: pipelineFilter === "READY_TO_SHIP" ? "#000" : "#00E5FF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      className={`super-pipeline-pill ${pipelineFilter === "READY_TO_SHIP" ? "active" : ""}`}
                     >
-                      🚚 Ready to Ship
+                      Ready to Ship
                     </button>
                     <button
                       onClick={() => setPipelineFilter("NEW")}
-                      style={{ padding: "5px 12px", borderRadius: 16, border: "1px solid #ff4d4f44", background: pipelineFilter === "NEW" ? "#ff4d4f" : "#111", color: pipelineFilter === "NEW" ? "#fff" : "#ff4d4f", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      className={`super-pipeline-pill ${pipelineFilter === "NEW" ? "active" : ""}`}
                     >
-                      💳 Payment Pending
+                      Payment Pending
                     </button>
                   </div>
 
@@ -730,9 +1008,9 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                           type="button"
                           onClick={() => setPipelineFilter(st.key)}
                           style={{
-                            background: active ? "linear-gradient(135deg, #0066FF, #00E5FF)" : "#111",
-                            border: active ? "1px solid #00E5FF" : "1px solid #222",
-                            color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                            background: active ? "rgba(0, 102, 255, 0.14)" : "var(--admin-panel)",
+                            border: active ? "1px solid var(--admin-cyan)" : "1px solid var(--admin-border)",
+                            color: active ? "var(--admin-text)" : "var(--admin-muted)",
                             padding: "8px 14px",
                             borderRadius: 10,
                             fontSize: 12,
@@ -742,6 +1020,7 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
                             display: "flex",
                             alignItems: "center",
                             gap: 8,
+                            transition: "all 0.15s ease",
                           }}
                         >
                           <span>{st.label}</span>
@@ -982,15 +1261,16 @@ export default function SuperAdminApp({ identity }: { identity: AdminIdentity })
 
           {/* SECTION 5: SETTINGS */}
           {section === "settings" && (
-            <div style={{ background: "#111", border: "1px solid #222", padding: "24px", borderRadius: "8px", maxWidth: "600px" }}>
-              <h3 style={{ margin: "0 0 12px" }}>Platform System Configuration</h3>
-              <p style={{ color: "#aaa", fontSize: "14px", lineHeight: "1.6" }}>
+            <div className="admin-panel" style={{ maxWidth: "680px" }}>
+              <div className="admin-panel-header">
+                <h2>Platform System Configuration</h2>
+              </div>
+              <p style={{ color: "var(--admin-muted)", fontSize: "14px", lineHeight: "1.6" }}>
                 Super Admin features and Google OAuth allowlist settings are active. To grant ADMIN role to specific Google accounts upon sign in, specify their emails in the <code>ADMIN_GOOGLE_EMAILS</code> environment variable.
               </p>
             </div>
           )}
         </main>
-      </div>
 
       {/* QR PREVIEW MODAL */}
       {qrModalUser && (
@@ -1183,26 +1463,30 @@ const navBtnStyle = (active: boolean): React.CSSProperties => ({
 const statBoxStyle: React.CSSProperties = {
   background: "var(--admin-panel)",
   border: "1px solid var(--admin-border)",
-  padding: "20px",
-  borderRadius: "8px",
+  padding: "20px 22px",
+  borderRadius: "14px",
+  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
 };
 
 const selectStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  background: "var(--admin-panel)",
+  padding: "9px 14px",
+  background: "var(--admin-panel-elevated)",
   border: "1px solid var(--admin-border)",
   color: "var(--admin-text)",
-  borderRadius: "6px",
+  borderRadius: "8px",
   fontSize: "13px",
+  cursor: "pointer",
+  outline: "none",
 };
 
 const tableActionBtnStyle: React.CSSProperties = {
-  padding: "4px 8px",
-  borderRadius: "4px",
-  background: "var(--admin-panel)",
+  padding: "6px 12px",
+  borderRadius: "6px",
+  background: "rgba(255, 255, 255, 0.04)",
   color: "var(--admin-text)",
   border: "1px solid var(--admin-border)",
-  fontSize: "11px",
+  fontSize: "12px",
+  fontWeight: 600,
   cursor: "pointer",
 };
 

@@ -1,12 +1,44 @@
 "use client";
+import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import FormattedMoneyInput from "@/components/ui/FormattedMoneyInput";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPublicCardUrl, getCanonicalUserQrUrl } from "@/lib/url";
 import { buildPremiumQrSvg, buildAdminUserQrSvg, svgToHighResPngBlob } from "@/lib/premiumQr";
 import type { AdminIdentity } from "@/lib/adminAuth";
 import { FEATURE_CATALOGUE, FeatureKey, FeatureGroup, normalizeFeaturePermissions } from "@/lib/permissionsRegistry";
 import ShipOrderWorkspace from "@/components/super-admin/ShipOrderWorkspace";
+import { DashboardBackgroundDecor } from "@/components/dashboard/DashboardBackgroundDecor";
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  Flame,
+  BarChart2,
+  TrendingDown,
+  TrendingUp,
+  CreditCard,
+  ShoppingBag,
+  Bell,
+  UserCog,
+  ShieldAlert,
+  Settings as SettingsIcon,
+  LogOut,
+  RefreshCw,
+  Search,
+  Clock,
+  Clock3,
+  Truck,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  Zap,
+  UserPlus,
+  Package,
+  AlertTriangle,
+  AlertCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 
 type Section = "overview"|"managed_users"|"team_calendar"|"team_leads"|"team_analytics"|"team_lob_reasons"|"orders"|"customers"|"activations"|"products"|"payments"|"support"|"notifications"|"admins"|"audit"|"settings";
 type Row = Record<string, any>;
@@ -41,12 +73,68 @@ export default function AdminApp({
 }) {
   const [section, setSection] = useState<Section>(initialSection || "overview");
   const [mobile, setMobile] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [activeRailTip, setActiveRailTip] = useState<{ text: string; top: number } | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [isReloading, setIsReloading] = useState(false);
   const [data, setData] = useState<any>(mockData || null);
   const [loading, setLoading] = useState(!mockData);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [shipOrderId, setShipOrderId] = useState<string | null>(null);
   const loadVersion = useRef(0);
+
+  // Sync theme with existing dashboard localStorage & system preference
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("zappit_theme") as "dark" | "light" | null;
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      if (savedTheme === "light") {
+        document.body.classList.add("light-mode");
+        document.body.classList.remove("dark-mode");
+      } else {
+        document.body.classList.add("dark-mode");
+        document.body.classList.remove("light-mode");
+      }
+    }
+    const savedSidebar = localStorage.getItem("zappit_sidebar_collapsed");
+    if (savedSidebar === "true") setDesktopCollapsed(true);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    localStorage.setItem("zappit_theme", next);
+    document.documentElement.setAttribute("data-theme", next);
+    if (next === "light") {
+      document.body.classList.add("light-mode");
+      document.body.classList.remove("dark-mode");
+    } else {
+      document.body.classList.add("dark-mode");
+      document.body.classList.remove("light-mode");
+    }
+  };
+
+  const toggleDesktopSidebar = () => {
+    setDesktopCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("zappit_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobile) {
+        setMobile(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobile]);
+
   const load = useCallback(async () => {
     if (mockData) return;
     const version = ++loadVersion.current;
@@ -67,25 +155,59 @@ export default function AdminApp({
         }`,
         { cache: "no-store" }
       );
-      if(response.status===403){window.location.replace("/forbidden");return}
-      if(!response.ok) throw new Error((await response.json()).message||"Request failed.");
-      const payload=await response.json();
-      if(version===loadVersion.current) setData(payload);
-    } catch(e){
-      if(version===loadVersion.current) {
-        setError(e instanceof Error?e.message:"Could not load this section.");
+      if (response.status === 403) {
+        window.location.replace("/forbidden");
+        return;
+      }
+      if (!response.ok) throw new Error((await response.json()).message || "Request failed.");
+      const payload = await response.json();
+      if (version === loadVersion.current) setData(payload);
+    } catch (e) {
+      if (version === loadVersion.current) {
+        setError(e instanceof Error ? e.message : "Could not load this section.");
         setData(null);
       }
-    } finally{if(version===loadVersion.current)setLoading(false)}
-  },[section,search]);
-  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get("section") as Section|null;if(requested&&Object.hasOwn(labels,requested))setSection(requested)},[]);
-  useEffect(()=>{load()},[load]);
-  const mutate=async(path:string,method:string,body:unknown)=>{
-    const response=await fetch(`/api/admin/${path}`,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    const result=await response.json(); if(!response.ok) throw new Error(result.message||"Request failed."); await load(); return result;
+    } finally {
+      if (version === loadVersion.current) setLoading(false);
+    }
+  }, [section, search, mockData]);
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("section") as Section | null;
+    if (requested && Object.hasOwn(labels, requested)) setSection(requested);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const mutate = async (path: string, method: string, body: unknown) => {
+    const response = await fetch(`/api/admin/${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || "Request failed.");
+    await load();
+    return result;
   };
-  const navigate=(next:Section)=>{setSection(next);setSearch("");setMobile(false);const url=new URL(window.location.href);if(next==="overview")url.searchParams.delete("section");else url.searchParams.set("section",next);window.history.replaceState(null,"",url)};
-  const logout=async()=>{await fetch("/api/auth/logout",{method:"POST"});localStorage.removeItem("myluxcards_current_user");window.location.replace("/")};
+
+  const navigate = (next: Section) => {
+    setSection(next);
+    setSearch("");
+    setMobile(false);
+    const url = new URL(window.location.href);
+    if (next === "overview") url.searchParams.delete("section");
+    else url.searchParams.set("section", next);
+    window.history.replaceState(null, "", url);
+  };
+
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    localStorage.removeItem("myluxcards_current_user");
+    window.location.replace("/");
+  };
 
   if (shipOrderId) {
     return (
@@ -96,41 +218,255 @@ export default function AdminApp({
     );
   }
 
-  return <div className="admin-shell">
-    <header className="admin-top"><button className="admin-menu" onClick={()=>setMobile(!mobile)} aria-label={mobile?"Close admin navigation":"Open admin navigation"} aria-expanded={mobile}>☰</button><a href="/" className="admin-logo" style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}><BrandLogo size="sm" /><span>ADMIN</span></a><div className="admin-identity"><strong>{identity.name}</strong><small>{identity.role.replace("_"," ")}</small></div></header>
-    {mobile&&<button className="admin-scrim" onClick={()=>setMobile(false)} aria-label="Close menu"/>}
-    <aside className={mobile?"open":""}>
-      <p>ADMINISTRATION</p>
-      <nav>
-        <button className={section==="overview"?"active":""} onClick={()=>navigate("overview")}>🏠 Dashboard</button>
+  const unreadCount = data?.stats?.unreadNotifications || 0;
+  const userInitials = identity.name ? identity.name.charAt(0).toUpperCase() : "A";
 
-        <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>TEAM MANAGEMENT</p>
-        <button className={section==="managed_users"?"active":""} onClick={()=>navigate("managed_users")}>👥 Users</button>
+  const renderNavBtn = (key: Section, label: string, Icon: any) => {
+    const isActive = section === key;
+    return (
+      <button
+        key={key}
+        type="button"
+        className={`side-nav-item ${isActive ? "active" : ""}`}
+        onClick={() => navigate(key)}
+        onMouseEnter={(e) => {
+          if (desktopCollapsed && window.innerWidth > 900) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setActiveRailTip({ text: label, top: rect.top + rect.height / 2 });
+          }
+        }}
+        onMouseLeave={() => setActiveRailTip(null)}
+        title={desktopCollapsed ? label : undefined}
+        aria-current={isActive ? "page" : undefined}
+      >
+        <Icon className="nav-icon" />
+        <span className="nav-label">{label}</span>
+      </button>
+    );
+  };
 
-        <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>TEAM</p>
-        <button className={section==="team_calendar"?"active":""} onClick={()=>navigate("team_calendar")}>📅 Team Calendar</button>
-        <button className={section==="team_leads"?"active":""} onClick={()=>navigate("team_leads")}>🎯 Team Leads</button>
-        <button className={section==="team_analytics"?"active":""} onClick={()=>navigate("team_analytics")}>📊 Team Analytics</button>
-        <button className={section==="team_lob_reasons"?"active":""} onClick={()=>navigate("team_lob_reasons")}>📉 Team LOB Reasons</button>
+  return (
+    <div className={`admin-shell ${desktopCollapsed ? "is-collapsed" : ""}`}>
+      {/* Visual background decor matching customer dashboard */}
+      <DashboardBackgroundDecor />
 
-        <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>MY ZAPPIT</p>
-        <button className={section==="activations"?"active":""} onClick={()=>navigate("activations")}>💳 My Card</button>
-        <button className={section==="orders"?"active":""} onClick={()=>navigate("orders")}>🛒 My Orders</button>
-        <button className={section==="notifications"?"active":""} onClick={()=>navigate("notifications")}>🔔 Notifications</button>
+      {/* Top Header Bar */}
+      <header className="admin-top">
+        <div className="admin-top-left">
+          <button
+            type="button"
+            className="admin-menu-toggle"
+            onClick={() => setMobile(true)}
+            aria-label="Open administration menu"
+          >
+            ☰
+          </button>
+          <div className="dash-breadcrumbs">
+            <span className="crumb-brand">Zappit</span>
+            <span className="crumb-slash">/</span>
+            <span className="crumb-target">Admin · {labels[section]}</span>
+          </div>
+          <span className="admin-mode-pill">Admin Console</span>
+        </div>
 
-        {identity.role==="SUPER_ADMIN" && <>
-          <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, margin: "14px 0 6px 8px" }}>PLATFORM CONTROL</p>
-          <button className={section==="admins"?"active":""} onClick={()=>navigate("admins")}>⚙️ Admin Management</button>
-          <button className={section==="audit"?"active":""} onClick={()=>navigate("audit")}>🛡️ Audit Logs</button>
-          <button className={section==="settings"?"active":""} onClick={()=>navigate("settings")}>🔧 Platform Settings</button>
-        </>}
-      </nav>
-      <button className="admin-logout" onClick={logout}>Log out</button>
-    </aside>
-    <main><div className="admin-heading"><div><p>ZAPPIT ADMIN DASHBOARD</p><h1>{labels[section]}</h1><span>Manage your team and user accounts.</span></div>{["orders","customers","managed_users","team_leads"].includes(section)&&<form onSubmit={e=>{e.preventDefault();load()}}><input aria-label="Search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"/><button>Search</button></form>}</div>
-      {loading?<Skeleton/>:error?<Empty title="Unable to load data" text={error} action={load}/>:<Content section={section} payload={data} identity={identity} mutate={mutate} navigate={navigate} reload={load} openShipOrder={(id: string) => setShipOrderId(id)}/>}
-    </main>
-  </div>;
+        <div className="admin-top-right">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="dash-theme-btn"
+            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            aria-label="Toggle theme"
+          >
+            <span className="theme-btn-icon" aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+            <span className="theme-btn-label">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="admin-icon-btn"
+            onClick={async () => {
+              setIsReloading(true);
+              await load();
+              setTimeout(() => setIsReloading(false), 500);
+            }}
+            title="Refresh metrics & data"
+            aria-label="Refresh metrics"
+          >
+            <RefreshCw style={{ width: 16, height: 16 }} className={isReloading ? "animate-spin text-blue-500" : ""} />
+          </button>
+
+          <button
+            type="button"
+            className="admin-icon-btn"
+            onClick={() => navigate("notifications")}
+            title="Notifications"
+            aria-label="View notifications"
+          >
+            <Bell style={{ width: 16, height: 16 }} />
+            {unreadCount > 0 && <span className="admin-notif-dot">{unreadCount}</span>}
+          </button>
+
+          <div className="admin-user-badge">
+            <div className="admin-avatar-circle">{userInitials}</div>
+            <div className="admin-user-info">
+              <strong>{identity.name}</strong>
+              <small>{identity.role.replace("_", " ")}</small>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Backdrop scrim on mobile */}
+      {mobile && (
+        <button
+          type="button"
+          className="admin-scrim"
+          onClick={() => setMobile(false)}
+          aria-label="Close navigation"
+        />
+      )}
+
+      {/* Sleek rounded compact sidebar */}
+      <aside className={`admin-sidebar ${mobile ? "open" : ""} ${desktopCollapsed ? "is-rail" : ""}`}>
+        <div className="side-logo-wrap">
+          <a href="/" className="side-brand" title="Zappit Homepage" aria-label="Zappit">
+            <BrandLogo size="sm" />
+            <span className="side-brand-tag">ADMIN</span>
+          </a>
+
+          {/* Desktop rail collapse toggle button */}
+          <button
+            type="button"
+            className="side-collapse-btn"
+            onClick={toggleDesktopSidebar}
+            aria-label={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {desktopCollapsed ? (
+              <PanelLeftOpen style={{ width: 18, height: 18 }} />
+            ) : (
+              <PanelLeftClose style={{ width: 18, height: 18 }} />
+            )}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            type="button"
+            className="side-close-btn"
+            onClick={() => setMobile(false)}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        <nav className="side-nav-scroll">
+          <span className="side-group-title">Administration</span>
+          {renderNavBtn("overview", "Dashboard", LayoutDashboard)}
+
+          <span className="side-group-title">Team Management</span>
+          {renderNavBtn("managed_users", "Users", Users)}
+
+          <span className="side-group-title">Team</span>
+          {renderNavBtn("team_calendar", "Team Calendar", Calendar)}
+          {renderNavBtn("team_leads", "Team Leads", Flame)}
+          {renderNavBtn("team_analytics", "Team Analytics", BarChart2)}
+          {renderNavBtn("team_lob_reasons", "Team LOB Reasons", TrendingDown)}
+
+          <span className="side-group-title">My Zappit</span>
+          {renderNavBtn("activations", "My Card", CreditCard)}
+          {renderNavBtn("orders", "My Orders", ShoppingBag)}
+          {renderNavBtn("notifications", "Notifications", Bell)}
+
+          {identity.role === "SUPER_ADMIN" && (
+            <>
+              <span className="side-group-title">Platform Control</span>
+              {renderNavBtn("admins", "Admin Management", UserCog)}
+              {renderNavBtn("audit", "Audit Logs", ShieldAlert)}
+              {renderNavBtn("settings", "Platform Settings", SettingsIcon)}
+            </>
+          )}
+        </nav>
+
+        <div className="side-footer">
+          <button
+            type="button"
+            className="side-logout-btn"
+            onClick={logout}
+            onMouseEnter={(e) => {
+              if (desktopCollapsed && window.innerWidth > 900) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setActiveRailTip({ text: "Log out", top: rect.top + rect.height / 2 });
+              }
+            }}
+            onMouseLeave={() => setActiveRailTip(null)}
+          >
+            <LogOut style={{ width: 16, height: 16 }} />
+            <span>Log out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Floating Rail Tooltip when collapsed */}
+      {activeRailTip && desktopCollapsed && (
+        <div
+          className="rail-floating-tooltip"
+          style={{ top: `${activeRailTip.top}px` }}
+          role="tooltip"
+        >
+          {activeRailTip.text}
+        </div>
+      )}
+
+      {/* Main Content View */}
+      <main className="admin-main">
+        <div className="admin-heading">
+          <div>
+            <p className="admin-heading-eyebrow">ZAPPIT ADMIN DASHBOARD</p>
+            <h1>{labels[section]}</h1>
+            <span>Manage your team and user accounts.</span>
+          </div>
+
+          {["orders", "customers", "managed_users", "team_leads"].includes(section) && (
+            <form
+              className="admin-search-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                load();
+              }}
+            >
+              <input
+                aria-label="Search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search..."
+              />
+              <button type="submit" className="admin-btn-primary">
+                <Search style={{ width: 14, height: 14 }} />
+                <span>Search</span>
+              </button>
+            </form>
+          )}
+        </div>
+
+        {loading ? (
+          <Skeleton />
+        ) : error ? (
+          <Empty title="Unable to load data" text={error} action={load} />
+        ) : (
+          <Content
+            section={section}
+            payload={data}
+            identity={identity}
+            mutate={mutate}
+            navigate={navigate}
+            reload={load}
+            openShipOrder={(id: string) => setShipOrderId(id)}
+          />
+        )}
+      </main>
+    </div>
+  );
 }
 
 function Content({section,payload,identity,mutate,navigate,reload,openShipOrder}:{section:Section,payload:any,identity:AdminIdentity,mutate:(p:string,m:string,b:any)=>Promise<any>,navigate:(section:Section)=>void,reload:()=>Promise<void>,openShipOrder:(id:string)=>void}) {
@@ -153,10 +489,105 @@ function Content({section,payload,identity,mutate,navigate,reload,openShipOrder}
   if(section==="settings") return <Settings value={payload?.data||{}} mutate={mutate}/>;
   return null;
 }
-function Overview({data}:{data:any}) {
-  const s=data.stats||{}; const cards=[["Total orders",s.orders],["Today’s orders",s.todayOrders],["Pending",s.pending],["Processing",s.processing],["Shipped",s.shipped],["Delivered",s.delivered],["Cancelled",s.cancelled],["Refunded",s.refunded],["Total revenue",money(s.revenueTotal,data.currency)],["Revenue this month",money(s.revenueMonth,data.currency)],["Revenue today",money(s.revenueToday,data.currency)],["Customers",s.customers],["New customers",s.newCustomers],["Products",s.products],["Low stock",s.lowStock],["Failed payments",s.failedPayments],["Unread notifications",s.unreadNotifications]];
-  return <><section className="stat-grid">{cards.map(([k,v])=><article key={String(k)}><span>{k}</span><strong>{v??0}</strong></article>)}</section><section className="admin-panel"><h2>Orders by status</h2><div className="mini-chart">{(data.charts?.orderStatus||[]).map((r:Row)=><div key={r.label}><span>{r.label}</span><i style={{width:`${Math.max(2,Math.min(100,r.value/Math.max(1,s.orders)*100))}%`}}/><b>{r.value}</b></div>)}</div></section><section className="admin-panel"><h2>Recent orders</h2>{data.recentOrders?.length?<Table heads={["Order","Customer","Status","Payment","Total","Placed"]} rows={data.recentOrders.map((r:Row)=>[r.order_number,r.customer_name,r.status,r.payment_status,money(r.total_minor,r.currency),new Date(r.created_at).toLocaleString()])}/>:<Empty title="No orders yet" text="Verified orders will appear here after your checkout backend creates them."/ >}</section></>;
+
+function Overview({ data }: { data: any }) {
+  const s = data?.stats || {};
+  const currency = data?.currency || "INR";
+
+  const cards = [
+    { label: "Total orders", value: s.orders ?? 0, icon: ShoppingBag, sub: "Total store orders" },
+    { label: "Today’s orders", value: s.todayOrders ?? 0, icon: Clock, sub: "Placed today" },
+    { label: "Pending", value: s.pending ?? 0, icon: Clock3, sub: "Awaiting confirmation" },
+    { label: "Processing", value: s.processing ?? 0, icon: RefreshCw, sub: "In fulfillment" },
+    { label: "Shipped", value: s.shipped ?? 0, icon: Truck, sub: "Dispatched to courier" },
+    { label: "Delivered", value: s.delivered ?? 0, icon: CheckCircle2, sub: "Successfully delivered" },
+    { label: "Cancelled", value: s.cancelled ?? 0, icon: XCircle, sub: "Cancelled orders" },
+    { label: "Refunded", value: s.refunded ?? 0, icon: RotateCcw, sub: "Refunded orders" },
+    { label: "Total revenue", value: money(s.revenueTotal, currency), icon: CreditCard, sub: "All-time gross" },
+    { label: "Revenue this month", value: money(s.revenueMonth, currency), icon: Calendar, sub: "Current month" },
+    { label: "Revenue today", value: money(s.revenueToday, currency), icon: Zap, sub: "Today's revenue" },
+    { label: "Customers", value: s.customers ?? 0, icon: Users, sub: "Total registered accounts" },
+    { label: "New customers", value: s.newCustomers ?? 0, icon: UserPlus, sub: "Registered this month" },
+    { label: "Products", value: s.products ?? 0, icon: Package, sub: "Active catalogue items" },
+    { label: "Low stock", value: s.lowStock ?? 0, icon: AlertTriangle, sub: "Items needing restock" },
+    { label: "Failed payments", value: s.failedPayments ?? 0, icon: AlertCircle, sub: "Unsuccessful payments" },
+    { label: "Unread notifications", value: s.unreadNotifications ?? 0, icon: Bell, sub: "Needs attention" },
+  ];
+
+  return (
+    <>
+      <section className="stat-grid">
+        {cards.map((card, idx) => (
+          <article
+            key={card.label}
+            className="crm-kpi-card"
+            style={{ "--entrance-delay": `${idx * 28}ms` } as React.CSSProperties}
+          >
+            <div className="crm-kpi-top">
+              <span className="crm-kpi-label">{card.label}</span>
+              <div className="crm-kpi-badge">
+                <card.icon style={{ width: 18, height: 18 }} />
+              </div>
+            </div>
+            <div className="crm-kpi-value">{card.value}</div>
+            <div className="crm-kpi-sub-link">
+              <TrendingUp style={{ width: 13, height: 13, color: "var(--admin-cyan)" }} />
+              <span>{card.sub}</span>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="admin-panel">
+        <div className="admin-panel-header">
+          <h2>Orders by status</h2>
+          <span style={{ fontSize: "12px", color: "var(--admin-muted)" }}>Distribution across active stages</span>
+        </div>
+        <div className="mini-chart">
+          {(data?.charts?.orderStatus || []).map((r: Row) => (
+            <div key={r.label} className="mini-chart-row">
+              <span className="mini-chart-label">{r.label}</span>
+              <div className="mini-chart-bar-wrap">
+                <i
+                  style={{
+                    width: `${Math.max(2, Math.min(100, ((r.value || 0) / Math.max(1, s.orders || 1)) * 100))}%`,
+                  }}
+                />
+              </div>
+              <b className="mini-chart-val">{r.value}</b>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-panel">
+        <div className="admin-panel-header">
+          <h2>Recent orders</h2>
+          <span style={{ fontSize: "12px", color: "var(--admin-muted)" }}>Latest store transactions</span>
+        </div>
+        {data?.recentOrders?.length ? (
+          <Table
+            heads={["Order", "Customer", "Status", "Payment", "Total", "Placed"]}
+            rows={data.recentOrders.map((r: Row) => [
+              <b key="ord">{r.order_number}</b>,
+              <span key="cust">{r.customer_name}</span>,
+              <span key="st" className={`pill ${r.status?.toLowerCase()}`}>{r.status}</span>,
+              <span key="pay" className={`pill ${r.payment_status?.toLowerCase() === "paid" ? "delivered" : "pending"}`}>{r.payment_status}</span>,
+              money(r.total_minor, currency),
+              new Date(r.created_at).toLocaleString(),
+            ])}
+          />
+        ) : (
+          <Empty
+            title="No orders yet"
+            text="Verified orders will appear here after your checkout backend creates them."
+          />
+        )}
+      </section>
+    </>
+  );
 }
+
 function Orders({rows,mutate}:{rows:Row[],mutate:any}) {
   if(!rows.length)return <Empty title="No matching orders" text="Adjust your search or wait for verified checkout data."/>;
   return <Table heads={["Order","Customer","Products","Delivery","Pricing","Payment","Status","Action"]} rows={rows.map(r=>[<><b>{r.order_number}</b><small>{new Date(r.created_at).toLocaleString()}</small></>,<><b>{r.customer_name}</b><small>{r.customer_email}</small><small>{r.customer_phone||"No phone"}</small></>,<>{r.order_items?.map((item:Row)=><span key={item.id}><b>{item.product_name} × {item.quantity}</b><small>{item.sku||item.product_type} · {money(item.unit_price_minor,r.currency)}</small>{item.variant?.details&&<small>{item.variant.details}</small>}</span>)||"—"}</>,<><b>{[r.shipping_address?.line1,r.shipping_address?.line2].filter(Boolean).join(", ")}</b><small>{[r.shipping_address?.city,r.shipping_address?.state,r.shipping_address?.postalCode,r.shipping_address?.country].filter(Boolean).join(", ")}</small></>,<><b>Total: {money(r.total_minor,r.currency)}</b><small>Subtotal {money(r.subtotal_minor,r.currency)} · Discount {money(r.discount_minor,r.currency)}</small><small>Tax {money(r.tax_minor,r.currency)} · Shipping {money(r.shipping_minor,r.currency)}</small></>,<><b>{r.payment_status}</b><small>{r.payments?.[0]?.provider?.replaceAll("_"," ")||"Not recorded"}</small></>,<span className={`pill ${r.status.toLowerCase()}`}>{r.status}</span>,<select aria-label={`Status for ${r.order_number}`} value={r.status} onChange={e=>confirm(`Change ${r.order_number} to ${e.target.value}?`)&&mutate("orders","PATCH",{id:r.id,status:e.target.value})}>{["PENDING","CONFIRMED","PROCESSING","SHIPPED","DELIVERED","CANCELLED","REFUNDED"].map(x=><option key={x}>{x}</option>)}</select>])}/>;
